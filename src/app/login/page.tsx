@@ -8,21 +8,105 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { GraduationCap, Loader2, Mail, Lock } from 'lucide-react';
+import { GraduationCap, Loader2, Mail, Lock, ShieldCheck } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useAuth, useFirestore } from '@/firebase';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const router = useRouter();
+  const auth = useAuth();
+  const db = useFirestore();
+  const { toast } = useToast();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Simulate login
-    setTimeout(() => {
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Vérifier si l'utilisateur est admin
+      const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
+      
+      if (adminDoc.exists()) {
+        toast({ title: "Connexion réussie", description: "Bienvenue, Super Admin." });
+        router.push('/admin/dashboard');
+      } else {
+        toast({ title: "Connexion réussie", description: "Content de vous revoir." });
+        router.push('/dashboard');
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erreur de connexion",
+        description: "Email ou mot de passe incorrect."
+      });
+    } finally {
       setIsLoading(false);
-      router.push('/dashboard');
-    }, 1200);
+    }
+  };
+
+  // Fonction spéciale pour créer le compte super admin demandé si nécessaire
+  const setupSuperAdmin = async () => {
+    setIsInitializing(true);
+    const adminEmail = "slim.besbes@yahoo.fr";
+    const adminPass = "147813";
+
+    try {
+      // 1. Créer le compte Auth (si n'existe pas)
+      let user;
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, adminEmail, adminPass);
+        user = cred.user;
+      } catch (e: any) {
+        if (e.code === 'auth/email-already-in-use') {
+          const cred = await signInWithEmailAndPassword(auth, adminEmail, adminPass);
+          user = cred.user;
+        } else {
+          throw e;
+        }
+      }
+
+      if (user) {
+        // 2. Créer le profil utilisateur
+        await setDoc(doc(db, 'users', user.uid), {
+          id: user.uid,
+          email: adminEmail,
+          firstName: "Slim",
+          lastName: "Besbes",
+          roleId: "super_admin",
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        // 3. Donner les droits Super Admin
+        await setDoc(doc(db, 'roles_admin', user.uid), {
+          id: user.uid,
+          grantedAt: serverTimestamp()
+        }, { merge: true });
+
+        toast({
+          title: "Succès",
+          description: "Le compte Super Admin a été configuré avec succès."
+        });
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erreur d'initialisation",
+        description: error.message
+      });
+    } finally {
+      setIsInitializing(false);
+    }
   };
 
   return (
@@ -42,12 +126,20 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input id="email" type="email" placeholder="nom@exemple.com" className="pl-10" required />
+                <Input 
+                  id="email" 
+                  type="email" 
+                  placeholder="nom@exemple.com" 
+                  className="pl-10" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required 
+                />
               </div>
             </div>
             <div className="space-y-2">
@@ -59,7 +151,14 @@ export default function LoginPage() {
               </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input id="password" type="password" className="pl-10" required />
+                <Input 
+                  id="password" 
+                  type="password" 
+                  className="pl-10" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required 
+                />
               </div>
             </div>
             <div className="flex items-center space-x-2">
@@ -84,18 +183,32 @@ export default function LoginPage() {
           </form>
         </CardContent>
         <CardFooter className="flex flex-col gap-4 border-t pt-6">
-          <p className="text-sm text-center text-muted-foreground">
-            Pas encore d'accès ? <Link href="#" className="text-primary font-bold hover:underline">Contactez votre formateur</Link>
-          </p>
-          <div className="grid grid-cols-2 gap-2 w-full">
-             <Button variant="outline" size="sm" onClick={() => router.push('/admin/dashboard')}>Demo Admin</Button>
-             <Button variant="outline" size="sm" onClick={() => router.push('/dashboard')}>Demo Participant</Button>
+          <div className="text-center text-sm text-muted-foreground space-y-4 w-full">
+            <p>Pas encore d'accès ? Contactez votre formateur</p>
+            
+            <div className="border-t pt-4">
+              <p className="text-xs mb-2 font-semibold text-primary uppercase">Outils de Configuration (Demo)</p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full border-accent text-accent hover:bg-accent/5"
+                onClick={setupSuperAdmin}
+                disabled={isInitializing}
+              >
+                {isInitializing ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <ShieldCheck className="h-4 w-4 mr-2" />
+                )}
+                Initialiser le compte Super Admin
+              </Button>
+            </div>
           </div>
         </CardFooter>
       </Card>
       
       <p className="mt-8 text-xs text-muted-foreground text-center max-w-[300px]">
-        En vous connectant, vous acceptez nos conditions d'utilisation et notre politique de confidentialité.
+        Identifiants fournis : slim.besbes@yahoo.fr / 147813
       </p>
     </div>
   );

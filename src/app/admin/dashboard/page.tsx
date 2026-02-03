@@ -12,32 +12,62 @@ import {
   UserPlus,
   ArrowUpRight,
   Search,
-  MoreVertical
+  MoreVertical,
+  Loader2,
+  ShieldAlert
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-
-const MOCK_USERS = [
-  { name: 'Jean Dupont', email: 'jean@inovexio.com', status: 'Actif', progress: '68%', lastActive: 'Il y a 2h' },
-  { name: 'Marie Curie', email: 'marie@inovexio.com', status: 'Actif', progress: '92%', lastActive: 'Aujourd\'hui' },
-  { name: 'Pierre Simon', email: 'pierre@inovexio.com', status: 'Inactif', progress: '12%', lastActive: 'Il y a 5j' },
-];
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useRouter } from 'next/navigation';
+import { collection, doc, getDoc } from 'firebase/firestore';
 
 export default function AdminDashboard() {
-  const [mounted, setMounted] = useState(false);
+  const { user, isUserLoading } = useUser();
+  const db = useFirestore();
+  const router = useRouter();
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
+  // Vérifier les droits admin au chargement
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    async function checkAdmin() {
+      if (user) {
+        const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
+        if (!adminDoc.exists()) {
+          router.push('/dashboard');
+        } else {
+          setIsAdmin(true);
+        }
+      } else if (!isUserLoading) {
+        router.push('/login');
+      }
+    }
+    checkAdmin();
+  }, [user, isUserLoading, db, router]);
 
-  if (!mounted) return null;
+  // Récupérer les vrais participants depuis Firestore
+  const usersQuery = useMemoFirebase(() => {
+    return collection(db, 'users');
+  }, [db]);
+  const { data: participants, isLoading: isUsersLoading } = useCollection(usersQuery);
+
+  if (isUserLoading || isAdmin === null) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-fade-in p-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-headline font-bold text-primary">Super Admin Panel</h1>
+          <h1 className="text-3xl font-headline font-bold text-primary flex items-center gap-2">
+            <ShieldAlert className="h-8 w-8" />
+            Super Admin Panel
+          </h1>
           <p className="text-muted-foreground mt-1">Gérez vos utilisateurs, questions et analysez les performances globales.</p>
         </div>
         <div className="flex gap-2">
@@ -49,13 +79,13 @@ export default function AdminDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Utilisateurs Totaux</CardTitle>
+            <CardTitle className="text-sm font-medium">Participants Actifs</CardTitle>
             <Users className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,245</div>
+            <div className="text-2xl font-bold">{participants?.length || 0}</div>
             <p className="text-xs text-emerald-600 font-medium flex items-center mt-1">
-              +48 ce mois <ArrowUpRight className="h-3 w-3 ml-1" />
+              {participants?.length || 0} utilisateurs enregistrés
             </p>
           </CardContent>
         </Card>
@@ -97,51 +127,60 @@ export default function AdminDashboard() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Utilisateurs Récents</CardTitle>
+              <CardTitle>Liste des Participants</CardTitle>
               <div className="relative w-64">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Rechercher..." className="pl-8 h-9" />
+                <Input placeholder="Rechercher par nom ou email..." className="pl-8 h-9" />
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Utilisateur</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Progression</TableHead>
-                  <TableHead>Dernière Activité</TableHead>
-                  <TableHead className="text-right"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {MOCK_USERS.map((user) => (
-                  <TableRow key={user.email}>
-                    <TableCell>
-                      <div className="font-medium">{user.name}</div>
-                      <div className="text-xs text-muted-foreground">{user.email}</div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={user.status === 'Actif' ? 'default' : 'secondary'}>
-                        {user.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{user.progress}</TableCell>
-                    <TableCell>{user.lastActive}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
-                    </TableCell>
+            {isUsersLoading ? (
+              <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Utilisateur</TableHead>
+                    <TableHead>Rôle</TableHead>
+                    <TableHead>Créé le</TableHead>
+                    <TableHead className="text-right"></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {participants?.map((participant) => (
+                    <TableRow key={participant.id}>
+                      <TableCell>
+                        <div className="font-medium">{participant.firstName} {participant.lastName}</div>
+                        <div className="text-xs text-muted-foreground">{participant.email}</div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={participant.roleId === 'super_admin' ? 'default' : 'secondary'}>
+                          {participant.roleId === 'super_admin' ? 'Admin' : 'Participant'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{new Date(participant.createdAt?.seconds * 1000).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {(!participants || participants.length === 0) && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                        Aucun participant trouvé.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Top Domaines Faibles</CardTitle>
+            <CardTitle>Domaines à renforcer (Global)</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {[
