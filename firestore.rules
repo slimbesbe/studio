@@ -1,0 +1,177 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * INOVEXIO PMP EXAM SIMULATOR SECURITY RULES
+     *
+     * PHILOSOPHY:
+     * This ruleset implements a dual-layer authorization model:
+     * 1. Path-based Ownership: User-specific data (attempts, answers, review queues) is nested 
+     *    under /users/{userId}. Access is restricted to that specific user or a Super Admin.
+     * 2. Role-Based Access Control (RBAC): Global administrative privileges are determined by
+     *    the existence of a document in the /roles_admin collection.
+     *
+     * DATA STRUCTURE:
+     * - Private Data: Nested under /users/{userId}/...
+     * - Administrative Metadata: Root-level collections (questions, exams, tags, etc.) managed by Admins.
+     * - Roles: Managed in /roles_admin/{userId} where the document ID is the User's UID.
+     *
+     * SECURITY DECISIONS:
+     * - Super Admin Account: Access is granted globally to users whose UID exists in /roles_admin.
+     * - Relational Integrity: On creation of user-scoped documents, we enforce that internal 
+     *   'userId' fields match the parent path segment to prevent data injection.
+     * - Prototyping Flexibility: Schema validation (types, required fields) is omitted to allow
+     *   for rapid front-end iteration, focusing strictly on "Who" can access "What".
+     */
+
+    // ==========================================
+    // GLOBAL HELPER FUNCTIONS
+    // ==========================================
+
+    /** @description Checks if the user is authenticated. */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /** @description Checks if the user is the owner of the resource via path ID. */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /** @description Checks if the authenticated user has Super Admin status. */
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    /** @description Combines ownership check with existence check for destructive/modifying operations. */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    // ==========================================
+    // COLLECTION RULES
+    // ==========================================
+
+    /**
+     * @description Access control for the administrative roles collection.
+     * @path /roles_admin/{userId}
+     * @allow (get) Any signed-in user checking their own status.
+     * @deny (create, update, delete) Non-admin users attempting to promote themselves.
+     * @principle Existence-over-content role management.
+     */
+    match /roles_admin/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    /**
+     * @description User profile management.
+     * @path /users/{userId}
+     * @allow (create) User creating their own profile where document ID matches Auth UID.
+     * @deny (list) Listing all users is restricted to Admins only.
+     * @principle Self-creation and ownership.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if (isExistingOwner(userId) || isAdmin()) && request.resource.data.id == resource.data.id;
+      allow delete: if isAdmin();
+    }
+
+    /**
+     * @description Global PMP exam questions.
+     * @path /questions/{questionId}
+     * @allow (list) All signed-in participants can browse questions for practice.
+     * @deny (write) Any non-admin attempting to modify the question bank.
+     * @principle Admin-managed global content.
+     */
+    match /questions/{questionId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin();
+      allow update, delete: if isAdmin() && resource != null;
+    }
+
+    /**
+     * @description Exam configurations and structures.
+     * @path /exams/{examId}
+     * @allow (get) Participants retrieving exam details.
+     * @deny (delete) Deletion of exams by non-admins.
+     * @principle Admin-managed global content.
+     */
+    match /exams/{examId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin();
+      allow update, delete: if isAdmin() && resource != null;
+    }
+
+    /**
+     * @description Individual exam attempts recorded by users.
+     * @path /users/{userId}/examAttempts/{examAttemptId}
+     * @allow (list) A user listing their own historical attempts.
+     * @deny (create) Mismatched userId in path vs data payload.
+     * @principle Nested path ownership and path-to-data consistency.
+     */
+    match /users/{userId}/examAttempts/{examAttemptId} {
+      allow get, list: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if (isExistingOwner(userId) || isAdmin()) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isAdmin();
+
+      /**
+       * @description Answers submitted for a specific exam attempt.
+       * @path /users/{userId}/examAttempts/{examAttemptId}/answers/{answerId}
+       * @allow (create) Owner adding answers to their own attempt.
+       * @principle Hierarchical access control.
+       */
+      match /answers/{answerId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId);
+        allow update: if (isExistingOwner(userId) || isAdmin());
+        allow delete: if isAdmin();
+      }
+    }
+
+    /**
+     * @description Spaced repetition queue for reviewing incorrect answers.
+     * @path /users/{userId}/mistakeReviewQueue/{reviewId}
+     * @allow (update) User updating their review progress.
+     * @deny (get) Unauthorized users viewing another's mistake queue.
+     * @principle Personal progress tracking.
+     */
+    match /users/{userId}/mistakeReviewQueue/{reviewId} {
+      allow get, list: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if (isExistingOwner(userId) || isAdmin()) && request.resource.data.userId == resource.data.userId;
+      allow delete: if (isExistingOwner(userId) || isAdmin());
+    }
+
+    /**
+     * @description Taxonomy and metadata collections (Tags, Process Groups, Knowledge Areas, Domains).
+     * @path /{taxonomyCollection}/{docId}
+     * @allow (read) Public read for categorized navigation.
+     * @deny (write) Modification of taxonomy by non-admins.
+     */
+    match /tags/{tagId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    
+    match /processGroups/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    
+    match /knowledgeAreas/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    
+    match /examDomains/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}
