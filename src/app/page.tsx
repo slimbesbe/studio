@@ -180,7 +180,6 @@ export default function Home() {
           <div className="text-center text-sm text-muted-foreground w-full space-y-4">
             <p>Accès restreint aux consultants INOVEXIO</p>
             
-            {/* Bouton d'initialisation discret pour le prototype */}
             <div className="pt-2">
               <Button 
                 variant="ghost" 

@@ -206,10 +206,6 @@ export default function LoginPage() {
           </div>
         </CardFooter>
       </Card>
-      
-      <p className="mt-8 text-xs text-muted-foreground text-center max-w-[300px]">
-        Identifiants fournis : slim.besbes@yahoo.fr / 147813
-      </p>
     </div>
   );
 }
