@@ -1,145 +1,205 @@
 
+"use client";
+
+import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { ShieldCheck, GraduationCap, Zap, Trophy, ArrowRight } from 'lucide-react';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { GraduationCap, Loader2, Mail, Lock, ShieldCheck } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useAuth, useFirestore } from '@/firebase';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Home() {
-  const heroImage = PlaceHolderImages.find(img => img.id === 'hero-pmp');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const router = useRouter();
+  const auth = useAuth();
+  const db = useFirestore();
+  const { toast } = useToast();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
+      
+      if (adminDoc.exists()) {
+        toast({ title: "Connexion réussie", description: "Bienvenue, Super Admin." });
+        router.push('/admin/dashboard');
+      } else {
+        toast({ title: "Connexion réussie", description: "Content de vous revoir." });
+        router.push('/dashboard');
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erreur de connexion",
+        description: "Email ou mot de passe incorrect."
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const setupSuperAdmin = async () => {
+    setIsInitializing(true);
+    const adminEmail = "slim.besbes@yahoo.fr";
+    const adminPass = "147813";
+
+    try {
+      let user;
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, adminEmail, adminPass);
+        user = cred.user;
+      } catch (e: any) {
+        if (e.code === 'auth/email-already-in-use') {
+          const cred = await signInWithEmailAndPassword(auth, adminEmail, adminPass);
+          user = cred.user;
+        } else {
+          throw e;
+        }
+      }
+
+      if (user) {
+        await setDoc(doc(db, 'users', user.uid), {
+          id: user.uid,
+          email: adminEmail,
+          firstName: "Slim",
+          lastName: "Besbes",
+          roleId: "super_admin",
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        await setDoc(doc(db, 'roles_admin', user.uid), {
+          id: user.uid,
+          grantedAt: serverTimestamp()
+        }, { merge: true });
+
+        toast({
+          title: "Succès",
+          description: "Le compte Super Admin a été configuré avec succès."
+        });
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erreur d'initialisation",
+        description: error.message
+      });
+    } finally {
+      setIsInitializing(false);
+    }
+  };
 
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Header */}
-      <header className="px-4 lg:px-6 h-16 flex items-center border-b bg-white/80 backdrop-blur-md sticky top-0 z-50">
-        <Link className="flex items-center justify-center gap-2" href="/">
-          <div className="bg-primary p-1.5 rounded-lg">
-            <GraduationCap className="h-6 w-6 text-white" />
-          </div>
-          <span className="font-headline font-bold text-xl tracking-tight text-primary">INOVEXIO <span className="text-accent">PMP</span></span>
-        </Link>
-        <nav className="ml-auto flex gap-4 sm:gap-6">
-          <Link className="text-sm font-medium hover:text-primary transition-colors" href="#features">
-            Fonctionnalités
-          </Link>
-          <Link className="text-sm font-medium hover:text-primary transition-colors" href="/login">
-            Se connecter
-          </Link>
-          <Button asChild variant="default" size="sm" className="hidden sm:flex">
-            <Link href="/login">Demander un accès</Link>
-          </Button>
-        </nav>
-      </header>
-
-      <main className="flex-1">
-        {/* Hero Section */}
-        <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-gradient-to-b from-white to-background">
-          <div className="container px-4 md:px-6 mx-auto">
-            <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_600px] items-center">
-              <div className="flex flex-col justify-center space-y-4 animate-slide-up">
-                <div className="inline-block rounded-full bg-secondary px-3 py-1 text-sm font-medium text-primary">
-                  Propulsé par INOVEXIO Consulting
-                </div>
-                <h1 className="text-4xl font-headline font-bold tracking-tighter sm:text-5xl xl:text-6xl/none text-foreground">
-                  Maîtrisez le PMP avec le Simulateur <span className="text-primary">INOVEXIO</span>
-                </h1>
-                <p className="max-w-[600px] text-muted-foreground md:text-xl leading-relaxed">
-                  Une plateforme d'entraînement réaliste conçue pour les futurs chefs de projet certifiés. Mindset PMI, analyse d'erreurs "Kill Mistakes" et suivi personnalisé.
-                </p>
-                <div className="flex flex-col gap-2 min-[400px]:flex-row pt-4">
-                  <Button asChild size="lg" className="px-8 shadow-lg shadow-primary/20">
-                    <Link href="/login">
-                      Commencer l'entraînement <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
-                  </Button>
-                  <Button variant="outline" size="lg" className="px-8">
-                    Découvrir nos offres
-                  </Button>
-                </div>
-              </div>
-              <div className="relative group animate-fade-in">
-                <div className="absolute -inset-1 bg-gradient-to-r from-primary to-accent rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-1000"></div>
-                <Image
-                  alt="PMP Simulation Dashboard"
-                  className="relative mx-auto aspect-video overflow-hidden rounded-2xl object-cover object-center shadow-2xl"
-                  src={heroImage?.imageUrl || ""}
-                  width={1200}
-                  height={800}
-                  data-ai-hint="project management"
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 sm:p-6 lg:p-8">
+      <div className="flex items-center gap-2 mb-8 group">
+        <div className="bg-primary p-2 rounded-xl">
+          <GraduationCap className="h-8 w-8 text-white" />
+        </div>
+        <span className="font-headline font-bold text-2xl tracking-tight text-primary">
+          INOVEXIO <span className="text-accent">PMP</span>
+        </span>
+      </div>
+      
+      <Card className="w-full max-w-md border-t-4 border-t-primary shadow-xl animate-slide-up">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-headline font-bold text-center text-primary">Identification</CardTitle>
+          <CardDescription className="text-center">
+            Espace de simulation PMP professionnel
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email professionnel</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  id="email" 
+                  type="email" 
+                  placeholder="nom@exemple.com" 
+                  className="pl-10 h-11" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required 
                 />
               </div>
             </div>
-          </div>
-        </section>
-
-        {/* Features Section */}
-        <section id="features" className="w-full py-12 md:py-24 lg:py-32 bg-white">
-          <div className="container px-4 md:px-6 mx-auto">
-            <div className="flex flex-col items-center justify-center space-y-4 text-center mb-12">
-              <h2 className="text-3xl font-headline font-bold tracking-tighter sm:text-5xl text-primary">
-                Pourquoi choisir INOVEXIO ?
-              </h2>
-              <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                Notre approche pédagogique est centrée sur l'élimination systématique de vos lacunes.
-              </p>
-            </div>
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-              <div className="group p-6 bg-background rounded-xl hover:shadow-xl transition-all duration-300 border border-transparent hover:border-primary/10">
-                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <ShieldCheck className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="text-xl font-headline font-bold mb-2">Simulation Réaliste</h3>
-                <p className="text-muted-foreground text-sm">
-                  180 questions chronométrées, conformes au dernier ECO (Exam Content Outline).
-                </p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Mot de passe</Label>
               </div>
-              <div className="group p-6 bg-background rounded-xl hover:shadow-xl transition-all duration-300 border border-transparent hover:border-primary/10">
-                <div className="h-12 w-12 rounded-lg bg-accent/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <Zap className="h-6 w-6 text-accent" />
-                </div>
-                <h3 className="text-xl font-headline font-bold mb-2">Kill Mistakes</h3>
-                <p className="text-muted-foreground text-sm">
-                  Un système de répétition espacée intelligent pour ne plus jamais rater la même question.
-                </p>
-              </div>
-              <div className="group p-6 bg-background rounded-xl hover:shadow-xl transition-all duration-300 border border-transparent hover:border-primary/10">
-                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <Trophy className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="text-xl font-headline font-bold mb-2">Analytique Avancée</h3>
-                <p className="text-muted-foreground text-sm">
-                  Score détaillé par domaine, approche et groupe de processus.
-                </p>
-              </div>
-              <div className="group p-6 bg-background rounded-xl hover:shadow-xl transition-all duration-300 border border-transparent hover:border-primary/10">
-                <div className="h-12 w-12 rounded-lg bg-accent/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <GraduationCap className="h-6 w-6 text-accent" />
-                </div>
-                <h3 className="text-xl font-headline font-bold mb-2">Mindset PMI</h3>
-                <p className="text-muted-foreground text-sm">
-                  Explications détaillées pour chaque choix, ancrant durablement la philosophie PMI.
-                </p>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  id="password" 
+                  type="password" 
+                  className="pl-10 h-11" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required 
+                />
               </div>
             </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox id="remember" />
+              <label
+                htmlFor="remember"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Se souvenir de moi
+              </label>
+            </div>
+            <Button type="submit" className="w-full font-bold h-12 text-lg shadow-lg shadow-primary/20" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Connexion...
+                </>
+              ) : (
+                "Accéder à la plateforme"
+              )}
+            </Button>
+          </form>
+        </CardContent>
+        <CardFooter className="flex flex-col gap-4 border-t pt-6 bg-secondary/5">
+          <div className="text-center text-sm text-muted-foreground w-full space-y-4">
+            <p>Accès restreint aux consultants INOVEXIO</p>
+            
+            {/* Bouton d'initialisation discret pour le prototype */}
+            <div className="pt-2">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-[10px] text-muted-foreground/50 hover:text-primary transition-colors"
+                onClick={setupSuperAdmin}
+                disabled={isInitializing}
+              >
+                {isInitializing ? (
+                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                ) : (
+                  <ShieldCheck className="h-3 w-3 mr-1" />
+                )}
+                Configuration initiale
+              </Button>
+            </div>
           </div>
-        </section>
-      </main>
-
-      <footer className="w-full py-6 bg-primary text-white">
-        <div className="container px-4 md:px-6 mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-sm font-medium">
-            © 2024 INOVEXIO Consulting. Tous droits réservés.
-          </p>
-          <nav className="flex gap-4 sm:gap-6">
-            <Link className="text-sm hover:underline underline-offset-4" href="#">
-              Mentions Légales
-            </Link>
-            <Link className="text-sm hover:underline underline-offset-4" href="#">
-              RGPD
-            </Link>
-          </nav>
-        </div>
-      </footer>
+        </CardFooter>
+      </Card>
     </div>
   );
 }
