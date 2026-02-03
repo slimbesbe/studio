@@ -2,22 +2,20 @@
 "use client";
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { GraduationCap, Loader2, Mail, Lock, ShieldCheck } from 'lucide-react';
+import { GraduationCap, Loader2, Mail, Lock } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth, useFirestore } from '@/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const router = useRouter();
@@ -53,62 +51,11 @@ export default function Home() {
     }
   };
 
-  const setupSuperAdmin = async () => {
-    setIsInitializing(true);
-    const adminEmail = "slim.besbes@yahoo.fr";
-    const adminPass = "147813";
-
-    try {
-      let user;
-      try {
-        const cred = await createUserWithEmailAndPassword(auth, adminEmail, adminPass);
-        user = cred.user;
-      } catch (e: any) {
-        if (e.code === 'auth/email-already-in-use') {
-          const cred = await signInWithEmailAndPassword(auth, adminEmail, adminPass);
-          user = cred.user;
-        } else {
-          throw e;
-        }
-      }
-
-      if (user) {
-        await setDoc(doc(db, 'users', user.uid), {
-          id: user.uid,
-          email: adminEmail,
-          firstName: "Slim",
-          lastName: "Besbes",
-          roleId: "super_admin",
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        }, { merge: true });
-
-        await setDoc(doc(db, 'roles_admin', user.uid), {
-          id: user.uid,
-          grantedAt: serverTimestamp()
-        }, { merge: true });
-
-        toast({
-          title: "Succès",
-          description: "Le compte Super Admin a été configuré avec succès."
-        });
-      }
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Erreur d'initialisation",
-        description: error.message
-      });
-    } finally {
-      setIsInitializing(false);
-    }
-  };
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 sm:p-6 lg:p-8">
       <div className="flex items-center gap-2 mb-8 group">
         <div className="bg-primary p-2 rounded-xl">
-          <GraduationCap className="h-8 w-8 text-white" />
+          < GraduationCap className="h-8 w-8 text-white" />
         </div>
         <span className="font-headline font-bold text-2xl tracking-tight text-primary">
           INOVEXIO <span className="text-accent">PMP</span>
@@ -177,25 +124,8 @@ export default function Home() {
           </form>
         </CardContent>
         <CardFooter className="flex flex-col gap-4 border-t pt-6 bg-secondary/5">
-          <div className="text-center text-sm text-muted-foreground w-full space-y-4">
+          <div className="text-center text-sm text-muted-foreground w-full">
             <p>Accès restreint aux consultants INOVEXIO</p>
-            
-            <div className="pt-2">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="text-[10px] text-muted-foreground/50 hover:text-primary transition-colors"
-                onClick={setupSuperAdmin}
-                disabled={isInitializing}
-              >
-                {isInitializing ? (
-                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                ) : (
-                  <ShieldCheck className="h-3 w-3 mr-1" />
-                )}
-                Configuration initiale
-              </Button>
-            </div>
           </div>
         </CardFooter>
       </Card>

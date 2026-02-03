@@ -8,16 +8,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { GraduationCap, Loader2, Mail, Lock, ShieldCheck } from 'lucide-react';
+import { GraduationCap, Loader2, Mail, Lock } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth, useFirestore } from '@/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const router = useRouter();
@@ -33,7 +32,6 @@ export default function LoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Vérifier si l'utilisateur est admin
       const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
       
       if (adminDoc.exists()) {
@@ -51,61 +49,6 @@ export default function LoginPage() {
       });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  // Fonction spéciale pour créer le compte super admin demandé si nécessaire
-  const setupSuperAdmin = async () => {
-    setIsInitializing(true);
-    const adminEmail = "slim.besbes@yahoo.fr";
-    const adminPass = "147813";
-
-    try {
-      // 1. Créer le compte Auth (si n'existe pas)
-      let user;
-      try {
-        const cred = await createUserWithEmailAndPassword(auth, adminEmail, adminPass);
-        user = cred.user;
-      } catch (e: any) {
-        if (e.code === 'auth/email-already-in-use') {
-          const cred = await signInWithEmailAndPassword(auth, adminEmail, adminPass);
-          user = cred.user;
-        } else {
-          throw e;
-        }
-      }
-
-      if (user) {
-        // 2. Créer le profil utilisateur
-        await setDoc(doc(db, 'users', user.uid), {
-          id: user.uid,
-          email: adminEmail,
-          firstName: "Slim",
-          lastName: "Besbes",
-          roleId: "super_admin",
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        }, { merge: true });
-
-        // 3. Donner les droits Super Admin
-        await setDoc(doc(db, 'roles_admin', user.uid), {
-          id: user.uid,
-          grantedAt: serverTimestamp()
-        }, { merge: true });
-
-        toast({
-          title: "Succès",
-          description: "Le compte Super Admin a été configuré avec succès."
-        });
-      }
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Erreur d'initialisation",
-        description: error.message
-      });
-    } finally {
-      setIsInitializing(false);
     }
   };
 
@@ -183,26 +126,8 @@ export default function LoginPage() {
           </form>
         </CardContent>
         <CardFooter className="flex flex-col gap-4 border-t pt-6">
-          <div className="text-center text-sm text-muted-foreground space-y-4 w-full">
+          <div className="text-center text-sm text-muted-foreground w-full">
             <p>Pas encore d'accès ? Contactez votre formateur</p>
-            
-            <div className="border-t pt-4">
-              <p className="text-xs mb-2 font-semibold text-primary uppercase">Outils de Configuration (Demo)</p>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full border-accent text-accent hover:bg-accent/5"
-                onClick={setupSuperAdmin}
-                disabled={isInitializing}
-              >
-                {isInitializing ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <ShieldCheck className="h-4 w-4 mr-2" />
-                )}
-                Initialiser le compte Super Admin
-              </Button>
-            </div>
           </div>
         </CardFooter>
       </Card>
