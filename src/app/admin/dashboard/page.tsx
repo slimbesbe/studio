@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { collection, doc, getDoc } from 'firebase/firestore';
+import Link from 'next/link';
 
 export default function AdminDashboard() {
   const { user, isUserLoading } = useUser();
@@ -29,7 +30,6 @@ export default function AdminDashboard() {
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
-  // Vérifier les droits admin au chargement
   useEffect(() => {
     async function checkAdmin() {
       if (user) {
@@ -46,7 +46,6 @@ export default function AdminDashboard() {
     checkAdmin();
   }, [user, isUserLoading, db, router]);
 
-  // Récupérer les vrais participants depuis Firestore
   const usersQuery = useMemoFirebase(() => {
     return collection(db, 'users');
   }, [db]);
@@ -72,7 +71,11 @@ export default function AdminDashboard() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline"><Download className="mr-2 h-4 w-4" /> Exporter CSV</Button>
-          <Button><UserPlus className="mr-2 h-4 w-4" /> Nouvel Utilisateur</Button>
+          <Button asChild>
+            <Link href="/admin/users/new">
+              <UserPlus className="mr-2 h-4 w-4" /> Nouvel Utilisateur
+            </Link>
+          </Button>
         </div>
       </div>
 
@@ -159,7 +162,11 @@ export default function AdminDashboard() {
                           {participant.roleId === 'super_admin' ? 'Admin' : 'Participant'}
                         </Badge>
                       </TableCell>
-                      <TableCell>{new Date(participant.createdAt?.seconds * 1000).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        {participant.createdAt?.seconds 
+                          ? new Date(participant.createdAt.seconds * 1000).toLocaleDateString()
+                          : 'N/A'}
+                      </TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
                       </TableCell>
