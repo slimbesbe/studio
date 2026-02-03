@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -13,7 +12,8 @@ import {
   ArrowUpRight, 
   PlayCircle,
   BrainCircuit,
-  AlertTriangle
+  AlertTriangle,
+  Lock
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -25,6 +25,9 @@ import {
   ResponsiveContainer,
   Cell
 } from 'recharts';
+import { useUser } from '@/firebase';
+import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
 
 // Mock data for domain performance
 const performanceData = [
@@ -35,10 +38,23 @@ const performanceData = [
 
 export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
+  const { user } = useUser();
+  const { toast } = useToast();
+  const isDemo = user?.isAnonymous;
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleDemoLock = () => {
+    if (isDemo) {
+      toast({
+        variant: "destructive",
+        title: "Mode DEMO",
+        description: "Non disponible en mode DEMO"
+      });
+    }
+  };
 
   if (!mounted) return null;
 
@@ -47,19 +63,38 @@ export default function DashboardPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary">Tableau de Bord</h1>
-          <p className="text-muted-foreground mt-1">Bonjour Jean, prêt pour une session de révision ?</p>
+          <p className="text-muted-foreground mt-1">
+            {isDemo ? "Bienvenue en mode DEMO. Explorez la pratique libre." : "Bonjour Jean, prêt pour une session de révision ?"}
+          </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">Télécharger Rapport PDF</Button>
-          <Button size="sm" className="shadow-lg">
-            <PlayCircle className="mr-2 h-4 w-4" /> Simulation d'Examen
+          <Button variant="outline" size="sm" onClick={handleDemoLock} disabled={isDemo}>
+            {isDemo && <Lock className="mr-2 h-4 w-4" />} Télécharger Rapport PDF
+          </Button>
+          <Button size="sm" className="shadow-lg" asChild={!isDemo} onClick={isDemo ? handleDemoLock : undefined}>
+            {isDemo ? (
+              <span><Lock className="mr-2 h-4 w-4" /> Simulation d'Examen</span>
+            ) : (
+              <Link href="/dashboard/exam">
+                <PlayCircle className="mr-2 h-4 w-4" /> Simulation d'Examen
+              </Link>
+            )}
           </Button>
         </div>
       </div>
 
+      {isDemo && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3 text-amber-800 animate-slide-up">
+          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+          <p className="text-sm font-medium">
+            Vous utilisez actuellement le <strong>mode DEMO</strong>. Seule la section <strong>Pratique Libre</strong> est accessible avec 10 questions générées par Gemini.
+          </p>
+        </div>
+      )}
+
       {/* Stats Overview */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className={cn("hover:shadow-md transition-shadow", isDemo && "opacity-50 grayscale")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Progression Globale</CardTitle>
             <Trophy className="h-4 w-4 text-primary" />
@@ -74,7 +109,7 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className={cn("hover:shadow-md transition-shadow", isDemo && "opacity-50 grayscale")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Score Moyen</CardTitle>
             <Target className="h-4 w-4 text-accent" />
@@ -89,18 +124,22 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Kill Mistakes</CardTitle>
-            <BrainCircuit className="h-4 w-4 text-amber-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">14</div>
-            <p className="text-xs text-muted-foreground mt-1">Questions à revoir aujourd'hui</p>
-            <Badge variant="secondary" className="mt-3 bg-amber-100 text-amber-700 hover:bg-amber-100 border-none">Spaced Repetition Actif</Badge>
-          </CardContent>
+        <Card className={cn("hover:shadow-md transition-shadow cursor-pointer", isDemo ? "border-amber-500" : "")} asChild={!isDemo} onClick={isDemo ? undefined : undefined}>
+          <Link href="/dashboard/practice">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Questions Dispos</CardTitle>
+              <BrainCircuit className="h-4 w-4 text-amber-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{isDemo ? "10" : "14"}</div>
+              <p className="text-xs text-muted-foreground mt-1">{isDemo ? "Questions générées par IA" : "Questions à revoir aujourd'hui"}</p>
+              <Badge variant="secondary" className="mt-3 bg-amber-100 text-amber-700 hover:bg-amber-100 border-none">
+                {isDemo ? "Accès DÉMO" : "Spaced Repetition Actif"}
+              </Badge>
+            </CardContent>
+          </Link>
         </Card>
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className={cn("hover:shadow-md transition-shadow", isDemo && "opacity-50 grayscale")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Temps d'étude</CardTitle>
             <Clock className="h-4 w-4 text-primary" />
@@ -124,7 +163,7 @@ export default function DashboardPage() {
 
       <div className="grid gap-8 lg:grid-cols-7">
         {/* Domain Performance Chart */}
-        <Card className="lg:col-span-4">
+        <Card className={cn("lg:col-span-4", isDemo && "opacity-50 grayscale")}>
           <CardHeader>
             <CardTitle>Performance par Domaine</CardTitle>
             <CardDescription>Visualisation de votre niveau actuel par rapport aux exigences de l'examen.</CardDescription>
@@ -150,7 +189,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* AI Recommendations */}
-        <Card className="lg:col-span-3 border-accent/20 bg-accent/5">
+        <Card className={cn("lg:col-span-3 border-accent/20 bg-accent/5", isDemo && "opacity-50 grayscale")}>
           <CardHeader>
             <div className="flex items-center gap-2">
               <BrainCircuit className="h-5 w-5 text-accent" />
@@ -165,19 +204,19 @@ export default function DashboardPage() {
               </div>
               <h4 className="font-bold text-primary mb-1">Point de vigilance : Domaine Process</h4>
               <p className="text-sm text-muted-foreground">Vous avez échoué à 3 questions consécutives sur la gestion des risques (Risk Management). Nous vous suggérons une session de pratique dédiée.</p>
-              <Button size="sm" variant="accent" className="mt-3 w-full">Lancer session Risk</Button>
+              <Button size="sm" variant="accent" className="mt-3 w-full" disabled={isDemo}>Lancer session Risk</Button>
             </div>
             <div className="p-4 bg-white rounded-xl border border-accent/10 shadow-sm">
               <h4 className="font-bold text-primary mb-1">Mindset Agile</h4>
               <p className="text-sm text-muted-foreground">Votre score en Agile est excellent (92%). Continuez ainsi et concentrez-vous maintenant sur l'approche Hybride.</p>
-              <Button size="sm" variant="outline" className="mt-3 w-full">Voir ressources Hybride</Button>
+              <Button size="sm" variant="outline" className="mt-3 w-full" disabled={isDemo}>Voir ressources Hybride</Button>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* History Table Preview */}
-      <Card>
+      <Card className={isDemo ? "opacity-50 grayscale" : ""}>
         <CardHeader>
           <CardTitle>Examens Récents</CardTitle>
         </CardHeader>
@@ -202,9 +241,13 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
-          <Button variant="link" className="mt-4 w-full text-primary font-bold">Voir tout l'historique</Button>
+          <Button variant="link" className="mt-4 w-full text-primary font-bold" disabled={isDemo}>Voir tout l'historique</Button>
         </CardContent>
       </Card>
     </div>
   );
+}
+
+function cn(...inputs: any[]) {
+  return inputs.filter(Boolean).join(' ');
 }

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -7,15 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { GraduationCap, Loader2, Mail, Lock } from 'lucide-react';
+import { GraduationCap, Loader2, Mail, Lock, Play } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth, useFirestore } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInAnonymously } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
+  const [isDemoLoading, setIsDemoLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const router = useRouter();
@@ -51,6 +51,23 @@ export default function Home() {
     }
   };
 
+  const handleDemoAccess = async () => {
+    setIsDemoLoading(true);
+    try {
+      await signInAnonymously(auth);
+      toast({ title: "Mode DÉMO activé", description: "Vous accédez à la plateforme avec des fonctionnalités limitées." });
+      router.push('/dashboard/practice');
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible d'accéder au mode démo."
+      });
+    } finally {
+      setIsDemoLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 sm:p-6 lg:p-8">
       <div className="flex items-center gap-2 mb-8 group">
@@ -69,7 +86,7 @@ export default function Home() {
             Espace de simulation PMP professionnel
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email professionnel</Label>
@@ -111,7 +128,7 @@ export default function Home() {
                 Se souvenir de moi
               </label>
             </div>
-            <Button type="submit" className="w-full font-bold h-12 text-lg shadow-lg shadow-primary/20" disabled={isLoading}>
+            <Button type="submit" className="w-full font-bold h-12 text-lg shadow-lg shadow-primary/20" disabled={isLoading || isDemoLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -122,6 +139,29 @@ export default function Home() {
               )}
             </Button>
           </form>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">Ou tester sans compte</span>
+            </div>
+          </div>
+
+          <Button 
+            variant="outline" 
+            className="w-full h-11 border-accent text-accent hover:bg-accent/5 font-bold" 
+            onClick={handleDemoAccess}
+            disabled={isLoading || isDemoLoading}
+          >
+            {isDemoLoading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Play className="mr-2 h-4 w-4" />
+            )}
+            Lancer le mode DEMO
+          </Button>
         </CardContent>
         <CardFooter className="flex flex-col gap-4 border-t pt-6 bg-secondary/5">
           <div className="text-center text-sm text-muted-foreground w-full">
