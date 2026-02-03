@@ -56,7 +56,7 @@ export default function PracticePage() {
       setDemoQuestions(result.questions);
       setActiveQuestionIndex(0);
     } catch (error) {
-      console.error("Erreur lors de la génération des questions", error);
+      console.error("Erreur lors de la préparation des questions", error);
     } finally {
       setIsGenerating(false);
     }
@@ -87,7 +87,7 @@ export default function PracticePage() {
               <Zap className="h-8 w-8 text-amber-500" />
               Session DÉMO
             </h1>
-            <p className="text-muted-foreground mt-1">10 questions générées par Gemini pour tester vos connaissances.</p>
+            <p className="text-muted-foreground mt-1">10 questions sélectionnées pour votre session d'entraînement.</p>
           </div>
           <Badge variant="outline" className="text-lg px-4 py-1 border-amber-200 bg-amber-50 text-amber-700">
             Question {activeQuestionIndex! + 1} / 10
@@ -97,8 +97,8 @@ export default function PracticePage() {
         {isGenerating ? (
           <Card className="p-12 text-center flex flex-col items-center gap-4">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <h2 className="text-xl font-bold">Génération des questions par l'IA...</h2>
-            <p className="text-muted-foreground">Gemini prépare une session personnalisée pour vous.</p>
+            <h2 className="text-xl font-bold">Initialisation de la session...</h2>
+            <p className="text-muted-foreground">Préparation d'une sélection de questions adaptées.</p>
           </Card>
         ) : currentQuestion ? (
           <Card className="shadow-xl border-t-4 border-t-amber-500">
@@ -123,7 +123,7 @@ export default function PracticePage() {
                   
                   let variant: "outline" | "default" | "destructive" | "secondary" = "outline";
                   if (showExplanation) {
-                    if (isCorrect) variant = "default"; // Correct style is emerald in fact but shadcn default is primary
+                    if (isCorrect) variant = "default";
                     else if (isSelected) variant = "destructive";
                   }
 

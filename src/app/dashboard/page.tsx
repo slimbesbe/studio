@@ -87,7 +87,7 @@ export default function DashboardPage() {
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3 text-amber-800 animate-slide-up">
           <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
           <p className="text-sm font-medium">
-            Vous utilisez actuellement le <strong>mode DEMO</strong>. Seule la section <strong>Pratique Libre</strong> est accessible avec 10 questions générées par Gemini.
+            Vous utilisez actuellement le <strong>mode DEMO</strong>. Seule la section <strong>Pratique Libre</strong> est accessible avec une sélection de 10 questions d'entraînement.
           </p>
         </div>
       )}
@@ -124,7 +124,7 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className={cn("hover:shadow-md transition-shadow cursor-pointer", isDemo ? "border-amber-500" : "")} asChild={!isDemo} onClick={isDemo ? undefined : undefined}>
+        <Card className={cn("hover:shadow-md transition-shadow cursor-pointer", isDemo ? "border-amber-500" : "")} asChild={!isDemo}>
           <Link href="/dashboard/practice">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Questions Dispos</CardTitle>
@@ -132,7 +132,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{isDemo ? "10" : "14"}</div>
-              <p className="text-xs text-muted-foreground mt-1">{isDemo ? "Questions générées par IA" : "Questions à revoir aujourd'hui"}</p>
+              <p className="text-xs text-muted-foreground mt-1">{isDemo ? "Questions d'entraînement" : "Questions à revoir aujourd'hui"}</p>
               <Badge variant="secondary" className="mt-3 bg-amber-100 text-amber-700 hover:bg-amber-100 border-none">
                 {isDemo ? "Accès DÉMO" : "Spaced Repetition Actif"}
               </Badge>
@@ -193,9 +193,9 @@ export default function DashboardPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <BrainCircuit className="h-5 w-5 text-accent" />
-              <CardTitle>Next Best Practice</CardTitle>
+              <CardTitle>Conseils de Révision</CardTitle>
             </div>
-            <CardDescription>Recommandations personnalisées par IA</CardDescription>
+            <CardDescription>Recommandations personnalisées</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="p-4 bg-white rounded-xl border border-accent/10 shadow-sm relative overflow-hidden group">
@@ -203,12 +203,12 @@ export default function DashboardPage() {
                 <AlertTriangle className="h-12 w-12 text-amber-500" />
               </div>
               <h4 className="font-bold text-primary mb-1">Point de vigilance : Domaine Process</h4>
-              <p className="text-sm text-muted-foreground">Vous avez échoué à 3 questions consécutives sur la gestion des risques (Risk Management). Nous vous suggérons une session de pratique dédiée.</p>
+              <p className="text-sm text-muted-foreground">Attention à la gestion des risques (Risk Management). Une session de pratique dédiée est recommandée.</p>
               <Button size="sm" variant="accent" className="mt-3 w-full" disabled={isDemo}>Lancer session Risk</Button>
             </div>
             <div className="p-4 bg-white rounded-xl border border-accent/10 shadow-sm">
               <h4 className="font-bold text-primary mb-1">Mindset Agile</h4>
-              <p className="text-sm text-muted-foreground">Votre score en Agile est excellent (92%). Continuez ainsi et concentrez-vous maintenant sur l'approche Hybride.</p>
+              <p className="text-sm text-muted-foreground">Votre score en Agile est excellent. Continuez ainsi et concentrez-vous maintenant sur l'approche Hybride.</p>
               <Button size="sm" variant="outline" className="mt-3 w-full" disabled={isDemo}>Voir ressources Hybride</Button>
             </div>
           </CardContent>
