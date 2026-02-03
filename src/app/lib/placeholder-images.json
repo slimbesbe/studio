@@ -1,0 +1,17 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "hero-pmp",
+      "description": "Professional project manager leading a team",
+      "imageUrl": "https://picsum.photos/seed/pmp1/1200/800",
+      "imageHint": "project management"
+    },
+    {
+      "id": "dashboard-preview",
+      "description": "Educational dashboard with charts",
+      "imageUrl": "https://picsum.photos/seed/stats/800/600",
+      "imageHint": "data analysis"
+    }
+  ]
+}
