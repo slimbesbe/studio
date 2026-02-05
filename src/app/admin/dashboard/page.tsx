@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -6,21 +7,15 @@ import { Button } from '@/components/ui/button';
 import { 
   Users, 
   BookCopy, 
-  BarChart3, 
-  Download, 
-  UserPlus,
-  ArrowUpRight,
-  Search,
-  MoreVertical,
+  PlusCircle,
   Loader2,
-  ShieldAlert
+  ShieldAlert,
+  Settings,
+  ArrowRight
 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { collection, doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
 
 export default function AdminDashboard() {
@@ -45,11 +40,6 @@ export default function AdminDashboard() {
     checkAdmin();
   }, [user, isUserLoading, db, router]);
 
-  const usersQuery = useMemoFirebase(() => {
-    return collection(db, 'users');
-  }, [db]);
-  const { data: participants, isLoading: isUsersLoading } = useCollection(usersQuery);
-
   if (isUserLoading || isAdmin === null) {
     return (
       <div className="h-screen flex items-center justify-center">
@@ -59,155 +49,92 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="space-y-8 animate-fade-in p-8">
+    <div className="space-y-8 animate-fade-in p-8 max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary flex items-center gap-2">
             <ShieldAlert className="h-8 w-8" />
             Super Admin SIMOVEX
           </h1>
-          <p className="text-muted-foreground mt-1">Gérez vos utilisateurs, questions et analysez les performances globales.</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline"><Download className="mr-2 h-4 w-4" /> Exporter CSV</Button>
-          <Button asChild>
-            <Link href="/admin/users/new">
-              <UserPlus className="mr-2 h-4 w-4" /> Nouvel Utilisateur
-            </Link>
-          </Button>
+          <p className="text-muted-foreground mt-1">Espace de gestion centrale de la plateforme.</p>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Participants Actifs</CardTitle>
-            <Users className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{participants?.length || 0}</div>
-            <p className="text-xs text-emerald-600 font-medium flex items-center mt-1">
-              {participants?.length || 0} utilisateurs enregistrés
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Banque de Questions</CardTitle>
-            <BookCopy className="h-4 w-4 text-accent" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">3,500</div>
-            <p className="text-xs text-muted-foreground mt-1">98% validées par formateur</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Examens Passés</CardTitle>
-            <BarChart3 className="h-4 w-4 text-emerald-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">12,450</div>
-            <p className="text-xs text-muted-foreground mt-1">Derniers 30 jours : 842</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Taux Réussite Moyen</CardTitle>
-            <div className="h-4 w-4 rounded-full bg-emerald-100 flex items-center justify-center">
-              <div className="h-2 w-2 rounded-full bg-emerald-600" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">74%</div>
-            <p className="text-xs text-muted-foreground mt-1">Seuil recommandé : 80%</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-8 grid-cols-1 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Module 1: Banque de Questions */}
+        <Card className="hover:shadow-lg transition-shadow border-t-4 border-t-primary">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Liste des Participants</CardTitle>
-              <div className="relative w-64">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Rechercher par nom ou email..." className="pl-8 h-9" />
+            <div className="flex items-center gap-3">
+              <div className="bg-primary/10 p-2 rounded-lg">
+                <BookCopy className="h-6 w-6 text-primary" />
               </div>
+              <CardTitle>Banque de Questions</CardTitle>
             </div>
-          </CardHeader>
-          <CardContent>
-            {isUsersLoading ? (
-              <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Utilisateur</TableHead>
-                    <TableHead>Rôle</TableHead>
-                    <TableHead>Créé le</TableHead>
-                    <TableHead className="text-right"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {participants?.map((participant) => (
-                    <TableRow key={participant.id}>
-                      <TableCell>
-                        <div className="font-medium">{participant.firstName} {participant.lastName}</div>
-                        <div className="text-xs text-muted-foreground">{participant.email}</div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={participant.roleId === 'super_admin' ? 'default' : 'secondary'}>
-                          {participant.roleId === 'super_admin' ? 'Admin' : 'Participant'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {participant.createdAt?.seconds 
-                          ? new Date(participant.createdAt.seconds * 1000).toLocaleDateString()
-                          : 'N/A'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {(!participants || participants.length === 0) && (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                        Aucun participant trouvé.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Domaines à renforcer (Global)</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {[
-              { label: 'Gestion des Risques', value: 42, color: 'bg-red-500' },
-              { label: 'Gestion de l\'Approvisionnement', value: 55, color: 'bg-amber-500' },
-              { label: 'Gestion des Ressources', value: 61, color: 'bg-amber-400' },
-              { label: 'Gouvernance du Projet', value: 68, color: 'bg-primary' },
-            ].map((item) => (
-              <div key={item.label} className="space-y-1">
-                <div className="flex justify-between text-xs font-medium">
-                  <span>{item.label}</span>
-                  <span>{item.value}%</span>
-                </div>
-                <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                  <div className={`h-full ${item.color}`} style={{ width: `${item.value}%` }} />
-                </div>
-              </div>
-            ))}
-            <Button variant="outline" className="w-full mt-4">Voir rapport détaillé</Button>
+            <p className="text-sm text-muted-foreground">
+              Gérez le contenu pédagogique. Créez des questions à choix unique ou multiple avec des explications détaillées.
+            </p>
+            <div className="flex gap-3">
+              <Button asChild className="flex-1">
+                <Link href="/admin/questions">
+                  <Settings className="mr-2 h-4 w-4" /> Gérer les questions
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="flex-1">
+                <Link href="/admin/questions/new">
+                  <PlusCircle className="mr-2 h-4 w-4" /> Nouvelle Question
+                </Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
+
+        {/* Module 2: Gestion des Utilisateurs */}
+        <Card className="hover:shadow-lg transition-shadow border-t-4 border-t-accent">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="bg-accent/10 p-2 rounded-lg">
+                <Users className="h-6 w-6 text-accent" />
+              </div>
+              <CardTitle>Gestion des Utilisateurs</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Créez et administrez les comptes des participants. Définissez les rôles et surveillez l'activité.
+            </p>
+            <div className="flex gap-3">
+              <Button asChild className="flex-1 bg-accent hover:bg-accent/90">
+                <Link href="/admin/users">
+                  <Settings className="mr-2 h-4 w-4" /> Gérer les comptes
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="flex-1 border-accent text-accent hover:bg-accent/5">
+                <Link href="/admin/users/new">
+                  <PlusCircle className="mr-2 h-4 w-4" /> Créer utilisateur
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="bg-muted/30 rounded-xl p-6 border flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="bg-emerald-500/10 p-3 rounded-full">
+            <ShieldAlert className="h-6 w-6 text-emerald-600" />
+          </div>
+          <div>
+            <h3 className="font-bold">Accès Sécurisé</h3>
+            <p className="text-sm text-muted-foreground">Toutes vos actions sont tracées et protégées par les règles de sécurité Firestore.</p>
+          </div>
+        </div>
+        <Button variant="ghost" className="text-emerald-600" asChild>
+          <Link href="/dashboard">
+            Aller au Dashboard Utilisateur <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+        </Button>
       </div>
     </div>
   );

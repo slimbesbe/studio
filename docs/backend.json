@@ -1,432 +1,56 @@
+
 {
   "entities": {
     "User": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
-      "description": "Represents a user of the Inovexio PMP Exam Simulator application.",
+      "description": "Représente un utilisateur de SIMOVEX.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the User entity."
-        },
-        "email": {
-          "type": "string",
-          "description": "Email address of the user.",
-          "format": "email"
-        },
-        "firstName": {
-          "type": "string",
-          "description": "First name of the user."
-        },
-        "lastName": {
-          "type": "string",
-          "description": "Last name of the user."
-        },
-        "roleId": {
-          "type": "string",
-          "description": "Reference to Role. (Relationship: Role 1:N User)"
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Date and time when the user account was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Date and time when the user account was last updated.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "role": { "type": "string", "enum": ["super_admin", "admin", "user"] },
+        "status": { "type": "string", "enum": ["active", "inactive"] },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "email",
-        "firstName",
-        "lastName",
-        "roleId",
-        "createdAt",
-        "updatedAt"
-      ]
-    },
-    "Role": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Role",
-      "type": "object",
-      "description": "Represents a role within the application (e.g., Participant, Super Admin).",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Role entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the role (e.g., Participant, Super Admin)."
-        },
-        "description": {
-          "type": "string",
-          "description": "Description of the role and its permissions."
-        }
-      },
-      "required": [
-        "id",
-        "name",
-        "description"
-      ]
+      "required": ["id", "email", "role"]
     },
     "Question": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Question",
       "type": "object",
-      "description": "Represents a question in the PMP exam simulator.",
+      "description": "Question d'examen avec choix variables.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Question entity."
-        },
-        "text": {
-          "type": "string",
-          "description": "The text of the question."
-        },
-        "choiceA": {
-          "type": "string",
-          "description": "Choice A for the question."
-        },
-        "choiceB": {
-          "type": "string",
-          "description": "Choice B for the question."
-        },
-        "choiceC": {
-          "type": "string",
-          "description": "Choice C for the question."
-        },
-        "choiceD": {
-          "type": "string",
-          "description": "Choice D for the question."
-        },
-        "correctAnswer": {
-          "type": "string",
-          "description": "The correct answer (A, B, C, or D)."
-        },
-        "explanation": {
-          "type": "string",
-          "description": "Detailed explanation of why the correct answer is correct and others are wrong."
-        },
-        "reference": {
-          "type": "string",
-          "description": "Internal reference (e.g., PMBOK concept, domain, tag)."
-        },
-        "difficulty": {
-          "type": "string",
-          "description": "Difficulty level of the question (Easy, Medium, Hard)."
-        },
-        "approach": {
-          "type": "string",
-          "description": "Approach of the question (Agile, Predictive, Hybrid)."
-        },
-        "estimatedDuration": {
-          "type": "number",
-          "description": "Estimated duration to answer the question (in seconds)."
-        },
-        "processGroupId": {
-          "type": "string",
-          "description": "Reference to ProcessGroup. (Relationship: ProcessGroup 1:N Question)"
-        },
-        "knowledgeAreaId": {
-          "type": "string",
-          "description": "Reference to KnowledgeArea. (Relationship: KnowledgeArea 1:N Question)"
-        },
-        "examDomainId": {
-          "type": "string",
-          "description": "Reference to ExamDomain. (Relationship: ExamDomain 1:N Question)"
-        },
-        "tagIds": {
+        "id": { "type": "string" },
+        "statement": { "type": "string" },
+        "options": {
           "type": "array",
-          "description": "References to Tags. (Relationship: Tag N:N Question)",
           "items": {
-            "type": "string"
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "text": { "type": "string" }
+            }
           }
-        }
-      },
-      "required": [
-        "id",
-        "text",
-        "choiceA",
-        "choiceB",
-        "choiceC",
-        "choiceD",
-        "correctAnswer",
-        "explanation",
-        "reference",
-        "difficulty",
-        "approach",
-        "processGroupId",
-        "knowledgeAreaId",
-        "examDomainId"
-      ]
-    },
-    "Exam": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Exam",
-      "type": "object",
-      "description": "Represents an exam in the PMP exam simulator.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Exam entity."
         },
-        "name": {
-          "type": "string",
-          "description": "Name of the exam."
-        },
-        "description": {
-          "type": "string",
-          "description": "Description of the exam."
-        },
-        "duration": {
-          "type": "number",
-          "description": "Duration of the exam in minutes."
-        },
-        "questionIds": {
+        "correctOptionIds": {
           "type": "array",
-          "description": "References to Questions included in the exam. (Relationship: Exam N:N Question)",
-          "items": {
-            "type": "string"
-          }
-        }
+          "items": { "type": "string" }
+        },
+        "isMultipleCorrect": { "type": "boolean" },
+        "explanation": { "type": "string" },
+        "category": { "type": "string" },
+        "difficulty": { "type": "string", "enum": ["Easy", "Medium", "Hard"] },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "name",
-        "description",
-        "duration"
-      ]
-    },
-    "ExamAttempt": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "ExamAttempt",
-      "type": "object",
-      "description": "Represents a user's attempt at an exam.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the ExamAttempt entity."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N ExamAttempt)"
-        },
-        "examId": {
-          "type": "string",
-          "description": "Reference to Exam. (Relationship: Exam 1:N ExamAttempt)"
-        },
-        "startTime": {
-          "type": "string",
-          "description": "Date and time when the exam attempt started.",
-          "format": "date-time"
-        },
-        "endTime": {
-          "type": "string",
-          "description": "Date and time when the exam attempt ended.",
-          "format": "date-time"
-        },
-        "score": {
-          "type": "number",
-          "description": "The score achieved in the exam attempt."
-        },
-        "answers": {
-          "type": "array",
-          "description": "References to the answers given by the user during the exam attempt. (Relationship: ExamAttempt 1:N Answer)",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "required": [
-        "id",
-        "userId",
-        "examId",
-        "startTime",
-        "endTime",
-        "score"
-      ]
-    },
-    "Answer": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Answer",
-      "type": "object",
-      "description": "Represents a user's answer to a specific question in an exam attempt.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Answer entity."
-        },
-        "examAttemptId": {
-          "type": "string",
-          "description": "Reference to ExamAttempt. (Relationship: ExamAttempt 1:N Answer)"
-        },
-        "questionId": {
-          "type": "string",
-          "description": "Reference to Question. (Relationship: Question 1:N Answer)"
-        },
-        "selectedChoice": {
-          "type": "string",
-          "description": "The choice selected by the user (A, B, C, or D)."
-        },
-        "isCorrect": {
-          "type": "boolean",
-          "description": "Indicates whether the selected answer is correct."
-        }
-      },
-      "required": [
-        "id",
-        "examAttemptId",
-        "questionId",
-        "selectedChoice",
-        "isCorrect"
-      ]
-    },
-    "Tag": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Tag",
-      "type": "object",
-      "description": "Represents a tag or topic associated with questions.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Tag entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the tag (e.g., Risk, Schedule, Stakeholders)."
-        },
-        "description": {
-          "type": "string",
-          "description": "Description of the tag."
-        }
-      },
-      "required": [
-        "id",
-        "name",
-        "description"
-      ]
-    },
-    "MistakeReviewQueue": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "MistakeReviewQueue",
-      "type": "object",
-      "description": "Represents the queue of questions that a user needs to review based on their mistakes, implementing a spaced repetition system.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the MistakeReviewQueue entity."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N MistakeReviewQueue)"
-        },
-        "questionId": {
-          "type": "string",
-          "description": "Reference to Question. (Relationship: Question 1:N MistakeReviewQueue)"
-        },
-        "nextReviewDate": {
-          "type": "string",
-          "description": "The date when the question should be reviewed next, based on the spaced repetition algorithm.",
-          "format": "date-time"
-        },
-        "timesMissed": {
-          "type": "number",
-          "description": "Number of times the user has missed this question."
-        }
-      },
-      "required": [
-        "id",
-        "userId",
-        "questionId",
-        "nextReviewDate",
-        "timesMissed"
-      ]
-    },
-    "ProcessGroup": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "ProcessGroup",
-      "type": "object",
-      "description": "Represents a process group in project management (e.g., Initiating, Planning, Executing).",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the ProcessGroup entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the process group."
-        },
-        "description": {
-          "type": "string",
-          "description": "Description of the process group."
-        }
-      },
-      "required": [
-        "id",
-        "name",
-        "description"
-      ]
-    },
-    "KnowledgeArea": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "KnowledgeArea",
-      "type": "object",
-      "description": "Represents a knowledge area in project management (e.g., Integration, Scope, Schedule).",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the KnowledgeArea entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the knowledge area."
-        },
-        "description": {
-          "type": "string",
-          "description": "Description of the knowledge area."
-        }
-      },
-      "required": [
-        "id",
-        "name",
-        "description"
-      ]
-    },
-    "ExamDomain": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "ExamDomain",
-      "type": "object",
-      "description": "Represents an exam domain (e.g., People, Process, Business Environment).",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the ExamDomain entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the exam domain."
-        },
-        "description": {
-          "type": "string",
-          "description": "Description of the exam domain."
-        }
-      },
-      "required": [
-        "id",
-        "name",
-        "description"
-      ]
+      "required": ["statement", "options", "correctOptionIds", "isMultipleCorrect"]
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["password"]
   },
   "firestore": {
     "structure": [
@@ -434,195 +58,24 @@
         "path": "/users/{userId}",
         "definition": {
           "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user profiles. Accessible only by the user and super admins.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "Unique identifier for the user."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/roles_admin/{userId}",
-        "definition": {
-          "entityName": "Role",
-          "schema": {
-            "$ref": "#/backend/entities/Role"
-          },
-          "description": "Collection to store UIDs of super admins. Existence of a document indicates super admin status.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "Unique identifier for the super admin."
-            }
-          ]
+          "schema": { "$ref": "#/backend/entities/User" },
+          "description": "Profils utilisateurs."
         }
       },
       {
         "path": "/questions/{questionId}",
         "definition": {
           "entityName": "Question",
-          "schema": {
-            "$ref": "#/backend/entities/Question"
-          },
-          "description": "Stores PMP exam questions. Accessible to super admins for management.",
-          "params": [
-            {
-              "name": "questionId",
-              "description": "Unique identifier for the question."
-            }
-          ]
+          "schema": { "$ref": "#/backend/entities/Question" },
+          "description": "Banque de questions."
         }
       },
       {
-        "path": "/exams/{examId}",
+        "path": "/roles_admin/{userId}",
         "definition": {
-          "entityName": "Exam",
-          "schema": {
-            "$ref": "#/backend/entities/Exam"
-          },
-          "description": "Stores exam configurations. Accessible to super admins for management.",
-          "params": [
-            {
-              "name": "examId",
-              "description": "Unique identifier for the exam."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/examAttempts/{examAttemptId}",
-        "definition": {
-          "entityName": "ExamAttempt",
-          "schema": {
-            "$ref": "#/backend/entities/ExamAttempt"
-          },
-          "description": "Stores user's exam attempts. Accessible only by the user and super admins.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "Unique identifier for the user."
-            },
-            {
-              "name": "examAttemptId",
-              "description": "Unique identifier for the exam attempt."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/examAttempts/{examAttemptId}/answers/{answerId}",
-        "definition": {
-          "entityName": "Answer",
-          "schema": {
-            "$ref": "#/backend/entities/Answer"
-          },
-          "description": "Stores user's answers for a specific exam attempt. Accessible only by the user and super admins.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "Unique identifier for the user."
-            },
-            {
-              "name": "examAttemptId",
-              "description": "Unique identifier for the exam attempt."
-            },
-            {
-              "name": "answerId",
-              "description": "Unique identifier for the answer."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/tags/{tagId}",
-        "definition": {
-          "entityName": "Tag",
-          "schema": {
-            "$ref": "#/backend/entities/Tag"
-          },
-          "description": "Stores tags for categorizing questions. Accessible to super admins for management.",
-          "params": [
-            {
-              "name": "tagId",
-              "description": "Unique identifier for the tag."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/mistakeReviewQueue/{reviewId}",
-        "definition": {
-          "entityName": "MistakeReviewQueue",
-          "schema": {
-            "$ref": "#/backend/entities/MistakeReviewQueue"
-          },
-          "description": "Stores the queue of questions that a user needs to review based on their mistakes. Accessible only by the user and super admins.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "Unique identifier for the user."
-            },
-            {
-              "name": "reviewId",
-              "description": "Unique identifier for the review queue item."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/processGroups/{processGroupId}",
-        "definition": {
-          "entityName": "ProcessGroup",
-          "schema": {
-            "$ref": "#/backend/entities/ProcessGroup"
-          },
-          "description": "Stores process groups. Accessible to super admins for management.",
-          "params": [
-            {
-              "name": "processGroupId",
-              "description": "Unique identifier for the process group."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/knowledgeAreas/{knowledgeAreaId}",
-        "definition": {
-          "entityName": "KnowledgeArea",
-          "schema": {
-            "$ref": "#/backend/entities/KnowledgeArea"
-          },
-          "description": "Stores knowledge areas. Accessible to super admins for management.",
-          "params": [
-            {
-              "name": "knowledgeAreaId",
-              "description": "Unique identifier for the knowledge area."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/examDomains/{examDomainId}",
-        "definition": {
-          "entityName": "ExamDomain",
-          "schema": {
-            "$ref": "#/backend/entities/ExamDomain"
-          },
-          "description": "Stores exam domains. Accessible to super admins for management.",
-          "params": [
-            {
-              "name": "examDomainId",
-              "description": "Unique identifier for the exam domain."
-            }
-          ]
+          "description": "Indicateur de statut admin."
         }
       }
-    ],
-    "reasoning": "This Firestore structure is designed to support the Inovexio PMP Exam Simulator application, focusing on secure access control, scalability, and efficient querying. It incorporates the core design principles and strategies to ensure Authorization Independence, Structural Segregation, and clear Access Modeling. \n\n**Authorization Independence:**\n\n*   Roles are managed using the 'roles_admin' collection based on the *Existence over Content* pattern. Super admin privileges are granted by the existence of a document with the user's ID in this collection.\n*   Exam attempts and answers are stored under the user's path (`/users/{userId}/examAttempts/{examAttemptId}` and `/users/{userId}/examAttempts/{examAttemptId}/answers/{answerId}`), ensuring only the user or a super admin can access them. This eliminates the need for `get()` calls in security rules to determine ownership.\n\n**Structural Segregation:**\n\n*   User data is stored in `/users/{userId}`, keeping personal user information separate from other data.\n*   Questions and Exams are stored in root-level collections (`/questions` and `/exams`) since they are globally accessible and managed by the Super Admin.\n\n**Access Modeling:**\n\n*   **Private Data:** User-specific data (exam attempts, answers, mistake review queue) uses path-based ownership (`/users/{userId}/...`).\n*   **Global Roles (DBAC):** Super Admin status is managed using the `/roles_admin/{uid}` collection.\n*   **MistakeReviewQueue:** Stored under the user's path (`/users/{userId}/mistakeReviewQueue/{reviewId}`) to track and manage the questions a user needs to review.\n\n**QAPs (Rules are not Filters):**\n\n*   The structure facilitates secure `list` operations. For example, listing exam attempts is restricted to the authenticated user or a super admin, based on the path `/users/{userId}/examAttempts`. Super Admins are determined by presence of their UID in `/roles_admin/{uid}`. This avoids filtering based on user roles within the data itself.\n\nThe design ensures that security rules can be written without relying on complex data hierarchies or `get()` calls, making the application more secure, scalable, and easier to debug."
+    ]
   }
 }
