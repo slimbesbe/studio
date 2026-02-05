@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from 'next/link';
@@ -13,7 +14,10 @@ import {
   Trophy,
   ShieldAlert,
   Loader2,
-  Lock
+  Lock,
+  BookCopy,
+  Users,
+  LayoutGrid
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
@@ -44,6 +48,14 @@ export function Sidebar() {
   }, [firestore, user]);
 
   const { data: profile } = useDoc(userProfileRef);
+
+  // Vérifier si l'utilisateur est admin
+  const adminDocRef = useMemoFirebase(() => {
+    return user && !user.isAnonymous ? doc(firestore, 'roles_admin', user.uid) : null;
+  }, [firestore, user]);
+
+  const { data: adminDoc } = useDoc(adminDocRef);
+  const isAdmin = !!adminDoc;
 
   const handleSignOut = async () => {
     await signOut(auth);
@@ -100,9 +112,10 @@ export function Sidebar() {
           </Link>
         ))}
         
-        {!isDemo && (
-          <div className="pt-4 mt-4 border-t">
-            <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Administration</p>
+        {!isDemo && isAdmin && (
+          <div className="pt-4 mt-4 border-t space-y-1">
+            <p className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 mt-2">Administration</p>
+            
             <Link
               href="/admin/dashboard"
               className={cn(
@@ -112,8 +125,34 @@ export function Sidebar() {
                   : "text-muted-foreground hover:bg-secondary hover:text-primary"
               )}
             >
-              <Settings className="h-4 w-4" />
-              Super Admin
+              <LayoutGrid className="h-4 w-4" />
+              Vue d'ensemble
+            </Link>
+
+            <Link
+              href="/admin/questions"
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                pathname.startsWith('/admin/questions') 
+                  ? "bg-accent text-white" 
+                  : "text-muted-foreground hover:bg-secondary hover:text-primary"
+              )}
+            >
+              <BookCopy className="h-4 w-4" />
+              Banque de questions
+            </Link>
+
+            <Link
+              href="/admin/users"
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                pathname.startsWith('/admin/users') 
+                  ? "bg-accent text-white" 
+                  : "text-muted-foreground hover:bg-secondary hover:text-primary"
+              )}
+            >
+              <Users className="h-4 w-4" />
+              Utilisateurs
             </Link>
           </div>
         )}
@@ -137,7 +176,7 @@ export function Sidebar() {
                 {isDemo ? "Utilisateur DEMO" : (profile?.firstName ? `${profile.firstName} ${profile.lastName}` : (user?.email?.split('@')[0] || 'Utilisateur'))}
               </p>
               <p className="text-xs text-muted-foreground truncate italic">
-                {isDemo ? "Mode limité" : (profile?.roleId === 'super_admin' ? 'Super Admin' : 'Participant')}
+                {isDemo ? "Mode limité" : (isAdmin ? 'Super Admin' : 'Participant')}
               </p>
             </div>
           </div>
