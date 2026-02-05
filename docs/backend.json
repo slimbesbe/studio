@@ -27,9 +27,10 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Question",
       "type": "object",
-      "description": "Question d'examen avec choix variables.",
+      "description": "Question d'examen avec choix variables et identifiant unique.",
       "properties": {
         "id": { "type": "string" },
+        "questionCode": { "type": "string", "description": "Code unique lisible ex: Q-000001" },
         "statement": { "type": "string" },
         "options": {
           "type": "array",
@@ -50,9 +51,10 @@
         "category": { "type": "string" },
         "difficulty": { "type": "string", "enum": ["Easy", "Medium", "Hard"] },
         "isActive": { "type": "boolean" },
+        "createdByRole": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["statement", "options", "correctOptionIds", "isMultipleCorrect"]
+      "required": ["statement", "options", "correctOptionIds", "isMultipleCorrect", "questionCode"]
     }
   },
   "auth": {
@@ -74,6 +76,12 @@
           "entityName": "Question",
           "schema": { "$ref": "#/backend/entities/Question" },
           "description": "Banque de questions."
+        }
+      },
+      {
+        "path": "/counters/questions",
+        "definition": {
+          "description": "Compteur global pour les IDs de questions."
         }
       },
       {

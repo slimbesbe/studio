@@ -5,28 +5,31 @@ service cloud.firestore {
     function isSignedIn() { return request.auth != null; }
     function isAdmin() { return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)); }
     function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
-    function isSuperAdminEmail() { return isSignedIn() && request.auth.token.email == "slim.besbes@yahoo.fr"; }
+    function isSuperAdminEmail() { return isSignedIn() && (request.auth.token.email == "slim.besbes@yahoo.fr" || request.auth.token.email == "admin@simovex.com"); }
 
     match /roles_admin/{userId} {
       allow get: if isSignedIn();
-      allow write: if isAdmin() || isSuperAdminEmail();
+      allow write: if isSuperAdminEmail() || isAdmin();
     }
 
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
       allow create: if isAdmin() || isSuperAdminEmail();
-      
-      // Empêcher l'utilisateur de modifier son propre rôle, statut ou date d'expiration
       allow update: if isAdmin() || (isOwner(userId) && 
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'expiresAt', 'validityType', 'validityDays']));
-        
       allow delete: if isAdmin();
     }
 
     match /questions/{questionId} {
-      allow read: if isSignedIn();
+      // Les utilisateurs peuvent lire uniquement les questions actives
+      // Ils ne voient pas le champ questionCode via l'UI, mais on limite ici l'accès global
+      allow read: if isAdmin() || (isSignedIn() && resource.data.isActive == true);
       allow write: if isAdmin();
+    }
+
+    match /counters/{counterId} {
+      allow read, write: if isAdmin();
     }
 
     match /{path=**}/answers/{answerId} {

@@ -7,9 +7,7 @@ import { collection, doc, getDoc, deleteDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { 
   Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle 
+  CardContent 
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -27,8 +25,8 @@ import {
   Trash2, 
   BookCopy, 
   ChevronLeft,
-  CheckCircle2,
-  Layers
+  Layers,
+  Hash
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
@@ -100,18 +98,22 @@ export default function QuestionsListPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-24">Code</TableHead>
                 <TableHead className="w-[40%]">Énoncé</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead>Choix</TableHead>
+                <TableHead>Options</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {questions?.map((q) => (
+              {questions?.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)).map((q) => (
                 <TableRow key={q.id}>
-                  <TableCell className="font-medium line-clamp-2 max-w-md py-4">
-                    {q.statement}
+                  <TableCell className="font-mono text-xs font-bold text-primary">
+                    {q.questionCode || '---'}
+                  </TableCell>
+                  <TableCell className="py-4">
+                    <p className="line-clamp-2 max-w-md text-sm">{q.statement}</p>
                   </TableCell>
                   <TableCell>
                     <Badge variant={q.isMultipleCorrect ? "secondary" : "outline"}>
@@ -120,12 +122,12 @@ export default function QuestionsListPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Layers className="h-3 w-3" /> {q.options?.length || 0} options
+                      <Layers className="h-3 w-3" /> {q.options?.length || 0}
                     </div>
                   </TableCell>
                   <TableCell>
                     {q.isActive !== false ? (
-                      <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Actif</Badge>
+                      <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200">Actif</Badge>
                     ) : (
                       <Badge variant="secondary">Inactif</Badge>
                     )}
@@ -142,8 +144,8 @@ export default function QuestionsListPage() {
               ))}
               {questions?.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                    Aucune question dans la banque. Commencez par en créer une !
+                  <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                    Aucune question dans la banque.
                   </TableCell>
                 </TableRow>
               )}

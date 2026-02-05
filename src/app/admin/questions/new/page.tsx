@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useUser, useFirestore } from '@/firebase';
-import { doc, getDoc, setDoc, serverTimestamp, collection } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, collection, runTransaction } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,9 +19,9 @@ import {
   ArrowLeft, 
   CheckCircle2, 
   AlertCircle,
-  HelpCircle
+  HelpCircle,
+  Hash
 } from 'lucide-react';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -32,7 +32,7 @@ interface Option {
 }
 
 export default function NewQuestionPage() {
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, profile } = useUser();
   const db = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
@@ -61,7 +61,7 @@ export default function NewQuestionPage() {
 
   const handleAddOption = () => {
     if (options.length >= 10) return;
-    const newId = (Math.max(...options.map(o => parseInt(o.id))) + 1).toString();
+    const newId = (options.length > 0 ? Math.max(...options.map(o => parseInt(o.id) || 0)) : 0 + 1).toString();
     setOptions([...options, { id: newId, text: '' }]);
   };
 
@@ -104,23 +104,38 @@ export default function NewQuestionPage() {
 
     setIsSubmitting(true);
     try {
+      // Génération du code unique via transaction
+      const counterRef = doc(db, 'counters', 'questions');
+      const questionCode = await runTransaction(db, async (transaction) => {
+        const counterDoc = await transaction.get(counterRef);
+        let nextVal = 1;
+        if (counterDoc.exists()) {
+          nextVal = (counterDoc.data().current || 0) + 1;
+        }
+        transaction.set(counterRef, { current: nextVal }, { merge: true });
+        return `Q-${nextVal.toString().padStart(6, '0')}`;
+      });
+
       const qRef = doc(collection(db, 'questions'));
       await setDoc(qRef, {
         id: qRef.id,
+        questionCode,
         statement,
         options,
         correctOptionIds,
         isMultipleCorrect,
         explanation,
         isActive: true,
+        createdByRole: profile?.role || 'admin',
         createdAt: serverTimestamp(),
         updatedBy: user?.uid
       });
 
-      toast({ title: "Succès", description: "Question ajoutée à la banque." });
+      toast({ title: "Succès", description: `Question ${questionCode} ajoutée à la banque.` });
       router.push('/admin/questions');
     } catch (e) {
-      toast({ variant: "destructive", title: "Erreur", description: "Impossible d'enregistrer." });
+      console.error(e);
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible d'enregistrer la question." });
     } finally {
       setIsSubmitting(false);
     }
@@ -139,9 +154,12 @@ export default function NewQuestionPage() {
 
       <Card className="border-t-4 border-t-primary shadow-xl">
         <CardHeader>
-          <CardTitle className="text-xl flex items-center gap-2">
-            <HelpCircle className="h-5 w-5 text-primary" /> Configuration de la question
-          </CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-xl flex items-center gap-2">
+              <HelpCircle className="h-5 w-5 text-primary" /> Configuration
+            </CardTitle>
+            <Badge variant="outline" className="text-xs">L'ID sera généré automatiquement</Badge>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
@@ -224,7 +242,7 @@ export default function NewQuestionPage() {
             </Label>
             <Textarea 
               id="explanation" 
-              placeholder="Expliquez pourquoi la réponse est correcte et renforcez le mindset PMI..." 
+              placeholder="Expliquez pourquoi la réponse est correcte..." 
               className="min-h-[100px]"
               value={explanation}
               onChange={(e) => setExplanation(e.target.value)}
@@ -234,7 +252,7 @@ export default function NewQuestionPage() {
         <CardFooter className="bg-muted/10 border-t p-6 flex justify-between">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <AlertCircle className="h-4 w-4" />
-            Vérifiez l'énoncé et les bonnes réponses avant d'enregistrer.
+            Vérifiez tout avant d'enregistrer la question.
           </div>
           <Button onClick={handleSubmit} disabled={isSubmitting} size="lg" className="px-8">
             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}

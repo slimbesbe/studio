@@ -19,10 +19,12 @@ import {
   ArrowLeft, 
   CheckCircle2, 
   AlertCircle,
-  HelpCircle
+  HelpCircle,
+  Hash
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 
 interface Option {
@@ -51,6 +53,7 @@ export default function EditQuestionPage() {
   ]);
   const [correctOptionIds, setCorrectOptionIds] = useState<string[]>([]);
   const [isActive, setIsActive] = useState(true);
+  const [questionCode, setQuestionCode] = useState("");
 
   // Fetch question data
   const questionRef = useMemoFirebase(() => doc(db, 'questions', questionId), [db, questionId]);
@@ -75,6 +78,7 @@ export default function EditQuestionPage() {
       setOptions(questionData.options || [{ id: '1', text: '' }, { id: '2', text: '' }]);
       setCorrectOptionIds(questionData.correctOptionIds || []);
       setIsActive(questionData.isActive !== false);
+      setQuestionCode(questionData.questionCode || "");
     }
   }, [questionData]);
 
@@ -152,28 +156,26 @@ export default function EditQuestionPage() {
     );
   }
 
-  if (!questionData && !isQuestionLoading) {
-    return (
-      <div className="p-8 text-center space-y-4">
-        <h1 className="text-2xl font-bold">Question non trouvée</h1>
-        <Button asChild><Link href="/admin/questions">Retour à la banque</Link></Button>
-      </div>
-    );
-  }
-
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/admin/questions"><ArrowLeft /></Link>
         </Button>
-        <h1 className="text-3xl font-bold">Modifier la Question</h1>
+        <div className="flex flex-col">
+          <h1 className="text-3xl font-bold">Modifier la Question</h1>
+          {questionCode && (
+            <div className="flex items-center gap-1 text-primary font-mono text-sm mt-1">
+              <Hash className="h-3 w-3" /> {questionCode}
+            </div>
+          )}
+        </div>
       </div>
 
       <Card className="border-t-4 border-t-primary shadow-xl">
         <CardHeader>
           <CardTitle className="text-xl flex items-center gap-2">
-            <HelpCircle className="h-5 w-5 text-primary" /> Configuration de la question
+            <HelpCircle className="h-5 w-5 text-primary" /> Configuration
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -197,7 +199,7 @@ export default function EditQuestionPage() {
               checked={isMultipleCorrect} 
               onCheckedChange={(val) => {
                 setIsMultipleCorrect(val);
-                // Si on passe d'unique à multiple ou inversement, on garde la sélection pour éviter la perte de données
+                // On garde les sélections actuelles mais l'UI changera le mode d'affichage
               }} 
             />
           </div>
@@ -267,7 +269,7 @@ export default function EditQuestionPage() {
           <div className="flex items-center justify-between p-4 bg-muted/10 rounded-lg border border-dashed">
             <div className="space-y-0.5">
               <Label className="text-base">Statut de la question</Label>
-              <p className="text-sm text-muted-foreground">Rendre la question visible ou non dans les examens.</p>
+              <p className="text-sm text-muted-foreground">Rendre la question visible ou non pour les participants.</p>
             </div>
             <Switch checked={isActive} onCheckedChange={setIsActive} />
           </div>
@@ -275,11 +277,11 @@ export default function EditQuestionPage() {
         <CardFooter className="bg-muted/10 border-t p-6 flex justify-between">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <AlertCircle className="h-4 w-4" />
-            Vérifiez l'énoncé avant d'enregistrer les modifications.
+            Vérifiez l'énoncé avant d'enregistrer.
           </div>
           <Button onClick={handleSubmit} disabled={isSubmitting} size="lg" className="px-8">
             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            Enregistrer les modifications
+            Mettre à jour
           </Button>
         </CardFooter>
       </Card>
