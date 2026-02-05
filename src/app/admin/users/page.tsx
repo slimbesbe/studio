@@ -94,8 +94,6 @@ export default function UsersListPage() {
 
     setIsChangingPassword(true);
     try {
-      // NOTE: Le SDK Client ne permet pas de changer le mot de passe Auth d'un autre utilisateur.
-      // On met à jour Firestore pour que l'admin garde une trace visuelle.
       await updateDoc(doc(db, 'users', passwordChangeUser.id), {
         password: newPassword,
         updatedAt: Timestamp.now()
@@ -194,10 +192,10 @@ export default function UsersListPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {u.role === 'super_admin' ? (
-                      <Badge className="bg-primary/10 text-primary border-primary/20 gap-1"><ShieldCheck className="h-3 w-3" /> Admin</Badge>
+                    {u.role === 'super_admin' || u.role === 'admin' ? (
+                      <Badge className="bg-primary/10 text-primary border-primary/20 gap-1"><ShieldCheck className="h-3 w-3" /> {u.role === 'super_admin' ? 'Super Admin' : 'Admin'}</Badge>
                     ) : (
-                      <Badge variant="outline" className="gap-1"><User className="h-3 w-3" /> Participant</Badge>
+                      <Badge variant="outline" className="gap-1"><User className="h-3 w-3" /> User</Badge>
                     )}
                   </TableCell>
                   <TableCell>

@@ -183,8 +183,9 @@ export default function NewUserPage() {
               <Select value={formData.role} onValueChange={(val) => setFormData({...formData, role: val})}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="user">Participant (Standard)</SelectItem>
+                  <SelectItem value="user">User (Participant Standard)</SelectItem>
                   <SelectItem value="admin">Administrateur</SelectItem>
+                  <SelectItem value="super_admin">Super Admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>
