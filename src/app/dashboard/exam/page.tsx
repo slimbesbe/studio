@@ -284,10 +284,10 @@ export default function ExamPage() {
     const percentage = Math.round((examResult.score / examResult.total) * 100);
     
     const getAppreciation = (pct: number) => {
-      if (pct < 50) return { label: "Needs Improvement", color: "bg-red-500 text-white", statusText: "Fail" };
-      if (pct < 65) return { label: "Below Target", color: "bg-amber-400 text-white", statusText: "Fail" };
-      if (pct < 80) return { label: "Target", color: "bg-emerald-400 text-white", statusText: "Pass" };
-      return { label: "Above Target", color: "bg-teal-700 text-white", statusText: "Pass" };
+      if (pct < 50) return { label: "Needs Improvement", color: "bg-[#fee2e2] text-red-700", solidColor: "bg-[#f87171]", index: 0 };
+      if (pct < 65) return { label: "Below Target", color: "bg-[#fef3c7] text-amber-700", solidColor: "bg-[#fbbf24]", index: 1 };
+      if (pct < 80) return { label: "Target", color: "bg-[#dcfce7] text-emerald-700", solidColor: "bg-[#34d399]", index: 2 };
+      return { label: "Above Target", color: "bg-[#0d9488]/20 text-[#0d9488]", solidColor: "bg-[#0d9488]", index: 3 };
     };
 
     const appreciation = getAppreciation(percentage);
@@ -295,51 +295,62 @@ export default function ExamPage() {
 
     return (
       <div className="max-w-4xl mx-auto space-y-8 animate-fade-in py-12">
-        <Card className="text-center shadow-2xl border-t-8 border-t-primary overflow-visible">
+        <Card className="shadow-2xl overflow-visible border-none">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-left border-b pb-4 flex justify-between items-center">
-              <span>Your Overall Score Performance: <span className={isSuccess ? "text-primary" : "text-destructive"}>{appreciation.statusText}</span></span>
-              {isSuccess && <span className="text-xs font-normal text-muted-foreground">Congratulations on earning your certification!</span>}
+            <CardTitle className="text-2xl font-bold border-b pb-4">
+              Your Overall Score Performance: <span className="text-[#0369a1]">{isSuccess ? "Pass" : "Fail"}</span>
+              {isSuccess && <p className="text-xs font-normal text-muted-foreground mt-1">Congratulations on earning your certification!</p>}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-12 py-10">
-            {/* PMI Style Performance Bar */}
-            <div className="relative mt-8 mb-16 w-full max-w-3xl mx-auto px-2">
-              {/* Top Labels */}
-              <div className="flex w-full text-[10px] text-muted-foreground mb-1 font-bold">
-                <div className="w-[65%] text-center">Failing</div>
-                <div className="w-[35%] text-center border-l border-sky-300">Passing</div>
+            {/* PMP Official Style Visual Chart */}
+            <div className="relative mt-12 mb-20 w-full max-w-3xl mx-auto">
+              {/* Top Labels (Falling / Passing) */}
+              <div className="flex w-full text-[10px] font-bold text-muted-foreground mb-2 relative px-1">
+                <div className="w-[50%] text-center pr-4">Falling</div>
+                <div className="absolute left-1/2 top-0 h-4 border-l border-sky-400 opacity-50" />
+                <div className="w-[50%] text-center pl-4">Passing</div>
               </div>
-              
-              {/* The Visual Bar */}
-              <div className="relative h-12 w-full flex rounded-sm border border-sky-200 bg-white">
-                {/* Segments background */}
-                <div className="flex h-full w-full">
-                  <div className="h-full border-r border-sky-100 w-[50%] bg-[#fee2e2]" /> {/* NI - Red 100 */}
-                  <div className="h-full border-r border-sky-100 w-[15%] bg-[#fef3c7]" /> {/* BT - Amber 100 */}
-                  <div className="h-full border-r border-sky-100 w-[15%] bg-[#dcfce7]" /> {/* T - Emerald 100 */}
-                  <div className="h-full w-[20%] bg-[#0d9488]" /> {/* AT - Teal 600 */}
-                </div>
 
-                {/* Divide Marker between BT and T (The 65% mark) */}
-                <div className="absolute left-[65%] top-[-10px] bottom-[-10px] w-0.5 bg-sky-400 z-10" />
+              {/* The 4-Zone Bar Container */}
+              <div className="relative flex w-full h-12 border border-sky-100 rounded-sm overflow-visible bg-white">
+                {/* Zone 1: Needs Improvement (0-25%) */}
+                <div className={`w-1/4 h-full border-r border-sky-50 transition-opacity duration-500 ${appreciation.index === 0 ? 'bg-[#f87171]' : 'bg-[#fee2e2] opacity-40'}`} />
+                {/* Zone 2: Below Target (25-50%) */}
+                <div className={`w-1/4 h-full border-r border-sky-50 transition-opacity duration-500 ${appreciation.index === 1 ? 'bg-[#fbbf24]' : 'bg-[#fef3c7] opacity-40'}`} />
+                {/* Zone 3: Target (50-75%) */}
+                <div className={`w-1/4 h-full border-r border-sky-50 transition-opacity duration-500 ${appreciation.index === 2 ? 'bg-[#34d399]' : 'bg-[#dcfce7] opacity-40'}`} />
+                {/* Zone 4: Above Target (75-100%) */}
+                <div className={`w-1/4 h-full transition-opacity duration-500 ${appreciation.index === 3 ? 'bg-[#0d9488]' : 'bg-[#0d9488]/20 opacity-40'}`} />
 
-                {/* YOU Indicator Cursor */}
+                {/* Vertical Cursor Indicator (Ligne noire haut/bas sans traverser) */}
                 <div 
-                  className="absolute top-[-35px] flex flex-col items-center transition-all duration-1000 ease-out z-20"
+                  className="absolute top-0 bottom-0 flex flex-col items-center z-30 transition-all duration-1000 ease-out"
                   style={{ left: `${percentage}%`, transform: 'translateX(-50%)' }}
                 >
-                  <span className="text-[11px] font-black text-black mb-1">YOU</span>
-                  <div className="h-20 w-1 bg-black rounded-full shadow-sm" />
+                  {/* YOU Label & Top Marker */}
+                  <div className="absolute -top-8 flex flex-col items-center">
+                    <span className="text-[11px] font-black text-black">YOU</span>
+                    <div className="h-3 w-0.5 bg-black" />
+                  </div>
+                  
+                  {/* Bottom Marker */}
+                  <div className="absolute -bottom-3 flex flex-col items-center">
+                    <div className="h-3 w-0.5 bg-black" />
+                    {/* Appraisal Label under the marker */}
+                    <span className="text-[10px] font-bold text-[#0369a1] whitespace-nowrap mt-1 uppercase">
+                      {appreciation.label}
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              {/* Bottom Labels */}
-              <div className="flex w-full text-[9px] md:text-[10px] font-bold mt-2">
-                <div className="w-[50%] text-left text-red-500 pl-1">Needs Improvement</div>
-                <div className="w-[15%] text-left text-amber-600 pl-1">Below Target</div>
-                <div className="w-[15%] text-left text-emerald-600 pl-1">Target</div>
-                <div className="w-[20%] text-left text-teal-900 pl-1">Above Target</div>
+              {/* Bottom Labels for Zones */}
+              <div className="flex w-full mt-2 text-[9px] font-semibold text-muted-foreground/60 px-0.5">
+                <div className="w-1/4 text-left">Needs Improvement</div>
+                <div className="w-1/4 text-left">Below Target</div>
+                <div className="w-1/4 text-left">Target</div>
+                <div className="w-1/4 text-left">Above Target</div>
               </div>
             </div>
 
@@ -349,24 +360,24 @@ export default function ExamPage() {
                 <div className="text-5xl font-black text-primary">{percentage}%</div>
               </div>
               <div className="space-y-4">
-                <p className="text-muted-foreground text-sm">Appréciation</p>
-                <Badge className={`text-lg px-6 py-1 font-bold ${appreciation.color}`}>
-                  {appreciation.label}
-                </Badge>
+                <p className="text-muted-foreground text-sm">Détails</p>
                 <p className="text-sm font-medium">
                    {examResult.score} / {examResult.total} questions correctes
                 </p>
+                <Badge variant="outline" className={`text-xs px-3 py-1 ${appreciation.color.split(' ')[0]}`}>
+                  Status: {appreciation.label}
+                </Badge>
               </div>
             </div>
 
             <div className="pt-6">
-              <p className="text-[11px] text-muted-foreground italic max-w-lg mx-auto leading-relaxed border-t pt-4">
+              <p className="text-[11px] text-muted-foreground italic max-w-lg mx-auto leading-relaxed border-t pt-4 text-center">
                 « Les pourcentages affichés sont des estimations pédagogiques. 
                 Le PMI ne communique pas de score chiffré officiel pour l’examen PMP®. »
               </p>
             </div>
           </CardContent>
-          <CardFooter className="flex gap-4 p-6 bg-muted/20">
+          <CardFooter className="flex gap-4 p-6 bg-muted/20 rounded-b-lg">
             <Button onClick={() => { setIsReviewMode(true); setCurrentQuestionIndex(0); }} variant="outline" className="flex-1 h-12 shadow-sm font-bold">
               <BookOpen className="mr-2 h-4 w-4" /> EXPLICATIONS
             </Button>
