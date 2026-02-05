@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { GraduationCap, Loader2, Mail, Lock, Play, ShieldCheck } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword, signInAnonymously, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
@@ -38,11 +37,23 @@ export default function Home() {
         // Tenter la connexion
         userCredential = await signInWithEmailAndPassword(auth, email, password);
       } catch (signInError: any) {
-        // Si c'est l'admin et que le compte n'existe pas, on le crée
-        if (email === ADMIN_EMAIL && password === ADMIN_PASS && 
-           (signInError.code === 'auth/user-not-found' || signInError.code === 'user-not-found')) {
-          userCredential = await createUserWithEmailAndPassword(auth, email, password);
-          toast({ title: "Bienvenue", description: "Compte Super Admin initialisé." });
+        // Gestion des erreurs de connexion pour le bootstrap admin
+        const isAuthAdmin = email === ADMIN_EMAIL && password === ADMIN_PASS;
+        const isNotFound = signInError.code === 'auth/user-not-found' || 
+                          signInError.code === 'user-not-found' || 
+                          signInError.code === 'auth/invalid-credential'; // Nouveau code Firebase unifié
+
+        if (isAuthAdmin && isNotFound) {
+          try {
+            userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            toast({ title: "Bienvenue", description: "Compte Super Admin initialisé avec succès." });
+          } catch (createError: any) {
+            // Si l'utilisateur existe déjà mais que le mot de passe était incorrect lors du premier essai
+            if (createError.code === 'auth/email-already-in-use') {
+              throw new Error("Mot de passe incorrect pour ce compte administrateur.");
+            }
+            throw createError;
+          }
         } else {
           throw signInError;
         }
@@ -50,7 +61,7 @@ export default function Home() {
 
       const user = userCredential.user;
 
-      // Forcer les permissions si c'est Slim
+      // Mise à jour ou création forcée des permissions pour le Super Admin
       if (email === ADMIN_EMAIL) {
         await Promise.all([
           setDoc(doc(db, 'roles_admin', user.uid), { 
@@ -72,7 +83,7 @@ export default function Home() {
         toast({ title: "Accès Admin", description: "Connexion réussie au panel SIMOVEX." });
         router.push('/admin/dashboard');
       } else {
-        // Pour les autres utilisateurs, vérifier s'ils sont admin ou simple user
+        // Vérification du rôle pour les autres utilisateurs
         const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
         if (adminDoc.exists()) {
           router.push('/admin/dashboard');
@@ -81,10 +92,13 @@ export default function Home() {
         }
       }
     } catch (error: any) {
-      console.error("Login error:", error);
+      console.error("Login error:", error.code, error.message);
       let message = "Identifiants incorrects.";
+      
       if (error.code === 'auth/wrong-password') message = "Mot de passe incorrect.";
-      if (error.code === 'auth/too-many-requests') message = "Trop de tentatives. Réessayez plus tard.";
+      if (error.code === 'auth/too-many-requests') message = "Trop de tentatives. Votre compte est temporairement bloqué.";
+      if (error.code === 'auth/user-disabled') message = "Ce compte a été désactivé.";
+      if (error.message.includes("Mot de passe incorrect")) message = error.message;
       
       toast({
         variant: "destructive",
