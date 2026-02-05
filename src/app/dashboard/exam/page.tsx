@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from '@/firebase';
-import { collection, query, where, limit, doc, setDoc, deleteDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, query, where, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -18,7 +18,10 @@ import {
   Loader2,
   CheckCircle2,
   PlayCircle,
-  History as HistoryIcon
+  History as HistoryIcon,
+  BookOpen,
+  XCircle,
+  Info
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
@@ -37,6 +40,7 @@ export default function ExamPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [examResult, setExamResult] = useState<{ score: number; total: number } | null>(null);
   const [sessionQuestionIds, setSessionQuestionIds] = useState<string[]>([]);
+  const [isReviewMode, setIsReviewMode] = useState(false);
 
   // State persistence ref
   const examStateRef = useMemoFirebase(() => {
@@ -58,7 +62,6 @@ export default function ExamPage() {
   // Filtered questions based on session IDs
   const activeQuestions = useMemo(() => {
     if (!allQuestions || sessionQuestionIds.length === 0) return [];
-    // Maintain order of sessionQuestionIds
     return sessionQuestionIds.map(id => allQuestions.find(q => q.id === id)).filter(Boolean) as any[];
   }, [allQuestions, sessionQuestionIds]);
 
@@ -69,7 +72,6 @@ export default function ExamPage() {
       timer = setInterval(() => {
         setTimeLeft((prev) => {
           const newTime = prev - 1;
-          // Periodically save time to Firestore (every 30 seconds)
           if (newTime % 30 === 0 && !isDemo && examStateRef) {
              setDoc(examStateRef, { timeLeft: newTime }, { merge: true });
           }
@@ -107,10 +109,10 @@ export default function ExamPage() {
       setCurrentQuestionIndex(savedState.currentQuestionIndex || 0);
       setTimeLeft(savedState.timeLeft || 0);
       setIsExamStarted(true);
+      setIsReviewMode(false);
       return;
     }
 
-    // Start New
     const pool = [...allQuestions].sort(() => 0.5 - Math.random());
     const selected = pool.slice(0, isDemo ? 10 : 180);
     const ids = selected.map(q => q.id);
@@ -121,8 +123,8 @@ export default function ExamPage() {
     setAnswers({});
     setExamResult(null);
     setIsExamStarted(true);
+    setIsReviewMode(false);
 
-    // Initial save for persistence
     if (!isDemo && examStateRef) {
       setDoc(examStateRef, {
         questionIds: ids,
@@ -142,6 +144,7 @@ export default function ExamPage() {
   };
 
   const toggleOption = (questionId: string, optionId: string, isMultiple: boolean) => {
+    if (isReviewMode) return;
     const current = answers[questionId] || [];
     let newAnswers;
     if (isMultiple) {
@@ -174,7 +177,6 @@ export default function ExamPage() {
     setExamResult({ score, total: activeQuestions.length });
     setIsSubmitting(false);
 
-    // Clear saved state
     if (!isDemo && examStateRef) {
       await deleteDoc(examStateRef);
     }
@@ -185,6 +187,95 @@ export default function ExamPage() {
       <div className="h-[60vh] flex flex-col items-center justify-center gap-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
         <p className="text-muted-foreground animate-pulse">Chargement de votre session...</p>
+      </div>
+    );
+  }
+
+  // UI Mode Révision
+  if (isReviewMode && examResult) {
+    const currentQuestion = activeQuestions[currentQuestionIndex];
+    const userAns = answers[currentQuestion.id] || [];
+    const correctAns = currentQuestion.correctOptionIds || [];
+    const isCorrect = userAns.length === correctAns.length && userAns.every(val => correctAns.includes(val));
+
+    return (
+      <div className="max-w-4xl mx-auto space-y-6 animate-fade-in pb-20">
+        <div className="flex items-center justify-between border-b pb-4">
+          <div className="flex items-center gap-4">
+            <Button variant="outline" size="sm" onClick={() => setIsReviewMode(false)}>
+              <ChevronLeft className="mr-2 h-4 w-4" /> Retour au score
+            </Button>
+            <h2 className="text-2xl font-bold">Révision des questions</h2>
+          </div>
+          <Badge variant="outline" className="text-lg font-mono">
+            {currentQuestionIndex + 1} / {activeQuestions.length}
+          </Badge>
+        </div>
+
+        <Card className={`shadow-xl border-t-4 ${isCorrect ? 'border-t-emerald-500' : 'border-t-destructive'}`}>
+          <CardHeader>
+            <div className="flex justify-between items-start mb-2">
+              <Badge variant={isCorrect ? "default" : "destructive"} className={isCorrect ? "bg-emerald-500" : ""}>
+                {isCorrect ? "Correct" : "Incorrect"}
+              </Badge>
+              <Badge variant="secondary">{currentQuestion.category || 'PMP Knowledge'}</Badge>
+            </div>
+            <CardTitle className="text-xl md:text-2xl leading-relaxed">
+              {currentQuestion.statement}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid gap-3">
+              {currentQuestion.options.map((opt: any, idx: number) => {
+                const isSelected = userAns.includes(opt.id);
+                const isOptionCorrect = correctAns.includes(opt.id);
+                
+                let borderColor = 'border-transparent bg-secondary/30';
+                if (isOptionCorrect) borderColor = 'border-emerald-500 bg-emerald-50';
+                else if (isSelected && !isOptionCorrect) borderColor = 'border-destructive bg-destructive/5';
+
+                return (
+                  <div 
+                    key={opt.id}
+                    className={`flex items-start gap-4 p-4 rounded-xl border-2 transition-all ${borderColor}`}
+                  >
+                    <div className="pt-1">
+                      {isOptionCorrect ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : isSelected ? <XCircle className="h-5 w-5 text-destructive" /> : <div className="h-5 w-5" />}
+                    </div>
+                    <div className="flex-1 text-sm md:text-base">
+                      <span className="font-bold mr-2">{String.fromCharCode(65 + idx)}.</span>
+                      {opt.text}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="p-6 bg-muted/50 rounded-xl border-l-4 border-l-primary space-y-3">
+              <h4 className="font-bold flex items-center gap-2 text-primary">
+                <Info className="h-5 w-5" /> Explication & Mindset PMI
+              </h4>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                {currentQuestion.explanation || "Aucune explication fournie pour cette question."}
+              </p>
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-between border-t p-6">
+            <Button 
+              variant="outline" 
+              onClick={() => setCurrentQuestionIndex(Math.max(0, currentQuestionIndex - 1))}
+              disabled={currentQuestionIndex === 0}
+            >
+              Précédent
+            </Button>
+            <Button 
+              onClick={() => setCurrentQuestionIndex(Math.min(activeQuestions.length - 1, currentQuestionIndex + 1))}
+              disabled={currentQuestionIndex === activeQuestions.length - 1}
+            >
+              Suivant
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
     );
   }
@@ -218,8 +309,8 @@ export default function ExamPage() {
             </div>
           </CardContent>
           <CardFooter className="flex gap-4">
-            <Button asChild variant="outline" className="flex-1 h-12">
-              <Link href="/dashboard/history">Voir l'historique</Link>
+            <Button onClick={() => { setIsReviewMode(true); setCurrentQuestionIndex(0); }} variant="outline" className="flex-1 h-12">
+              <BookOpen className="mr-2 h-4 w-4" /> Explications
             </Button>
             <Button onClick={() => setExamResult(null)} className="flex-1 h-12">
               <PlayCircle className="mr-2 h-4 w-4" /> Nouvelle Simulation
