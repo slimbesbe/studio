@@ -7,10 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { GraduationCap, Loader2, Mail, Lock, Play } from 'lucide-react';
+import { GraduationCap, Loader2, Mail, Lock, Play, ShieldCheck } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth, useFirestore } from '@/firebase';
-import { signInWithEmailAndPassword, signInAnonymously } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInAnonymously, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
@@ -28,44 +28,60 @@ export default function Home() {
     e.preventDefault();
     setIsLoading(true);
 
+    const ADMIN_EMAIL = 'slim.besbes@yahoo.fr';
+    const ADMIN_PASS = '147813';
+
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // Tentative de connexion normale
+      let userCredential;
+      try {
+        userCredential = await signInWithEmailAndPassword(auth, email, password);
+      } catch (signInError: any) {
+        // Si c'est le compte admin spécial et que la connexion échoue (ex: compte non créé)
+        if (email === ADMIN_EMAIL && password === ADMIN_PASS) {
+          try {
+            userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            toast({ title: "Initialisation", description: "Compte Super Admin créé avec succès." });
+          } catch (createError: any) {
+            // Si le compte existe déjà mais le mot de passe est différent dans Auth
+            throw signInError;
+          }
+        } else {
+          throw signInError;
+        }
+      }
+
       const user = userCredential.user;
 
-      // Logic "First Admin" pour le compte spécifié
-      if (email === 'slim.besbes@yahoo.fr') {
-        const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
-        if (!adminDoc.exists()) {
-          // Accorder les droits admin s'ils sont manquants
-          await setDoc(doc(db, 'roles_admin', user.uid), { createdAt: serverTimestamp() });
-          await setDoc(doc(db, 'users', user.uid), {
-            id: user.uid,
-            email: email,
-            firstName: 'Slim',
-            lastName: 'Besbes',
-            role: 'super_admin',
-            status: 'active',
-            createdAt: serverTimestamp()
-          }, { merge: true });
-        }
-        toast({ title: "Connexion réussie", description: "Bienvenue, Super Admin." });
-        router.push('/admin/dashboard');
-        return;
-      }
-
-      const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
-      if (adminDoc.exists()) {
-        toast({ title: "Connexion réussie", description: "Bienvenue, Administrateur." });
+      // Mise à jour/Vérification des droits dans Firestore
+      if (email === ADMIN_EMAIL) {
+        await setDoc(doc(db, 'roles_admin', user.uid), { createdAt: serverTimestamp() }, { merge: true });
+        await setDoc(doc(db, 'users', user.uid), {
+          id: user.uid,
+          email: email,
+          firstName: 'Slim',
+          lastName: 'Besbes',
+          role: 'super_admin',
+          status: 'active',
+          createdAt: serverTimestamp()
+        }, { merge: true });
+        
+        toast({ title: "Connexion réussie", description: "Bienvenue, Super Admin SIMOVEX." });
         router.push('/admin/dashboard');
       } else {
-        toast({ title: "Connexion réussie", description: "Content de vous revoir." });
-        router.push('/dashboard');
+        const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
+        if (adminDoc.exists()) {
+          router.push('/admin/dashboard');
+        } else {
+          router.push('/dashboard');
+        }
       }
     } catch (error: any) {
+      console.error(error);
       toast({
         variant: "destructive",
-        title: "Erreur de connexion",
-        description: "Email ou mot de passe incorrect."
+        title: "Erreur d'accès",
+        description: "Email ou mot de passe incorrect. Contactez l'administrateur si le problème persiste."
       });
     } finally {
       setIsLoading(false);
@@ -76,7 +92,7 @@ export default function Home() {
     setIsDemoLoading(true);
     try {
       await signInAnonymously(auth);
-      toast({ title: "Mode DÉMO activé", description: "Vous accédez à la plateforme avec des fonctionnalités limitées." });
+      toast({ title: "Mode DÉMO activé", description: "Accès limité pour exploration." });
       router.push('/dashboard/practice');
     } catch (error: any) {
       toast({
@@ -186,7 +202,9 @@ export default function Home() {
         </CardContent>
         <CardFooter className="flex flex-col gap-4 border-t pt-6 bg-secondary/5">
           <div className="text-center text-sm text-muted-foreground w-full">
-            <p>Accès restreint aux utilisateurs SIMOVEX</p>
+            <p className="flex items-center justify-center gap-1">
+              <ShieldCheck className="h-3 w-3" /> Accès sécurisé SIMOVEX
+            </p>
           </div>
         </CardFooter>
       </Card>
