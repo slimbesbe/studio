@@ -284,52 +284,94 @@ export default function ExamPage() {
     const percentage = Math.round((examResult.score / examResult.total) * 100);
     
     const getAppreciation = (pct: number) => {
-      if (pct < 50) return { label: "Needs Improvement", color: "bg-destructive text-white" };
-      if (pct < 65) return { label: "Below Target", color: "bg-amber-500 text-white" };
-      if (pct < 80) return { label: "Target", color: "bg-emerald-500 text-white" };
-      return { label: "Above Target", color: "bg-blue-600 text-white" };
+      if (pct < 50) return { label: "Needs Improvement", color: "bg-red-500 text-white", statusText: "Fail" };
+      if (pct < 65) return { label: "Below Target", color: "bg-amber-400 text-white", statusText: "Fail" };
+      if (pct < 80) return { label: "Target", color: "bg-emerald-400 text-white", statusText: "Pass" };
+      return { label: "Above Target", color: "bg-teal-700 text-white", statusText: "Pass" };
     };
 
     const appreciation = getAppreciation(percentage);
     const isSuccess = percentage >= 65;
 
     return (
-      <div className="max-w-2xl mx-auto space-y-8 animate-fade-in py-12">
-        <Card className="text-center shadow-2xl border-t-8 border-t-primary overflow-hidden">
+      <div className="max-w-4xl mx-auto space-y-8 animate-fade-in py-12">
+        <Card className="text-center shadow-2xl border-t-8 border-t-primary overflow-visible">
           <CardHeader>
-            <div className="flex justify-center mb-4">
-              <div className={`p-6 rounded-full ${isSuccess ? 'bg-emerald-100' : 'bg-amber-100'}`}>
-                <Trophy className={`h-20 w-20 ${isSuccess ? 'text-emerald-600' : 'text-amber-600'}`} />
+            <CardTitle className="text-2xl font-bold text-left border-b pb-4 flex justify-between items-center">
+              <span>Your Overall Score Performance: <span className={isSuccess ? "text-primary" : "text-destructive"}>{appreciation.statusText}</span></span>
+              {isSuccess && <span className="text-xs font-normal text-muted-foreground">Congratulations on earning your certification!</span>}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-12 py-10">
+            {/* PMI Style Performance Bar */}
+            <div className="relative mt-8 mb-16 w-full max-w-3xl mx-auto px-2">
+              {/* Top Labels */}
+              <div className="flex w-full text-[10px] text-muted-foreground mb-1 font-bold">
+                <div className="w-[65%] text-center">Failing</div>
+                <div className="w-[35%] text-center border-l border-sky-300">Passing</div>
+              </div>
+              
+              {/* The Visual Bar */}
+              <div className="relative h-12 w-full flex rounded-sm border border-sky-200 bg-white">
+                {/* Segments background */}
+                <div className="flex h-full w-full">
+                  <div className="h-full border-r border-sky-100 w-[50%] bg-[#fee2e2]" /> {/* NI - Red 100 */}
+                  <div className="h-full border-r border-sky-100 w-[15%] bg-[#fef3c7]" /> {/* BT - Amber 100 */}
+                  <div className="h-full border-r border-sky-100 w-[15%] bg-[#dcfce7]" /> {/* T - Emerald 100 */}
+                  <div className="h-full w-[20%] bg-[#0d9488]" /> {/* AT - Teal 600 */}
+                </div>
+
+                {/* Divide Marker between BT and T (The 65% mark) */}
+                <div className="absolute left-[65%] top-[-10px] bottom-[-10px] w-0.5 bg-sky-400 z-10" />
+
+                {/* YOU Indicator Cursor */}
+                <div 
+                  className="absolute top-[-35px] flex flex-col items-center transition-all duration-1000 ease-out z-20"
+                  style={{ left: `${percentage}%`, transform: 'translateX(-50%)' }}
+                >
+                  <span className="text-[11px] font-black text-black mb-1">YOU</span>
+                  <div className="h-20 w-1 bg-black rounded-full shadow-sm" />
+                </div>
+              </div>
+
+              {/* Bottom Labels */}
+              <div className="flex w-full text-[9px] md:text-[10px] font-bold mt-2">
+                <div className="w-[50%] text-left text-red-500 pl-1">Needs Improvement</div>
+                <div className="w-[15%] text-left text-amber-600 pl-1">Below Target</div>
+                <div className="w-[15%] text-left text-emerald-600 pl-1">Target</div>
+                <div className="w-[20%] text-left text-teal-900 pl-1">Above Target</div>
               </div>
             </div>
-            <CardTitle className="text-4xl font-bold">Résultat de l'Examen</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="text-6xl font-black text-primary">
-              {percentage}%
-            </div>
-            <div className="space-y-4">
-              <p className="text-xl font-medium">
-                {examResult.score} bonnes réponses sur {examResult.total}
-              </p>
-              <div className="flex flex-col items-center gap-4">
-                <Badge className={`text-xl px-8 py-2 font-bold ${appreciation.color}`}>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t">
+              <div className="space-y-2">
+                <p className="text-muted-foreground text-sm">Score estimé</p>
+                <div className="text-5xl font-black text-primary">{percentage}%</div>
+              </div>
+              <div className="space-y-4">
+                <p className="text-muted-foreground text-sm">Appréciation</p>
+                <Badge className={`text-lg px-6 py-1 font-bold ${appreciation.color}`}>
                   {appreciation.label}
                 </Badge>
-                
-                <p className="text-[11px] text-muted-foreground mt-4 italic max-w-sm mx-auto leading-relaxed border-t pt-4">
-                  « Les pourcentages affichés sont des estimations pédagogiques. 
-                  Le PMI ne communique pas de score chiffré officiel pour l’examen PMP®. »
+                <p className="text-sm font-medium">
+                   {examResult.score} / {examResult.total} questions correctes
                 </p>
               </div>
             </div>
+
+            <div className="pt-6">
+              <p className="text-[11px] text-muted-foreground italic max-w-lg mx-auto leading-relaxed border-t pt-4">
+                « Les pourcentages affichés sont des estimations pédagogiques. 
+                Le PMI ne communique pas de score chiffré officiel pour l’examen PMP®. »
+              </p>
+            </div>
           </CardContent>
           <CardFooter className="flex gap-4 p-6 bg-muted/20">
-            <Button onClick={() => { setIsReviewMode(true); setCurrentQuestionIndex(0); }} variant="outline" className="flex-1 h-12 shadow-sm">
-              <BookOpen className="mr-2 h-4 w-4" /> Explications
+            <Button onClick={() => { setIsReviewMode(true); setCurrentQuestionIndex(0); }} variant="outline" className="flex-1 h-12 shadow-sm font-bold">
+              <BookOpen className="mr-2 h-4 w-4" /> EXPLICATIONS
             </Button>
-            <Button onClick={() => setExamResult(null)} className="flex-1 h-12 shadow-md">
-              <PlayCircle className="mr-2 h-4 w-4" /> Nouvelle Simulation
+            <Button onClick={() => setExamResult(null)} className="flex-1 h-12 shadow-md font-bold">
+              <PlayCircle className="mr-2 h-4 w-4" /> NOUVELLE SIMULATION
             </Button>
           </CardFooter>
         </Card>
