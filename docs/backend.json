@@ -55,6 +55,17 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["statement", "options", "correctOptionIds", "isMultipleCorrect", "questionCode"]
+    },
+    "ExamState": {
+      "title": "ExamState",
+      "type": "object",
+      "properties": {
+        "currentQuestionIndex": { "type": "number" },
+        "answers": { "type": "object" },
+        "timeLeft": { "type": "number" },
+        "questionIds": { "type": "array", "items": { "type": "string" } },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "auth": {
@@ -68,6 +79,14 @@
           "entityName": "User",
           "schema": { "$ref": "#/backend/entities/User" },
           "description": "Profils utilisateurs avec métadonnées de sécurité."
+        }
+      },
+      {
+        "path": "/users/{userId}/exam_state/current",
+        "definition": {
+          "entityName": "ExamState",
+          "schema": { "$ref": "#/backend/entities/ExamState" },
+          "description": "État de l'examen en cours pour reprise."
         }
       },
       {

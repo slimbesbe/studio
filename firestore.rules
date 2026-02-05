@@ -19,11 +19,13 @@ service cloud.firestore {
       allow update: if isAdmin() || (isOwner(userId) && 
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'expiresAt', 'validityType', 'validityDays']));
       allow delete: if isAdmin();
+
+      match /exam_state/{docId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     match /questions/{questionId} {
-      // Les utilisateurs peuvent lire uniquement les questions actives
-      // Ils ne voient pas le champ questionCode via l'UI, mais on limite ici l'accès global
       allow read: if isAdmin() || (isSignedIn() && resource.data.isActive == true);
       allow write: if isAdmin();
     }

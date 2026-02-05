@@ -1,9 +1,9 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, where, limit } from 'firebase/firestore';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from '@/firebase';
+import { collection, query, where, limit, doc, setDoc, deleteDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -17,7 +17,8 @@ import {
   AlertCircle,
   Loader2,
   CheckCircle2,
-  PlayCircle
+  PlayCircle,
+  History as HistoryIcon
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
@@ -32,46 +33,105 @@ export default function ExamPage() {
   const [isExamStarted, setIsExamStarted] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string[]>>({});
-  const [timeLeft, setTimeLeft] = useState(0); // in seconds
+  const [timeLeft, setTimeLeft] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [examResult, setExamResult] = useState<{ score: number; total: number } | null>(null);
+  const [sessionQuestionIds, setSessionQuestionIds] = useState<string[]>([]);
 
-  // Fetch questions
+  // State persistence ref
+  const examStateRef = useMemoFirebase(() => {
+    return user && !user.isAnonymous ? doc(db, 'users', user.uid, 'exam_state', 'current') : null;
+  }, [db, user]);
+
+  const { data: savedState, isLoading: isStateLoading } = useDoc(examStateRef);
+
+  // Fetch all questions for pool
   const questionsQuery = useMemoFirebase(() => {
-    // Les utilisateurs standards ne voient que les questions actives
     return query(
       collection(db, 'questions'),
-      where('isActive', '==', true),
-      limit(isDemo ? 10 : 180) // Limite démo vs Réel
+      where('isActive', '==', true)
     );
-  }, [db, isDemo]);
+  }, [db]);
 
-  const { data: questions, isLoading: isQuestionsLoading } = useCollection(questionsQuery);
+  const { data: allQuestions, isLoading: isQuestionsLoading } = useCollection(questionsQuery);
+
+  // Filtered questions based on session IDs
+  const activeQuestions = useMemo(() => {
+    if (!allQuestions || sessionQuestionIds.length === 0) return [];
+    // Maintain order of sessionQuestionIds
+    return sessionQuestionIds.map(id => allQuestions.find(q => q.id === id)).filter(Boolean) as any[];
+  }, [allQuestions, sessionQuestionIds]);
 
   // Timer logic
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isExamStarted && timeLeft > 0 && !examResult) {
       timer = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
+        setTimeLeft((prev) => {
+          const newTime = prev - 1;
+          // Periodically save time to Firestore (every 30 seconds)
+          if (newTime % 30 === 0 && !isDemo && examStateRef) {
+             setDoc(examStateRef, { timeLeft: newTime }, { merge: true });
+          }
+          return newTime;
+        });
       }, 1000);
     } else if (timeLeft === 0 && isExamStarted && !examResult) {
       handleFinishExam();
     }
     return () => clearInterval(timer);
-  }, [isExamStarted, timeLeft, examResult]);
+  }, [isExamStarted, timeLeft, examResult, isDemo, examStateRef]);
 
-  const startExam = () => {
-    if (!questions || questions.length === 0) {
-      toast({ variant: "destructive", title: "Erreur", description: "Aucune question disponible pour le moment." });
+  // Sync state to Firestore on change
+  const saveProgress = useCallback((updatedIndex?: number, updatedAnswers?: any) => {
+    if (isDemo || !examStateRef || !isExamStarted) return;
+    
+    setDoc(examStateRef, {
+      currentQuestionIndex: updatedIndex !== undefined ? updatedIndex : currentQuestionIndex,
+      answers: updatedAnswers !== undefined ? updatedAnswers : answers,
+      timeLeft: timeLeft,
+      questionIds: sessionQuestionIds,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+  }, [isDemo, examStateRef, isExamStarted, currentQuestionIndex, answers, timeLeft, sessionQuestionIds]);
+
+  const startExam = (resume: boolean = false) => {
+    if (!allQuestions || allQuestions.length === 0) {
+      toast({ variant: "destructive", title: "Erreur", description: "Aucune question disponible." });
       return;
     }
-    setIsExamStarted(true);
-    // Simuler 2 minutes par question (standard PMP approx 1.2 min)
-    setTimeLeft(questions.length * 120);
+
+    if (resume && savedState) {
+      setSessionQuestionIds(savedState.questionIds || []);
+      setAnswers(savedState.answers || {});
+      setCurrentQuestionIndex(savedState.currentQuestionIndex || 0);
+      setTimeLeft(savedState.timeLeft || 0);
+      setIsExamStarted(true);
+      return;
+    }
+
+    // Start New
+    const pool = [...allQuestions].sort(() => 0.5 - Math.random());
+    const selected = pool.slice(0, isDemo ? 10 : 180);
+    const ids = selected.map(q => q.id);
+    
+    setSessionQuestionIds(ids);
+    setTimeLeft(ids.length * 120);
     setCurrentQuestionIndex(0);
     setAnswers({});
     setExamResult(null);
+    setIsExamStarted(true);
+
+    // Initial save for persistence
+    if (!isDemo && examStateRef) {
+      setDoc(examStateRef, {
+        questionIds: ids,
+        currentQuestionIndex: 0,
+        answers: {},
+        timeLeft: ids.length * 120,
+        updatedAt: serverTimestamp()
+      });
+    }
   };
 
   const formatTime = (seconds: number) => {
@@ -83,23 +143,26 @@ export default function ExamPage() {
 
   const toggleOption = (questionId: string, optionId: string, isMultiple: boolean) => {
     const current = answers[questionId] || [];
+    let newAnswers;
     if (isMultiple) {
       if (current.includes(optionId)) {
-        setAnswers({ ...answers, [questionId]: current.filter(id => id !== optionId) });
+        newAnswers = { ...answers, [questionId]: current.filter(id => id !== optionId) };
       } else {
-        setAnswers({ ...answers, [questionId]: [...current, optionId] });
+        newAnswers = { ...answers, [questionId]: [...current, optionId] };
       }
     } else {
-      setAnswers({ ...answers, [questionId]: [optionId] });
+      newAnswers = { ...answers, [questionId]: [optionId] };
     }
+    setAnswers(newAnswers);
+    saveProgress(undefined, newAnswers);
   };
 
-  const handleFinishExam = () => {
-    if (!questions) return;
+  const handleFinishExam = async () => {
+    if (activeQuestions.length === 0) return;
     setIsSubmitting(true);
     
     let score = 0;
-    questions.forEach(q => {
+    activeQuestions.forEach(q => {
       const userAns = answers[q.id] || [];
       const correctAns = q.correctOptionIds || [];
       
@@ -108,15 +171,20 @@ export default function ExamPage() {
       }
     });
 
-    setExamResult({ score, total: questions.length });
+    setExamResult({ score, total: activeQuestions.length });
     setIsSubmitting(false);
+
+    // Clear saved state
+    if (!isDemo && examStateRef) {
+      await deleteDoc(examStateRef);
+    }
   };
 
-  if (isUserLoading || isQuestionsLoading) {
+  if (isUserLoading || isQuestionsLoading || isStateLoading) {
     return (
       <div className="h-[60vh] flex flex-col items-center justify-center gap-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="text-muted-foreground animate-pulse">Chargement de la simulation...</p>
+        <p className="text-muted-foreground animate-pulse">Chargement de votre session...</p>
       </div>
     );
   }
@@ -148,18 +216,13 @@ export default function ExamPage() {
                 {isSuccess ? "Target Achieved" : "Needs Improvement"}
               </Badge>
             </div>
-            <p className="text-muted-foreground max-w-md mx-auto">
-              {isSuccess 
-                ? "Félicitations ! Votre performance indique une bonne maîtrise du mindset PMI."
-                : "Ne vous découragez pas. Analysez vos erreurs dans la section 'Kill Mistakes' pour progresser."}
-            </p>
           </CardContent>
           <CardFooter className="flex gap-4">
             <Button asChild variant="outline" className="flex-1 h-12">
               <Link href="/dashboard/history">Voir l'historique</Link>
             </Button>
             <Button onClick={() => setExamResult(null)} className="flex-1 h-12">
-              <PlayCircle className="mr-2 h-4 w-4" /> Recommencer
+              <PlayCircle className="mr-2 h-4 w-4" /> Nouvelle Simulation
             </Button>
           </CardFooter>
         </Card>
@@ -175,8 +238,27 @@ export default function ExamPage() {
             <PlayCircle className="h-12 w-12 text-primary" />
           </div>
           <h1 className="text-3xl font-bold text-primary">Simulation d'Examen PMP</h1>
-          <p className="text-muted-foreground">Préparez-vous aux conditions réelles de l'examen certifiant.</p>
+          <p className="text-muted-foreground">Reprenez votre progression ou lancez une nouvelle session.</p>
         </div>
+
+        {savedState && (
+          <Card className="border-primary bg-primary/5 shadow-lg animate-pulse hover:animate-none">
+            <CardContent className="p-6 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <HistoryIcon className="h-10 w-10 text-primary" />
+                <div>
+                  <h3 className="font-bold text-lg">Examen en cours détecté</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Question {savedState.currentQuestionIndex + 1} • {formatTime(savedState.timeLeft)} restants
+                  </p>
+                </div>
+              </div>
+              <Button onClick={() => startExam(true)} size="lg" className="bg-primary hover:bg-primary/90">
+                Reprendre <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid gap-6 md:grid-cols-2">
           <Card className="hover:shadow-lg transition-shadow">
@@ -188,15 +270,11 @@ export default function ExamPage() {
             <CardContent className="space-y-4">
               <div className="flex justify-between border-b pb-2">
                 <span className="text-muted-foreground">Questions</span>
-                <span className="font-bold">{questions?.length || 0}</span>
+                <span className="font-bold">{isDemo ? 10 : 180}</span>
               </div>
               <div className="flex justify-between border-b pb-2">
-                <span className="text-muted-foreground">Temps alloué</span>
-                <span className="font-bold">{Math.round((questions?.length || 0) * 2)} min</span>
-              </div>
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-muted-foreground">Seuil de succès</span>
-                <span className="font-bold">70%</span>
+                <span className="text-muted-foreground">Temps estimé</span>
+                <span className="font-bold">{isDemo ? '20' : '230'} min</span>
               </div>
             </CardContent>
           </Card>
@@ -204,31 +282,32 @@ export default function ExamPage() {
           <Card className="bg-amber-50 border-amber-200">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2 text-amber-800">
-                <AlertCircle className="h-5 w-5" /> Instructions
+                <AlertCircle className="h-5 w-5" /> Persistence
               </CardTitle>
             </CardHeader>
-            <CardContent className="text-sm text-amber-900 space-y-2">
-              <p>• Ne rafraîchissez pas la page pendant l'examen.</p>
-              <p>• Les résultats sont enregistrés à la soumission.</p>
-              <p>• Une fois le temps écoulé, l'examen se termine automatiquement.</p>
-              {isDemo && (
-                <div className="mt-4 p-2 bg-white rounded border border-amber-300 font-bold text-xs">
-                  MODE DÉMO : Session limitée à 10 questions.
-                </div>
-              )}
+            <CardContent className="text-sm text-amber-900">
+              Votre progression est sauvegardée automatiquement à chaque réponse. Vous pouvez quitter et revenir plus tard pour finir votre session.
             </CardContent>
           </Card>
         </div>
 
-        <Button onClick={startExam} size="lg" className="w-full h-16 text-xl font-bold shadow-xl shadow-primary/20">
-          Lancer la simulation <ChevronRight className="ml-2 h-6 w-6" />
+        <Button 
+          onClick={() => startExam(false)} 
+          size="lg" 
+          variant={savedState ? "outline" : "default"}
+          className="w-full h-16 text-xl font-bold"
+        >
+          {savedState ? "Démarrer une nouvelle simulation" : "Lancer la simulation"} 
+          <ChevronRight className="ml-2 h-6 w-6" />
         </Button>
       </div>
     );
   }
 
-  const currentQuestion = questions![currentQuestionIndex];
-  const progress = ((currentQuestionIndex + 1) / questions!.length) * 100;
+  const currentQuestion = activeQuestions[currentQuestionIndex];
+  const progress = ((currentQuestionIndex + 1) / activeQuestions.length) * 100;
+
+  if (!currentQuestion) return <div className="text-center p-20"><Loader2 className="animate-spin inline mr-2" /> Préparation des questions...</div>;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in pb-20">
@@ -237,13 +316,13 @@ export default function ExamPage() {
         <div className="flex items-center justify-between px-2">
           <div className="flex items-center gap-4">
             <Badge variant="outline" className="text-lg font-mono px-3 py-1">
-              Q {currentQuestionIndex + 1} / {questions?.length}
+              Q {currentQuestionIndex + 1} / {activeQuestions.length}
             </Badge>
             <div className="flex items-center gap-2 text-primary font-bold">
               <Clock className="h-5 w-5" /> {formatTime(timeLeft)}
             </div>
           </div>
-          <Button variant="destructive" size="sm" onClick={() => { if(confirm("Terminer l'examen maintenant ?")) handleFinishExam() }}>
+          <Button variant="destructive" size="sm" onClick={() => { if(confirm("Terminer et soumettre l'examen ?")) handleFinishExam() }}>
             <Send className="mr-2 h-4 w-4" /> Terminer
           </Button>
         </div>
@@ -265,13 +344,13 @@ export default function ExamPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3">
-            {currentQuestion.options.map((opt, idx) => {
+            {currentQuestion.options.map((opt: any, idx: number) => {
               const isSelected = answers[currentQuestion.id]?.includes(opt.id);
               
               return (
                 <div 
                   key={opt.id}
-                  onClick={() => toggleOption(currentQuestion.id, opt.id, currentQuestion.isMultipleCorrect)}
+                  onClick={() => toggleOption(currentQuestion.id, opt.id, !!currentQuestion.isMultipleCorrect)}
                   className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all hover:bg-muted/50 ${isSelected ? 'border-primary bg-primary/5 shadow-inner' : 'border-transparent bg-secondary/30'}`}
                 >
                   <div className="pt-1">
@@ -299,16 +378,24 @@ export default function ExamPage() {
         <div className="max-w-4xl mx-auto flex justify-between gap-4">
           <Button 
             variant="outline" 
-            onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
+            onClick={() => {
+              const nextIdx = Math.max(0, currentQuestionIndex - 1);
+              setCurrentQuestionIndex(nextIdx);
+              saveProgress(nextIdx);
+            }}
             disabled={currentQuestionIndex === 0}
             className="flex-1 h-12"
           >
             <ChevronLeft className="mr-2 h-4 w-4" /> Précédent
           </Button>
           
-          {currentQuestionIndex < (questions?.length || 0) - 1 ? (
+          {currentQuestionIndex < activeQuestions.length - 1 ? (
             <Button 
-              onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
+              onClick={() => {
+                const nextIdx = currentQuestionIndex + 1;
+                setCurrentQuestionIndex(nextIdx);
+                saveProgress(nextIdx);
+              }}
               className="flex-1 h-12 shadow-lg"
             >
               Suivant <ChevronRight className="ml-2 h-4 w-4" />
