@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -72,10 +73,10 @@ export default function Home() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 sm:p-6 lg:p-8">
       <div className="flex items-center gap-2 mb-8 group">
         <div className="bg-primary p-2 rounded-xl">
-          < GraduationCap className="h-8 w-8 text-white" />
+          <GraduationCap className="h-8 w-8 text-white" />
         </div>
         <span className="font-headline font-bold text-2xl tracking-tight text-primary">
-          INOVEXIO <span className="text-accent">PMP</span>
+          INOVEX <span className="text-accent">PMP</span>
         </span>
       </div>
       
@@ -165,7 +166,7 @@ export default function Home() {
         </CardContent>
         <CardFooter className="flex flex-col gap-4 border-t pt-6 bg-secondary/5">
           <div className="text-center text-sm text-muted-foreground w-full">
-            <p>Accès restreint aux consultants INOVEXIO</p>
+            <p>Accès restreint aux consultants INOVEX</p>
           </div>
         </CardFooter>
       </Card>

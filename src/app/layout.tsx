@@ -5,8 +5,8 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'INOVEXIO PMP Exam Simulator',
-  description: 'Plateforme professionnelle de simulation d\'examen PMP pour INOVEXIO Consulting',
+  title: 'INOVEX PMP Exam Simulator',
+  description: 'Plateforme professionnelle de simulation d\'examen PMP pour INOVEX Consulting',
 };
 
 export default function RootLayout({
