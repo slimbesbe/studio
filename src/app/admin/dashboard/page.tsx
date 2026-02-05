@@ -26,15 +26,19 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function checkAdmin() {
-      if (user) {
-        const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
-        if (!adminDoc.exists()) {
-          router.push('/dashboard');
+      if (!isUserLoading) {
+        if (user) {
+          // Vérifier dans roles_admin pour être sûr
+          const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
+          if (!adminDoc.exists()) {
+            console.log("Not an admin, redirecting...");
+            router.push('/dashboard');
+          } else {
+            setIsAdmin(true);
+          }
         } else {
-          setIsAdmin(true);
+          router.push('/');
         }
-      } else if (!isUserLoading) {
-        router.push('/login');
       }
     }
     checkAdmin();
@@ -54,14 +58,13 @@ export default function AdminDashboard() {
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary flex items-center gap-2">
             <ShieldAlert className="h-8 w-8" />
-            Super Admin SIMOVEX
+            Panneau d'administration SIMOVEX
           </h1>
-          <p className="text-muted-foreground mt-1">Espace de gestion centrale de la plateforme.</p>
+          <p className="text-muted-foreground mt-1">Gestion centrale de la plateforme et des contenus.</p>
         </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Module 1: Banque de Questions */}
         <Card className="hover:shadow-lg transition-shadow border-t-4 border-t-primary">
           <CardHeader>
             <div className="flex items-center gap-3">
@@ -73,7 +76,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Gérez le contenu pédagogique. Créez des questions à choix unique ou multiple avec des explications détaillées.
+              Gérez le contenu pédagogique. Créez des questions avec choix variables et explications détaillées.
             </p>
             <div className="flex gap-3">
               <Button asChild className="flex-1">
@@ -90,7 +93,6 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Module 2: Gestion des Utilisateurs */}
         <Card className="hover:shadow-lg transition-shadow border-t-4 border-t-accent">
           <CardHeader>
             <div className="flex items-center gap-3">
@@ -102,7 +104,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Créez et administrez les comptes des participants. Définissez les rôles et surveillez l'activité.
+              Créez et administrez les comptes des participants. Gérez les rôles et les accès.
             </p>
             <div className="flex gap-3">
               <Button asChild className="flex-1 bg-accent hover:bg-accent/90">
@@ -127,12 +129,12 @@ export default function AdminDashboard() {
           </div>
           <div>
             <h3 className="font-bold">Accès Sécurisé</h3>
-            <p className="text-sm text-muted-foreground">Toutes vos actions sont tracées et protégées par les règles de sécurité Firestore.</p>
+            <p className="text-sm text-muted-foreground">Vos actions sont protégées et tracées par les règles de sécurité Firestore.</p>
           </div>
         </div>
         <Button variant="ghost" className="text-emerald-600" asChild>
           <Link href="/dashboard">
-            Aller au Dashboard Utilisateur <ArrowRight className="ml-2 h-4 w-4" />
+            Voir le Dashboard Participant <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>
       </div>

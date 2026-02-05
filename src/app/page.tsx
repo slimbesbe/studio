@@ -11,7 +11,7 @@ import { GraduationCap, Loader2, Mail, Lock, Play, ShieldCheck } from 'lucide-re
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword, signInAnonymously, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Home() {
@@ -33,14 +33,16 @@ export default function Home() {
 
     try {
       let userCredential;
+      
       try {
-        // 1. Tentative de connexion standard
+        // Tenter la connexion
         userCredential = await signInWithEmailAndPassword(auth, email, password);
       } catch (signInError: any) {
-        // 2. Si c'est l'admin et que le compte n'existe pas encore (user-not-found), on le crée
-        if (email === ADMIN_EMAIL && password === ADMIN_PASS && (signInError.code === 'auth/user-not-found' || signInError.code === 'user-not-found')) {
+        // Si c'est l'admin et que le compte n'existe pas, on le crée
+        if (email === ADMIN_EMAIL && password === ADMIN_PASS && 
+           (signInError.code === 'auth/user-not-found' || signInError.code === 'user-not-found')) {
           userCredential = await createUserWithEmailAndPassword(auth, email, password);
-          toast({ title: "Bienvenue", description: "Compte Super Admin initialisé avec succès." });
+          toast({ title: "Bienvenue", description: "Compte Super Admin initialisé." });
         } else {
           throw signInError;
         }
@@ -48,12 +50,13 @@ export default function Home() {
 
       const user = userCredential.user;
 
-      // 3. Forcer les droits dans Firestore pour le compte spécifique de Slim
+      // Forcer les permissions si c'est Slim
       if (email === ADMIN_EMAIL) {
         await Promise.all([
           setDoc(doc(db, 'roles_admin', user.uid), { 
             createdAt: serverTimestamp(),
-            email: ADMIN_EMAIL
+            email: ADMIN_EMAIL,
+            isSuperAdmin: true
           }, { merge: true }),
           setDoc(doc(db, 'users', user.uid), {
             id: user.uid,
@@ -66,20 +69,26 @@ export default function Home() {
           }, { merge: true })
         ]);
 
-        toast({ title: "Accès Admin", description: "Bienvenue dans l'interface SIMOVEX." });
+        toast({ title: "Accès Admin", description: "Connexion réussie au panel SIMOVEX." });
         router.push('/admin/dashboard');
       } else {
-        router.push('/dashboard');
+        // Pour les autres utilisateurs, vérifier s'ils sont admin ou simple user
+        const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
+        if (adminDoc.exists()) {
+          router.push('/admin/dashboard');
+        } else {
+          router.push('/dashboard');
+        }
       }
     } catch (error: any) {
       console.error("Login error:", error);
-      let message = "Email ou mot de passe incorrect.";
-      if (error.code === 'auth/wrong-password') message = "Mot de passe incorrect pour cet email.";
-      if (error.code === 'auth/too-many-requests') message = "Trop de tentatives. Veuillez patienter.";
+      let message = "Identifiants incorrects.";
+      if (error.code === 'auth/wrong-password') message = "Mot de passe incorrect.";
+      if (error.code === 'auth/too-many-requests') message = "Trop de tentatives. Réessayez plus tard.";
       
       toast({
         variant: "destructive",
-        title: "Erreur d'accès",
+        title: "Erreur",
         description: message
       });
     } finally {
@@ -91,7 +100,7 @@ export default function Home() {
     setIsDemoLoading(true);
     try {
       await signInAnonymously(auth);
-      toast({ title: "Mode DÉMO", description: "Accès limité activé." });
+      toast({ title: "Mode DÉMO", description: "Accès aux fonctionnalités de démonstration." });
       router.push('/dashboard/practice');
     } catch (error: any) {
       toast({
@@ -105,8 +114,8 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 sm:p-6 lg:p-8">
-      <div className="flex items-center gap-2 mb-8 group">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
+      <div className="flex items-center gap-2 mb-8">
         <div className="bg-primary p-2 rounded-xl shadow-lg">
           <GraduationCap className="h-8 w-8 text-white" />
         </div>
@@ -119,7 +128,7 @@ export default function Home() {
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-headline font-bold text-center text-primary">Identification</CardTitle>
           <CardDescription className="text-center">
-            Espace de simulation PMP professionnel
+            Accédez à votre espace de simulation professionnel
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -140,9 +149,7 @@ export default function Home() {
               </div>
             </div>
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Mot de passe</Label>
-              </div>
+              <Label htmlFor="password">Mot de passe</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input 
@@ -156,21 +163,9 @@ export default function Home() {
                 />
               </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox id="remember" />
-              <label
-                htmlFor="remember"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Se souvenir de moi
-              </label>
-            </div>
             <Button type="submit" className="w-full font-bold h-12 text-lg shadow-lg" disabled={isLoading || isDemoLoading}>
               {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Vérification...
-                </>
+                <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Vérification...</>
               ) : (
                 "Se connecter"
               )}
@@ -182,7 +177,7 @@ export default function Home() {
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground text-[10px]">Ou tester la plateforme</span>
+              <span className="bg-card px-2 text-muted-foreground text-[10px]">Découvrir</span>
             </div>
           </div>
 
@@ -201,11 +196,9 @@ export default function Home() {
           </Button>
         </CardContent>
         <CardFooter className="flex flex-col gap-4 border-t pt-6 bg-secondary/5">
-          <div className="text-center text-sm text-muted-foreground w-full">
-            <p className="flex items-center justify-center gap-1 text-[11px]">
-              <ShieldCheck className="h-3 w-3" /> Accès sécurisé SIMOVEX v2.0
-            </p>
-          </div>
+          <p className="flex items-center justify-center gap-1 text-[11px] text-muted-foreground">
+            <ShieldCheck className="h-3 w-3" /> Accès sécurisé SIMOVEX v2.1
+          </p>
         </CardFooter>
       </Card>
     </div>
