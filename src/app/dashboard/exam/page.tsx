@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, where, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -282,11 +282,20 @@ export default function ExamPage() {
 
   if (examResult) {
     const percentage = Math.round((examResult.score / examResult.total) * 100);
-    const isSuccess = percentage >= 70;
+    
+    const getAppreciation = (pct: number) => {
+      if (pct < 50) return { label: "Needs Improvement", color: "bg-destructive text-white" };
+      if (pct < 65) return { label: "Below Target", color: "bg-amber-500 text-white" };
+      if (pct < 80) return { label: "Target", color: "bg-emerald-500 text-white" };
+      return { label: "Above Target", color: "bg-blue-600 text-white" };
+    };
+
+    const appreciation = getAppreciation(percentage);
+    const isSuccess = percentage >= 65;
 
     return (
       <div className="max-w-2xl mx-auto space-y-8 animate-fade-in py-12">
-        <Card className="text-center shadow-2xl border-t-8 border-t-primary">
+        <Card className="text-center shadow-2xl border-t-8 border-t-primary overflow-hidden">
           <CardHeader>
             <div className="flex justify-center mb-4">
               <div className={`p-6 rounded-full ${isSuccess ? 'bg-emerald-100' : 'bg-amber-100'}`}>
@@ -299,20 +308,27 @@ export default function ExamPage() {
             <div className="text-6xl font-black text-primary">
               {percentage}%
             </div>
-            <div className="space-y-2">
+            <div className="space-y-4">
               <p className="text-xl font-medium">
                 {examResult.score} bonnes réponses sur {examResult.total}
               </p>
-              <Badge variant={isSuccess ? "default" : "destructive"} className="text-lg px-6 py-1">
-                {isSuccess ? "Target Achieved" : "Needs Improvement"}
-              </Badge>
+              <div className="flex flex-col items-center gap-4">
+                <Badge className={`text-xl px-8 py-2 font-bold ${appreciation.color}`}>
+                  {appreciation.label}
+                </Badge>
+                
+                <p className="text-[11px] text-muted-foreground mt-4 italic max-w-sm mx-auto leading-relaxed border-t pt-4">
+                  « Les pourcentages affichés sont des estimations pédagogiques. 
+                  Le PMI ne communique pas de score chiffré officiel pour l’examen PMP®. »
+                </p>
+              </div>
             </div>
           </CardContent>
-          <CardFooter className="flex gap-4">
-            <Button onClick={() => { setIsReviewMode(true); setCurrentQuestionIndex(0); }} variant="outline" className="flex-1 h-12">
+          <CardFooter className="flex gap-4 p-6 bg-muted/20">
+            <Button onClick={() => { setIsReviewMode(true); setCurrentQuestionIndex(0); }} variant="outline" className="flex-1 h-12 shadow-sm">
               <BookOpen className="mr-2 h-4 w-4" /> Explications
             </Button>
-            <Button onClick={() => setExamResult(null)} className="flex-1 h-12">
+            <Button onClick={() => setExamResult(null)} className="flex-1 h-12 shadow-md">
               <PlayCircle className="mr-2 h-4 w-4" /> Nouvelle Simulation
             </Button>
           </CardFooter>
