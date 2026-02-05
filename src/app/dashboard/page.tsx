@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -13,7 +14,8 @@ import {
   PlayCircle,
   BrainCircuit,
   AlertTriangle,
-  Lock
+  Lock,
+  History as HistoryIcon
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -36,9 +38,62 @@ const performanceData = [
   { name: 'Business', score: 85, full: 100, color: '#10b981' },
 ];
 
+interface CircularStatProps {
+  value: string | number;
+  label: string;
+  sublabel: string;
+  percent: number; // 0 to 100 for the ring
+  color?: string;
+}
+
+const CircularStat = ({ value, label, sublabel, percent, color = "hsl(var(--primary))" }: CircularStatProps) => {
+  const radius = 54;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (percent / 100) * circumference;
+
+  return (
+    <div className="flex flex-col items-center text-center animate-fade-in">
+      <h3 className="text-sm font-semibold text-muted-foreground mb-6 min-h-[40px] flex items-center">{label}</h3>
+      <div className="relative h-40 w-40 flex items-center justify-center">
+        {/* Background Circle */}
+        <svg className="absolute h-full w-full transform -rotate-90">
+          <circle
+            cx="80"
+            cy="80"
+            r={radius}
+            stroke="currentColor"
+            strokeWidth="10"
+            fill="transparent"
+            className="text-muted/20"
+          />
+          {/* Progress Circle */}
+          <circle
+            cx="80"
+            cy="80"
+            r={radius}
+            stroke={color}
+            strokeWidth="10"
+            fill="transparent"
+            strokeDasharray={circumference}
+            style={{ 
+              strokeDashoffset: offset,
+              transition: 'stroke-dashoffset 1s ease-in-out'
+            }}
+            strokeLinecap="round"
+          />
+        </svg>
+        <div className="flex flex-col items-center justify-center z-10">
+          <span className="text-4xl font-black text-foreground">{value}</span>
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-1">{sublabel}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
-  const { user } = useUser();
+  const { user, profile } = useUser();
   const { toast } = useToast();
   const isDemo = user?.isAnonymous;
 
@@ -59,19 +114,21 @@ export default function DashboardPage() {
   if (!mounted) return null;
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-10 animate-fade-in max-w-6xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-headline font-bold text-primary">Tableau de Bord</h1>
+          <h1 className="text-3xl font-headline font-bold text-primary italic">Dashboard</h1>
           <p className="text-muted-foreground mt-1">
-            {isDemo ? "Bienvenue en mode DEMO. Explorez la pratique libre." : "Bonjour Jean, prêt pour une session de révision ?"}
+            {isDemo 
+              ? "Bienvenue en mode DEMO. Explorez la plateforme." 
+              : `Bonjour ${profile?.firstName || 'Jean'}, prêt pour une session ?`}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleDemoLock} disabled={isDemo}>
-            {isDemo && <Lock className="mr-2 h-4 w-4" />} Télécharger Rapport PDF
+        <div className="flex gap-3">
+          <Button variant="outline" className="rounded-full px-6" onClick={handleDemoLock} disabled={isDemo}>
+            {isDemo && <Lock className="mr-2 h-4 w-4" />} Rapport PDF
           </Button>
-          <Button size="sm" className="shadow-lg" asChild={!isDemo} onClick={isDemo ? handleDemoLock : undefined}>
+          <Button className="rounded-full px-6 shadow-xl bg-primary hover:bg-primary/90" asChild={!isDemo} onClick={isDemo ? handleDemoLock : undefined}>
             {isDemo ? (
               <span><Lock className="mr-2 h-4 w-4" /> Simulation d'Examen</span>
             ) : (
@@ -84,101 +141,61 @@ export default function DashboardPage() {
       </div>
 
       {isDemo && (
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3 text-amber-800 animate-slide-up">
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3 text-amber-800 animate-slide-up">
           <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
           <p className="text-sm font-medium">
-            Vous utilisez actuellement le <strong>mode DEMO</strong>. Seule la section <strong>Pratique Libre</strong> est accessible avec une sélection de 10 questions d'entraînement.
+            Vous utilisez actuellement le <strong>mode DEMO</strong>. Seules certaines fonctionnalités sont activées.
           </p>
         </div>
       )}
 
-      {/* Stats Overview */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className={cn("hover:shadow-md transition-shadow", isDemo && "opacity-50 grayscale")}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Progression Globale</CardTitle>
-            <Trophy className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">68%</div>
-            <Progress value={68} className="h-2 mt-2" />
-            <p className="text-xs text-muted-foreground mt-2">
-              <span className="text-emerald-500 font-medium inline-flex items-center">
-                +12% <ArrowUpRight className="h-3 w-3" />
-              </span> par rapport au mois dernier
-            </p>
-          </CardContent>
-        </Card>
-        <Card className={cn("hover:shadow-md transition-shadow", isDemo && "opacity-50 grayscale")}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Score Moyen</CardTitle>
-            <Target className="h-4 w-4 text-accent" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">72.5%</div>
-            <p className="text-xs text-muted-foreground mt-1">Cible PMP : 80%+</p>
-            <div className="flex gap-1 mt-3">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className={`h-1.5 flex-1 rounded-full ${i <= 3 ? 'bg-primary' : 'bg-muted'}`} />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className={cn("hover:shadow-md transition-shadow cursor-pointer", isDemo ? "border-amber-500" : "")} asChild={!isDemo}>
-          <Link href="/dashboard/practice">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Questions Dispos</CardTitle>
-              <BrainCircuit className="h-4 w-4 text-amber-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{isDemo ? "10" : "14"}</div>
-              <p className="text-xs text-muted-foreground mt-1">{isDemo ? "Questions d'entraînement" : "Questions à revoir aujourd'hui"}</p>
-              <Badge variant="secondary" className="mt-3 bg-amber-100 text-amber-700 hover:bg-amber-100 border-none">
-                {isDemo ? "Accès DÉMO" : "Spaced Repetition Actif"}
-              </Badge>
-            </CardContent>
-          </Link>
-        </Card>
-        <Card className={cn("hover:shadow-md transition-shadow", isDemo && "opacity-50 grayscale")}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Temps d'étude</CardTitle>
-            <Clock className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">42h 15m</div>
-            <p className="text-xs text-muted-foreground mt-1">Total depuis le début</p>
-            <div className="mt-4 flex items-center gap-2">
-              <div className="flex -space-x-2">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-6 w-6 rounded-full border-2 border-white bg-secondary flex items-center justify-center text-[10px] font-bold">
-                    D{i}
-                  </div>
-                ))}
-              </div>
-              <span className="text-xs font-medium text-muted-foreground">+5 badges obtenus</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Main Circular Stats Section */}
+      <Card className="border-none shadow-none bg-transparent">
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+            <CircularStat 
+              label="Simulations réalisées" 
+              value={isDemo ? 1 : 14} 
+              sublabel="Total" 
+              percent={isDemo ? 10 : 65} 
+              color="#6366f1"
+            />
+            <CircularStat 
+              label="Questions répondues" 
+              value={isDemo ? 10 : 842} 
+              sublabel="Total" 
+              percent={isDemo ? 5 : 78} 
+              color="#8b5cf6"
+            />
+            <CircularStat 
+              label="Temps passé" 
+              value={isDemo ? "15m" : "24h"} 
+              sublabel="D'étude" 
+              percent={isDemo ? 20 : 85} 
+              color="#7c3aed"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-8 lg:grid-cols-7">
         {/* Domain Performance Chart */}
-        <Card className={cn("lg:col-span-4", isDemo && "opacity-50 grayscale")}>
-          <CardHeader>
-            <CardTitle>Performance par Domaine</CardTitle>
-            <CardDescription>Visualisation de votre niveau actuel par rapport aux exigences de l'examen.</CardDescription>
+        <Card className={cn("lg:col-span-4 rounded-3xl overflow-hidden border-none shadow-lg", isDemo && "opacity-50 grayscale")}>
+          <CardHeader className="bg-muted/30">
+            <CardTitle className="text-lg">Performance par Domaine</CardTitle>
+            <CardDescription>Votre niveau actuel par rapport aux exigences PMP.</CardDescription>
           </CardHeader>
-          <CardContent className="h-[300px]">
+          <CardContent className="h-[320px] pt-10">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={performanceData} layout="vertical" margin={{ left: -20, right: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} opacity={0.3} />
+              <BarChart data={performanceData} layout="vertical" margin={{ left: -10, right: 30, top: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} opacity={0.2} />
                 <XAxis type="number" domain={[0, 100]} hide />
-                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} />
+                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 600 }} width={80} />
                 <Tooltip 
-                  cursor={{ fill: 'transparent' }}
-                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  cursor={{ fill: 'hsl(var(--muted)/0.4)' }}
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)' }}
                 />
-                <Bar dataKey="score" radius={[0, 4, 4, 0]} barSize={32}>
+                <Bar dataKey="score" radius={[0, 6, 6, 0]} barSize={24}>
                   {performanceData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
@@ -189,59 +206,59 @@ export default function DashboardPage() {
         </Card>
 
         {/* AI Recommendations */}
-        <Card className={cn("lg:col-span-3 border-accent/20 bg-accent/5", isDemo && "opacity-50 grayscale")}>
+        <Card className={cn("lg:col-span-3 border-none shadow-lg rounded-3xl bg-accent/5", isDemo && "opacity-50 grayscale")}>
           <CardHeader>
             <div className="flex items-center gap-2">
               <BrainCircuit className="h-5 w-5 text-accent" />
-              <CardTitle>Conseils de Révision</CardTitle>
+              <CardTitle className="text-lg">Conseils IA</CardTitle>
             </div>
             <CardDescription>Recommandations personnalisées</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="p-4 bg-white rounded-xl border border-accent/10 shadow-sm relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-                <AlertTriangle className="h-12 w-12 text-amber-500" />
-              </div>
-              <h4 className="font-bold text-primary mb-1">Point de vigilance : Domaine Process</h4>
-              <p className="text-sm text-muted-foreground">Attention à la gestion des risques (Risk Management). Une session de pratique dédiée est recommandée.</p>
-              <Button size="sm" variant="accent" className="mt-3 w-full" disabled={isDemo}>Lancer session Risk</Button>
+          <CardContent className="space-y-5">
+            <div className="p-5 bg-white rounded-2xl border border-accent/10 shadow-sm relative group transition-all hover:border-accent/30">
+              <h4 className="font-bold text-primary mb-1">Point de vigilance</h4>
+              <p className="text-xs text-muted-foreground leading-relaxed">Le domaine <strong>Process</strong> montre des lacunes en gestion des risques. Une session ciblée est recommandée.</p>
+              <Button size="sm" variant="accent" className="mt-4 w-full rounded-full" disabled={isDemo}>Lancer session Risk</Button>
             </div>
-            <div className="p-4 bg-white rounded-xl border border-accent/10 shadow-sm">
-              <h4 className="font-bold text-primary mb-1">Mindset Agile</h4>
-              <p className="text-sm text-muted-foreground">Votre score en Agile est excellent. Continuez ainsi et concentrez-vous maintenant sur l'approche Hybride.</p>
-              <Button size="sm" variant="outline" className="mt-3 w-full" disabled={isDemo}>Voir ressources Hybride</Button>
+            <div className="p-5 bg-white rounded-2xl border border-accent/10 shadow-sm transition-all hover:border-accent/30">
+              <h4 className="font-bold text-primary mb-1">Excellent Score Agile</h4>
+              <p className="text-xs text-muted-foreground leading-relaxed">Votre compréhension du mindset Agile est au-dessus de la cible. Concentrez-vous sur l'approche Hybride.</p>
+              <Button size="sm" variant="outline" className="mt-4 w-full rounded-full" disabled={isDemo}>Voir ressources Hybride</Button>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* History Table Preview */}
-      <Card className={isDemo ? "opacity-50 grayscale" : ""}>
-        <CardHeader>
-          <CardTitle>Examens Récents</CardTitle>
+      {/* Recent History Preview */}
+      <Card className={cn("border-none shadow-lg rounded-3xl overflow-hidden", isDemo && "opacity-50 grayscale")}>
+        <CardHeader className="bg-muted/30">
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-lg">Dernières Simulations</CardTitle>
+            <Button variant="ghost" size="sm" className="text-primary font-bold" disabled={isDemo}>Voir tout</Button>
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+        <CardContent className="p-0">
+          <div className="divide-y">
             {[
               { date: '12 Mars 2024', mode: 'Simulation Complète', score: 76, time: '3h 15m', status: 'Above Target' },
-              { date: '10 Mars 2024', mode: 'Practice: Agile', score: 88, time: '25m', status: 'Mastery' },
-              { date: '08 Mars 2024', mode: 'Practice: People', score: 62, time: '40m', status: 'Below Target' },
+              { date: '10 Mars 2024', mode: 'Practice: Agile', score: 88, time: '25m', status: 'Target' },
             ].map((exam, i) => (
-              <div key={i} className="flex items-center justify-between p-4 rounded-lg hover:bg-secondary/50 transition-colors border">
-                <div className="flex items-center gap-4">
-                  <div className={`h-10 w-10 rounded-full flex items-center justify-center ${exam.score >= 70 ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+              <div key={i} className="flex items-center justify-between p-5 hover:bg-muted/20 transition-colors">
+                <div className="flex items-center gap-5">
+                  <div className={`h-12 w-12 rounded-2xl flex items-center justify-center font-black ${exam.score >= 70 ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
                     {exam.score}%
                   </div>
                   <div>
-                    <p className="font-bold">{exam.mode}</p>
+                    <p className="font-bold text-sm">{exam.mode}</p>
                     <p className="text-xs text-muted-foreground">{exam.date} • {exam.time}</p>
                   </div>
                 </div>
-                <Badge variant={exam.score >= 70 ? 'default' : 'outline'}>{exam.status}</Badge>
+                <Badge variant={exam.score >= 80 ? 'default' : 'secondary'} className="rounded-full px-3">
+                  {exam.status}
+                </Badge>
               </div>
             ))}
           </div>
-          <Button variant="link" className="mt-4 w-full text-primary font-bold" disabled={isDemo}>Voir tout l'historique</Button>
         </CardContent>
       </Card>
     </div>
