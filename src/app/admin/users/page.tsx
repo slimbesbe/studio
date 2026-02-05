@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, UserPlus, ChevronLeft, Users, ShieldCheck, User, MoreHorizontal, Clock, AlertTriangle, Key, Trash2, Eye, EyeOff, Lock } from 'lucide-react';
+import { Loader2, UserPlus, ChevronLeft, Users, ShieldCheck, User, MoreHorizontal, Clock, AlertTriangle, Key, Trash2, Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
@@ -70,6 +70,22 @@ export default function UsersListPage() {
     }
   };
 
+  const handleSendResetEmail = async (email: string) => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast({ 
+        title: "Email envoyé", 
+        description: `Un lien de réinitialisation a été envoyé à ${email}.` 
+      });
+    } catch (e: any) {
+      toast({ 
+        variant: "destructive", 
+        title: "Erreur", 
+        description: "Impossible d'envoyer l'email." 
+      });
+    }
+  };
+
   const handleUpdatePassword = async () => {
     if (!passwordChangeUser || newPassword.length < 6) {
       toast({ variant: "destructive", title: "Erreur", description: "Le mot de passe doit faire au moins 6 caractères." });
@@ -78,22 +94,21 @@ export default function UsersListPage() {
 
     setIsChangingPassword(true);
     try {
-      // NOTE: Dans le SDK Client, on ne peut pas changer le mot de passe Auth d'un autre utilisateur
-      // On met à jour le champ dans Firestore pour que l'admin garde une trace
-      // Et on informe l'admin d'utiliser le lien de reset pour la synchronisation réelle si besoin
+      // NOTE: Le SDK Client ne permet pas de changer le mot de passe Auth d'un autre utilisateur.
+      // On met à jour Firestore pour que l'admin garde une trace visuelle.
       await updateDoc(doc(db, 'users', passwordChangeUser.id), {
         password: newPassword,
         updatedAt: Timestamp.now()
       });
 
       toast({ 
-        title: "Record mis à jour", 
-        description: `Le mot de passe a été modifié dans la base de données SIMOVEX.` 
+        title: "Record SIMOVEX mis à jour", 
+        description: `Note: Pour que l'utilisateur puisse se connecter avec ce nouveau mot de passe, il doit utiliser le lien de réinitialisation email.` 
       });
       setPasswordChangeUser(null);
       setNewPassword('');
     } catch (e) {
-      toast({ variant: "destructive", title: "Erreur", description: "Impossible de mettre à jour le mot de passe." });
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible de mettre à jour le record." });
     } finally {
       setIsChangingPassword(false);
     }
@@ -106,10 +121,10 @@ export default function UsersListPage() {
       if (userToDelete.role === 'admin' || userToDelete.role === 'super_admin') {
         await deleteDoc(doc(db, 'roles_admin', userToDelete.id));
       }
-      toast({ title: "Supprimé", description: "Le profil utilisateur a été supprimé du système." });
+      toast({ title: "Supprimé", description: "Le profil utilisateur a été supprimé." });
       setUserToDelete(null);
     } catch (e) {
-      toast({ variant: "destructive", title: "Erreur", description: "Impossible de supprimer le profil." });
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible de supprimer." });
     }
   };
 
@@ -158,7 +173,7 @@ export default function UsersListPage() {
               <TableRow>
                 <TableHead>Utilisateur</TableHead>
                 <TableHead>Rôle</TableHead>
-                <TableHead>Mot de passe</TableHead>
+                <TableHead>Mot de passe (Record)</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead>Expiration</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -200,14 +215,18 @@ export default function UsersListPage() {
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuContent align="end" className="w-64">
                         <DropdownMenuItem onClick={() => toggleStatus(u.id, u.status || 'active')}>
                           {u.status === 'disabled' ? 'Réactiver le compte' : 'Désactiver le compte'}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-primary" onClick={() => setPasswordChangeUser(u)}>
-                          <Key className="mr-2 h-4 w-4" /> Modifier mot de passe
+                        <DropdownMenuItem className="text-primary" onClick={() => handleSendResetEmail(u.email)}>
+                          <Mail className="mr-2 h-4 w-4" /> Envoyer Reset Email (Recommandé)
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setPasswordChangeUser(u)}>
+                          <Key className="mr-2 h-4 w-4" /> Modifier Record Password
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-destructive" onClick={() => setUserToDelete(u)}>
                           <Trash2 className="mr-2 h-4 w-4" /> Supprimer le profil
                         </DropdownMenuItem>
@@ -225,31 +244,34 @@ export default function UsersListPage() {
       <Dialog open={!!passwordChangeUser} onOpenChange={() => setPasswordChangeUser(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Modifier le mot de passe</DialogTitle>
+            <DialogTitle>Modifier le record de mot de passe</DialogTitle>
             <DialogDescription>
-              Modifier le mot de passe de <strong>{passwordChangeUser?.firstName} {passwordChangeUser?.lastName}</strong>.
+              Mettre à jour le mot de passe visible dans SIMOVEX pour <strong>{passwordChangeUser?.firstName}</strong>.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs flex gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <p>Attention: Changer cette valeur ne change pas le mot de passe réel de l'utilisateur dans le système d'authentification. Utilisez <strong>l'envoi d'email</strong> pour une réinitialisation effective.</p>
+            </div>
             <div className="space-y-2">
-              <Label>Nouveau mot de passe</Label>
+              <Label>Nouveau mot de passe (SIMOVEX)</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input 
                   type="text" 
-                  placeholder="Saisissez le nouveau mot de passe" 
+                  placeholder="Nouveau mot de passe" 
                   className="pl-10" 
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                 />
               </div>
-              <p className="text-[10px] text-muted-foreground italic">Note: Cette action met à jour le record dans SIMOVEX. Pour une synchro Auth complète, utilisez aussi le lien de réinitialisation.</p>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPasswordChangeUser(null)}>Annuler</Button>
             <Button onClick={handleUpdatePassword} disabled={isChangingPassword}>
-              {isChangingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
+              {isChangingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : "Mettre à jour le record"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -260,8 +282,8 @@ export default function UsersListPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer l'utilisateur ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action supprimera le profil de <strong>{userToDelete?.firstName} {userToDelete?.lastName}</strong> dans SIMOVEX. 
-              L'utilisateur ne pourra plus accéder à son tableau de bord. Cette action est irréversible.
+              Cette action supprimera le profil de <strong>{userToDelete?.firstName} {userToDelete?.lastName}</strong>.
+              L'utilisateur ne pourra plus accéder à SIMOVEX. Cette action est irréversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
