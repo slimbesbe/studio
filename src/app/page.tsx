@@ -32,20 +32,15 @@ export default function Home() {
     const ADMIN_PASS = '147813';
 
     try {
-      // Tentative de connexion normale
       let userCredential;
       try {
+        // 1. Tentative de connexion
         userCredential = await signInWithEmailAndPassword(auth, email, password);
       } catch (signInError: any) {
-        // Si c'est le compte admin spécial et que la connexion échoue (ex: compte non créé)
-        if (email === ADMIN_EMAIL && password === ADMIN_PASS) {
-          try {
-            userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            toast({ title: "Initialisation", description: "Compte Super Admin créé avec succès." });
-          } catch (createError: any) {
-            // Si le compte existe déjà mais le mot de passe est différent dans Auth
-            throw signInError;
-          }
+        // 2. Si c'est l'admin et que le compte n'existe pas encore, on le crée
+        if (email === ADMIN_EMAIL && password === ADMIN_PASS && signInError.code === 'auth/user-not-found') {
+          userCredential = await createUserWithEmailAndPassword(auth, email, password);
+          toast({ title: "Bienvenue", description: "Compte Super Admin initialisé." });
         } else {
           throw signInError;
         }
@@ -53,22 +48,30 @@ export default function Home() {
 
       const user = userCredential.user;
 
-      // Mise à jour/Vérification des droits dans Firestore
+      // 3. Forcer les droits dans Firestore pour l'admin
       if (email === ADMIN_EMAIL) {
-        await setDoc(doc(db, 'roles_admin', user.uid), { createdAt: serverTimestamp() }, { merge: true });
-        await setDoc(doc(db, 'users', user.uid), {
+        // On crée les deux enregistrements nécessaires
+        const adminData = { createdAt: serverTimestamp() };
+        const userData = {
           id: user.uid,
           email: email,
           firstName: 'Slim',
           lastName: 'Besbes',
           role: 'super_admin',
           status: 'active',
-          createdAt: serverTimestamp()
-        }, { merge: true });
-        
-        toast({ title: "Connexion réussie", description: "Bienvenue, Super Admin SIMOVEX." });
+          updatedAt: serverTimestamp()
+        };
+
+        // On utilise setDoc avec merge pour s'assurer que les droits sont là
+        await Promise.all([
+          setDoc(doc(db, 'roles_admin', user.uid), adminData, { merge: true }),
+          setDoc(doc(db, 'users', user.uid), userData, { merge: true })
+        ]);
+
+        toast({ title: "Accès Admin", description: "Interface Super Admin déverrouillée." });
         router.push('/admin/dashboard');
       } else {
+        // Vérification standard pour les autres utilisateurs
         const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
         if (adminDoc.exists()) {
           router.push('/admin/dashboard');
@@ -77,11 +80,15 @@ export default function Home() {
         }
       }
     } catch (error: any) {
-      console.error(error);
+      console.error("Login error:", error);
+      let message = "Email ou mot de passe incorrect.";
+      if (error.code === 'auth/wrong-password') message = "Mot de passe incorrect.";
+      if (error.code === 'auth/user-not-found') message = "Compte inconnu. Contactez l'administrateur.";
+      
       toast({
         variant: "destructive",
         title: "Erreur d'accès",
-        description: "Email ou mot de passe incorrect. Contactez l'administrateur si le problème persiste."
+        description: message
       });
     } finally {
       setIsLoading(false);
@@ -92,7 +99,7 @@ export default function Home() {
     setIsDemoLoading(true);
     try {
       await signInAnonymously(auth);
-      toast({ title: "Mode DÉMO activé", description: "Accès limité pour exploration." });
+      toast({ title: "Mode DÉMO", description: "Accès limité activé." });
       router.push('/dashboard/practice');
     } catch (error: any) {
       toast({
@@ -108,7 +115,7 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 sm:p-6 lg:p-8">
       <div className="flex items-center gap-2 mb-8 group">
-        <div className="bg-primary p-2 rounded-xl">
+        <div className="bg-primary p-2 rounded-xl shadow-lg">
           <GraduationCap className="h-8 w-8 text-white" />
         </div>
         <span className="font-headline font-bold text-2xl tracking-tight text-primary">
@@ -116,7 +123,7 @@ export default function Home() {
         </span>
       </div>
       
-      <Card className="w-full max-w-md border-t-4 border-t-primary shadow-xl animate-slide-up">
+      <Card className="w-full max-w-md border-t-4 border-t-primary shadow-2xl animate-slide-up">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-headline font-bold text-center text-primary">Identification</CardTitle>
           <CardDescription className="text-center">
@@ -126,13 +133,13 @@ export default function Home() {
         <CardContent className="space-y-6">
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email professionnel</Label>
+              <Label htmlFor="email">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input 
                   id="email" 
                   type="email" 
-                  placeholder="nom@exemple.com" 
+                  placeholder="votre@email.com" 
                   className="pl-10 h-11" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -149,6 +156,7 @@ export default function Home() {
                 <Input 
                   id="password" 
                   type="password" 
+                  placeholder="••••••••"
                   className="pl-10 h-11" 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -165,14 +173,14 @@ export default function Home() {
                 Se souvenir de moi
               </label>
             </div>
-            <Button type="submit" className="w-full font-bold h-12 text-lg shadow-lg shadow-primary/20" disabled={isLoading || isDemoLoading}>
+            <Button type="submit" className="w-full font-bold h-12 text-lg shadow-lg" disabled={isLoading || isDemoLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   Connexion...
                 </>
               ) : (
-                "Accéder à la plateforme"
+                "Se connecter"
               )}
             </Button>
           </form>
@@ -182,7 +190,7 @@ export default function Home() {
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Ou tester sans compte</span>
+              <span className="bg-card px-2 text-muted-foreground">Ou tester la plateforme</span>
             </div>
           </div>
 
