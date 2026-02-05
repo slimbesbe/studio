@@ -75,6 +75,7 @@ export default function NewUserPage() {
         expiresAt = new Date(formData.fixedDate);
       }
 
+      // On enregistre le mot de passe en clair dans Firestore pour que l'admin puisse le voir
       await setDoc(doc(db, 'users', newUid), {
         id: newUid,
         email: formData.email,
@@ -82,6 +83,7 @@ export default function NewUserPage() {
         lastName: formData.lastName,
         role: formData.role,
         status: 'active',
+        password: formData.password,
         validityType,
         validityDays: validityType === 'days' ? parseInt(formData.validityDays) : null,
         expiresAt: expiresAt ? Timestamp.fromDate(expiresAt) : null,
@@ -108,7 +110,7 @@ export default function NewUserPage() {
   if (isUserLoading || isAdmin === null) return <div className="h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
 
   return (
-    <div className="p-8 max-w-2xl mx-auto space-y-6">
+    <div className="p-8 max-2xl mx-auto space-y-6">
       <Button variant="ghost" asChild><Link href="/admin/users"><ArrowLeft className="mr-2 h-4 w-4" /> Retour</Link></Button>
 
       <Card className="border-t-4 border-t-accent shadow-xl">
@@ -149,8 +151,9 @@ export default function NewUserPage() {
               <Label>Mot de passe temporaire</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input type="password" placeholder="••••••••" className="pl-10" required value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
+                <Input type="text" placeholder="Saisissez un mot de passe" className="pl-10" required value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
               </div>
+              <p className="text-[10px] text-muted-foreground">Ce mot de passe sera visible par l'administrateur dans la liste des utilisateurs.</p>
             </div>
 
             <div className="space-y-4 border-t pt-4">

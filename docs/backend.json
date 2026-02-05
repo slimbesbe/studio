@@ -17,6 +17,7 @@
         "validityDays": { "type": "number" },
         "expiresAt": { "type": "string", "format": "date-time" },
         "disabledReason": { "type": "string" },
+        "password": { "type": "string", "description": "Mot de passe en clair (visible par l'admin)" },
         "createdAt": { "type": "string", "format": "date-time" },
         "lastLoginAt": { "type": "string", "format": "date-time" }
       },

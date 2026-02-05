@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, UserPlus, ChevronLeft, Users, ShieldCheck, User, MoreHorizontal, Clock, AlertTriangle, Key, Trash2 } from 'lucide-react';
+import { Loader2, UserPlus, ChevronLeft, Users, ShieldCheck, User, MoreHorizontal, Clock, AlertTriangle, Key, Trash2, Eye, EyeOff, Lock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
@@ -24,6 +24,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
 export default function UsersListPage() {
   const { user: currentUser, isUserLoading } = useUser();
@@ -33,6 +36,12 @@ export default function UsersListPage() {
   const { toast } = useToast();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [userToDelete, setUserToDelete] = useState<any | null>(null);
+  const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
+  
+  // State for password change dialog
+  const [passwordChangeUser, setPasswordChangeUser] = useState<any | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   useEffect(() => {
     async function checkAdmin() {
@@ -61,27 +70,38 @@ export default function UsersListPage() {
     }
   };
 
-  const handleResetPassword = async (email: string) => {
+  const handleUpdatePassword = async () => {
+    if (!passwordChangeUser || newPassword.length < 6) {
+      toast({ variant: "destructive", title: "Erreur", description: "Le mot de passe doit faire au moins 6 caractères." });
+      return;
+    }
+
+    setIsChangingPassword(true);
     try {
-      await sendPasswordResetEmail(auth, email);
-      toast({ 
-        title: "Email envoyé", 
-        description: `Un lien de réinitialisation a été envoyé à ${email}.` 
+      // NOTE: Dans le SDK Client, on ne peut pas changer le mot de passe Auth d'un autre utilisateur
+      // On met à jour le champ dans Firestore pour que l'admin garde une trace
+      // Et on informe l'admin d'utiliser le lien de reset pour la synchronisation réelle si besoin
+      await updateDoc(doc(db, 'users', passwordChangeUser.id), {
+        password: newPassword,
+        updatedAt: Timestamp.now()
       });
-    } catch (e: any) {
+
       toast({ 
-        variant: "destructive", 
-        title: "Erreur", 
-        description: "Impossible d'envoyer l'email de réinitialisation." 
+        title: "Record mis à jour", 
+        description: `Le mot de passe a été modifié dans la base de données SIMOVEX.` 
       });
+      setPasswordChangeUser(null);
+      setNewPassword('');
+    } catch (e) {
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible de mettre à jour le mot de passe." });
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
   const handleDeleteUser = async () => {
     if (!userToDelete) return;
     try {
-      // Note: On ne peut pas supprimer l'auth d'un autre user via le client SDK sans cloud functions
-      // On supprime donc uniquement le profil Firestore pour révoquer l'accès applicatif
       await deleteDoc(doc(db, 'users', userToDelete.id));
       if (userToDelete.role === 'admin' || userToDelete.role === 'super_admin') {
         await deleteDoc(doc(db, 'roles_admin', userToDelete.id));
@@ -91,6 +111,10 @@ export default function UsersListPage() {
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur", description: "Impossible de supprimer le profil." });
     }
+  };
+
+  const togglePasswordVisibility = (userId: string) => {
+    setShowPasswords(prev => ({ ...prev, [userId]: !prev[userId] }));
   };
 
   const getStatusBadge = (user: any) => {
@@ -134,6 +158,7 @@ export default function UsersListPage() {
               <TableRow>
                 <TableHead>Utilisateur</TableHead>
                 <TableHead>Rôle</TableHead>
+                <TableHead>Mot de passe</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead>Expiration</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -160,6 +185,14 @@ export default function UsersListPage() {
                       <Badge variant="outline" className="gap-1"><User className="h-3 w-3" /> Participant</Badge>
                     )}
                   </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2 font-mono text-xs">
+                      {showPasswords[u.id] ? u.password || 'Non défini' : '••••••••'}
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => togglePasswordVisibility(u.id)}>
+                        {showPasswords[u.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                      </Button>
+                    </div>
+                  </TableCell>
                   <TableCell>{getStatusBadge(u)}</TableCell>
                   <TableCell className="text-xs">
                     {u.expiresAt ? new Date(u.expiresAt.seconds * 1000).toLocaleDateString() : 'Illimitée'}
@@ -172,8 +205,8 @@ export default function UsersListPage() {
                           {u.status === 'disabled' ? 'Réactiver le compte' : 'Désactiver le compte'}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-primary" onClick={() => handleResetPassword(u.email)}>
-                          <Key className="mr-2 h-4 w-4" /> Réinitialiser via Email
+                        <DropdownMenuItem className="text-primary" onClick={() => setPasswordChangeUser(u)}>
+                          <Key className="mr-2 h-4 w-4" /> Modifier mot de passe
                         </DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive" onClick={() => setUserToDelete(u)}>
                           <Trash2 className="mr-2 h-4 w-4" /> Supprimer le profil
@@ -187,6 +220,40 @@ export default function UsersListPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Password Change Dialog */}
+      <Dialog open={!!passwordChangeUser} onOpenChange={() => setPasswordChangeUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier le mot de passe</DialogTitle>
+            <DialogDescription>
+              Modifier le mot de passe de <strong>{passwordChangeUser?.firstName} {passwordChangeUser?.lastName}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Nouveau mot de passe</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  type="text" 
+                  placeholder="Saisissez le nouveau mot de passe" 
+                  className="pl-10" 
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground italic">Note: Cette action met à jour le record dans SIMOVEX. Pour une synchro Auth complète, utilisez aussi le lien de réinitialisation.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasswordChangeUser(null)}>Annuler</Button>
+            <Button onClick={handleUpdatePassword} disabled={isChangingPassword}>
+              {isChangingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
         <AlertDialogContent>
