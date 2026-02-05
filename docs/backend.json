@@ -5,17 +5,22 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
-      "description": "Représente un utilisateur de SIMOVEX.",
+      "description": "Représente un utilisateur de SIMOVEX avec gestion de validité.",
       "properties": {
         "id": { "type": "string" },
         "email": { "type": "string", "format": "email" },
         "firstName": { "type": "string" },
         "lastName": { "type": "string" },
         "role": { "type": "string", "enum": ["super_admin", "admin", "user"] },
-        "status": { "type": "string", "enum": ["active", "inactive"] },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "status": { "type": "string", "enum": ["active", "disabled", "expired"] },
+        "validityType": { "type": "string", "enum": ["days", "fixedDate"] },
+        "validityDays": { "type": "number" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "disabledReason": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastLoginAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "email", "role"]
+      "required": ["id", "email", "role", "status"]
     },
     "Question": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -59,7 +64,7 @@
         "definition": {
           "entityName": "User",
           "schema": { "$ref": "#/backend/entities/User" },
-          "description": "Profils utilisateurs."
+          "description": "Profils utilisateurs avec métadonnées de sécurité."
         }
       },
       {
