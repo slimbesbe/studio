@@ -2,24 +2,37 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { collection, doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth } from '@/firebase';
+import { collection, doc, getDoc, updateDoc, Timestamp, deleteDoc } from 'firebase/firestore';
+import { sendPasswordResetEmail } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, UserPlus, ChevronLeft, Users, ShieldCheck, User, MoreHorizontal, Clock, AlertTriangle, Key } from 'lucide-react';
+import { Loader2, UserPlus, ChevronLeft, Users, ShieldCheck, User, MoreHorizontal, Clock, AlertTriangle, Key, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function UsersListPage() {
   const { user: currentUser, isUserLoading } = useUser();
+  const auth = useAuth();
   const db = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [userToDelete, setUserToDelete] = useState<any | null>(null);
 
   useEffect(() => {
     async function checkAdmin() {
@@ -42,9 +55,41 @@ export default function UsersListPage() {
         status: newStatus,
         updatedAt: Timestamp.now()
       });
-      toast({ title: "Statut mis à jour", description: `Le compte est maintenant ${newStatus}.` });
+      toast({ title: "Statut mis à jour", description: `Le compte est maintenant ${newStatus === 'active' ? 'activé' : 'désactivé'}.` });
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur", description: "Impossible de modifier le statut." });
+    }
+  };
+
+  const handleResetPassword = async (email: string) => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast({ 
+        title: "Email envoyé", 
+        description: `Un lien de réinitialisation a été envoyé à ${email}.` 
+      });
+    } catch (e: any) {
+      toast({ 
+        variant: "destructive", 
+        title: "Erreur", 
+        description: "Impossible d'envoyer l'email de réinitialisation." 
+      });
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    try {
+      // Note: On ne peut pas supprimer l'auth d'un autre user via le client SDK sans cloud functions
+      // On supprime donc uniquement le profil Firestore pour révoquer l'accès applicatif
+      await deleteDoc(doc(db, 'users', userToDelete.id));
+      if (userToDelete.role === 'admin' || userToDelete.role === 'super_admin') {
+        await deleteDoc(doc(db, 'roles_admin', userToDelete.id));
+      }
+      toast({ title: "Supprimé", description: "Le profil utilisateur a été supprimé du système." });
+      setUserToDelete(null);
+    } catch (e) {
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible de supprimer le profil." });
     }
   };
 
@@ -127,11 +172,11 @@ export default function UsersListPage() {
                           {u.status === 'disabled' ? 'Réactiver le compte' : 'Désactiver le compte'}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-primary">
-                          <Key className="mr-2 h-4 w-4" /> Changer mot de passe
+                        <DropdownMenuItem className="text-primary" onClick={() => handleResetPassword(u.email)}>
+                          <Key className="mr-2 h-4 w-4" /> Réinitialiser via Email
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">
-                          Désactiver définitivement
+                        <DropdownMenuItem className="text-destructive" onClick={() => setUserToDelete(u)}>
+                          <Trash2 className="mr-2 h-4 w-4" /> Supprimer le profil
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -142,6 +187,24 @@ export default function UsersListPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer l'utilisateur ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action supprimera le profil de <strong>{userToDelete?.firstName} {userToDelete?.lastName}</strong> dans SIMOVEX. 
+              L'utilisateur ne pourra plus accéder à son tableau de bord. Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteUser} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Supprimer définitivement
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
