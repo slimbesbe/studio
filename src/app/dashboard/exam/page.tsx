@@ -191,7 +191,6 @@ export default function ExamPage() {
     );
   }
 
-  // UI Mode Révision
   if (isReviewMode && examResult) {
     const currentQuestion = activeQuestions[currentQuestionIndex];
     const userAns = answers[currentQuestion.id] || [];
@@ -284,14 +283,23 @@ export default function ExamPage() {
     const percentage = Math.round((examResult.score / examResult.total) * 100);
     
     const getAppreciation = (pct: number) => {
-      if (pct < 50) return { label: "Needs Improvement", color: "bg-[#fee2e2] text-red-700", solidColor: "bg-[#f87171]", index: 0 };
-      if (pct < 65) return { label: "Below Target", color: "bg-[#fef3c7] text-amber-700", solidColor: "bg-[#fbbf24]", index: 1 };
-      if (pct < 80) return { label: "Target", color: "bg-[#dcfce7] text-emerald-700", solidColor: "bg-[#34d399]", index: 2 };
-      return { label: "Above Target", color: "bg-[#0d9488]/20 text-[#0d9488]", solidColor: "bg-[#0d9488]", index: 3 };
+      if (pct < 50) return { label: "NEEDS IMPROVEMENT", color: "bg-red-100", solidColor: "bg-red-400", index: 0 };
+      if (pct < 65) return { label: "BELOW TARGET", color: "bg-amber-100", solidColor: "bg-amber-400", index: 1 };
+      if (pct < 80) return { label: "TARGET", color: "bg-emerald-100", solidColor: "bg-emerald-400", index: 2 };
+      return { label: "ABOVE TARGET", color: "bg-teal-100", solidColor: "bg-teal-600", index: 3 };
     };
 
     const appreciation = getAppreciation(percentage);
     const isSuccess = percentage >= 65;
+
+    // Calcul de la position visuelle sur la barre (4 zones de 25% chacune)
+    const calculateVisualPosition = (pct: number) => {
+      if (pct < 50) return (pct / 50) * 25;
+      if (pct < 65) return 25 + ((pct - 50) / 15) * 25;
+      if (pct < 80) return 50 + ((pct - 65) / 15) * 25;
+      return 75 + ((pct - 80) / 20) * 25;
+    };
+    const visualPosition = calculateVisualPosition(percentage);
 
     return (
       <div className="max-w-4xl mx-auto space-y-8 animate-fade-in py-12">
@@ -315,18 +323,18 @@ export default function ExamPage() {
               {/* The 4-Zone Bar Container */}
               <div className="relative flex w-full h-12 border border-sky-100 rounded-sm overflow-visible bg-white">
                 {/* Zone 1: Needs Improvement (0-25%) */}
-                <div className={`w-1/4 h-full border-r border-sky-50 transition-opacity duration-500 ${appreciation.index === 0 ? 'bg-[#f87171]' : 'bg-[#fee2e2] opacity-40'}`} />
+                <div className={`w-1/4 h-full border-r border-sky-50 transition-opacity duration-500 ${appreciation.index === 0 ? 'bg-red-400' : 'bg-red-100 opacity-40'}`} />
                 {/* Zone 2: Below Target (25-50%) */}
-                <div className={`w-1/4 h-full border-r border-sky-50 transition-opacity duration-500 ${appreciation.index === 1 ? 'bg-[#fbbf24]' : 'bg-[#fef3c7] opacity-40'}`} />
+                <div className={`w-1/4 h-full border-r border-sky-50 transition-opacity duration-500 ${appreciation.index === 1 ? 'bg-amber-400' : 'bg-amber-100 opacity-40'}`} />
                 {/* Zone 3: Target (50-75%) */}
-                <div className={`w-1/4 h-full border-r border-sky-50 transition-opacity duration-500 ${appreciation.index === 2 ? 'bg-[#34d399]' : 'bg-[#dcfce7] opacity-40'}`} />
+                <div className={`w-1/4 h-full border-r border-sky-50 transition-opacity duration-500 ${appreciation.index === 2 ? 'bg-emerald-400' : 'bg-emerald-100 opacity-40'}`} />
                 {/* Zone 4: Above Target (75-100%) */}
-                <div className={`w-1/4 h-full transition-opacity duration-500 ${appreciation.index === 3 ? 'bg-[#0d9488]' : 'bg-[#0d9488]/20 opacity-40'}`} />
+                <div className={`w-1/4 h-full transition-opacity duration-500 ${appreciation.index === 3 ? 'bg-teal-600' : 'bg-teal-100 opacity-40'}`} />
 
-                {/* Vertical Cursor Indicator (Ligne noire haut/bas sans traverser) */}
+                {/* Vertical Cursor Indicator */}
                 <div 
                   className="absolute top-0 bottom-0 flex flex-col items-center z-30 transition-all duration-1000 ease-out"
-                  style={{ left: `${percentage}%`, transform: 'translateX(-50%)' }}
+                  style={{ left: `${visualPosition}%`, transform: 'translateX(-50%)' }}
                 >
                   {/* YOU Label & Top Marker */}
                   <div className="absolute -top-8 flex flex-col items-center">
@@ -364,8 +372,8 @@ export default function ExamPage() {
                 <p className="text-sm font-medium">
                    {examResult.score} / {examResult.total} questions correctes
                 </p>
-                <Badge variant="outline" className={`text-xs px-3 py-1 ${appreciation.color.split(' ')[0]}`}>
-                  Status: {appreciation.label}
+                <Badge variant="outline" className={`text-xs px-3 py-1 ${appreciation.color}`}>
+                  Status: <strong>{appreciation.label}</strong>
                 </Badge>
               </div>
             </div>
@@ -373,7 +381,7 @@ export default function ExamPage() {
             <div className="pt-6">
               <p className="text-[11px] text-muted-foreground italic max-w-lg mx-auto leading-relaxed border-t pt-4 text-center">
                 « Les pourcentages affichés sont des estimations pédagogiques. 
-                Le PMI ne communique pas de score chiffré officiel pour l’examen PMP®. »
+                Le PMI ne communique pas de score chiffré officiel pour l’examen PMP® »
               </p>
             </div>
           </CardContent>
