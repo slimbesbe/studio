@@ -11,7 +11,7 @@ import { GraduationCap, Loader2, Mail, Lock, Play, ShieldCheck } from 'lucide-re
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword, signInAnonymously, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Home() {
@@ -34,13 +34,13 @@ export default function Home() {
     try {
       let userCredential;
       try {
-        // 1. Tentative de connexion
+        // 1. Tentative de connexion standard
         userCredential = await signInWithEmailAndPassword(auth, email, password);
       } catch (signInError: any) {
-        // 2. Si c'est l'admin et que le compte n'existe pas encore, on le crée
-        if (email === ADMIN_EMAIL && password === ADMIN_PASS && signInError.code === 'auth/user-not-found') {
+        // 2. Si c'est l'admin et que le compte n'existe pas encore (user-not-found), on le crée
+        if (email === ADMIN_EMAIL && password === ADMIN_PASS && (signInError.code === 'auth/user-not-found' || signInError.code === 'user-not-found')) {
           userCredential = await createUserWithEmailAndPassword(auth, email, password);
-          toast({ title: "Bienvenue", description: "Compte Super Admin initialisé." });
+          toast({ title: "Bienvenue", description: "Compte Super Admin initialisé avec succès." });
         } else {
           throw signInError;
         }
@@ -48,42 +48,34 @@ export default function Home() {
 
       const user = userCredential.user;
 
-      // 3. Forcer les droits dans Firestore pour l'admin
+      // 3. Forcer les droits dans Firestore pour le compte spécifique de Slim
       if (email === ADMIN_EMAIL) {
-        // On crée les deux enregistrements nécessaires
-        const adminData = { createdAt: serverTimestamp() };
-        const userData = {
-          id: user.uid,
-          email: email,
-          firstName: 'Slim',
-          lastName: 'Besbes',
-          role: 'super_admin',
-          status: 'active',
-          updatedAt: serverTimestamp()
-        };
-
-        // On utilise setDoc avec merge pour s'assurer que les droits sont là
         await Promise.all([
-          setDoc(doc(db, 'roles_admin', user.uid), adminData, { merge: true }),
-          setDoc(doc(db, 'users', user.uid), userData, { merge: true })
+          setDoc(doc(db, 'roles_admin', user.uid), { 
+            createdAt: serverTimestamp(),
+            email: ADMIN_EMAIL
+          }, { merge: true }),
+          setDoc(doc(db, 'users', user.uid), {
+            id: user.uid,
+            email: email,
+            firstName: 'Slim',
+            lastName: 'Besbes',
+            role: 'super_admin',
+            status: 'active',
+            updatedAt: serverTimestamp()
+          }, { merge: true })
         ]);
 
-        toast({ title: "Accès Admin", description: "Interface Super Admin déverrouillée." });
+        toast({ title: "Accès Admin", description: "Bienvenue dans l'interface SIMOVEX." });
         router.push('/admin/dashboard');
       } else {
-        // Vérification standard pour les autres utilisateurs
-        const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
-        if (adminDoc.exists()) {
-          router.push('/admin/dashboard');
-        } else {
-          router.push('/dashboard');
-        }
+        router.push('/dashboard');
       }
     } catch (error: any) {
       console.error("Login error:", error);
       let message = "Email ou mot de passe incorrect.";
-      if (error.code === 'auth/wrong-password') message = "Mot de passe incorrect.";
-      if (error.code === 'auth/user-not-found') message = "Compte inconnu. Contactez l'administrateur.";
+      if (error.code === 'auth/wrong-password') message = "Mot de passe incorrect pour cet email.";
+      if (error.code === 'auth/too-many-requests') message = "Trop de tentatives. Veuillez patienter.";
       
       toast({
         variant: "destructive",
@@ -177,7 +169,7 @@ export default function Home() {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Connexion...
+                  Vérification...
                 </>
               ) : (
                 "Se connecter"
@@ -190,7 +182,7 @@ export default function Home() {
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Ou tester la plateforme</span>
+              <span className="bg-card px-2 text-muted-foreground text-[10px]">Ou tester la plateforme</span>
             </div>
           </div>
 
@@ -210,8 +202,8 @@ export default function Home() {
         </CardContent>
         <CardFooter className="flex flex-col gap-4 border-t pt-6 bg-secondary/5">
           <div className="text-center text-sm text-muted-foreground w-full">
-            <p className="flex items-center justify-center gap-1">
-              <ShieldCheck className="h-3 w-3" /> Accès sécurisé SIMOVEX
+            <p className="flex items-center justify-center gap-1 text-[11px]">
+              <ShieldCheck className="h-3 w-3" /> Accès sécurisé SIMOVEX v2.0
             </p>
           </div>
         </CardFooter>

@@ -43,18 +43,19 @@ export function Sidebar() {
 
   const isDemo = user?.isAnonymous;
 
+  // Memoize refs
   const userProfileRef = useMemoFirebase(() => {
     return user && !user.isAnonymous ? doc(firestore, 'users', user.uid) : null;
   }, [firestore, user]);
 
-  const { data: profile } = useDoc(userProfileRef);
-
-  // Vérifier si l'utilisateur est admin via deux sources : collection roles_admin OU champ role dans profile
   const adminDocRef = useMemoFirebase(() => {
     return user && !user.isAnonymous ? doc(firestore, 'roles_admin', user.uid) : null;
   }, [firestore, user]);
 
+  const { data: profile } = useDoc(userProfileRef);
   const { data: adminDoc } = useDoc(adminDocRef);
+
+  // isAdmin check logic
   const isAdmin = !!adminDoc || profile?.role === 'super_admin' || profile?.role === 'admin';
 
   const handleSignOut = async () => {
@@ -90,7 +91,7 @@ export function Sidebar() {
         </Link>
       </div>
 
-      <div className="flex-1 py-6 px-4 space-y-1">
+      <div className="flex-1 py-6 px-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => (
           <Link
             key={item.href}
@@ -112,7 +113,7 @@ export function Sidebar() {
           </Link>
         ))}
         
-        {!isDemo && isAdmin && (
+        {isAdmin && (
           <div className="pt-4 mt-4 border-t space-y-1">
             <p className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 mt-2">Administration</p>
             
@@ -167,7 +168,7 @@ export function Sidebar() {
           <div className="flex items-center gap-3 px-3">
             <div className={cn(
               "h-8 w-8 rounded-full flex items-center justify-center text-white font-bold text-xs",
-              isDemo ? "bg-amber-500" : "bg-accent"
+              isDemo ? "bg-amber-500" : (isAdmin ? "bg-primary" : "bg-accent")
             )}>
               {initials}
             </div>
