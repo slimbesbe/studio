@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -76,7 +75,7 @@ export default function Home() {
           <GraduationCap className="h-8 w-8 text-white" />
         </div>
         <span className="font-headline font-bold text-2xl tracking-tight text-primary">
-          INOVEX <span className="text-accent">PMP</span>
+          SIMOVEX <span className="text-accent">PMP</span>
         </span>
       </div>
       
@@ -166,7 +165,7 @@ export default function Home() {
         </CardContent>
         <CardFooter className="flex flex-col gap-4 border-t pt-6 bg-secondary/5">
           <div className="text-center text-sm text-muted-foreground w-full">
-            <p>Accès restreint aux consultants INOVEX</p>
+            <p>Accès restreint aux utilisateurs SIMOVEX</p>
           </div>
         </CardFooter>
       </Card>

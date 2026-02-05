@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from 'next/link';
@@ -75,7 +74,7 @@ export function Sidebar() {
           <div className="bg-primary p-1 rounded-md">
             <ShieldAlert className="h-5 w-5 text-white" />
           </div>
-          <span className="font-headline font-bold text-lg text-primary">INOVEX</span>
+          <span className="font-headline font-bold text-lg text-primary">SIMOVEX</span>
         </Link>
       </div>
 

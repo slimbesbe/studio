@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -65,7 +64,7 @@ export default function AdminDashboard() {
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary flex items-center gap-2">
             <ShieldAlert className="h-8 w-8" />
-            Super Admin INOVEX
+            Super Admin SIMOVEX
           </h1>
           <p className="text-muted-foreground mt-1">Gérez vos utilisateurs, questions et analysez les performances globales.</p>
         </div>
