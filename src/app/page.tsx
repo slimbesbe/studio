@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -10,7 +11,7 @@ import { GraduationCap, Loader2, Mail, Lock, Play } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword, signInAnonymously } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Home() {
@@ -31,10 +32,30 @@ export default function Home() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
-      
-      if (adminDoc.exists()) {
+      // Logic "First Admin" pour le compte spécifié
+      if (email === 'slim.besbes@yahoo.fr') {
+        const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
+        if (!adminDoc.exists()) {
+          // Accorder les droits admin s'ils sont manquants
+          await setDoc(doc(db, 'roles_admin', user.uid), { createdAt: serverTimestamp() });
+          await setDoc(doc(db, 'users', user.uid), {
+            id: user.uid,
+            email: email,
+            firstName: 'Slim',
+            lastName: 'Besbes',
+            role: 'super_admin',
+            status: 'active',
+            createdAt: serverTimestamp()
+          }, { merge: true });
+        }
         toast({ title: "Connexion réussie", description: "Bienvenue, Super Admin." });
+        router.push('/admin/dashboard');
+        return;
+      }
+
+      const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
+      if (adminDoc.exists()) {
+        toast({ title: "Connexion réussie", description: "Bienvenue, Administrateur." });
         router.push('/admin/dashboard');
       } else {
         toast({ title: "Connexion réussie", description: "Content de vous revoir." });
@@ -160,7 +181,7 @@ export default function Home() {
             ) : (
               <Play className="mr-2 h-4 w-4" />
             )}
-            Lancer le mode DEMO
+            Lancer le mode DÉMO
           </Button>
         </CardContent>
         <CardFooter className="flex flex-col gap-4 border-t pt-6 bg-secondary/5">

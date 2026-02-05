@@ -49,13 +49,13 @@ export function Sidebar() {
 
   const { data: profile } = useDoc(userProfileRef);
 
-  // Vérifier si l'utilisateur est admin
+  // Vérifier si l'utilisateur est admin via deux sources : collection roles_admin OU champ role dans profile
   const adminDocRef = useMemoFirebase(() => {
     return user && !user.isAnonymous ? doc(firestore, 'roles_admin', user.uid) : null;
   }, [firestore, user]);
 
   const { data: adminDoc } = useDoc(adminDocRef);
-  const isAdmin = !!adminDoc;
+  const isAdmin = !!adminDoc || profile?.role === 'super_admin' || profile?.role === 'admin';
 
   const handleSignOut = async () => {
     await signOut(auth);
@@ -173,7 +173,7 @@ export function Sidebar() {
             </div>
             <div className="flex-1 overflow-hidden">
               <p className="text-sm font-bold truncate">
-                {isDemo ? "Utilisateur DEMO" : (profile?.firstName ? `${profile.firstName} ${profile.lastName}` : (user?.email?.split('@')[0] || 'Utilisateur'))}
+                {isDemo ? "Utilisateur DÉMO" : (profile?.firstName ? `${profile.firstName} ${profile.lastName}` : (user?.email?.split('@')[0] || 'Utilisateur'))}
               </p>
               <p className="text-xs text-muted-foreground truncate italic">
                 {isDemo ? "Mode limité" : (isAdmin ? 'Super Admin' : 'Participant')}
