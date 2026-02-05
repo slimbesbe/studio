@@ -82,9 +82,11 @@ const CircularStat = ({ value, label, sublabel, percent, color = "hsl(var(--prim
             strokeLinecap="round"
           />
         </svg>
-        <div className="flex flex-col items-center justify-center z-10">
-          <span className="text-4xl font-black text-foreground">{value}</span>
-          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-1">{sublabel}</span>
+        <div className="flex flex-col items-center justify-center z-10 px-4">
+          <span className="text-3xl font-black text-foreground">{value}</span>
+          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mt-1 text-center leading-tight">
+            {sublabel}
+          </span>
         </div>
       </div>
     </div>
@@ -114,7 +116,7 @@ export default function DashboardPage() {
   if (!mounted) return null;
 
   return (
-    <div className="space-y-10 animate-fade-in max-w-6xl mx-auto">
+    <div className="space-y-10 animate-fade-in max-w-7xl mx-auto pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary italic">Dashboard</h1>
@@ -152,7 +154,7 @@ export default function DashboardPage() {
       {/* Main Circular Stats Section */}
       <Card className="border-none shadow-none bg-transparent">
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             <CircularStat 
               label="Simulations réalisées" 
               value={isDemo ? 1 : 14} 
@@ -174,13 +176,20 @@ export default function DashboardPage() {
               percent={isDemo ? 20 : 85} 
               color="#7c3aed"
             />
+            <CircularStat 
+              label="Score Moyen" 
+              value={isDemo ? "68%" : "72.5%"} 
+              sublabel="Cible PMP : 80%+" 
+              percent={isDemo ? 68 : 72.5} 
+              color="#10b981"
+            />
           </div>
         </CardContent>
       </Card>
 
       <div className="grid gap-8 lg:grid-cols-7">
         {/* Domain Performance Chart */}
-        <Card className={cn("lg:col-span-4 rounded-3xl overflow-hidden border-none shadow-lg", isDemo && "opacity-50 grayscale")}>
+        <Card className={cn("lg:col-span-4 rounded-3xl overflow-hidden border-none shadow-lg bg-card", isDemo && "opacity-50 grayscale")}>
           <CardHeader className="bg-muted/30">
             <CardTitle className="text-lg">Performance par Domaine</CardTitle>
             <CardDescription>Votre niveau actuel par rapport aux exigences PMP.</CardDescription>
@@ -218,12 +227,12 @@ export default function DashboardPage() {
             <div className="p-5 bg-white rounded-2xl border border-accent/10 shadow-sm relative group transition-all hover:border-accent/30">
               <h4 className="font-bold text-primary mb-1">Point de vigilance</h4>
               <p className="text-xs text-muted-foreground leading-relaxed">Le domaine <strong>Process</strong> montre des lacunes en gestion des risques. Une session ciblée est recommandée.</p>
-              <Button size="sm" variant="accent" className="mt-4 w-full rounded-full" disabled={isDemo}>Lancer session Risk</Button>
+              <Button size="sm" variant="outline" className="mt-4 w-full rounded-full" disabled={isDemo} onClick={handleDemoLock}>Lancer session Risk</Button>
             </div>
             <div className="p-5 bg-white rounded-2xl border border-accent/10 shadow-sm transition-all hover:border-accent/30">
               <h4 className="font-bold text-primary mb-1">Excellent Score Agile</h4>
               <p className="text-xs text-muted-foreground leading-relaxed">Votre compréhension du mindset Agile est au-dessus de la cible. Concentrez-vous sur l'approche Hybride.</p>
-              <Button size="sm" variant="outline" className="mt-4 w-full rounded-full" disabled={isDemo}>Voir ressources Hybride</Button>
+              <Button size="sm" variant="outline" className="mt-4 w-full rounded-full" disabled={isDemo} onClick={handleDemoLock}>Voir ressources Hybride</Button>
             </div>
           </CardContent>
         </Card>
