@@ -71,7 +71,7 @@ export default function ExamPage() {
       const qSnap = await getDocs(query(collection(db, 'exams', examToLoad, 'questions'), where('isActive', '==', true)));
       const questions = qSnap.docs.map(d => ({ ...d.data(), id: d.id }));
       if (questions.length === 0) {
-        toast({ variant: "destructive", title: "Erreur", description: "Pas de questions disponibles dans cet examen." });
+        toast({ variant: "destructive", title: "Erreur", description: "Pas de questions disponibles." });
         return;
       }
       if (resume && savedState) {
@@ -139,7 +139,7 @@ export default function ExamPage() {
         if (examStateRef) await deleteDoc(examStateRef);
       }
     } catch (e) {
-      toast({ variant: "destructive", title: "Erreur de sauvegarde." });
+      toast({ variant: "destructive", title: "Erreur." });
     } finally {
       setIsSubmitting(false);
     }
@@ -163,8 +163,8 @@ export default function ExamPage() {
             <p className="text-xl text-slate-500 mt-6 font-bold uppercase tracking-widest">Simulation PMP® Suspendue</p>
           </CardHeader>
           <CardContent className="flex flex-col gap-6 p-16 bg-white">
-            <Button className="h-20 text-2xl font-black bg-[#635BFF] hover:bg-[#5249e0] rounded-2xl uppercase tracking-[0.1em] shadow-xl" onClick={() => setShowPauseScreen(false)}>CONTINUER</Button>
-            <Button variant="outline" className="h-20 text-2xl font-black text-[#635BFF] border-[#635BFF] hover:bg-[#635BFF]/5 rounded-2xl uppercase tracking-[0.1em] border-2" onClick={() => { saveProgress(); setIsExamStarted(false); setShowPauseScreen(false); }}>ARRETER ET SAUVEGARDER</Button>
+            <Button className="h-20 text-2xl font-black bg-primary hover:bg-primary/90 rounded-2xl uppercase tracking-[0.1em] shadow-xl" onClick={() => setShowPauseScreen(false)}>CONTINUER</Button>
+            <Button variant="outline" className="h-20 text-2xl font-black text-primary border-primary hover:bg-primary/5 rounded-2xl uppercase tracking-[0.1em] border-2" onClick={() => { saveProgress(); setIsExamStarted(false); setShowPauseScreen(false); }}>ARRETER ET SAUVEGARDER</Button>
             <Button variant="outline" className="h-20 text-2xl font-black text-red-500 border-red-500 hover:bg-red-50 rounded-2xl uppercase tracking-[0.1em] border-2" onClick={() => { if(confirm("Arrêter sans sauvegarder ?")) { setIsExamStarted(false); setSelectedExamId(null); setShowPauseScreen(false); } }}>ARRETER ET ANNULER</Button>
           </CardContent>
         </Card>
@@ -370,4 +370,3 @@ export default function ExamPage() {
     </div>
   );
 }
-

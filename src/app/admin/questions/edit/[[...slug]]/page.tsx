@@ -2,10 +2,11 @@
 "use client";
 import { useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 
 /**
- * Route Catch-all pour neutraliser le conflit de paramètres dynamiques.
- * Cette route stable permet au serveur Next.js de démarrer sans erreur de "slug name".
+ * Global redirect fix to avoid slug name conflicts.
+ * This catch-all route handles legacy or misconfigured paths.
  */
 export default function AdminCatchAllRedirect() {
   const router = useRouter();
@@ -13,7 +14,6 @@ export default function AdminCatchAllRedirect() {
   const slug = params.slug as string[];
 
   useEffect(() => {
-    // Si on a les paramètres examId et questionId dans le slug
     if (slug && slug.length >= 2) {
       router.replace(`/admin/manage-question/${slug[0]}/${slug[1]}`);
     } else {
@@ -33,5 +33,3 @@ export default function AdminCatchAllRedirect() {
     </div>
   );
 }
-
-import { Loader2 } from 'lucide-react';
