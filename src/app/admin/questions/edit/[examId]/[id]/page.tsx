@@ -4,7 +4,10 @@
 import { useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 
-export default function RedirectPage() {
+/**
+ * Page désactivée pour résoudre le conflit de slugs Next.js.
+ */
+export default function ConflictFixRedirect() {
   const router = useRouter();
   const params = useParams();
   

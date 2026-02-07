@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 
 /**
  * Page désactivée pour résoudre le conflit de slugs Next.js.
- * La logique a été déplacée vers /admin/edit-question/[examId]/[id]
  */
 export default function LegacyRedirect() {
   const router = useRouter();
