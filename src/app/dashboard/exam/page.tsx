@@ -225,7 +225,6 @@ export default function ExamPage() {
     return <div className="h-[60vh] flex items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
   }
 
-  // Écran de pause tel que sur la photo
   if (savedState && !isExamStarted && !isPauseScreenDismissed && !examResult) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
@@ -269,7 +268,6 @@ export default function ExamPage() {
                  <div className="w-1/2 text-center relative border-l border-sky-300">Passing</div>
               </div>
 
-              {/* Barre de progression avec labels internes centrés */}
               <div className="relative flex w-full h-14 rounded-lg overflow-hidden border shadow-inner bg-slate-100">
                 {PERFORMANCE_ZONES.map((zone, i) => (
                   <div key={zone.label} className={`w-1/4 h-full border-r last:border-r-0 flex items-center justify-center ${i === currentZoneIndex ? zone.color : 'bg-slate-200 opacity-40'}`}>
@@ -280,12 +278,11 @@ export default function ExamPage() {
                 ))}
               </div>
 
-              {/* Marqueur YOU avec traits noirs haut/bas */}
               <div className="absolute top-[-45px] transition-all duration-1000 flex flex-col items-center z-20" style={{ left: `${markerPosition}%`, transform: 'translateX(-50%)' }}>
                 <span className="text-[14px] font-black text-black mb-1">YOU</span>
                 <div className="w-[3px] h-4 bg-black" />
                 <div className="w-[3px] h-4 bg-black mt-[62px]" />
-                <span className="text-[16px] font-black text-[#006699] whitespace-nowrap mt-1 uppercase">
+                <span className="text-[16px] font-bold text-[#006699] whitespace-nowrap mt-1 uppercase">
                   {appreciation.label}
                 </span>
               </div>

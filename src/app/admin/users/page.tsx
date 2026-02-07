@@ -204,7 +204,7 @@ export default function UsersListPage() {
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-64">
                         <DropdownMenuItem onClick={() => toggleStatus(u.id, u.status || 'active')}>
-                          {u.status === 'disabled' ? 'Réactiver le compte' : 'Désactiver le compte'}
+                          {u.status === 'disabled' ? 'Réactiver le compte' : 'Désactivé le compte'}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => handleSendResetEmail(u.email)}>

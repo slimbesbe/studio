@@ -11,8 +11,7 @@ import {
   Calendar,
   History,
   TrendingUp,
-  Award,
-  BookOpen
+  Award
 } from 'lucide-react';
 import { useUser } from '@/firebase';
 import Link from 'next/link';
