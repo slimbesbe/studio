@@ -40,7 +40,6 @@ export default function QuestionsListPage() {
         if (!adminDoc.exists()) router.push('/dashboard');
         else {
           setIsAdmin(true);
-          // Auto-provision exams if needed
           EXAMS.forEach(async (e) => {
             await setDoc(doc(db, 'exams', e.id), { id: e.id, title: e.title, isActive: true }, { merge: true });
           });
@@ -88,15 +87,15 @@ export default function QuestionsListPage() {
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild><Link href="/admin/dashboard"><ChevronLeft /></Link></Button>
           <div>
-            <h1 className="text-3xl font-black italic uppercase tracking-tighter flex items-center gap-2">
-              <BookCopy className="h-8 w-8 text-primary" /> Banque de Questions
+            <h1 className="text-3xl font-black italic uppercase tracking-tighter flex items-center gap-2 text-primary">
+              <BookCopy className="h-8 w-8" /> Banque de Questions
             </h1>
           </div>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" onClick={downloadTemplate} className="font-bold border-2"><Download className="mr-2 h-4 w-4" /> Modèle</Button>
           <Button variant="outline" onClick={() => setIsImportModalOpen(true)} className="font-bold border-2"><Upload className="mr-2 h-4 w-4" /> Importer</Button>
-          <Button asChild className="font-black uppercase tracking-widest"><Link href={`/admin/questions/new?examId=${activeExamId}`}><PlusCircle className="mr-2 h-4 w-4" /> Nouvelle</Link></Button>
+          <Button asChild className="font-black uppercase tracking-widest bg-primary"><Link href={`/admin/questions/new?examId=${activeExamId}`}><PlusCircle className="mr-2 h-4 w-4" /> Nouvelle</Link></Button>
         </div>
       </div>
 

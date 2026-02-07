@@ -30,7 +30,7 @@ interface Option {
   text: string;
 }
 
-export default function EditQuestionPage() {
+export default function ManageQuestionPage() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const router = useRouter();
@@ -152,7 +152,7 @@ export default function EditQuestionPage() {
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild><Link href="/admin/questions"><ArrowLeft /></Link></Button>
         <div className="flex flex-col">
-          <h1 className="text-3xl font-bold italic uppercase tracking-tighter">Modifier la Question</h1>
+          <h1 className="text-3xl font-black italic uppercase tracking-tighter text-primary">Gestion de Question</h1>
           {questionCode && (
             <div className="flex items-center gap-1 text-primary font-mono text-sm mt-1">
               <Hash className="h-3 w-3" /> {questionCode}
@@ -219,7 +219,7 @@ export default function EditQuestionPage() {
           </div>
 
           <div className="space-y-2 pt-4">
-            <Label className="flex items-center gap-2 font-bold"><CheckCircle2 className="h-4 w-4 text-emerald-600" /> Explication Mindset PMI</Label>
+            <Label className="flex items-center gap-2 font-bold"><CheckCircle2 className="h-4 w-4 text-emerald-600" /> Justification Mindset PMI®</Label>
             <Textarea 
               className="min-h-[120px] italic font-medium"
               value={explanation}
@@ -233,9 +233,9 @@ export default function EditQuestionPage() {
           </div>
         </CardContent>
         <CardFooter className="bg-muted/10 border-t p-8 flex justify-end">
-          <Button onClick={handleSubmit} disabled={isSubmitting} size="lg" className="px-12 rounded-xl h-14 font-black uppercase tracking-widest shadow-xl">
+          <Button onClick={handleSubmit} disabled={isSubmitting} size="lg" className="px-12 rounded-xl h-14 font-black uppercase tracking-widest shadow-xl bg-primary">
             {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
-            Enregistrer
+            Enregistrer les modifications
           </Button>
         </CardFooter>
       </Card>
