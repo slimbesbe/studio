@@ -144,7 +144,7 @@ export default function ManageQuestionPage() {
   };
 
   if (isUserLoading || isAdmin === null || isQuestionLoading) {
-    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
+    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
   }
 
   return (

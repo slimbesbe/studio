@@ -10,6 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Clock, ChevronRight, ChevronLeft, Loader2, PlayCircle, Info, Pause, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 const PERFORMANCE_ZONES = [
   { label: "Needs Improvement", color: "bg-[#F44336]", range: [0, 50], width: '50%' },
@@ -155,13 +156,13 @@ export default function ExamPage() {
     return `${h > 0 ? h + ':' : ''}${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  if (isStateLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
+  if (isStateLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
 
   if (showPauseScreen) {
     return (
-      <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-xl flex items-center justify-center p-4">
         <Card className="w-full max-w-2xl shadow-3xl bg-white border-none overflow-hidden rounded-[50px]">
-          <CardHeader className="text-center py-24 bg-muted/20">
+          <CardHeader className="text-center py-20 bg-muted/20">
             <h1 className="text-9xl font-black text-slate-900 tracking-[0.2em] uppercase italic">Pause</h1>
             <p className="text-2xl text-slate-500 mt-6 font-bold uppercase tracking-[0.4em] italic">Simulation PMP® Suspendue</p>
           </CardHeader>
@@ -199,7 +200,7 @@ export default function ExamPage() {
               
               <div className="relative flex w-full h-28 rounded-[35px] overflow-hidden border-4 shadow-inner bg-slate-100">
                 {PERFORMANCE_ZONES.map((zone, idx) => (
-                  <div key={idx} className={`${zone.color} border-r-4 border-white/50 flex items-center justify-center relative`} style={{ width: zone.width }}>
+                  <div key={idx} className={cn(zone.color, "border-r-4 border-white/50 flex items-center justify-center relative")} style={{ width: zone.width }}>
                     <span className="text-[11px] font-black text-white uppercase text-center px-2 leading-tight tracking-tighter drop-shadow-md z-10">{zone.label}</span>
                   </div>
                 ))}
@@ -242,7 +243,7 @@ export default function ExamPage() {
         <Button variant="ghost" onClick={() => setIsReviewMode(false)} className="font-black text-primary uppercase tracking-widest mb-4 hover:bg-primary/5 h-16 px-10 rounded-2xl border-2">
           <ChevronLeft className="mr-2 h-8 w-8" /> Retour aux résultats
         </Button>
-        <Card className={`border-t-[24px] shadow-3xl rounded-[60px] overflow-hidden ${isCorrect ? 'border-t-emerald-500' : 'border-t-red-500'}`}>
+        <Card className={cn("border-t-[24px] shadow-3xl rounded-[60px] overflow-hidden", isCorrect ? 'border-t-emerald-500' : 'border-t-red-500')}>
           <CardHeader className="bg-muted/5 p-16">
             <div className="flex justify-between items-center mb-12">
               <Badge variant={isCorrect ? "default" : "destructive"} className="px-12 py-5 text-2xl font-black tracking-widest uppercase rounded-full shadow-2xl">
@@ -260,8 +261,8 @@ export default function ExamPage() {
                 const isSelected = uAns.includes(opt.id);
                 const isCorrectOpt = q.correctOptionIds?.includes(opt.id);
                 return (
-                  <div key={opt.id} className={`p-12 rounded-[45px] border-[6px] flex items-center gap-12 transition-all ${isCorrectOpt ? 'border-emerald-500 bg-emerald-50 shadow-xl scale-[1.02]' : isSelected ? 'border-red-400 bg-red-50' : 'border-muted bg-white'}`}>
-                    <div className={`h-20 w-20 rounded-full flex items-center justify-center font-black text-3xl shrink-0 ${isCorrectOpt ? 'bg-emerald-500 text-white' : isSelected ? 'bg-red-500 text-white' : 'bg-muted text-muted-foreground'}`}>
+                  <div key={opt.id} className={cn("p-12 rounded-[45px] border-[6px] flex items-center gap-12 transition-all", isCorrectOpt ? 'border-emerald-500 bg-emerald-50 shadow-xl scale-[1.02]' : isSelected ? 'border-red-400 bg-red-50' : 'border-muted bg-white')}>
+                    <div className={cn("h-20 w-20 rounded-full flex items-center justify-center font-black text-3xl shrink-0", isCorrectOpt ? 'bg-emerald-500 text-white' : isSelected ? 'bg-red-500 text-white' : 'bg-muted text-muted-foreground')}>
                       {String.fromCharCode(65 + idx)}
                     </div>
                     <div className="flex-1 font-black text-3xl text-slate-700 italic">{opt.text}</div>
@@ -295,7 +296,7 @@ export default function ExamPage() {
         
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-12">
           {[1,2,3,4,5].map(num => (
-            <Card key={num} className={`cursor-pointer border-t-[24px] transition-all hover:scale-[1.03] hover:shadow-3xl rounded-[50px] overflow-hidden ${selectedExamId === `exam${num}` ? 'border-t-primary bg-primary/5 ring-[16px] ring-primary/10 shadow-3xl' : 'border-t-muted shadow-xl'}`} onClick={() => setSelectedExamId(`exam${num}`)}>
+            <Card key={num} className={cn("cursor-pointer border-t-[24px] transition-all hover:scale-[1.03] hover:shadow-3xl rounded-[50px] overflow-hidden", selectedExamId === `exam${num}` ? 'border-t-primary bg-primary/5 ring-[16px] ring-primary/10 shadow-3xl' : 'border-t-muted shadow-xl')} onClick={() => setSelectedExamId(`exam${num}`)}>
               <CardHeader className="p-16">
                 <CardTitle className="text-5xl font-black uppercase tracking-tight italic">Examen {num}</CardTitle>
                 <div className="h-3 w-24 bg-primary/20 rounded-full my-8" />
@@ -365,11 +366,11 @@ export default function ExamPage() {
                   const updated = { ...answers, [q.id]: newAns };
                   setAnswers(updated);
                   saveProgress(undefined, updated);
-                }} className={`p-16 rounded-[60px] border-[10px] cursor-pointer transition-all flex items-start gap-16 shadow-lg ${isSelected ? 'border-primary bg-primary/5 ring-[20px] ring-primary/5' : 'border-muted hover:border-primary/40 bg-slate-50/50'}`}>
-                  <div className={`h-24 w-24 rounded-full flex items-center justify-center font-black text-5xl shrink-0 shadow-2xl ${isSelected ? 'bg-primary text-white scale-110' : 'bg-white text-primary border-4'}`}>
+                }} className={cn("p-16 rounded-[60px] border-[10px] cursor-pointer transition-all flex items-start gap-16 shadow-lg", isSelected ? 'border-primary bg-primary/5 ring-[20px] ring-primary/5' : 'border-muted hover:border-primary/40 bg-slate-50/50')}>
+                  <div className={cn("h-24 w-24 rounded-full flex items-center justify-center font-black text-5xl shrink-0 shadow-2xl", isSelected ? 'bg-primary text-white scale-110' : 'bg-white text-primary border-4')}>
                     {String.fromCharCode(65 + idx)}
                   </div>
-                  <div className={`flex-1 text-4xl pt-4 leading-relaxed ${isSelected ? 'font-black text-slate-900 italic' : 'text-slate-700 font-bold'}`}>
+                  <div className={cn("flex-1 text-4xl pt-4 leading-relaxed", isSelected ? 'font-black text-slate-900 italic' : 'text-slate-700 font-bold')}>
                     {opt.text}
                   </div>
                 </div>
