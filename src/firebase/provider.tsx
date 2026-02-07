@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, onSnapshot, Timestamp, setDoc, serverTimestamp } from 'firebase/firestore';
+import { Firestore, doc, onSnapshot, Timestamp, setDoc, serverTimestamp, increment } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { useRouter, usePathname } from 'next/navigation';
@@ -59,6 +59,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     userError: null,
   });
 
+  // Track auth state and profile
   useEffect(() => {
     if (!auth || !firestore) return;
 
@@ -89,7 +90,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               isUserLoading: false 
             }));
 
-            // Track login stats (only once per session start)
+            // Initial login stats
             if (!sessionStorage.getItem(`session_init_${firebaseUser.uid}`)) {
               const now = serverTimestamp();
               const updateData: any = { lastLoginAt: now };
@@ -104,8 +105,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
             if (!firebaseUser.isAnonymous && currentStatus !== 'active' && pathname.startsWith('/dashboard')) {
                router.push('/access-denied');
             }
-          } else if (firebaseUser.isAnonymous) {
-            setUserAuthState(prev => ({ ...prev, user: firebaseUser, isUserLoading: false }));
           } else {
             setUserAuthState(prev => ({ ...prev, user: firebaseUser, isUserLoading: false }));
           }
@@ -122,6 +121,22 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
     return () => unsubscribeAuth();
   }, [auth, firestore, pathname, router]);
+
+  // Heartbeat to track "Time Spent on Site"
+  useEffect(() => {
+    if (!auth || !firestore || !userAuthState.user || userAuthState.user.isAnonymous) return;
+
+    const interval = setInterval(() => {
+      const userDocRef = doc(firestore, 'users', userAuthState.user!.uid);
+      // Increment totalTimeSpent by 60 seconds every minute
+      setDoc(userDocRef, { 
+        totalTimeSpent: increment(60),
+        lastLoginAt: serverTimestamp() 
+      }, { merge: true });
+    }, 60000); // 1 minute
+
+    return () => clearInterval(interval);
+  }, [auth, firestore, userAuthState.user]);
 
   const contextValue = useMemo((): FirebaseContextState => {
     const servicesAvailable = !!(firebaseApp && firestore && auth);
