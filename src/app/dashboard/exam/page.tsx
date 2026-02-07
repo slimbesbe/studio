@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -210,7 +211,7 @@ export default function ExamPage() {
     return <div className="h-[60vh] flex items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
   }
 
-  // Écran de Pause
+  // Pause Screen
   if (showPauseScreen) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4 animate-fade-in">
@@ -275,12 +276,11 @@ export default function ExamPage() {
                 ))}
               </div>
 
-              {/* Marqueur YOU avec traits noirs */}
               <div className="absolute top-[-50px] transition-all duration-1000 flex flex-col items-center z-20" style={{ left: `${markerPosition}%`, transform: 'translateX(-50%)' }}>
                 <span className="text-[14px] font-black text-black mb-1">YOU</span>
-                <div className="w-[4px] h-6 bg-black" /> {/* Trait du haut */}
-                <div className="h-20" /> {/* Espace du rectangle */}
-                <div className="w-[4px] h-6 bg-black" /> {/* Trait du bas */}
+                <div className="w-[4px] h-6 bg-black" />
+                <div className="h-20" />
+                <div className="w-[4px] h-6 bg-black" />
                 <span className="text-[18px] font-black text-[#006699] whitespace-nowrap mt-2 uppercase tracking-tight">
                   {appreciation.label}
                 </span>

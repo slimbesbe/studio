@@ -1,2 +1,3 @@
-// Fichier supprimé pour résoudre le conflit de routes dynamiques Next.js
+
+"use client";
 export default function Removed() { return null; }

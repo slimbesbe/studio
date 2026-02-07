@@ -1,9 +1,9 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, doc, getDoc, updateDoc, Timestamp, deleteDoc } from 'firebase/firestore';
-import { sendPasswordResetEmail } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,9 +17,8 @@ import {
   Clock, 
   Key, 
   Trash2, 
-  Mail, 
-  TrendingUp, 
   BarChart,
+  TrendingUp,
   Eye
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -42,7 +41,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 
 export default function UsersListPage() {
   const { user: currentUser, isUserLoading } = useUser();
-  const auth = useAuth();
   const db = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
@@ -132,9 +130,9 @@ export default function UsersListPage() {
           <Button variant="ghost" size="icon" asChild><Link href="/admin/dashboard"><ChevronLeft /></Link></Button>
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Users className="h-8 w-8 text-accent" /> Gestion Globale Utilisateurs
+              <Users className="h-8 w-8 text-accent" /> Suivi Global en Temps Réel
             </h1>
-            <p className="text-muted-foreground">Mises à jour en temps réel des performances</p>
+            <p className="text-muted-foreground">Performances et activité des participants en direct</p>
           </div>
         </div>
         <Button asChild className="bg-accent hover:bg-accent/90">
@@ -189,8 +187,8 @@ export default function UsersListPage() {
                     {formatDate(u.lastLoginAt)}
                   </TableCell>
                   <TableCell>
-                    <Badge className={u.status === 'disabled' ? "bg-red-500" : "bg-emerald-500"}>
-                      {u.status === 'active' ? 'ACTIF' : 'DÉSACTIVÉ'}
+                    <Badge className={u.status === 'disabled' ? "bg-red-500" : (u.status === 'expired' ? "bg-amber-500" : "bg-emerald-500")}>
+                      {u.status === 'active' ? 'ACTIF' : (u.status === 'expired' ? 'EXPIRÉ' : 'DÉSACTIVÉ')}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right px-6">

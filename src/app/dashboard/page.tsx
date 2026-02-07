@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -11,7 +12,8 @@ import {
   History,
   TrendingUp,
   Award,
-  BookOpen
+  BookOpen,
+  CheckCircle2
 } from 'lucide-react';
 import { useUser } from '@/firebase';
 import Link from 'next/link';
