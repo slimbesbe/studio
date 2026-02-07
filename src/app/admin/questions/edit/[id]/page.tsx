@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function RedirectFix() {
+export default function RedirectLegacySimple() {
   const router = useRouter();
   useEffect(() => {
     router.replace('/admin/questions');

@@ -40,6 +40,7 @@ export default function QuestionsListPage() {
         if (!adminDoc.exists()) router.push('/dashboard');
         else {
           setIsAdmin(true);
+          // Auto-provision exams if needed
           EXAMS.forEach(async (e) => {
             await setDoc(doc(db, 'exams', e.id), { id: e.id, title: e.title, isActive: true }, { merge: true });
           });
@@ -64,15 +65,19 @@ export default function QuestionsListPage() {
 
   const downloadTemplate = () => {
     const templateData = [{
-      statement: "Question ?",
-      option1: "A", option2: "B", option3: "C", option4: "D", option5: "",
-      explanation: "Mindset...",
+      statement: "Enoncé de la question ?",
+      option1: "Réponse A", 
+      option2: "Réponse B", 
+      option3: "Réponse C", 
+      option4: "Réponse D", 
+      option5: "",
+      explanation: "Mindset PMI : L'explication détaillée ici.",
       correct: "A"
     }];
     const ws = XLSX.utils.json_to_sheet(templateData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Template");
-    XLSX.writeFile(wb, "template_questions.xlsx");
+    XLSX.writeFile(wb, "template_questions_simovex.xlsx");
   };
 
   if (isUserLoading || isAdmin === null) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
@@ -83,49 +88,55 @@ export default function QuestionsListPage() {
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild><Link href="/admin/dashboard"><ChevronLeft /></Link></Button>
           <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
+            <h1 className="text-3xl font-black italic uppercase tracking-tighter flex items-center gap-2">
               <BookCopy className="h-8 w-8 text-primary" /> Banque de Questions
             </h1>
           </div>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={downloadTemplate}><Download className="mr-2 h-4 w-4" /> Modèle</Button>
-          <Button variant="outline" onClick={() => setIsImportModalOpen(true)}><Upload className="mr-2 h-4 w-4" /> Importer</Button>
-          <Button asChild><Link href={`/admin/questions/new?examId=${activeExamId}`}><PlusCircle className="mr-2 h-4 w-4" /> Nouvelle</Link></Button>
+          <Button variant="outline" onClick={downloadTemplate} className="font-bold border-2"><Download className="mr-2 h-4 w-4" /> Modèle</Button>
+          <Button variant="outline" onClick={() => setIsImportModalOpen(true)} className="font-bold border-2"><Upload className="mr-2 h-4 w-4" /> Importer</Button>
+          <Button asChild className="font-black uppercase tracking-widest"><Link href={`/admin/questions/new?examId=${activeExamId}`}><PlusCircle className="mr-2 h-4 w-4" /> Nouvelle</Link></Button>
         </div>
       </div>
 
       <Tabs value={activeExamId} onValueChange={setActiveExamId} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 h-12">
-          {EXAMS.map(exam => <TabsTrigger key={exam.id} value={exam.id} className="font-bold">{exam.title}</TabsTrigger>)}
+        <TabsList className="grid w-full grid-cols-5 h-16 bg-muted/20 border-2 rounded-2xl p-1">
+          {EXAMS.map(exam => (
+            <TabsTrigger key={exam.id} value={exam.id} className="font-black uppercase tracking-tighter text-xs data-[state=active]:bg-primary data-[state=active]:text-white rounded-xl">
+              {exam.title}
+            </TabsTrigger>
+          ))}
         </TabsList>
         
         {EXAMS.map(exam => (
           <TabsContent key={exam.id} value={exam.id} className="mt-6">
-            <Card className="border-none shadow-xl">
+            <Card className="border-none shadow-2xl rounded-[32px] overflow-hidden">
               <CardContent className="p-0">
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-32">Code</TableHead>
-                      <TableHead>Énoncé</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                  <TableHeader className="bg-muted/30">
+                    <TableRow className="h-16">
+                      <TableHead className="w-32 px-8 font-black uppercase text-[10px] tracking-widest">Code</TableHead>
+                      <TableHead className="font-black uppercase text-[10px] tracking-widest">Énoncé</TableHead>
+                      <TableHead className="font-black uppercase text-[10px] tracking-widest">Type</TableHead>
+                      <TableHead className="text-right px-8 font-black uppercase text-[10px] tracking-widest">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoading ? (
-                      <TableRow><TableCell colSpan={4} className="text-center py-12"><Loader2 className="animate-spin inline" /></TableCell></TableRow>
+                      <TableRow><TableCell colSpan={4} className="text-center py-24"><Loader2 className="animate-spin inline h-10 w-10 text-primary" /></TableCell></TableRow>
+                    ) : questions?.length === 0 ? (
+                      <TableRow><TableCell colSpan={4} className="text-center py-24 font-bold text-muted-foreground uppercase tracking-widest italic">Aucune question dans cet examen.</TableCell></TableRow>
                     ) : questions?.map((q) => (
-                      <TableRow key={q.id}>
-                        <TableCell className="font-mono text-xs font-bold text-primary">{q.questionCode || '---'}</TableCell>
-                        <TableCell><p className="line-clamp-1">{q.statement}</p></TableCell>
-                        <TableCell><Badge variant={q.isMultipleCorrect ? "secondary" : "outline"}>{q.isMultipleCorrect ? "Multiple" : "Unique"}</Badge></TableCell>
-                        <TableCell className="text-right space-x-2">
-                          <Button variant="ghost" size="icon" asChild>
+                      <TableRow key={q.id} className="h-20 hover:bg-slate-50 transition-colors">
+                        <TableCell className="px-8 font-mono text-xs font-black text-primary">{q.questionCode || '---'}</TableCell>
+                        <TableCell><p className="line-clamp-1 font-medium">{q.statement}</p></TableCell>
+                        <TableCell><Badge variant={q.isMultipleCorrect ? "secondary" : "outline"} className="font-bold italic">{q.isMultipleCorrect ? "Multiple" : "Unique"}</Badge></TableCell>
+                        <TableCell className="text-right px-8 space-x-2">
+                          <Button variant="ghost" size="icon" asChild className="h-10 w-10 rounded-xl border-2 hover:bg-primary hover:text-white transition-colors">
                             <Link href={`/admin/manage-question/${activeExamId}/${q.id}`}><Pencil className="h-4 w-4" /></Link>
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(q.id)} className="text-destructive">
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(q.id)} className="h-10 w-10 rounded-xl border-2 border-destructive/20 text-destructive hover:bg-destructive hover:text-white transition-colors">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </TableCell>
@@ -143,4 +154,3 @@ export default function QuestionsListPage() {
     </div>
   );
 }
-

@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 
-export default function RedirectFix() {
+export default function RedirectLegacy() {
   const router = useRouter();
   const params = useParams();
   useEffect(() => {
