@@ -83,10 +83,10 @@ export default function UsersListPage() {
   };
 
   const formatTime = (seconds: number) => {
-    if (!seconds) return '0M';
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    return h > 0 ? `${h}H ${m}M` : `${m}M`;
+    const s = seconds || 0;
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
   };
 
   const formatDate = (ts: any) => {
@@ -258,4 +258,3 @@ export default function UsersListPage() {
     </div>
   );
 }
-

@@ -67,10 +67,10 @@ export default function DashboardPage() {
   const totalSeconds = profile?.totalTimeSpent || 0;
   
   const formatTotalTime = (seconds: number) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    if (h > 0) return `${h}H ${m}M`;
-    return `${m}M`;
+    const s = seconds || 0;
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
   };
 
   const formatDate = (ts: any) => {
