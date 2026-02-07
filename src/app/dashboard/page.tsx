@@ -29,21 +29,21 @@ const CircularStat = ({ value, label, sublabel, percent, color = "hsl(var(--prim
   const offset = circumference - (percent / 100) * circumference;
 
   return (
-    <div className="flex flex-col items-center text-center animate-fade-in">
-      <h3 className="text-[10px] font-black text-muted-foreground mb-4 h-8 flex items-center justify-center uppercase tracking-widest leading-tight">{label}</h3>
-      <div className="relative h-40 w-40 flex items-center justify-center">
-        <svg className="absolute h-full w-full transform -rotate-90">
-          <circle cx="80" cy="80" r={radius} stroke="currentColor" strokeWidth="8" fill="transparent" className="text-muted/10" />
+    <div className="flex flex-col items-center text-center animate-fade-in group">
+      <h3 className="text-[11px] font-black text-muted-foreground mb-4 h-8 flex items-center justify-center uppercase tracking-[0.2em] leading-tight group-hover:text-primary transition-colors">{label}</h3>
+      <div className="relative h-44 w-44 flex items-center justify-center">
+        <svg className="absolute h-full w-full transform -rotate-90 filter drop-shadow-sm">
+          <circle cx="88" cy="88" r={radius} stroke="currentColor" strokeWidth="10" fill="transparent" className="text-muted/10" />
           <circle
-            cx="80" cy="80" r={radius} stroke={color} strokeWidth="8" fill="transparent"
+            cx="88" cy="88" r={radius} stroke={color} strokeWidth="10" fill="transparent"
             strokeDasharray={circumference}
-            style={{ strokeDashoffset: offset, transition: 'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)' }}
+            style={{ strokeDashoffset: offset, transition: 'stroke-dashoffset 2s cubic-bezier(0.4, 0, 0.2, 1)' }}
             strokeLinecap="round"
           />
         </svg>
         <div className="flex flex-col items-center justify-center z-10 px-4">
-          <span className="text-3xl font-black text-foreground">{value}</span>
-          <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-1 text-center leading-tight">{sublabel}</span>
+          <span className="text-4xl font-black text-foreground tracking-tighter">{value}</span>
+          <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-2 text-center leading-tight">{sublabel}</span>
         </div>
       </div>
     </div>
@@ -56,8 +56,8 @@ export default function DashboardPage() {
 
   if (isUserLoading) {
     return (
-      <div className="h-[60vh] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="h-[70vh] flex items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
       </div>
     );
   }
@@ -69,8 +69,8 @@ export default function DashboardPage() {
   const formatTotalTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
-    if (h > 0) return `${h}h ${m}m`;
-    return `${m}m`;
+    if (h > 0) return `${h}H ${m}M`;
+    return `${m}M`;
   };
 
   const formatDate = (ts: any) => {
@@ -81,64 +81,66 @@ export default function DashboardPage() {
       month: 'short', 
       hour: '2-digit',
       minute: '2-digit'
-    });
+    }).toUpperCase();
   };
 
   return (
-    <div className="space-y-10 animate-fade-in max-w-7xl mx-auto pb-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-headline font-bold text-primary italic uppercase tracking-tight">Tableau de bord</h1>
-          <p className="text-muted-foreground mt-1">
-            {isDemo ? "Mode DEMO actif." : `Bienvenue, ${profile?.firstName || 'Participant'}.`}
+    <div className="space-y-12 animate-fade-in max-w-7xl mx-auto pb-16 pt-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-10 rounded-[32px] shadow-sm border border-slate-100">
+        <div className="space-y-2">
+          <h1 className="text-4xl font-black text-primary italic uppercase tracking-tighter">Tableau de bord</h1>
+          <p className="text-lg text-slate-500 font-medium">
+            {isDemo ? "Mode DÉMONSTRATION limité actif." : `Bienvenue dans votre espace, ${profile?.firstName || 'Participant'}.`}
           </p>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" className="rounded-full px-6 font-bold" asChild disabled={isDemo}>
+        <div className="flex gap-4">
+          <Button variant="outline" className="rounded-2xl h-14 px-8 font-black uppercase tracking-widest border-2 hover:bg-slate-50 transition-all" asChild disabled={isDemo}>
             <Link href="/dashboard/history">
-              <History className="mr-2 h-4 w-4" /> Historique
+              <History className="mr-3 h-5 w-5" /> Historique
             </Link>
           </Button>
-          <Button className="rounded-full px-8 shadow-xl uppercase font-black" asChild>
-            <Link href="/dashboard/exam"><PlayCircle className="mr-2 h-4 w-4" /> Nouvelle Simulation</Link>
+          <Button className="rounded-2xl h-14 px-10 shadow-2xl uppercase font-black tracking-widest bg-primary hover:scale-[1.02] transition-transform" asChild>
+            <Link href="/dashboard/exam">
+              <PlayCircle className="mr-3 h-6 w-6" /> Lancer Simulation
+            </Link>
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <Card className="lg:col-span-3 border-none shadow-xl bg-white rounded-2xl overflow-hidden">
-          <CardHeader className="border-b bg-muted/20">
-            <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" /> Statistiques en direct
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <Card className="lg:col-span-3 border-none shadow-2xl bg-white rounded-[40px] overflow-hidden">
+          <CardHeader className="border-b bg-muted/10 p-10">
+            <CardTitle className="text-sm font-black uppercase tracking-[0.3em] text-primary flex items-center gap-3">
+              <TrendingUp className="h-5 w-5" /> Statistiques de Performance
             </CardTitle>
           </CardHeader>
-          <CardContent className="py-12">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12">
+          <CardContent className="py-20 p-10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-16">
               <CircularStat 
                 label="Simulations" 
                 value={simulationsCount} 
-                sublabel="Terminées" 
+                sublabel="TESTS TERMINÉS" 
                 percent={Math.min(100, (simulationsCount / 10) * 100)} 
                 color="hsl(var(--primary))" 
               />
               <CircularStat 
-                label="Moyenne" 
+                label="Score Moyen" 
                 value={`${averageScore}%`} 
-                sublabel="Cible : 80%+" 
+                sublabel="CIBLE : 80%+" 
                 percent={averageScore} 
                 color="#10b981" 
               />
               <CircularStat 
-                label="Progression" 
+                label="Préparation" 
                 value={`${Math.min(100, Math.round((simulationsCount / 5) * 100))}%`} 
-                sublabel="Progression" 
+                sublabel="ESTIMATION PMP" 
                 percent={Math.min(100, (simulationsCount / 5) * 100)} 
                 color="#f59e0b" 
               />
               <CircularStat 
                 label="Temps d'étude" 
                 value={formatTotalTime(totalSeconds)} 
-                sublabel="Total cumulé" 
+                sublabel="CUMULÉ TOTAL" 
                 percent={Math.min(100, (totalSeconds / (3600 * 50)) * 100)} 
                 color="#8b5cf6" 
               />
@@ -146,24 +148,24 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-xl bg-white rounded-2xl overflow-hidden">
-          <CardHeader className="border-b bg-muted/20">
-            <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
-              <Award className="h-4 w-4" /> Session
+        <Card className="border-none shadow-2xl bg-white rounded-[40px] overflow-hidden flex flex-col h-full">
+          <CardHeader className="border-b bg-muted/10 p-10">
+            <CardTitle className="text-sm font-black uppercase tracking-[0.3em] text-primary flex items-center gap-3">
+              <Award className="h-5 w-5" /> Informations Session
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-8 space-y-8">
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                <Calendar className="h-3 w-3 text-primary" /> Première connexion
+          <CardContent className="p-10 space-y-12 flex-1 flex flex-col justify-center">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 text-[11px] font-black text-muted-foreground uppercase tracking-[0.2em]">
+                <Calendar className="h-4 w-4 text-primary" /> Première connexion
               </div>
-              <p className="text-sm font-bold bg-muted/30 p-3 rounded-xl border truncate">{formatDate(profile?.firstLoginAt)}</p>
+              <p className="text-base font-black bg-muted/20 p-5 rounded-[20px] border-2 border-slate-100 shadow-inner truncate text-center">{formatDate(profile?.firstLoginAt)}</p>
             </div>
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                <Clock className="h-3 w-3 text-primary" /> Dernière connexion
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 text-[11px] font-black text-muted-foreground uppercase tracking-[0.2em]">
+                <Clock className="h-4 w-4 text-primary" /> Dernière connexion
               </div>
-              <p className="text-sm font-bold bg-muted/30 p-3 rounded-xl border truncate">{formatDate(profile?.lastLoginAt)}</p>
+              <p className="text-base font-black bg-muted/20 p-5 rounded-[20px] border-2 border-slate-100 shadow-inner truncate text-center">{formatDate(profile?.lastLoginAt)}</p>
             </div>
           </CardContent>
         </Card>
