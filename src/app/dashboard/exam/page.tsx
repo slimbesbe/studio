@@ -199,30 +199,30 @@ export default function ExamPage() {
   // Écran de Pause
   if (showPauseScreen) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center p-4 animate-fade-in">
-        <Card className="w-full max-w-2xl shadow-2xl border-none bg-white overflow-hidden">
-          <CardHeader className="text-center pt-16 pb-12 bg-muted/10">
+      <div className="min-h-screen fixed inset-0 z-[100] bg-background flex items-center justify-center p-4 animate-fade-in">
+        <Card className="w-full max-w-2xl shadow-2xl border-none overflow-hidden">
+          <CardHeader className="text-center pt-16 pb-12 bg-muted/20">
             <h1 className="text-7xl font-light text-slate-800 tracking-[0.2em] uppercase">Pause</h1>
-            <p className="text-xl text-slate-500 mt-4">Simulation suspendue</p>
+            <p className="text-xl text-slate-500 mt-4">Simulation PMP® suspendue</p>
           </CardHeader>
-          <CardContent className="flex flex-col gap-5 px-16 py-16">
+          <CardContent className="flex flex-col gap-6 px-16 py-16">
             <Button 
-              className="w-full h-16 text-xl font-bold bg-[#635BFF] hover:bg-[#5249e0] uppercase tracking-widest rounded-md" 
+              className="w-full h-16 text-xl font-bold bg-[#635BFF] hover:bg-[#5249e0] uppercase tracking-widest rounded-xl shadow-lg" 
               onClick={() => setShowPauseScreen(false)}
             >
               CONTINUER
             </Button>
             <Button 
               variant="outline" 
-              className="w-full h-16 text-xl font-bold text-[#635BFF] border-[#635BFF] hover:bg-[#635BFF]/5 uppercase tracking-widest rounded-md" 
-              onClick={() => { saveProgress(); setIsExamStarted(false); }}
+              className="w-full h-16 text-xl font-bold text-[#635BFF] border-[#635BFF] border-2 hover:bg-[#635BFF]/5 uppercase tracking-widest rounded-xl" 
+              onClick={() => { saveProgress(); setIsExamStarted(false); setShowPauseScreen(false); }}
             >
               ARRETER ET SAUVEGARDER
             </Button>
             <Button 
               variant="outline" 
-              className="w-full h-16 text-xl font-bold text-red-500 border-red-500 hover:bg-red-50 uppercase tracking-widest rounded-md" 
-              onClick={() => { setIsExamStarted(false); setExamResult(null); setSelectedExamId(null); }}
+              className="w-full h-16 text-xl font-bold text-red-500 border-red-500 border-2 hover:bg-red-50 uppercase tracking-widest rounded-xl" 
+              onClick={() => { if(confirm("Toute progression non sauvegardée sera perdue. Confirmer ?")) { setIsExamStarted(false); setExamResult(null); setSelectedExamId(null); setShowPauseScreen(false); } }}
             >
               ARRETER ET ANNULER
             </Button>
@@ -250,31 +250,31 @@ export default function ExamPage() {
               </div>
 
               <div className="relative flex w-full h-20 rounded-lg overflow-hidden border shadow-inner bg-slate-100">
-                <div className="w-[50%] h-full bg-[#F44336] border-r flex items-center justify-center">
+                <div className="w-[50%] h-full bg-[#F44336] border-r flex items-center justify-center relative group">
                    <span className="text-[10px] font-black text-white uppercase text-center px-1 leading-tight select-none">Needs Improvement</span>
                 </div>
-                <div className="w-[15%] h-full bg-[#FFC107] border-r flex items-center justify-center">
+                <div className="w-[15%] h-full bg-[#FFC107] border-r flex items-center justify-center relative group">
                    <span className="text-[10px] font-black text-white uppercase text-center px-1 leading-tight select-none">Below Target</span>
                 </div>
-                <div className="w-[15%] h-full bg-[#4CAF50] border-r flex items-center justify-center">
+                <div className="w-[15%] h-full bg-[#4CAF50] border-r flex items-center justify-center relative group">
                    <span className="text-[10px] font-black text-white uppercase text-center px-1 leading-tight select-none">Target</span>
                 </div>
-                <div className="w-[20%] h-full bg-[#009688] flex items-center justify-center">
+                <div className="w-[20%] h-full bg-[#009688] flex items-center justify-center relative group">
                    <span className="text-[10px] font-black text-white uppercase text-center px-1 leading-tight select-none">Above Target</span>
                 </div>
               </div>
 
-              <div className="absolute top-[-40px] transition-all duration-1000 flex flex-col items-center z-20" style={{ left: `${percentage}%`, transform: 'translateX(-50%)' }}>
+              <div className="absolute top-[-50px] transition-all duration-1000 flex flex-col items-center z-20" style={{ left: `${percentage}%`, transform: 'translateX(-50%)' }}>
                 <span className="text-[14px] font-black text-black mb-1">YOU</span>
-                <div className="w-[2px] h-8 bg-black mb-20" />
-                <div className="w-[2px] h-8 bg-black mt-2" />
-                <span className="text-[18px] font-black text-[#006699] whitespace-nowrap mt-2 uppercase tracking-tight">
+                <div className="w-[2px] h-10 bg-black" />
+                <div className="mt-20 w-[2px] h-10 bg-black" />
+                <span className="text-[22px] font-black text-[#006699] whitespace-nowrap mt-4 uppercase tracking-tight">
                   {appreciation.label}
                 </span>
               </div>
             </div>
 
-            <div className="text-center space-y-4 pt-48">
+            <div className="text-center space-y-4 pt-56">
                <p className="text-7xl font-black text-primary tracking-tighter">{percentage}%</p>
                <p className="text-xl font-bold text-muted-foreground">{examResult.score} / {examResult.total} points obtenus</p>
             </div>
