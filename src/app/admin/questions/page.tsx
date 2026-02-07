@@ -27,8 +27,7 @@ import {
   ChevronLeft,
   Layers,
   Upload,
-  Download,
-  FileSpreadsheet
+  Download
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -218,7 +217,7 @@ export default function QuestionsListPage() {
                           </TableCell>
                           <TableCell className="text-right space-x-2">
                             <Button variant="ghost" size="icon" asChild>
-                              <Link href={`/admin/questions/edit/${activeExamId}/${q.id}`}><Pencil className="h-4 w-4" /></Link>
+                              <Link href={`/admin/edit-question/${activeExamId}/${q.id}`}><Pencil className="h-4 w-4" /></Link>
                             </Button>
                             <Button variant="ghost" size="icon" onClick={() => handleDelete(q.id)} className="text-destructive">
                               <Trash2 className="h-4 w-4" />
