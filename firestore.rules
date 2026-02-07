@@ -28,6 +28,8 @@ service cloud.firestore {
       allow write: if isAdmin();
 
       match /questions/{questionId} {
+        // Un utilisateur ne peut pas voir le questionCode dans les règles de sécurité (conceptuellement, mais Firestore rules ne masquent pas des champs spécifiques au read)
+        // La protection ici est que l'utilisateur standard ne peut lire que si isActive == true
         allow read: if isAdmin() || (isSignedIn() && resource.data.isActive == true);
         allow write: if isAdmin();
       }

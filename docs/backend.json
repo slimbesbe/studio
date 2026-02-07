@@ -30,7 +30,7 @@
       "description": "Question d'examen PMP.",
       "properties": {
         "id": { "type": "string" },
-        "questionCode": { "type": "string" },
+        "questionCode": { "type": "string", "description": "ID unique lisible ex: Q-000001" },
         "statement": { "type": "string" },
         "options": {
           "type": "array",
@@ -46,7 +46,8 @@
         "isMultipleCorrect": { "type": "boolean" },
         "explanation": { "type": "string" },
         "isActive": { "type": "boolean" },
-        "createdByRole": { "type": "string" }
+        "createdByRole": { "type": "string" },
+        "examId": { "type": "string" }
       }
     }
   },
@@ -74,6 +75,13 @@
         "definition": {
           "schema": { "$ref": "#/backend/entities/User" },
           "description": "Profils utilisateurs."
+        }
+      },
+      {
+        "path": "/counters/{counterId}",
+        "definition": {
+          "schema": { "type": "object", "properties": { "current": { "type": "number" } } },
+          "description": "Compteurs globaux pour les IDs uniques."
         }
       }
     ]
