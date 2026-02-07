@@ -1,7 +1,6 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -11,11 +10,7 @@ import {
   Calendar,
   History,
   TrendingUp,
-  Award,
-  BookOpen,
-  CheckCircle2,
-  Target,
-  BarChart3
+  Award
 } from 'lucide-react';
 import { useUser } from '@/firebase';
 import Link from 'next/link';
@@ -93,9 +88,9 @@ export default function DashboardPage() {
     <div className="space-y-10 animate-fade-in max-w-7xl mx-auto pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-headline font-bold text-primary italic uppercase tracking-tight">Tableau de bord personnel</h1>
+          <h1 className="text-3xl font-headline font-bold text-primary italic uppercase tracking-tight">Tableau de bord</h1>
           <p className="text-muted-foreground mt-1">
-            {isDemo ? "Mode DEMO actif." : `Suivi en temps réel de vos performances, ${profile?.firstName || 'Participant'}.`}
+            {isDemo ? "Mode DEMO actif." : `Bienvenue, ${profile?.firstName || 'Participant'}.`}
           </p>
         </div>
         <div className="flex gap-3">
@@ -122,7 +117,7 @@ export default function DashboardPage() {
               <CircularStat 
                 label="Simulations" 
                 value={simulationsCount} 
-                sublabel="Réalisées" 
+                sublabel="Terminées" 
                 percent={Math.min(100, (simulationsCount / 10) * 100)} 
                 color="hsl(var(--primary))" 
               />
@@ -136,7 +131,7 @@ export default function DashboardPage() {
               <CircularStat 
                 label="Progression" 
                 value={`${Math.min(100, Math.round((simulationsCount / 5) * 100))}%`} 
-                sublabel="Objectif hebdo" 
+                sublabel="Progression" 
                 percent={Math.min(100, (simulationsCount / 5) * 100)} 
                 color="#f59e0b" 
               />
@@ -154,7 +149,7 @@ export default function DashboardPage() {
         <Card className="border-none shadow-xl bg-white rounded-2xl overflow-hidden">
           <CardHeader className="border-b bg-muted/20">
             <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
-              <Award className="h-4 w-4" /> Informations Session
+              <Award className="h-4 w-4" /> Session
             </CardTitle>
           </CardHeader>
           <CardContent className="p-8 space-y-8">
@@ -162,23 +157,13 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                 <Calendar className="h-3 w-3 text-primary" /> Première connexion
               </div>
-              <p className="text-sm font-bold bg-muted/30 p-3 rounded-xl border border-dashed truncate">{formatDate(profile?.firstLoginAt)}</p>
+              <p className="text-sm font-bold bg-muted/30 p-3 rounded-xl border truncate">{formatDate(profile?.firstLoginAt)}</p>
             </div>
-            
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                 <Clock className="h-3 w-3 text-primary" /> Dernière connexion
               </div>
-              <p className="text-sm font-bold bg-muted/30 p-3 rounded-xl border border-dashed truncate">{formatDate(profile?.lastLoginAt)}</p>
-            </div>
-
-            <div className="pt-6">
-              <div className="bg-primary/5 rounded-2xl p-6 border border-primary/10 text-center">
-                <p className="text-[10px] text-primary font-black uppercase tracking-widest mb-3">Statut du compte</p>
-                <div className="flex justify-center">
-                   <div className="bg-emerald-500 text-white px-4 py-1 rounded-full uppercase text-[10px] font-black shadow-sm">Actif</div>
-                </div>
-              </div>
+              <p className="text-sm font-bold bg-muted/30 p-3 rounded-xl border truncate">{formatDate(profile?.lastLoginAt)}</p>
             </div>
           </CardContent>
         </Card>
