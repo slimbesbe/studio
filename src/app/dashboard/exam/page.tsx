@@ -229,13 +229,13 @@ export default function ExamPage() {
   if (savedState && !isExamStarted && !isPauseScreenDismissed && !examResult) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
-        <Card className="w-full max-w-2xl shadow-2xl border-none">
+        <Card className="w-full max-w-2xl shadow-2xl border-none bg-white">
           <CardHeader className="text-center pt-12 pb-8">
             <h1 className="text-6xl font-light text-slate-800 mb-8 uppercase tracking-widest">Pause</h1>
             <p className="text-xl text-slate-600">Une session est en cours.</p>
           </CardHeader>
           <CardContent className="flex flex-col gap-4 px-12 pb-16">
-            <Button className="w-full h-14 text-lg font-bold bg-[#635BFF] hover:bg-[#5249e0] uppercase rounded-md" onClick={() => startExam(true)}>
+            <Button className="w-full h-14 text-lg font-bold bg-[#635BFF] hover:bg-[#5249e0] uppercase rounded-md text-white" onClick={() => startExam(true)}>
               CONTINUER
             </Button>
             <Button variant="outline" className="w-full h-14 text-lg font-bold text-[#635BFF] border-[#635BFF] hover:bg-[#635BFF]/5 uppercase rounded-md" onClick={() => setIsPauseScreenDismissed(true)}>
@@ -258,7 +258,7 @@ export default function ExamPage() {
 
     return (
       <div className="max-w-4xl mx-auto py-10 space-y-8 animate-fade-in">
-        <Card className="shadow-2xl overflow-hidden border-none">
+        <Card className="shadow-2xl overflow-hidden border-none bg-white">
           <CardHeader className="border-b bg-muted/30">
             <CardTitle>Résultats de la Simulation</CardTitle>
           </CardHeader>
@@ -269,7 +269,7 @@ export default function ExamPage() {
                  <div className="w-1/2 text-center relative border-l border-sky-300">Passing</div>
               </div>
 
-              {/* Barre de progression avec labels internes */}
+              {/* Barre de progression avec labels internes centrés */}
               <div className="relative flex w-full h-14 rounded-lg overflow-hidden border shadow-inner bg-slate-100">
                 {PERFORMANCE_ZONES.map((zone, i) => (
                   <div key={zone.label} className={`w-1/4 h-full border-r last:border-r-0 flex items-center justify-center ${i === currentZoneIndex ? zone.color : 'bg-slate-200 opacity-40'}`}>
@@ -280,7 +280,7 @@ export default function ExamPage() {
                 ))}
               </div>
 
-              {/* Marqueur YOU avec traits noirs et appréciation gras bleu */}
+              {/* Marqueur YOU tel que demandé */}
               <div className="absolute top-[-45px] transition-all duration-1000 flex flex-col items-center z-20" style={{ left: `${markerPosition}%`, transform: 'translateX(-50%)' }}>
                 <span className="text-[14px] font-black text-black mb-1">YOU</span>
                 <div className="w-[3px] h-4 bg-black" />
@@ -301,7 +301,7 @@ export default function ExamPage() {
           </CardContent>
           <CardFooter className="flex gap-4 p-8 bg-muted/20 border-t">
             <Button variant="outline" className="flex-1 font-bold h-14 text-lg" onClick={() => { setIsReviewMode(true); setCurrentQuestionIndex(0); }}>REVOIR MES ERREURS</Button>
-            <Button className="flex-1 font-bold h-14 text-lg" onClick={() => { setExamResult(null); setIsExamStarted(false); setSelectedExamId(null); }}>TERMINER</Button>
+            <Button className="flex-1 font-bold h-14 text-lg bg-primary text-white" onClick={() => { setExamResult(null); setIsExamStarted(false); setSelectedExamId(null); }}>TERMINER</Button>
           </CardFooter>
         </Card>
       </div>
@@ -316,7 +316,7 @@ export default function ExamPage() {
     return (
       <div className="max-w-4xl mx-auto space-y-6 pb-20 animate-fade-in">
         <Button variant="ghost" onClick={() => setIsReviewMode(false)}><ChevronLeft className="mr-2" /> Retour</Button>
-        <Card className={`border-t-8 ${isCorrect ? 'border-t-emerald-500' : 'border-t-red-500 shadow-xl'}`}>
+        <Card className={`border-t-8 bg-white ${isCorrect ? 'border-t-emerald-500' : 'border-t-red-500 shadow-xl'}`}>
           <CardHeader>
             <div className="flex justify-between items-center mb-4">
                <Badge variant={isCorrect ? "default" : "destructive"}>{isCorrect ? "CORRECT" : "INCORRECT"}</Badge>
@@ -361,7 +361,7 @@ export default function ExamPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {EXAMS.map(exam => (
-            <Card key={exam.id} className={`group hover:shadow-2xl transition-all cursor-pointer border-t-8 ${selectedExamId === exam.id ? 'border-t-primary bg-primary/5' : 'border-t-muted'}`} onClick={() => setSelectedExamId(exam.id)}>
+            <Card key={exam.id} className={`group hover:shadow-2xl transition-all cursor-pointer border-t-8 bg-white ${selectedExamId === exam.id ? 'border-t-primary bg-primary/5' : 'border-t-muted'}`} onClick={() => setSelectedExamId(exam.id)}>
               <CardHeader>
                 <CardTitle className="text-2xl font-bold">{exam.title}</CardTitle>
                 <CardDescription className="text-base mt-2">{exam.desc}</CardDescription>
@@ -372,7 +372,7 @@ export default function ExamPage() {
         </div>
 
         <div className="pt-10 flex justify-center">
-          <Button size="lg" className="w-full max-w-2xl h-20 text-2xl font-black shadow-2xl uppercase tracking-widest" disabled={!selectedExamId || isSubmitting} onClick={() => startExam(false)}>
+          <Button size="lg" className="w-full max-w-2xl h-20 text-2xl font-black shadow-2xl uppercase tracking-widest bg-primary text-white" disabled={!selectedExamId || isSubmitting} onClick={() => startExam(false)}>
             {isSubmitting ? <Loader2 className="animate-spin mr-3 h-8 w-8" /> : <PlayCircle className="mr-3 h-8 w-8" />}
             DÉMARRER LA SIMULATION
           </Button>
@@ -390,7 +390,7 @@ export default function ExamPage() {
         <div className="flex justify-between items-center">
            <Badge variant="outline" className="text-xl font-mono px-6 py-2 rounded-xl">QUESTION {currentQuestionIndex + 1} / {examQuestions.length}</Badge>
            <div className="flex items-center gap-3 font-black text-2xl text-primary bg-primary/5 px-6 py-2 rounded-2xl border border-primary/20"><Clock className="h-7 w-7" /> {formatTime(timeLeft)}</div>
-           <Button variant="destructive" size="lg" className="font-black h-12 px-10 uppercase tracking-widest shadow-lg" onClick={() => { if (confirm("Soumettre l'examen ?")) handleFinishExam(); }}>
+           <Button variant="destructive" size="lg" className="font-black h-12 px-10 uppercase tracking-widest shadow-lg text-white" onClick={() => { if (confirm("Soumettre l'examen ?")) handleFinishExam(); }}>
              SOUMETTRE
            </Button>
         </div>
@@ -425,10 +425,9 @@ export default function ExamPage() {
       <div className="fixed bottom-0 left-0 right-0 p-8 bg-white/90 backdrop-blur-xl border-t-2 z-40">
         <div className="max-w-4xl mx-auto flex justify-between gap-6">
           <Button variant="outline" className="flex-1 h-16 font-black text-xl rounded-2xl uppercase border-2" onClick={() => { const newIndex = Math.max(0, currentQuestionIndex - 1); setCurrentQuestionIndex(newIndex); saveProgress(newIndex); }} disabled={currentQuestionIndex === 0}><ChevronLeft className="mr-2" /> PRÉCÉDENT</Button>
-          <Button className="flex-1 h-16 font-black text-xl rounded-2xl shadow-2xl uppercase" onClick={() => { const newIndex = Math.min(examQuestions.length - 1, currentQuestionIndex + 1); setCurrentQuestionIndex(newIndex); saveProgress(newIndex); }} disabled={currentQuestionIndex === examQuestions.length - 1}>SUIVANT <ChevronRight className="ml-2" /></Button>
+          <Button className="flex-1 h-16 font-black text-xl rounded-2xl shadow-2xl uppercase bg-primary text-white" onClick={() => { const newIndex = Math.min(examQuestions.length - 1, currentQuestionIndex + 1); setCurrentQuestionIndex(newIndex); saveProgress(newIndex); }} disabled={currentQuestionIndex === examQuestions.length - 1}>SUIVANT <ChevronRight className="ml-2" /></Button>
         </div>
       </div>
     </div>
   );
 }
-
