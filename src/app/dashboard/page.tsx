@@ -13,7 +13,9 @@ import {
   TrendingUp,
   Award,
   BookOpen,
-  CheckCircle2
+  CheckCircle2,
+  Target,
+  BarChart3
 } from 'lucide-react';
 import { useUser } from '@/firebase';
 import Link from 'next/link';

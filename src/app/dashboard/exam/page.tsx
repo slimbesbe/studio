@@ -234,8 +234,7 @@ export default function ExamPage() {
 
   if (examResult) {
     const percentage = Math.round((examResult.score / examResult.total) * 100);
-    const currentZoneIndex = PERFORMANCE_ZONES.findIndex(z => percentage >= z.range[0] && percentage < z.range[1]);
-    const appreciation = PERFORMANCE_ZONES[currentZoneIndex === -1 ? 0 : currentZoneIndex];
+    const appreciation = PERFORMANCE_ZONES.find(z => percentage >= z.range[0] && percentage < z.range[1]) || PERFORMANCE_ZONES[0];
 
     return (
       <div className="max-w-4xl mx-auto py-12 space-y-8 animate-fade-in">
@@ -292,7 +291,7 @@ export default function ExamPage() {
   if (isReviewMode) {
     const q = examQuestions[currentQuestionIndex];
     const userAns = answers[q.id] || [];
-    const isCorrect = userAns.length === q.correctOptionIds.length && userAns.every(v => q.correctOptionIds.includes(v));
+    const isCorrect = userAns.length === (q.correctOptionIds?.length || 0) && userAns.every(v => q.correctOptionIds?.includes(v));
     
     return (
       <div className="max-w-4xl mx-auto space-y-6 pb-20 animate-fade-in py-10">
@@ -309,7 +308,7 @@ export default function ExamPage() {
             <div className="grid gap-4">
               {q.options.map((opt: any, idx: number) => {
                 const isSelected = userAns.includes(opt.id);
-                const isCorrectOpt = q.correctOptionIds.includes(opt.id);
+                const isCorrectOpt = q.correctOptionIds?.includes(opt.id);
                 return (
                   <div key={opt.id} className={`p-5 rounded-2xl border-2 flex items-center gap-5 transition-colors ${isCorrectOpt ? 'border-emerald-500 bg-emerald-50' : isSelected ? 'border-red-400 bg-red-50' : 'border-muted'}`}>
                     <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm ${isCorrectOpt ? 'bg-emerald-500 text-white' : 'bg-muted text-slate-600'}`}>{String.fromCharCode(65 + idx)}</div>
@@ -349,7 +348,7 @@ export default function ExamPage() {
             >
               <CardHeader className="flex-1">
                 <CardTitle className="text-2xl font-bold">{exam.title}</CardTitle>
-                <CardDescription className="text-base mt-4 leading-relaxed">{exam.desc}</CardDescription>
+                <div className="text-base mt-4 leading-relaxed text-muted-foreground">{exam.desc}</div>
               </CardHeader>
               <CardFooter className="pt-6">
                 <Button variant={selectedExamId === exam.id ? "default" : "outline"} className="w-full h-12 font-black uppercase tracking-widest">
