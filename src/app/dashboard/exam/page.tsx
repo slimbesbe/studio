@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { useUser, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, where, doc, setDoc, deleteDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -62,7 +62,7 @@ export default function ExamPage() {
 
   // Sync state to Firestore on change
   const saveProgress = useCallback((updatedIndex?: number, updatedAnswers?: any) => {
-    if (isDemo || !examStateRef || !isExamStarted) return;
+    if (isDemo || !examStateRef || !isExamStarted || examResult) return;
     
     setDoc(examStateRef, {
       selectedExamId,
@@ -72,7 +72,7 @@ export default function ExamPage() {
       questionIds: sessionQuestionIds,
       updatedAt: serverTimestamp()
     }, { merge: true });
-  }, [isDemo, examStateRef, isExamStarted, currentQuestionIndex, answers, timeLeft, sessionQuestionIds, selectedExamId]);
+  }, [isDemo, examStateRef, isExamStarted, currentQuestionIndex, answers, timeLeft, sessionQuestionIds, selectedExamId, examResult]);
 
   // Timer logic
   useEffect(() => {
@@ -145,23 +145,29 @@ export default function ExamPage() {
   };
 
   const handleFinishExam = async () => {
-    if (examQuestions.length === 0) return;
+    if (examQuestions.length === 0 || isSubmitting) return;
     setIsSubmitting(true);
     
-    let score = 0;
-    examQuestions.forEach(q => {
-      const userAns = answers[q.id] || [];
-      const correctAns = q.correctOptionIds || [];
-      if (userAns.length === correctAns.length && userAns.every(val => correctAns.includes(val))) {
-        score++;
+    try {
+      let score = 0;
+      examQuestions.forEach(q => {
+        const userAns = answers[q.id] || [];
+        const correctAns = q.correctOptionIds || [];
+        if (userAns.length === correctAns.length && userAns.every(val => correctAns.includes(val))) {
+          score++;
+        }
+      });
+
+      setExamResult({ score, total: examQuestions.length });
+
+      if (!isDemo && examStateRef) {
+        // Suppression asynchrone sans bloquer l'UI
+        deleteDoc(examStateRef).catch(err => console.error("Erreur suppression état:", err));
       }
-    });
-
-    setExamResult({ score, total: examQuestions.length });
-    setIsSubmitting(false);
-
-    if (!isDemo && examStateRef) {
-      await deleteDoc(examStateRef);
+    } catch (e) {
+      toast({ variant: "destructive", title: "Erreur", description: "Une erreur est survenue lors de la soumission." });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -330,7 +336,18 @@ export default function ExamPage() {
         <div className="flex justify-between items-center">
            <Badge variant="outline" className="text-lg font-mono">Q {currentQuestionIndex + 1} / {examQuestions.length}</Badge>
            <div className="flex items-center gap-2 font-bold text-primary"><Clock className="h-5 w-5" /> {formatTime(timeLeft)}</div>
-           <Button variant="destructive" size="sm" onClick={() => confirm("Soumettre l'examen ?") && handleFinishExam()}>Soumettre</Button>
+           <Button 
+             variant="destructive" 
+             size="sm" 
+             disabled={isSubmitting}
+             onClick={() => {
+               if (window.confirm("Voulez-vous vraiment terminer et soumettre l'examen ?")) {
+                 handleFinishExam();
+               }
+             }}
+           >
+             {isSubmitting ? <Loader2 className="animate-spin h-4 w-4" /> : "Soumettre"}
+           </Button>
         </div>
         <Progress value={progress} className="h-2" />
       </div>
@@ -352,8 +369,9 @@ export default function ExamPage() {
                   } else {
                     newAns = [opt.id];
                   }
-                  setAnswers({ ...answers, [q.id]: newAns });
-                  saveProgress(undefined, { ...answers, [q.id]: newAns });
+                  const updatedAnswers = { ...answers, [q.id]: newAns };
+                  setAnswers(updatedAnswers);
+                  saveProgress(undefined, updatedAnswers);
                 }} className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-4 ${isSelected ? 'border-primary bg-primary/5' : 'border-muted hover:bg-muted/50'}`}>
                   <div className="font-bold">{String.fromCharCode(65 + idx)}.</div>
                   <div className="flex-1">{opt.text}</div>
@@ -366,8 +384,16 @@ export default function ExamPage() {
 
       <div className="fixed bottom-0 left-64 right-0 p-6 bg-background border-t">
         <div className="max-w-4xl mx-auto flex justify-between gap-4">
-          <Button variant="outline" className="flex-1" onClick={() => setCurrentQuestionIndex(p => Math.max(0, p - 1))} disabled={currentQuestionIndex === 0}>Précédent</Button>
-          <Button className="flex-1" onClick={() => setCurrentQuestionIndex(p => Math.min(examQuestions.length - 1, p + 1))} disabled={currentQuestionIndex === examQuestions.length - 1}>Suivant</Button>
+          <Button variant="outline" className="flex-1" onClick={() => {
+            const newIndex = Math.max(0, currentQuestionIndex - 1);
+            setCurrentQuestionIndex(newIndex);
+            saveProgress(newIndex);
+          }} disabled={currentQuestionIndex === 0}>Précédent</Button>
+          <Button className="flex-1" onClick={() => {
+            const newIndex = Math.min(examQuestions.length - 1, currentQuestionIndex + 1);
+            setCurrentQuestionIndex(newIndex);
+            saveProgress(newIndex);
+          }} disabled={currentQuestionIndex === examQuestions.length - 1}>Suivant</Button>
         </div>
       </div>
     </div>
