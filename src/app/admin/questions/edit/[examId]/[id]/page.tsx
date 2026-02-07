@@ -4,14 +4,12 @@
 import { useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 
-/**
- * Page désactivée pour résoudre le conflit de slugs Next.js.
- */
-export default function ConflictFixRedirect() {
+export default function RedirectToNewPath() {
   const router = useRouter();
   const params = useParams();
   
   useEffect(() => {
+    // Redirection vers le nouveau chemin non conflictuel
     router.replace(`/admin/edit-question/${params.examId}/${params.id}`);
   }, [params, router]);
 

@@ -189,7 +189,7 @@ export default function ExamPage() {
     return <div className="h-[60vh] flex items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
   }
 
-  // ÉCRAN DE PAUSE (Design PHOTO)
+  // ÉCRAN DE PAUSE
   if (savedState && !isExamStarted && !isPauseScreenDismissed && !examResult) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4 animate-fade-in">
@@ -246,7 +246,7 @@ export default function ExamPage() {
                 ))}
               </div>
 
-              {/* CURSEUR YOU (Design OFFICIEL) */}
+              {/* CURSEUR YOU */}
               <div className="absolute top-[-55px] transition-all duration-1000 flex flex-col items-center z-20" style={{ left: `${markerPosition}%`, transform: 'translateX(-50%)' }}>
                 <span className="text-[14px] font-black text-black mb-1">YOU</span>
                 <div className="w-[3px] h-4 bg-black" />

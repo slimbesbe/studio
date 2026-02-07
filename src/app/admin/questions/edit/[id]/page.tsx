@@ -4,10 +4,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-/**
- * Page désactivée pour résoudre le conflit de slugs Next.js.
- */
-export default function LegacyRedirect() {
+export default function RedirectToAdmin() {
   const router = useRouter();
   
   useEffect(() => {
