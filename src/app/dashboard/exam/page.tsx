@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Clock, ChevronRight, ChevronLeft, Loader2, PlayCircle, Info, Pause } from 'lucide-react';
+import { Clock, ChevronRight, ChevronLeft, Loader2, PlayCircle, Info, Pause, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const PERFORMANCE_ZONES = [
@@ -178,7 +178,9 @@ export default function ExamPage() {
     return (
       <div className="max-w-4xl mx-auto py-12 space-y-8 animate-fade-in">
         <Card className="shadow-2xl overflow-hidden bg-white border-none rounded-[40px]">
-          <CardHeader className="border-b bg-muted/30 py-8"><CardTitle className="text-center font-black text-2xl uppercase tracking-widest text-primary italic">Rapport de Performance PMP®</CardTitle></CardHeader>
+          <CardHeader className="border-b bg-muted/30 py-8">
+            <CardTitle className="text-center font-black text-2xl uppercase tracking-widest text-primary italic">Rapport de Performance PMP®</CardTitle>
+          </CardHeader>
           <CardContent className="py-32 px-12">
             <div className="relative w-full max-w-3xl mx-auto">
               <div className="flex w-full text-[11px] font-black text-slate-400 uppercase mb-4 tracking-[0.2em]">
@@ -194,17 +196,17 @@ export default function ExamPage() {
               </div>
               
               <div className="absolute top-0 bottom-0 transition-all duration-1000 z-20" style={{ left: `${percentage}%`, transform: 'translateX(-50%)' }}>
-                 <div className="absolute -top-24 flex flex-col items-center w-32 left-1/2 -translate-x-1/2">
+                 <div className="absolute -top-20 flex flex-col items-center w-32 left-1/2 -translate-x-1/2">
                     <span className="text-[18px] font-black text-black mb-1 tracking-widest italic">YOU</span>
-                    <div className="w-[3px] h-16 bg-black" />
+                    <div className="w-[4px] h-12 bg-black" />
                  </div>
-                 <div className="absolute -bottom-32 flex flex-col items-center w-64 left-1/2 -translate-x-1/2">
-                    <div className="w-[3px] h-16 bg-black mb-2" />
-                    <span className="text-[28px] font-black text-[#006699] uppercase tracking-tighter text-center drop-shadow-sm italic">{appreciation.label}</span>
+                 <div className="absolute -bottom-28 flex flex-col items-center w-64 left-1/2 -translate-x-1/2">
+                    <div className="w-[4px] h-12 bg-black mb-3" />
+                    <span className="text-[26px] font-black text-primary uppercase tracking-tighter text-center italic leading-none">{appreciation.label}</span>
                  </div>
               </div>
             </div>
-            <div className="text-center space-y-4 pt-64">
+            <div className="text-center space-y-4 pt-48">
               <p className="text-9xl font-black text-primary tracking-tighter drop-shadow-md italic">{percentage}%</p>
               <p className="text-2xl font-bold text-muted-foreground uppercase tracking-[0.3em] italic">{examResult.score} / {examResult.total} POINTS</p>
             </div>
