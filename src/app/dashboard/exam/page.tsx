@@ -37,6 +37,13 @@ const EXAMS = [
   { id: 'exam5', title: 'Examen 5', desc: 'Simulation complète - Module 5' },
 ];
 
+const PERFORMANCE_ZONES = [
+  { label: "Needs Improvement", color: "bg-red-500", range: [0, 50] },
+  { label: "Below Target", color: "bg-amber-400", range: [50, 65] },
+  { label: "Target", color: "bg-emerald-400", range: [65, 80] },
+  { label: "Above Target", color: "bg-teal-600", range: [80, 100] },
+];
+
 export default function ExamPage() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
@@ -55,14 +62,12 @@ export default function ExamPage() {
   const [examQuestions, setExamQuestions] = useState<any[]>([]);
   const [isPauseScreenDismissed, setIsPauseScreenDismissed] = useState(false);
 
-  // State persistence ref
   const examStateRef = useMemoFirebase(() => {
     return user && !user.isAnonymous ? doc(db, 'users', user.uid, 'exam_state', 'current') : null;
   }, [db, user]);
 
   const { data: savedState, isLoading: isStateLoading } = useDoc(examStateRef);
 
-  // Sync state to Firestore on change
   const saveProgress = useCallback((updatedIndex?: number, updatedAnswers?: any) => {
     if (isDemo || !examStateRef || !isExamStarted || examResult) return;
     
@@ -76,15 +81,11 @@ export default function ExamPage() {
     }, { merge: true });
   }, [isDemo, examStateRef, isExamStarted, currentQuestionIndex, answers, timeLeft, sessionQuestionIds, selectedExamId, examResult]);
 
-  // Timer logic
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isExamStarted && timeLeft > 0 && !examResult) {
       timer = setInterval(() => {
-        setTimeLeft((prev) => {
-          const newTime = prev - 1;
-          return newTime;
-        });
+        setTimeLeft((prev) => prev - 1);
       }, 1000);
     } else if (timeLeft === 0 && isExamStarted && !examResult) {
       handleFinishExam();
@@ -177,6 +178,8 @@ export default function ExamPage() {
     try {
       await deleteDoc(examStateRef);
       setIsPauseScreenDismissed(false);
+      setIsExamStarted(false);
+      setExamResult(null);
       toast({ title: "Session annulée", description: "La simulation a été supprimée." });
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur", description: "Impossible d'annuler la session." });
@@ -194,7 +197,6 @@ export default function ExamPage() {
     return <div className="h-[60vh] flex items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
   }
 
-  // ÉCRAN DE PAUSE (Si session active détectée au chargement)
   if (savedState && !isExamStarted && !isPauseScreenDismissed && !examResult) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4 animate-fade-in">
@@ -233,74 +235,69 @@ export default function ExamPage() {
 
   if (examResult) {
     const percentage = Math.round((examResult.score / examResult.total) * 100);
+    const currentZoneIndex = PERFORMANCE_ZONES.findIndex(z => percentage >= z.range[0] && percentage < z.range[1]) === -1 
+      ? (percentage >= 100 ? 3 : 0) 
+      : PERFORMANCE_ZONES.findIndex(z => percentage >= z.range[0] && percentage < z.range[1]);
     
-    const getAppreciation = (pct: number) => {
-      if (pct < 50) return { label: "NEEDS IMPROVEMENT", index: 0, color: "bg-red-500" };
-      if (pct < 65) return { label: "BELOW TARGET", index: 1, color: "bg-amber-400" };
-      if (pct < 80) return { label: "TARGET", index: 2, color: "bg-emerald-400" };
-      return { label: "ABOVE TARGET", index: 3, color: "bg-teal-600" };
-    };
-
-    const app = getAppreciation(percentage);
+    const appreciation = PERFORMANCE_ZONES[currentZoneIndex];
 
     const calculateMarkerPosition = (pct: number) => {
       if (pct < 50) return (pct / 50) * 25;
       if (pct < 65) return 25 + ((pct - 50) / 15) * 25;
       if (pct < 80) return 50 + ((pct - 65) / 15) * 25;
-      return 75 + ((pct - 80) / 20) * 25;
+      return 75 + ((Math.min(pct, 100) - 80) / 20) * 25;
     };
 
     const markerPosition = calculateMarkerPosition(percentage);
 
     return (
       <div className="max-w-4xl mx-auto py-10 space-y-8 animate-fade-in">
-        <Card className="shadow-2xl">
-          <CardHeader className="border-b">
-            <CardTitle>Résultat Simulation - {EXAMS.find(e => e.id === selectedExamId)?.title}</CardTitle>
+        <Card className="shadow-2xl overflow-hidden">
+          <CardHeader className="border-b bg-muted/30">
+            <CardTitle className="text-xl">Simulation d'Examen - Résultats</CardTitle>
           </CardHeader>
-          <CardContent className="py-12 space-y-16 overflow-hidden">
+          <CardContent className="py-16 space-y-20">
             
-            <div className="relative mt-12 mb-20 w-full max-w-3xl mx-auto">
-              <div className="flex w-full text-[11px] font-bold text-slate-500 uppercase mb-8">
+            <div className="relative mt-20 mb-20 w-full max-w-3xl mx-auto px-4">
+              <div className="flex w-full text-[12px] font-bold text-slate-500 uppercase mb-8">
                  <div className="w-1/2 text-center">Falling</div>
                  <div className="w-1/2 text-center relative">
-                   <div className="absolute left-0 top-[-10px] bottom-[-40px] w-[1px] bg-sky-300" />
+                   <div className="absolute left-0 top-[-10px] bottom-[-60px] w-[1px] bg-sky-300 z-0" />
                    Passing
                  </div>
               </div>
 
-              <div className="relative flex w-full h-12 rounded-xl overflow-hidden border">
-                <div className={`w-1/4 h-full border-r bg-red-500 ${app.index === 0 ? 'opacity-100' : 'opacity-20'}`} />
-                <div className={`w-1/4 h-full border-r bg-amber-400 ${app.index === 1 ? 'opacity-100' : 'opacity-20'}`} />
-                <div className={`w-1/4 h-full border-r bg-emerald-400 ${app.index === 2 ? 'opacity-100' : 'opacity-20'}`} />
-                <div className={`w-1/4 h-full bg-teal-600 ${app.index === 3 ? 'opacity-100' : 'opacity-20'}`} />
+              <div className="relative flex w-full h-14 rounded-lg overflow-hidden border shadow-inner">
+                {PERFORMANCE_ZONES.map((zone, i) => (
+                  <div 
+                    key={zone.label} 
+                    className={`w-1/4 h-full border-r last:border-r-0 flex items-center justify-center relative ${zone.color} ${i === currentZoneIndex ? 'opacity-100' : 'opacity-20'}`}
+                  >
+                    <span className="text-[10px] font-black text-white uppercase text-center leading-tight px-1 select-none">
+                      {zone.label}
+                    </span>
+                  </div>
+                ))}
               </div>
 
               <div 
-                className="absolute top-[-30px] transition-all duration-1000 ease-out flex flex-col items-center pointer-events-none" 
+                className="absolute top-[-40px] transition-all duration-1000 ease-out flex flex-col items-center pointer-events-none z-10" 
                 style={{ left: `${markerPosition}%`, transform: 'translateX(-50%)' }}
               >
-                <span className="text-[11px] font-black text-black mb-1">YOU</span>
-                <div className="w-[2px] h-3 bg-black mb-12" />
-                <div className="w-[2px] h-3 bg-black mt-1" />
-                <span className="text-[12px] font-bold text-[#006699] whitespace-nowrap mt-1 uppercase">
-                  {app.label}
+                <span className="text-[12px] font-black text-black mb-1">YOU</span>
+                <div className="w-[2px] h-4 bg-black mb-14" />
+                <div className="w-[2px] h-4 bg-black mt-0" />
+                <span className="text-[14px] font-black text-[#006699] whitespace-nowrap mt-1 uppercase">
+                  {appreciation.label}
                 </span>
-              </div>
-
-              <div className="w-full flex mt-4 text-[9px] font-semibold text-slate-400 uppercase">
-                <div className="w-1/4 text-center">Needs Improvement</div>
-                <div className="w-1/4 text-center">Below Target</div>
-                <div className="w-1/4 text-center">Target</div>
-                <div className="w-1/4 text-center">Above Target</div>
               </div>
             </div>
 
             <div className="text-center space-y-4 pt-10">
-               <p className="text-5xl font-black text-primary">{percentage}%</p>
-               <p className="text-muted-foreground">{examResult.score} / {examResult.total} questions correctes</p>
+               <p className="text-6xl font-black text-primary tracking-tighter">{percentage}%</p>
+               <p className="text-lg font-medium text-muted-foreground">{examResult.score} / {examResult.total} points</p>
                
-               <div className="max-w-md mx-auto p-4 bg-muted/30 rounded-lg border border-dashed mt-8">
+               <div className="max-w-xl mx-auto p-6 bg-muted/30 rounded-2xl border border-dashed mt-10">
                  <p className="text-[11px] font-medium text-muted-foreground leading-relaxed italic">
                    « Les pourcentages affichés sont des estimations pédagogiques. <br/>
                    Le PMI ne communique pas de score chiffré officiel pour l’examen PMP®. »
@@ -308,12 +305,12 @@ export default function ExamPage() {
                </div>
             </div>
           </CardContent>
-          <CardFooter className="flex gap-4 p-6 bg-muted/20 border-t">
-            <Button variant="outline" className="flex-1 font-bold h-12" onClick={() => { setIsReviewMode(true); setCurrentQuestionIndex(0); }}>
-              EXPLICATIONS
+          <CardFooter className="flex gap-4 p-8 bg-muted/20 border-t">
+            <Button variant="outline" className="flex-1 font-bold h-14 text-lg" onClick={() => { setIsReviewMode(true); setCurrentQuestionIndex(0); }}>
+              REVOIR MES ERREURS
             </Button>
-            <Button className="flex-1 font-bold h-12" onClick={() => { setExamResult(null); setIsExamStarted(false); setSelectedExamId(null); setIsPauseScreenDismissed(false); }}>
-              RETOUR ACCUEIL
+            <Button className="flex-1 font-bold h-14 text-lg" onClick={() => { setExamResult(null); setIsExamStarted(false); setSelectedExamId(null); setIsPauseScreenDismissed(false); }}>
+              TERMINER
             </Button>
           </CardFooter>
         </Card>
@@ -327,40 +324,48 @@ export default function ExamPage() {
     const isCorrect = userAns.length === q.correctOptionIds.length && userAns.every(v => q.correctOptionIds.includes(v));
     
     return (
-      <div className="max-w-4xl mx-auto space-y-6 pb-20">
-        <Button variant="ghost" onClick={() => setIsReviewMode(false)}><ChevronLeft className="mr-2" /> Retour aux résultats</Button>
-        <Card className={`border-t-4 ${isCorrect ? 'border-t-emerald-500' : 'border-t-red-500 shadow-lg'}`}>
+      <div className="max-w-4xl mx-auto space-y-6 pb-20 animate-fade-in">
+        <Button variant="ghost" onClick={() => setIsReviewMode(false)} className="hover:bg-primary/5">
+          <ChevronLeft className="mr-2" /> Retour aux résultats
+        </Button>
+        <Card className={`border-t-8 ${isCorrect ? 'border-t-emerald-500' : 'border-t-red-500 shadow-xl'}`}>
           <CardHeader>
-            <div className="flex justify-between items-center mb-2">
-               <Badge variant={isCorrect ? "default" : "destructive"} className="px-4 py-1">
-                 {isCorrect ? "Réponse Correcte" : "Réponse Incorrecte"}
+            <div className="flex justify-between items-center mb-4">
+               <Badge variant={isCorrect ? "default" : "destructive"} className="px-6 py-1 text-sm font-bold">
+                 {isCorrect ? "RÉPONSE CORRECTE" : "RÉPONSE INCORRECTE"}
                </Badge>
                <span className="text-xs font-mono font-bold text-muted-foreground">QUESTION {currentQuestionIndex + 1} / {examQuestions.length}</span>
             </div>
-            <CardTitle className="text-xl leading-relaxed">{q.statement}</CardTitle>
+            <CardTitle className="text-2xl leading-relaxed text-slate-800">{q.statement}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-3">
+          <CardContent className="space-y-8">
+            <div className="grid gap-4">
               {q.options.map((opt: any, idx: number) => {
                 const isSelected = userAns.includes(opt.id);
                 const isCorrectOpt = q.correctOptionIds.includes(opt.id);
                 return (
-                  <div key={opt.id} className={`p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${isCorrectOpt ? 'border-emerald-500 bg-emerald-50/50' : isSelected ? 'border-red-400 bg-red-50/50' : 'border-muted'}`}>
-                    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center font-bold text-xs">{String.fromCharCode(65 + idx)}</div>
-                    <div className="flex-1 text-sm">{opt.text}</div>
-                    {isCorrectOpt && <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />}
+                  <div key={opt.id} className={`p-5 rounded-2xl border-2 flex items-center gap-5 transition-all ${isCorrectOpt ? 'border-emerald-500 bg-emerald-50/50' : isSelected ? 'border-red-400 bg-red-50/50' : 'border-muted'}`}>
+                    <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm ${isCorrectOpt ? 'bg-emerald-500 text-white' : 'bg-muted text-slate-600'}`}>
+                      {String.fromCharCode(65 + idx)}
+                    </div>
+                    <div className="flex-1 text-base">{opt.text}</div>
+                    {isCorrectOpt && <CheckCircle2 className="h-6 w-6 text-emerald-500 shrink-0" />}
                   </div>
                 );
               })}
             </div>
-            <div className="p-6 bg-primary/5 rounded-xl border-l-4 border-l-primary shadow-sm">
-              <h4 className="font-bold mb-3 flex items-center gap-2 text-primary"><Info className="h-5 w-5" /> Mindset PMI & Justification</h4>
-              <p className="text-sm leading-relaxed text-slate-700">{q.explanation || "Aucune explication disponible pour cette question."}</p>
+            <div className="p-8 bg-primary/5 rounded-2xl border-l-8 border-l-primary shadow-sm mt-8">
+              <h4 className="font-bold text-lg mb-4 flex items-center gap-3 text-primary"><Info className="h-6 w-6" /> Mindset PMI & Justification</h4>
+              <p className="text-base leading-relaxed text-slate-700 whitespace-pre-wrap">{q.explanation || "Aucune explication disponible."}</p>
             </div>
           </CardContent>
-          <CardFooter className="justify-between border-t pt-6">
-            <Button variant="outline" onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))} disabled={currentQuestionIndex === 0}>Précédent</Button>
-            <Button onClick={() => setCurrentQuestionIndex(prev => Math.min(examQuestions.length - 1, prev + 1))} disabled={currentQuestionIndex === examQuestions.length - 1}>Suivant</Button>
+          <CardFooter className="justify-between border-t pt-8">
+            <Button variant="outline" size="lg" className="px-8 font-bold" onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))} disabled={currentQuestionIndex === 0}>
+              PRÉCÉDENT
+            </Button>
+            <Button variant="outline" size="lg" className="px-8 font-bold" onClick={() => setCurrentQuestionIndex(prev => Math.min(examQuestions.length - 1, prev + 1))} disabled={currentQuestionIndex === examQuestions.length - 1}>
+              SUIVANT
+            </Button>
           </CardFooter>
         </Card>
       </div>
@@ -369,49 +374,66 @@ export default function ExamPage() {
 
   if (!isExamStarted) {
     return (
-      <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold text-primary italic">Simulation d'Examen PMP</h1>
-          <p className="text-muted-foreground">Sélectionnez le module d'examen pour lancer la simulation professionnelle.</p>
+      <div className="max-w-5xl mx-auto space-y-10 animate-fade-in py-10">
+        <div className="text-center space-y-4">
+          <h1 className="text-4xl font-black text-primary italic tracking-tight uppercase">Simulateur d'Examen PMP®</h1>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">Préparez-vous avec nos 5 simulations professionnelles alignées sur le dernier ECO du PMI.</p>
         </div>
 
         {savedState && (
-          <Card className="border-primary bg-primary/5 p-6 flex items-center justify-between border-l-8">
-            <div>
-              <h3 className="font-bold flex items-center gap-2 text-primary"><AlertCircle className="h-4 w-4" /> Session interrompue détectée</h3>
-              <p className="text-sm text-muted-foreground">Module: {EXAMS.find(e => e.id === savedState.selectedExamId)?.title} ({Math.round(((savedState.currentQuestionIndex + 1) / savedState.questionIds.length) * 100)}% complété)</p>
+          <Card className="border-primary bg-primary/5 p-8 flex flex-col md:flex-row items-center justify-between border-l-8 gap-6 shadow-lg">
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold flex items-center gap-3 text-primary"><AlertCircle className="h-6 w-6" /> Reprendre votre session</h3>
+              <p className="text-muted-foreground">Module: {EXAMS.find(e => e.id === savedState.selectedExamId)?.title} • {Math.round(((savedState.currentQuestionIndex + 1) / savedState.questionIds.length) * 100)}% de progression.</p>
             </div>
-            <Button onClick={() => startExam(true)} disabled={isSubmitting} className="shadow-lg">
-              {isSubmitting ? <Loader2 className="animate-spin" /> : "Reprendre la session"}
-            </Button>
+            <div className="flex gap-4 w-full md:w-auto">
+              <Button onClick={() => startExam(true)} disabled={isSubmitting} className="flex-1 md:w-48 h-12 font-bold shadow-lg">
+                {isSubmitting ? <Loader2 className="animate-spin" /> : "CONTINUER"}
+              </Button>
+              <Button variant="outline" onClick={handleCancelExam} className="h-12 border-destructive text-destructive hover:bg-destructive/5 font-bold">
+                ANNULER
+              </Button>
+            </div>
           </Card>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {EXAMS.map(exam => (
-            <Card key={exam.id} className={`group hover:shadow-xl transition-all cursor-pointer border-t-4 ${selectedExamId === exam.id ? 'border-t-primary ring-2 ring-primary/20 bg-primary/5' : 'border-t-muted hover:border-t-primary'}`} onClick={() => setSelectedExamId(exam.id)}>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                   <Trophy className={`h-4 w-4 ${selectedExamId === exam.id ? 'text-primary' : 'text-muted-foreground'}`} />
-                   {exam.title}
-                </CardTitle>
+            <Card 
+              key={exam.id} 
+              className={`group hover:shadow-2xl transition-all cursor-pointer border-t-8 flex flex-col ${selectedExamId === exam.id ? 'border-t-primary ring-4 ring-primary/10 bg-primary/5 scale-[1.02]' : 'border-t-muted hover:border-t-primary'}`} 
+              onClick={() => setSelectedExamId(exam.id)}
+            >
+              <CardHeader className="flex-1">
+                <div className="flex justify-between items-start mb-4">
+                  <div className={`p-3 rounded-2xl ${selectedExamId === exam.id ? 'bg-primary text-white' : 'bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'}`}>
+                    <Trophy className="h-6 w-6" />
+                  </div>
+                  {selectedExamId === exam.id && <CheckCircle2 className="h-6 w-6 text-primary" />}
+                </div>
+                <CardTitle className="text-2xl font-bold">{exam.title}</CardTitle>
+                <CardDescription className="text-base mt-2 leading-relaxed">{exam.desc}</CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground leading-relaxed">{exam.desc}</p>
-              </CardContent>
-              <CardFooter>
-                <Button variant={selectedExamId === exam.id ? "default" : "outline"} className="w-full font-bold">
-                  {selectedExamId === exam.id ? "Sélectionné" : "Choisir"}
+              <CardFooter className="pt-6">
+                <Button variant={selectedExamId === exam.id ? "default" : "outline"} className="w-full h-12 font-bold text-lg">
+                  {selectedExamId === exam.id ? "SÉLECTIONNÉ" : "CHOISIR CET EXAMEN"}
                 </Button>
               </CardFooter>
             </Card>
           ))}
         </div>
 
-        <Button size="lg" className="w-full h-16 text-xl font-bold shadow-2xl transition-transform hover:scale-[1.01]" disabled={!selectedExamId || isSubmitting} onClick={() => startExam(false)}>
-          {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : <PlayCircle className="mr-2 h-6 w-6" />}
-          Démarrer la simulation
-        </Button>
+        <div className="pt-10 flex justify-center">
+          <Button 
+            size="lg" 
+            className="w-full max-w-2xl h-20 text-2xl font-black shadow-2xl transition-transform hover:scale-[1.02] uppercase tracking-widest" 
+            disabled={!selectedExamId || isSubmitting} 
+            onClick={() => startExam(false)}
+          >
+            {isSubmitting ? <Loader2 className="animate-spin mr-3 h-8 w-8" /> : <PlayCircle className="mr-3 h-8 w-8" />}
+            DÉMARRER LA SIMULATION
+          </Button>
+        </div>
       </div>
     );
   }
@@ -420,19 +442,19 @@ export default function ExamPage() {
   const progress = ((currentQuestionIndex + 1) / examQuestions.length) * 100;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-24">
-      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur py-4 border-b space-y-4">
-        <div className="flex justify-between items-center px-2">
-           <Badge variant="outline" className="text-lg font-mono bg-white shadow-sm border-primary/20">
+    <div className="max-w-5xl mx-auto space-y-8 pb-32 animate-fade-in py-6">
+      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md py-6 border-b-2 space-y-6 px-4">
+        <div className="flex justify-between items-center gap-4">
+           <Badge variant="outline" className="text-xl font-mono bg-white shadow-md border-primary/30 px-6 py-2 rounded-xl">
              QUESTION {currentQuestionIndex + 1} / {examQuestions.length}
            </Badge>
-           <div className="flex items-center gap-2 font-black text-primary bg-primary/5 px-4 py-1 rounded-full border border-primary/10">
-             <Clock className="h-5 w-5" /> {formatTime(timeLeft)}
+           <div className="flex items-center gap-3 font-black text-2xl text-primary bg-primary/5 px-6 py-2 rounded-2xl border border-primary/20 shadow-sm">
+             <Clock className="h-7 w-7" /> {formatTime(timeLeft)}
            </div>
            <Button 
              variant="destructive" 
-             size="sm" 
-             className="font-bold shadow-lg"
+             size="lg" 
+             className="font-black h-12 px-10 shadow-xl uppercase tracking-tighter"
              disabled={isSubmitting}
              onClick={() => {
                if (window.confirm("Voulez-vous vraiment terminer et soumettre votre examen maintenant ?")) {
@@ -440,18 +462,24 @@ export default function ExamPage() {
                }
              }}
            >
-             {isSubmitting ? <Loader2 className="animate-spin h-4 w-4" /> : "Soumettre"}
+             {isSubmitting ? <Loader2 className="animate-spin h-5 w-5" /> : "TERMINER"}
            </Button>
         </div>
-        <Progress value={progress} className="h-2" />
+        <div className="space-y-2">
+           <div className="flex justify-between text-xs font-bold text-muted-foreground uppercase px-1">
+             <span>Progression</span>
+             <span>{Math.round(progress)}%</span>
+           </div>
+           <Progress value={progress} className="h-3 shadow-inner" />
+        </div>
       </div>
 
-      <Card className="shadow-xl border-t-4 border-t-primary animate-fade-in">
-        <CardHeader className="pb-8">
-          <CardTitle className="text-xl leading-relaxed font-medium">{q.statement}</CardTitle>
+      <Card className="shadow-2xl border-t-8 border-t-primary animate-slide-up bg-white">
+        <CardHeader className="pb-10 pt-10">
+          <CardTitle className="text-2xl leading-snug font-bold text-slate-800">{q.statement}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4">
+        <CardContent className="space-y-6 pb-12">
+          <div className="grid gap-5">
             {q.options.map((opt: any, idx: number) => {
               const isSelected = answers[q.id]?.includes(opt.id);
               return (
@@ -469,13 +497,13 @@ export default function ExamPage() {
                     setAnswers(updatedAnswers);
                     saveProgress(undefined, updatedAnswers);
                   }} 
-                  className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-4 hover:shadow-md ${isSelected ? 'border-primary bg-primary/5 shadow-sm' : 'border-muted hover:bg-muted/30'}`}
+                  className={`p-6 rounded-3xl border-2 cursor-pointer transition-all flex items-start gap-5 hover:shadow-lg group ${isSelected ? 'border-primary bg-primary/5 shadow-md scale-[1.01]' : 'border-muted hover:border-primary/30 hover:bg-muted/30'}`}
                 >
-                  <div className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs transition-colors shrink-0 ${isSelected ? 'bg-primary text-white' : 'bg-secondary text-primary'}`}>
+                  <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm transition-all shrink-0 ${isSelected ? 'bg-primary text-white rotate-12 scale-110 shadow-lg' : 'bg-secondary text-primary group-hover:bg-primary/20'}`}>
                     {String.fromCharCode(65 + idx)}
                   </div>
-                  <div className="flex-1 text-sm pt-1">{opt.text}</div>
-                  {isSelected && <Check className="h-5 w-5 text-primary shrink-0 animate-in zoom-in-50" />}
+                  <div className="flex-1 text-lg pt-1 text-slate-700 leading-relaxed">{opt.text}</div>
+                  {isSelected && <Check className="h-7 w-7 text-primary shrink-0 animate-in zoom-in-75" />}
                 </div>
               );
             })}
@@ -483,21 +511,21 @@ export default function ExamPage() {
         </CardContent>
       </Card>
 
-      <div className="fixed bottom-0 left-64 right-0 p-6 bg-white/80 backdrop-blur border-t z-30">
-        <div className="max-w-4xl mx-auto flex justify-between gap-4">
-          <Button variant="outline" className="flex-1 h-12 font-bold" onClick={() => {
+      <div className="fixed bottom-0 left-0 right-0 p-8 bg-white/90 backdrop-blur-xl border-t-2 z-40 shadow-[0_-10px_30px_-15px_rgba(0,0,0,0.1)]">
+        <div className="max-w-4xl mx-auto flex justify-between gap-6">
+          <Button variant="outline" className="flex-1 h-16 font-black text-xl rounded-2xl border-2 transition-all hover:bg-primary/5" onClick={() => {
             const newIndex = Math.max(0, currentQuestionIndex - 1);
             setCurrentQuestionIndex(newIndex);
             saveProgress(newIndex);
           }} disabled={currentQuestionIndex === 0}>
-            <ChevronLeft className="mr-2" /> Précédent
+            <ChevronLeft className="mr-2 h-6 w-6" /> PRÉCÉDENT
           </Button>
-          <Button className="flex-1 h-12 font-bold shadow-lg" onClick={() => {
+          <Button className="flex-1 h-16 font-black text-xl rounded-2xl shadow-2xl transition-all hover:scale-[1.02]" onClick={() => {
             const newIndex = Math.min(examQuestions.length - 1, currentQuestionIndex + 1);
             setCurrentQuestionIndex(newIndex);
             saveProgress(newIndex);
           }} disabled={currentQuestionIndex === examQuestions.length - 1}>
-            Suivant <ChevronRight className="ml-2" />
+            SUIVANT <ChevronRight className="ml-2 h-6 w-6" />
           </Button>
         </div>
       </div>

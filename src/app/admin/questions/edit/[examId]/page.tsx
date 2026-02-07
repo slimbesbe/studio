@@ -5,10 +5,10 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 /**
- * Page désactivée pour résoudre le conflit de slugs Next.js.
- * La logique a été déplacée vers /admin/edit-question/[examId]/[id]
+ * Cette route remplace l'ancienne route conflictuelle [id] pour éviter l'erreur de slug.
+ * Elle redirige simplement vers la banque de questions.
  */
-export default function LegacyRedirect() {
+export default function RedirectPage() {
   const router = useRouter();
   
   useEffect(() => {
