@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
@@ -65,15 +64,12 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Track connection timestamps
         const userDocRef = doc(firestore, 'users', firebaseUser.uid);
         
-        // Listen to profile
         const unsubscribeProfile = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
             const profileData = docSnap.data();
             
-            // Check expiry
             let isExpired = false;
             if (profileData.expiresAt) {
               const expiryDate = profileData.expiresAt instanceof Timestamp 
@@ -84,7 +80,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               }
             }
 
-            const currentStatus = isExpired ? 'expired' : profileData.status;
+            const currentStatus = isExpired ? 'expired' : (profileData.status || 'active');
 
             setUserAuthState(prev => ({ 
               ...prev, 
@@ -93,20 +89,23 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               isUserLoading: false 
             }));
 
-            // Update login timestamps if needed (only once per session ideally)
-            if (!sessionStorage.getItem(`logged_${firebaseUser.uid}`)) {
-              const updateData: any = { lastLoginAt: serverTimestamp() };
+            // Track login stats (only once per session start)
+            if (!sessionStorage.getItem(`session_init_${firebaseUser.uid}`)) {
+              const now = serverTimestamp();
+              const updateData: any = { lastLoginAt: now };
               if (!profileData.firstLoginAt) {
-                updateData.firstLoginAt = serverTimestamp();
+                updateData.firstLoginAt = now;
               }
               setDoc(userDocRef, updateData, { merge: true });
-              sessionStorage.setItem(`logged_${firebaseUser.uid}`, 'true');
+              sessionStorage.setItem(`session_init_${firebaseUser.uid}`, 'true');
             }
 
-            // Redirect if not active
-            if (currentStatus !== 'active' && pathname.startsWith('/dashboard') && !firebaseUser.isAnonymous) {
+            // Global access control
+            if (!firebaseUser.isAnonymous && currentStatus !== 'active' && pathname.startsWith('/dashboard')) {
                router.push('/access-denied');
             }
+          } else if (firebaseUser.isAnonymous) {
+            setUserAuthState(prev => ({ ...prev, user: firebaseUser, isUserLoading: false }));
           } else {
             setUserAuthState(prev => ({ ...prev, user: firebaseUser, isUserLoading: false }));
           }
@@ -115,6 +114,9 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         return () => unsubscribeProfile();
       } else {
         setUserAuthState({ user: null, profile: null, isUserLoading: false, userError: null });
+        if (pathname.startsWith('/dashboard') || pathname.startsWith('/admin')) {
+          router.push('/');
+        }
       }
     });
 

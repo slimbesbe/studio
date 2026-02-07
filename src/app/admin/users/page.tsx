@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -6,10 +5,23 @@ import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth } from '
 import { collection, doc, getDoc, updateDoc, Timestamp, deleteDoc } from 'firebase/firestore';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, UserPlus, ChevronLeft, Users, ShieldCheck, User, MoreHorizontal, Clock, AlertTriangle, Key, Trash2, Eye, EyeOff, Lock, Mail, TrendingUp, BarChart } from 'lucide-react';
+import { 
+  Loader2, 
+  UserPlus, 
+  ChevronLeft, 
+  Users, 
+  ShieldCheck, 
+  Clock, 
+  Key, 
+  Trash2, 
+  Mail, 
+  TrendingUp, 
+  BarChart,
+  Eye
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
@@ -26,7 +38,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 export default function UsersListPage() {
   const { user: currentUser, isUserLoading } = useUser();
@@ -68,30 +80,16 @@ export default function UsersListPage() {
     }
   };
 
-  const handleSendResetEmail = async (email: string) => {
-    try {
-      await sendPasswordResetEmail(auth, email);
-      toast({ title: "Email envoyé" });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Erreur" });
-    }
-  };
-
   const handleUpdatePassword = async () => {
     if (!passwordChangeUser || newPassword.length < 6) {
-      toast({ variant: "destructive", title: "Erreur", description: "Le mot de passe doit faire au moins 6 caractères." });
+      toast({ variant: "destructive", title: "Erreur", description: "6 caractères min." });
       return;
     }
-
     setIsChangingPassword(true);
     try {
-      await updateDoc(doc(db, 'users', passwordChangeUser.id), {
-        password: newPassword,
-        updatedAt: Timestamp.now()
-      });
-      toast({ title: "Mot de passe record mis à jour" });
+      await updateDoc(doc(db, 'users', passwordChangeUser.id), { password: newPassword });
+      toast({ title: "Mise à jour réussie" });
       setPasswordChangeUser(null);
-      setNewPassword('');
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur" });
     } finally {
@@ -103,9 +101,6 @@ export default function UsersListPage() {
     if (!userToDelete) return;
     try {
       await deleteDoc(doc(db, 'users', userToDelete.id));
-      if (userToDelete.role === 'admin' || userToDelete.role === 'super_admin') {
-        await deleteDoc(doc(db, 'roles_admin', userToDelete.id));
-      }
       toast({ title: "Utilisateur supprimé" });
       setUserToDelete(null);
     } catch (e) {
@@ -117,22 +112,13 @@ export default function UsersListPage() {
     if (!seconds) return '0m';
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
-    if (h > 0) return `${h}h ${m}m`;
-    return `${m}m`;
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
 
   const formatDate = (ts: any) => {
     if (!ts) return '-';
     const date = ts?.toDate ? ts.toDate() : new Date(ts);
     return date.toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-  };
-
-  const getStatusBadge = (user: any) => {
-    const expiresAt = user.expiresAt?.seconds ? new Date(user.expiresAt.seconds * 1000) : null;
-    const isExpired = expiresAt && expiresAt < new Date();
-    if (user.status === 'disabled') return <Badge variant="destructive">Désactivé</Badge>;
-    if (isExpired) return <Badge variant="destructive" className="bg-orange-600 hover:bg-orange-700"><Clock className="mr-1 h-3 w-3" /> Expiré</Badge>;
-    return <Badge className="bg-emerald-500 hover:bg-emerald-600">Actif</Badge>;
   };
 
   if (isUserLoading || isAdmin === null || isLoading) {
@@ -148,7 +134,7 @@ export default function UsersListPage() {
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <Users className="h-8 w-8 text-accent" /> Gestion Globale Utilisateurs
             </h1>
-            <p className="text-muted-foreground">{users?.length || 0} participants enregistrés</p>
+            <p className="text-muted-foreground">Mises à jour en temps réel des performances</p>
           </div>
         </div>
         <Button asChild className="bg-accent hover:bg-accent/90">
@@ -156,7 +142,7 @@ export default function UsersListPage() {
         </Button>
       </div>
 
-      <Card className="shadow-lg border-none overflow-hidden">
+      <Card className="shadow-2xl border-none overflow-hidden bg-white">
         <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-muted/50">
@@ -165,57 +151,61 @@ export default function UsersListPage() {
                 <TableHead className="text-center"><BarChart className="h-4 w-4 inline mr-1" /> Moyenne</TableHead>
                 <TableHead className="text-center"><TrendingUp className="h-4 w-4 inline mr-1" /> Simulations</TableHead>
                 <TableHead className="text-center"><Clock className="h-4 w-4 inline mr-1" /> Temps Total</TableHead>
+                <TableHead>Première Connexion</TableHead>
                 <TableHead>Dernière Connexion</TableHead>
                 <TableHead>Statut</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-right px-6">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {users?.sort((a,b) => (b.lastLoginAt?.seconds || 0) - (a.lastLoginAt?.seconds || 0)).map((u) => (
-                <TableRow key={u.id} className="hover:bg-muted/20">
+                <TableRow key={u.id} className="hover:bg-muted/10 transition-colors">
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center font-bold text-xs text-primary">
+                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
                         {u.firstName?.[0]}{u.lastName?.[0]}
                       </div>
-                      <div>
-                        <div className="font-bold text-sm">{u.firstName} {u.lastName}</div>
-                        <div className="text-[10px] text-muted-foreground">{u.email}</div>
+                      <div className="overflow-hidden">
+                        <div className="font-bold text-sm truncate">{u.firstName} {u.lastName}</div>
+                        <div className="text-[10px] text-muted-foreground truncate">{u.email}</div>
                       </div>
                     </div>
                   </TableCell>
                   <TableCell className="text-center">
-                    <span className={`font-bold ${u.averageScore >= 80 ? 'text-emerald-600' : u.averageScore >= 65 ? 'text-blue-600' : 'text-slate-500'}`}>
+                    <span className={`font-black ${u.averageScore >= 80 ? 'text-emerald-600' : u.averageScore >= 65 ? 'text-blue-600' : 'text-slate-500'}`}>
                       {u.averageScore || 0}%
                     </span>
                   </TableCell>
                   <TableCell className="text-center">
-                    <Badge variant="outline" className="font-mono">{u.simulationsCount || 0}</Badge>
+                    <Badge variant="secondary" className="font-mono">{u.simulationsCount || 0}</Badge>
                   </TableCell>
                   <TableCell className="text-center text-xs font-medium">
                     {formatTime(u.totalTimeSpent)}
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
+                  <TableCell className="text-[10px] text-muted-foreground">
+                    {formatDate(u.firstLoginAt)}
+                  </TableCell>
+                  <TableCell className="text-[10px] text-muted-foreground">
                     {formatDate(u.lastLoginAt)}
                   </TableCell>
-                  <TableCell>{getStatusBadge(u)}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell>
+                    <Badge className={u.status === 'disabled' ? "bg-red-500" : "bg-emerald-500"}>
+                      {u.status === 'active' ? 'ACTIF' : 'DÉSACTIVÉ'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right px-6">
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-64">
+                      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><Users className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
                         <DropdownMenuItem onClick={() => toggleStatus(u.id, u.status || 'active')}>
-                          {u.status === 'disabled' ? 'Réactiver le compte' : 'Désactivé le compte'}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleSendResetEmail(u.email)}>
-                          <Mail className="mr-2 h-4 w-4" /> Envoyer Reset Email
+                          {u.status === 'disabled' ? 'Réactiver le compte' : 'Désactiver le compte'}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setPasswordChangeUser(u)}>
-                          <Key className="mr-2 h-4 w-4" /> Voir/Modif Password record
+                          <Key className="mr-2 h-4 w-4" /> Voir/Modifier mot de passe
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-destructive" onClick={() => setUserToDelete(u)}>
-                          <Trash2 className="mr-2 h-4 w-4" /> Supprimer le profil
+                          <Trash2 className="mr-2 h-4 w-4" /> Supprimer définitivement
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -229,19 +219,19 @@ export default function UsersListPage() {
 
       <Dialog open={!!passwordChangeUser} onOpenChange={() => setPasswordChangeUser(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Record de mot de passe</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Gérer le mot de passe</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="p-3 bg-muted rounded-lg font-mono text-center text-lg font-bold">
-               {passwordChangeUser?.password || 'N/A'}
+            <div className="p-4 bg-muted/30 rounded-lg text-center font-mono text-xl font-bold border-2 border-dashed border-primary/20">
+               {passwordChangeUser?.password || '---'}
             </div>
             <div className="space-y-2">
-              <Label>Modifier le record SIMOVEX</Label>
-              <Input value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Nouveau mot de passe" />
+              <Label>Nouveau mot de passe</Label>
+              <Input value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="6 caractères minimum" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPasswordChangeUser(null)}>Fermer</Button>
-            <Button onClick={handleUpdatePassword} disabled={isChangingPassword}>Mettre à jour</Button>
+            <Button variant="outline" onClick={() => setPasswordChangeUser(null)}>Annuler</Button>
+            <Button onClick={handleUpdatePassword} disabled={isChangingPassword}>Enregistrer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -250,11 +240,11 @@ export default function UsersListPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer l'utilisateur ?</AlertDialogTitle>
-            <AlertDialogDescription>Action irréversible pour {userToDelete?.firstName}.</AlertDialogDescription>
+            <AlertDialogDescription>Cette action est irréversible pour {userToDelete?.firstName} {userToDelete?.lastName}.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteUser} className="bg-destructive text-destructive-foreground">Supprimer</AlertDialogAction>
+            <AlertDialogAction onClick={handleDeleteUser} className="bg-destructive text-white">Supprimer</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
