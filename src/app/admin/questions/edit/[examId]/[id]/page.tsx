@@ -9,7 +9,6 @@ export default function RedirectToNewPath() {
   const params = useParams();
   
   useEffect(() => {
-    // Redirection vers le nouveau chemin non conflictuel
     router.replace(`/admin/edit-question/${params.examId}/${params.id}`);
   }, [params, router]);
 

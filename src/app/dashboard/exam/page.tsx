@@ -113,7 +113,7 @@ export default function ExamPage() {
         const pool = [...questions].sort(() => 0.5 - Math.random());
         const selected = pool.slice(0, isDemo ? 10 : 180);
         const ids = selected.map(q => q.id);
-        const totalDuration = ids.length * 72; // ~1.2 min per question
+        const totalDuration = ids.length * 72; 
         
         setExamQuestions(selected);
         setSessionQuestionIds(ids);
@@ -225,7 +225,6 @@ export default function ExamPage() {
     return <div className="h-[60vh] flex items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
   }
 
-  // PAUSE SCREEN
   if (savedState && !isExamStarted && !isPauseScreenDismissed && !examResult) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
@@ -263,7 +262,7 @@ export default function ExamPage() {
             <CardTitle>Résultats de la Simulation</CardTitle>
           </CardHeader>
           <CardContent className="py-24">
-            <div className="relative w-full max-w-3xl mx-auto">
+            <div className="relative w-full max-w-3xl mx-auto px-4">
               <div className="flex w-full text-[12px] font-bold text-slate-500 uppercase mb-4 px-1">
                  <div className="w-1/2 text-center">Falling</div>
                  <div className="w-1/2 text-center relative border-l border-sky-300">Passing</div>
@@ -271,15 +270,15 @@ export default function ExamPage() {
 
               <div className="relative flex w-full h-14 rounded-lg overflow-hidden border shadow-inner bg-slate-100">
                 {PERFORMANCE_ZONES.map((zone, i) => (
-                  <div key={zone.label} className={`w-1/4 h-full border-r last:border-r-0 flex items-center justify-center ${zone.color} ${i === currentZoneIndex ? 'opacity-100' : 'opacity-20'}`}>
-                    <span className="text-[10px] font-black text-white uppercase text-center px-1 leading-tight select-none">
+                  <div key={zone.label} className={`w-1/4 h-full border-r last:border-r-0 flex items-center justify-center ${i === currentZoneIndex ? zone.color : 'bg-slate-200 opacity-40'}`}>
+                    <span className="text-[10px] font-black text-white uppercase text-center px-1 leading-tight select-none drop-shadow-sm">
                       {zone.label}
                     </span>
                   </div>
                 ))}
               </div>
 
-              <div className="absolute top-[-55px] transition-all duration-1000 flex flex-col items-center z-20" style={{ left: `${markerPosition}%`, transform: 'translateX(-50%)' }}>
+              <div className="absolute top-[-45px] transition-all duration-1000 flex flex-col items-center z-20" style={{ left: `${markerPosition}%`, transform: 'translateX(-50%)' }}>
                 <span className="text-[14px] font-black text-black mb-1">YOU</span>
                 <div className="w-[3px] h-4 bg-black" />
                 <div className="w-[3px] h-4 bg-black mt-[62px]" />
