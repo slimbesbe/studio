@@ -31,7 +31,7 @@ const PERFORMANCE_ZONES = [
   { label: "Needs Improvement", color: "bg-red-500", range: [0, 50] },
   { label: "Below Target", color: "bg-amber-400", range: [50, 65] },
   { label: "Target", color: "bg-emerald-400", range: [65, 80] },
-  { label: "Above Target", color: "bg-teal-600", range: [80, 100] },
+  { label: "Above Target", color: "bg-teal-600", range: [80, 101] },
 ];
 
 export default function ExamPage() {
@@ -101,18 +101,19 @@ export default function ExamPage() {
       }
 
       if (resume && savedState) {
-        setExamQuestions(questions.filter(q => savedState.questionIds.includes(q.id)));
+        const filteredQuestions = questions.filter(q => savedState.questionIds.includes(q.id));
+        setExamQuestions(filteredQuestions);
         setSessionQuestionIds(savedState.questionIds || []);
         setAnswers(savedState.answers || {});
         setCurrentQuestionIndex(savedState.currentQuestionIndex || 0);
         setTimeLeft(savedState.timeLeft || 0);
-        setInitialTime(savedState.initialTime || (savedState.questionIds?.length * 120) || 0);
+        setInitialTime(savedState.initialTime || 0);
         setSelectedExamId(savedState.selectedExamId);
       } else {
         const pool = [...questions].sort(() => 0.5 - Math.random());
         const selected = pool.slice(0, isDemo ? 10 : 180);
         const ids = selected.map(q => q.id);
-        const totalDuration = ids.length * 120;
+        const totalDuration = ids.length * 72; // ~1.2 min per question
         
         setExamQuestions(selected);
         setSessionQuestionIds(ids);
@@ -167,7 +168,6 @@ export default function ExamPage() {
         const userDocRef = doc(db, 'users', user.uid);
         const resultsColRef = collection(db, 'users', user.uid, 'exam_results');
 
-        // Update profile statistics
         const currentSimsCount = profile?.simulationsCount || 0;
         const currentTotalScore = profile?.totalScore || 0;
         const newSimsCount = currentSimsCount + 1;
@@ -182,7 +182,6 @@ export default function ExamPage() {
           updatedAt: serverTimestamp()
         }, { merge: true });
 
-        // Save individual result
         await addDoc(resultsColRef, {
           examId: selectedExamId,
           score,
@@ -192,13 +191,11 @@ export default function ExamPage() {
           completedAt: serverTimestamp()
         });
 
-        if (examStateRef) {
-          await deleteDoc(examStateRef);
-        }
+        if (examStateRef) await deleteDoc(examStateRef);
       }
     } catch (e) {
       console.error(e);
-      toast({ variant: "destructive", title: "Erreur", description: "Une erreur est survenue lors de l'enregistrement des résultats." });
+      toast({ variant: "destructive", title: "Erreur" });
     } finally {
       setIsSubmitting(false);
     }
@@ -212,7 +209,6 @@ export default function ExamPage() {
       setIsExamStarted(false);
       setExamResult(null);
       setSelectedExamId(null);
-      toast({ title: "Session annulée" });
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur" });
     }
@@ -229,23 +225,23 @@ export default function ExamPage() {
     return <div className="h-[60vh] flex items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
   }
 
-  // ÉCRAN DE PAUSE
+  // PAUSE SCREEN
   if (savedState && !isExamStarted && !isPauseScreenDismissed && !examResult) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center p-4 animate-fade-in">
+      <div className="min-h-[80vh] flex items-center justify-center p-4">
         <Card className="w-full max-w-2xl shadow-2xl border-none">
           <CardHeader className="text-center pt-12 pb-8">
             <h1 className="text-6xl font-light text-slate-800 mb-8 uppercase tracking-widest">Pause</h1>
-            <p className="text-xl text-slate-600">Session active détectée.</p>
+            <p className="text-xl text-slate-600">Une session est en cours.</p>
           </CardHeader>
           <CardContent className="flex flex-col gap-4 px-12 pb-16">
-            <Button className="w-full h-14 text-lg font-bold bg-[#635BFF] hover:bg-[#5249e0] uppercase tracking-widest rounded-md" onClick={() => startExam(true)}>
+            <Button className="w-full h-14 text-lg font-bold bg-[#635BFF] hover:bg-[#5249e0] uppercase rounded-md" onClick={() => startExam(true)}>
               CONTINUER
             </Button>
-            <Button variant="outline" className="w-full h-14 text-lg font-bold text-[#635BFF] border-[#635BFF] hover:bg-[#635BFF]/5 uppercase tracking-widest rounded-md" onClick={() => setIsPauseScreenDismissed(true)}>
+            <Button variant="outline" className="w-full h-14 text-lg font-bold text-[#635BFF] border-[#635BFF] hover:bg-[#635BFF]/5 uppercase rounded-md" onClick={() => setIsPauseScreenDismissed(true)}>
               ARRETER ET SAUVEGARDER
             </Button>
-            <Button variant="outline" className="w-full h-14 text-lg font-bold text-[#635BFF] border-[#635BFF] hover:bg-[#635BFF]/5 uppercase tracking-widest rounded-md" onClick={handleCancelExam}>
+            <Button variant="outline" className="w-full h-14 text-lg font-bold text-[#635BFF] border-[#635BFF] hover:bg-[#635BFF]/5 uppercase rounded-md" onClick={handleCancelExam}>
               ARRETER ET ANNULER
             </Button>
           </CardContent>
@@ -256,18 +252,15 @@ export default function ExamPage() {
 
   if (examResult) {
     const percentage = Math.round((examResult.score / examResult.total) * 100);
-    const currentZoneIndex = PERFORMANCE_ZONES.findIndex(z => percentage >= z.range[0] && percentage < z.range[1]) === -1 
-      ? (percentage >= 100 ? 3 : 0) 
-      : PERFORMANCE_ZONES.findIndex(z => percentage >= z.range[0] && percentage < z.range[1]);
-    
-    const appreciation = PERFORMANCE_ZONES[currentZoneIndex];
+    const currentZoneIndex = PERFORMANCE_ZONES.findIndex(z => percentage >= z.range[0] && percentage < z.range[1]);
+    const appreciation = PERFORMANCE_ZONES[currentZoneIndex === -1 ? 0 : currentZoneIndex];
     const markerPosition = 12.5 + (currentZoneIndex * 25);
 
     return (
       <div className="max-w-4xl mx-auto py-10 space-y-8 animate-fade-in">
         <Card className="shadow-2xl overflow-hidden border-none">
           <CardHeader className="border-b bg-muted/30">
-            <CardTitle className="text-xl">Simulation d'Examen - Résultats</CardTitle>
+            <CardTitle>Résultats de la Simulation</CardTitle>
           </CardHeader>
           <CardContent className="py-24">
             <div className="relative w-full max-w-3xl mx-auto">
@@ -279,7 +272,7 @@ export default function ExamPage() {
               <div className="relative flex w-full h-14 rounded-lg overflow-hidden border shadow-inner bg-slate-100">
                 {PERFORMANCE_ZONES.map((zone, i) => (
                   <div key={zone.label} className={`w-1/4 h-full border-r last:border-r-0 flex items-center justify-center ${zone.color} ${i === currentZoneIndex ? 'opacity-100' : 'opacity-20'}`}>
-                    <span className="text-[10px] font-black text-white uppercase text-center leading-tight px-1 select-none">
+                    <span className="text-[10px] font-black text-white uppercase text-center px-1 leading-tight select-none">
                       {zone.label}
                     </span>
                   </div>
@@ -299,10 +292,8 @@ export default function ExamPage() {
             <div className="text-center space-y-4 pt-20">
                <p className="text-6xl font-black text-primary tracking-tighter">{percentage}%</p>
                <p className="text-lg font-medium text-muted-foreground">{examResult.score} / {examResult.total} points</p>
-               <div className="max-w-xl mx-auto p-6 bg-muted/30 rounded-2xl border border-dashed mt-10">
-                 <p className="text-[11px] font-medium text-muted-foreground italic leading-relaxed">
-                   « Les pourcentages affichés sont des estimations pédagogiques. Le PMI ne communique pas de score chiffré officiel. »
-                 </p>
+               <div className="max-w-xl mx-auto p-6 bg-muted/30 rounded-2xl border border-dashed mt-10 text-[11px] font-medium text-muted-foreground italic leading-relaxed">
+                 « Les pourcentages affichés sont des estimations pédagogiques. Le PMI ne communique pas de score chiffré officiel. »
                </div>
             </div>
           </CardContent>
@@ -360,10 +351,10 @@ export default function ExamPage() {
 
   if (!isExamStarted) {
     return (
-      <div className="max-w-5xl mx-auto space-y-10 animate-fade-in py-10">
+      <div className="max-w-5xl mx-auto space-y-10 py-10">
         <div className="text-center space-y-4">
-          <h1 className="text-4xl font-black text-primary italic uppercase tracking-wider">Simulateur d'Examen PMP®</h1>
-          <p className="text-xl text-muted-foreground">Choisissez une simulation pour commencer votre entraînement.</p>
+          <h1 className="text-4xl font-black text-primary italic uppercase tracking-wider">Simulateur PMP®</h1>
+          <p className="text-xl text-muted-foreground">Choisissez un examen pour commencer.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -392,13 +383,13 @@ export default function ExamPage() {
   const progress = ((currentQuestionIndex + 1) / examQuestions.length) * 100;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-32 animate-fade-in py-6">
+    <div className="max-w-5xl mx-auto space-y-8 pb-32 py-6">
       <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md py-6 border-b-2 px-4 space-y-6">
         <div className="flex justify-between items-center">
            <Badge variant="outline" className="text-xl font-mono px-6 py-2 rounded-xl">QUESTION {currentQuestionIndex + 1} / {examQuestions.length}</Badge>
            <div className="flex items-center gap-3 font-black text-2xl text-primary bg-primary/5 px-6 py-2 rounded-2xl border border-primary/20"><Clock className="h-7 w-7" /> {formatTime(timeLeft)}</div>
            <Button variant="destructive" size="lg" className="font-black h-12 px-10 uppercase tracking-widest shadow-lg" onClick={() => { if (confirm("Soumettre l'examen ?")) handleFinishExam(); }}>
-             {isSubmitting ? <Loader2 className="animate-spin h-5 w-5" /> : "SOUMETTRE"}
+             SOUMETTRE
            </Button>
         </div>
         <Progress value={progress} className="h-3" />

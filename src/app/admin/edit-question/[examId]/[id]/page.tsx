@@ -18,7 +18,6 @@ import {
   Save, 
   ArrowLeft, 
   CheckCircle2, 
-  AlertCircle,
   HelpCircle,
   Hash
 } from 'lucide-react';
