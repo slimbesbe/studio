@@ -12,9 +12,9 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, AlertCircle, CheckCircle2, FileSpreadsheet, XCircle, Upload } from 'lucide-react';
+import { Loader2, CheckCircle2, FileSpreadsheet, XCircle, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirebase, useUser } from '@/firebase';
 import { collection, doc, writeBatch, serverTimestamp, runTransaction } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
 
@@ -31,7 +31,6 @@ interface ParsedQuestion {
   isMultipleCorrect: boolean;
   explanation: string;
   isValid: boolean;
-  error?: string;
 }
 
 export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestionsModalProps) {
@@ -43,7 +42,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
   const [errors, setErrors] = useState<{line: number, msg: string}[]>([]);
   
   const { firestore: db } = useFirebase();
-  const { profile, user } = useUser();
+  const { profile } = useUser();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -73,7 +72,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
 
         json.forEach((row, index) => {
           const lineNum = index + 2;
-          const statement = row.statement || row.statement;
+          const statement = row.statement;
           const explanation = row.explanation || "";
           const correct = String(row.correct || "");
           
@@ -89,12 +88,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
           }
 
           if (options.length < 2) {
-            parseErrors.push({ line: lineNum, msg: "Moins de 2 options fournies." });
-            return;
-          }
-
-          if (!correct) {
-            parseErrors.push({ line: lineNum, msg: "Réponse correcte manquante." });
+            parseErrors.push({ line: lineNum, msg: "Moins de 2 options." });
             return;
           }
 
@@ -108,11 +102,10 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
                id = (cid.charCodeAt(0) - 64).toString();
              }
              
-             if (options.find(o => o.id === id)) {
-               mappedIds.push(id);
-             } else {
+             if (options.find(o => o.id === id)) mappedIds.push(id);
+             else {
                isValidLine = false;
-               parseErrors.push({ line: lineNum, msg: `La réponse '${cid}' ne correspond à aucune option.` });
+               parseErrors.push({ line: lineNum, msg: `Réponse '${cid}' inconnue.` });
              }
           });
 
@@ -131,7 +124,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
         setParsedData(results);
         setErrors(parseErrors);
       } catch (err) {
-        toast({ variant: "destructive", title: "Erreur lecture", description: "Format de fichier invalide." });
+        toast({ variant: "destructive", title: "Erreur lecture" });
       } finally {
         setIsParsing(false);
       }
@@ -181,12 +174,11 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
         setProgress(Math.round(((i + chunk.length) / total) * 100));
       }
 
-      toast({ title: "Import réussi", description: `${total} questions ajoutées à l'examen.` });
+      toast({ title: "Succès", description: `${total} questions importées.` });
       onClose();
       setFile(null);
-      setParsedData([]);
     } catch (e) {
-      toast({ variant: "destructive", title: "Erreur import", description: "Une erreur est survenue lors de l'écriture." });
+      toast({ variant: "destructive", title: "Erreur import" });
     } finally {
       setIsImporting(false);
     }
@@ -197,23 +189,19 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileSpreadsheet className="text-emerald-600" />
-            Importer des questions vers {examId.replace('exam', 'Examen ')}
+            <FileSpreadsheet className="text-emerald-600" /> Importer Questions
           </DialogTitle>
-          <DialogDescription>
-            Uploadez un fichier Excel (.xlsx) avec les colonnes : statement, option1-5, explanation, correct.
-          </DialogDescription>
+          <DialogDescription>Format requis : statement, option1-5, explanation, correct.</DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto space-y-6 py-4">
+        <div className="flex-1 overflow-y-auto py-4">
           {!file ? (
             <div 
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer hover:bg-muted/50 transition-colors"
+              className="border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer hover:bg-muted/50"
             >
               <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="font-bold">Cliquez pour choisir votre fichier Excel</p>
-              <p className="text-sm text-muted-foreground mt-1">Format supporté : .xlsx, .xls, .csv</p>
+              <p className="font-bold">Cliquez pour choisir un fichier Excel</p>
               <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx,.xls,.csv" onChange={handleFileChange} />
             </div>
           ) : (
@@ -221,40 +209,18 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
               <div className="flex items-center justify-between bg-muted/30 p-4 rounded-xl border">
                 <div className="flex items-center gap-3">
                   <CheckCircle2 className="text-emerald-500 h-6 w-6" />
-                  <div>
-                    <p className="font-bold">{file.name}</p>
-                    <p className="text-xs text-muted-foreground">{parsedData.length} questions prêtes à l'import</p>
-                  </div>
+                  <p className="font-bold">{file.name} ({parsedData.length} valides)</p>
                 </div>
                 <Button variant="ghost" size="sm" onClick={() => setFile(null)}>Changer</Button>
               </div>
 
               {errors.length > 0 && (
-                <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-xl space-y-2">
-                  <h4 className="text-sm font-bold text-destructive flex items-center gap-2">
-                    <XCircle className="h-4 w-4" /> Erreurs détectées ({errors.length})
+                <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-xl">
+                  <h4 className="text-sm font-bold text-destructive mb-2 flex items-center gap-2">
+                    <XCircle className="h-4 w-4" /> Erreurs ({errors.length})
                   </h4>
                   <div className="max-h-32 overflow-y-auto text-xs space-y-1">
-                    {errors.map((err, i) => (
-                      <p key={i}>Ligne {err.line} : {err.msg}</p>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {parsedData.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="font-bold text-sm">Aperçu des questions valides :</h4>
-                  <div className="border rounded-xl divide-y">
-                    {parsedData.slice(0, 5).map((q, i) => (
-                      <div key={i} className="p-3 text-xs">
-                        <p className="font-bold line-clamp-1">{q.statement}</p>
-                        <p className="text-muted-foreground mt-1">{q.options.length} options • Réponse: {q.correctOptionIds.join(', ')}</p>
-                      </div>
-                    ))}
-                    {parsedData.length > 5 && (
-                      <div className="p-2 text-center text-[10px] text-muted-foreground">Et {parsedData.length - 5} autres questions...</div>
-                    )}
+                    {errors.map((err, i) => <p key={i}>Ligne {err.line} : {err.msg}</p>)}
                   </div>
                 </div>
               )}
@@ -262,23 +228,16 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
           )}
 
           {isImporting && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs font-bold">
-                <span>Importation en cours...</span>
-                <span>{progress}%</span>
-              </div>
+            <div className="mt-4 space-y-2">
               <Progress value={progress} className="h-2" />
+              <p className="text-xs text-center font-bold">{progress}% importés...</p>
             </div>
           )}
         </div>
 
         <DialogFooter className="border-t pt-4">
-          <Button variant="outline" onClose={onClose} disabled={isImporting}>Annuler</Button>
-          <Button 
-            disabled={parsedData.length === 0 || isImporting} 
-            onClick={handleImport}
-            className="bg-emerald-600 hover:bg-emerald-700"
-          >
+          <Button variant="outline" onClick={onClose} disabled={isImporting}>Annuler</Button>
+          <Button disabled={parsedData.length === 0 || isImporting} onClick={handleImport} className="bg-emerald-600 rounded-md">
             {isImporting ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
             Importer {parsedData.length} questions
           </Button>
@@ -287,5 +246,3 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
     </Dialog>
   );
 }
-
-import { useFirebase } from '@/firebase';

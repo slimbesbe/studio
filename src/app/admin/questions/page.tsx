@@ -59,6 +59,7 @@ export default function QuestionsListPage() {
         if (!adminDoc.exists()) router.push('/dashboard');
         else {
           setIsAdmin(true);
+          // Auto-provision exams
           EXAMS.forEach(async (e) => {
             await setDoc(doc(db, 'exams', e.id), { id: e.id, title: e.title, isActive: true }, { merge: true });
           });
@@ -75,9 +76,9 @@ export default function QuestionsListPage() {
     if (!confirm("Êtes-vous sûr de vouloir supprimer cette question ?")) return;
     try {
       await deleteDoc(doc(db, 'exams', activeExamId, 'questions', id));
-      toast({ title: "Supprimé", description: "Question supprimée de la banque." });
+      toast({ title: "Supprimé", description: "Question supprimée." });
     } catch (e) {
-      toast({ variant: "destructive", title: "Erreur", description: "Impossible de supprimer." });
+      toast({ variant: "destructive", title: "Erreur" });
     }
   };
 
@@ -101,37 +102,28 @@ export default function QuestionsListPage() {
     XLSX.writeFile(workbook, "template_questions_simovex.xlsx");
   };
 
-  if (isUserLoading || isAdmin === null) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  if (isUserLoading || isAdmin === null) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/admin/dashboard"><ChevronLeft /></Link>
-          </Button>
+          <Button variant="ghost" size="icon" asChild><Link href="/admin/dashboard"><ChevronLeft /></Link></Button>
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
-              <BookCopy className="h-8 w-8 text-primary" />
-              Banque de Questions
+              <BookCopy className="h-8 w-8 text-primary" /> Banque de Questions
             </h1>
-            <p className="text-muted-foreground">Gérez vos questions par examen</p>
+            <p className="text-muted-foreground">Gestion par examen</p>
           </div>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={downloadTemplate}>
+          <Button variant="outline" onClick={downloadTemplate} className="rounded-md">
             <Download className="mr-2 h-4 w-4" /> Modèle Excel
           </Button>
-          <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
+          <Button variant="outline" onClick={() => setIsImportModalOpen(true)} className="rounded-md">
             <Upload className="mr-2 h-4 w-4" /> Importer Excel
           </Button>
-          <Button asChild>
+          <Button asChild className="rounded-md">
             <Link href={`/admin/questions/new?examId=${activeExamId}`}>
               <PlusCircle className="mr-2 h-4 w-4" /> Nouvelle Question
             </Link>
@@ -140,7 +132,7 @@ export default function QuestionsListPage() {
       </div>
 
       <Tabs value={activeExamId} onValueChange={setActiveExamId} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 h-12">
+        <TabsList className="grid w-full grid-cols-5 h-12 bg-muted/50">
           {EXAMS.map(exam => (
             <TabsTrigger key={exam.id} value={exam.id} className="font-bold">
               {exam.title}
@@ -150,27 +142,23 @@ export default function QuestionsListPage() {
         
         {EXAMS.map(exam => (
           <TabsContent key={exam.id} value={exam.id} className="mt-6">
-            <Card>
+            <Card className="border-none shadow-xl">
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-24">Code</TableHead>
-                      <TableHead className="w-[40%]">Énoncé</TableHead>
+                    <TableRow className="bg-muted/30">
+                      <TableHead className="w-32">ID Question</TableHead>
+                      <TableHead className="w-[45%]">Énoncé</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Statut</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead className="text-right px-6">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-12"><Loader2 className="animate-spin inline mr-2" /> Chargement...</TableCell>
-                      </TableRow>
+                      <TableRow><TableCell colSpan={5} className="text-center py-12"><Loader2 className="animate-spin inline" /></TableCell></TableRow>
                     ) : questions?.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">Aucune question.</TableCell>
-                      </TableRow>
+                      <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">Aucune question dans cet examen.</TableCell></TableRow>
                     ) : (
                       questions?.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)).map((q) => (
                         <TableRow key={q.id}>
@@ -186,13 +174,11 @@ export default function QuestionsListPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {q.isActive !== false ? (
-                              <Badge className="bg-emerald-100 text-emerald-700">Actif</Badge>
-                            ) : (
-                              <Badge variant="secondary">Inactif</Badge>
-                            )}
+                            <Badge className={q.isActive !== false ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-700"}>
+                              {q.isActive !== false ? "Actif" : "Inactif"}
+                            </Badge>
                           </TableCell>
-                          <TableCell className="text-right space-x-2">
+                          <TableCell className="text-right space-x-2 px-6">
                             <Button variant="ghost" size="icon" asChild>
                               <Link href={`/admin/edit-question/${activeExamId}/${q.id}`}><Pencil className="h-4 w-4" /></Link>
                             </Button>

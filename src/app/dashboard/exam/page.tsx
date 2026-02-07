@@ -13,12 +13,9 @@ import {
   Clock, 
   ChevronRight, 
   ChevronLeft, 
-  AlertCircle,
   Loader2,
-  CheckCircle2,
   PlayCircle,
-  Info,
-  Check
+  Info
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -133,6 +130,7 @@ export default function ExamPage() {
       }
       setIsExamStarted(true);
       setIsReviewMode(false);
+      setIsPauseScreenDismissed(false);
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur", description: "Impossible de charger l'examen." });
     } finally {
@@ -173,6 +171,7 @@ export default function ExamPage() {
       setIsPauseScreenDismissed(false);
       setIsExamStarted(false);
       setExamResult(null);
+      setSelectedExamId(null);
       toast({ title: "Session annulée" });
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur" });
@@ -190,6 +189,7 @@ export default function ExamPage() {
     return <div className="h-[60vh] flex items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
   }
 
+  // ÉCRAN DE PAUSE (Design PHOTO)
   if (savedState && !isExamStarted && !isPauseScreenDismissed && !examResult) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4 animate-fade-in">
@@ -199,9 +199,15 @@ export default function ExamPage() {
             <p className="text-xl text-slate-600">Session active détectée.</p>
           </CardHeader>
           <CardContent className="flex flex-col gap-4 px-12 pb-16">
-            <Button className="w-full h-14 text-lg font-bold bg-[#635BFF] hover:bg-[#5249e0] uppercase tracking-widest" onClick={() => startExam(true)}>CONTINUER</Button>
-            <Button variant="outline" className="w-full h-14 text-lg font-bold text-[#635BFF] uppercase tracking-widest" onClick={() => setIsPauseScreenDismissed(true)}>ARRETER ET SAUVEGARDER</Button>
-            <Button variant="outline" className="w-full h-14 text-lg font-bold text-[#635BFF] uppercase tracking-widest" onClick={handleCancelExam}>ARRETER ET ANNULER</Button>
+            <Button className="w-full h-14 text-lg font-bold bg-[#635BFF] hover:bg-[#5249e0] uppercase tracking-widest rounded-md" onClick={() => startExam(true)}>
+              CONTINUER
+            </Button>
+            <Button variant="outline" className="w-full h-14 text-lg font-bold text-[#635BFF] border-[#635BFF] hover:bg-[#635BFF]/5 uppercase tracking-widest rounded-md" onClick={() => setIsPauseScreenDismissed(true)}>
+              ARRETER ET SAUVEGARDER
+            </Button>
+            <Button variant="outline" className="w-full h-14 text-lg font-bold text-[#635BFF] border-[#635BFF] hover:bg-[#635BFF]/5 uppercase tracking-widest rounded-md" onClick={handleCancelExam}>
+              ARRETER ET ANNULER
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -219,7 +225,7 @@ export default function ExamPage() {
 
     return (
       <div className="max-w-4xl mx-auto py-10 space-y-8 animate-fade-in">
-        <Card className="shadow-2xl overflow-hidden">
+        <Card className="shadow-2xl overflow-hidden border-none">
           <CardHeader className="border-b bg-muted/30">
             <CardTitle className="text-xl">Simulation d'Examen - Résultats</CardTitle>
           </CardHeader>
@@ -230,21 +236,22 @@ export default function ExamPage() {
                  <div className="w-1/2 text-center relative border-l border-sky-300">Passing</div>
               </div>
 
-              <div className="relative flex w-full h-14 rounded-lg overflow-hidden border shadow-inner">
+              <div className="relative flex w-full h-14 rounded-lg overflow-hidden border shadow-inner bg-slate-100">
                 {PERFORMANCE_ZONES.map((zone, i) => (
                   <div key={zone.label} className={`w-1/4 h-full border-r last:border-r-0 flex items-center justify-center ${zone.color} ${i === currentZoneIndex ? 'opacity-100' : 'opacity-20'}`}>
-                    <span className="text-[9px] font-black text-white uppercase text-center leading-tight px-1 select-none">
+                    <span className="text-[10px] font-black text-white uppercase text-center leading-tight px-1 select-none">
                       {zone.label}
                     </span>
                   </div>
                 ))}
               </div>
 
-              <div className="absolute top-[-50px] transition-all duration-1000 flex flex-col items-center z-20" style={{ left: `${markerPosition}%`, transform: 'translateX(-50%)' }}>
-                <span className="text-[12px] font-black text-black mb-1">YOU</span>
-                <div className="w-[2px] h-4 bg-black" />
-                <div className="w-[2px] h-4 bg-black mt-[62px]" />
-                <span className="text-[14px] font-black text-[#006699] whitespace-nowrap mt-1 uppercase">
+              {/* CURSEUR YOU (Design OFFICIEL) */}
+              <div className="absolute top-[-55px] transition-all duration-1000 flex flex-col items-center z-20" style={{ left: `${markerPosition}%`, transform: 'translateX(-50%)' }}>
+                <span className="text-[14px] font-black text-black mb-1">YOU</span>
+                <div className="w-[3px] h-4 bg-black" />
+                <div className="w-[3px] h-4 bg-black mt-[62px]" />
+                <span className="text-[16px] font-black text-[#006699] whitespace-nowrap mt-1 uppercase">
                   {appreciation.label}
                 </span>
               </div>
@@ -316,7 +323,7 @@ export default function ExamPage() {
     return (
       <div className="max-w-5xl mx-auto space-y-10 animate-fade-in py-10">
         <div className="text-center space-y-4">
-          <h1 className="text-4xl font-black text-primary italic uppercase">Simulateur d'Examen PMP®</h1>
+          <h1 className="text-4xl font-black text-primary italic uppercase tracking-wider">Simulateur d'Examen PMP®</h1>
           <p className="text-xl text-muted-foreground">Choisissez une simulation pour commencer votre entraînement.</p>
         </div>
 
@@ -351,7 +358,9 @@ export default function ExamPage() {
         <div className="flex justify-between items-center">
            <Badge variant="outline" className="text-xl font-mono px-6 py-2 rounded-xl">QUESTION {currentQuestionIndex + 1} / {examQuestions.length}</Badge>
            <div className="flex items-center gap-3 font-black text-2xl text-primary bg-primary/5 px-6 py-2 rounded-2xl border border-primary/20"><Clock className="h-7 w-7" /> {formatTime(timeLeft)}</div>
-           <Button variant="destructive" size="lg" className="font-black h-12 px-10 uppercase tracking-widest" onClick={() => { if (confirm("Soumettre l'examen ?")) handleFinishExam(); }}>SOUMETTRE</Button>
+           <Button variant="destructive" size="lg" className="font-black h-12 px-10 uppercase tracking-widest shadow-lg" onClick={() => { if (confirm("Soumettre l'examen ?")) handleFinishExam(); }}>
+             {isSubmitting ? <Loader2 className="animate-spin h-5 w-5" /> : "SOUMETTRE"}
+           </Button>
         </div>
         <Progress value={progress} className="h-3" />
       </div>
@@ -371,7 +380,7 @@ export default function ExamPage() {
                   const updatedAnswers = { ...answers, [q.id]: newAns };
                   setAnswers(updatedAnswers);
                   saveProgress(undefined, updatedAnswers);
-                }} className={`p-6 rounded-3xl border-2 cursor-pointer transition-all flex items-start gap-5 ${isSelected ? 'border-primary bg-primary/5 shadow-md' : 'border-muted hover:border-primary/30'}`}>
+                }} className={`p-6 rounded-3xl border-2 cursor-pointer transition-all flex items-start gap-5 ${isSelected ? 'border-primary bg-primary/5 shadow-md ring-1 ring-primary/20' : 'border-muted hover:border-primary/30'}`}>
                   <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${isSelected ? 'bg-primary text-white' : 'bg-secondary text-primary'}`}>{String.fromCharCode(65 + idx)}</div>
                   <div className="flex-1 text-lg pt-1 text-slate-700">{opt.text}</div>
                 </div>
@@ -383,7 +392,7 @@ export default function ExamPage() {
 
       <div className="fixed bottom-0 left-0 right-0 p-8 bg-white/90 backdrop-blur-xl border-t-2 z-40">
         <div className="max-w-4xl mx-auto flex justify-between gap-6">
-          <Button variant="outline" className="flex-1 h-16 font-black text-xl rounded-2xl uppercase" onClick={() => { const newIndex = Math.max(0, currentQuestionIndex - 1); setCurrentQuestionIndex(newIndex); saveProgress(newIndex); }} disabled={currentQuestionIndex === 0}><ChevronLeft className="mr-2" /> PRÉCÉDENT</Button>
+          <Button variant="outline" className="flex-1 h-16 font-black text-xl rounded-2xl uppercase border-2" onClick={() => { const newIndex = Math.max(0, currentQuestionIndex - 1); setCurrentQuestionIndex(newIndex); saveProgress(newIndex); }} disabled={currentQuestionIndex === 0}><ChevronLeft className="mr-2" /> PRÉCÉDENT</Button>
           <Button className="flex-1 h-16 font-black text-xl rounded-2xl shadow-2xl uppercase" onClick={() => { const newIndex = Math.min(examQuestions.length - 1, currentQuestionIndex + 1); setCurrentQuestionIndex(newIndex); saveProgress(newIndex); }} disabled={currentQuestionIndex === examQuestions.length - 1}>SUIVANT <ChevronRight className="ml-2" /></Button>
         </div>
       </div>

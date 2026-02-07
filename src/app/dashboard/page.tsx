@@ -2,13 +2,11 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
   PlayCircle,
   BrainCircuit,
-  AlertTriangle,
-  Lock,
   Loader2
 } from 'lucide-react';
 import { 
@@ -22,7 +20,6 @@ import {
   Cell
 } from 'recharts';
 import { useUser } from '@/firebase';
-import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 
 const performanceData = [
@@ -68,15 +65,20 @@ const CircularStat = ({ value, label, sublabel, percent, color = "hsl(var(--prim
 
 export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
-  const { user, profile } = useUser();
-  const { toast } = useToast();
+  const { user, profile, isUserLoading } = useUser();
   const isDemo = user?.isAnonymous;
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted) return null;
+  if (!mounted || isUserLoading) {
+    return (
+      <div className="h-[60vh] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-10 animate-fade-in max-w-7xl mx-auto pb-10">
@@ -89,8 +91,8 @@ export default function DashboardPage() {
         </div>
         <div className="flex gap-3">
           <Button variant="outline" className="rounded-full px-6" disabled={isDemo}>Rapport PDF</Button>
-          <Button className="rounded-full px-6 shadow-xl uppercase font-bold" asChild={!isDemo}>
-            {isDemo ? <span>Simulation</span> : <Link href="/dashboard/exam"><PlayCircle className="mr-2 h-4 w-4" /> Simulation</Link>}
+          <Button className="rounded-full px-6 shadow-xl uppercase font-bold" asChild>
+            <Link href="/dashboard/exam"><PlayCircle className="mr-2 h-4 w-4" /> Simulation</Link>
           </Button>
         </div>
       </div>
@@ -98,10 +100,34 @@ export default function DashboardPage() {
       <Card className="border-none shadow-none bg-transparent">
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            <CircularStat label="Simulations réalisées" value={isDemo ? 1 : 14} sublabel="Total" percent={isDemo ? 10 : 65} color="#6366f1" />
-            <CircularStat label="Questions répondues" value={isDemo ? 10 : 842} sublabel="Total" percent={isDemo ? 5 : 78} color="#8b5cf6" />
-            <CircularStat label="Temps passé" value={isDemo ? "15m" : "24h"} sublabel="Étude" percent={isDemo ? 20 : 85} color="#7c3aed" />
-            <CircularStat label="Score Moyen" value={isDemo ? "68%" : "72.5%"} sublabel="Cible : 80%+" percent={isDemo ? 68 : 72.5} color="#10b981" />
+            <CircularStat 
+              label="Simulations réalisées" 
+              value={isDemo ? 1 : 14} 
+              sublabel="Total" 
+              percent={isDemo ? 10 : 65} 
+              color="#6366f1" 
+            />
+            <CircularStat 
+              label="Questions répondues" 
+              value={isDemo ? 10 : 842} 
+              sublabel="Total" 
+              percent={isDemo ? 5 : 78} 
+              color="#8b5cf6" 
+            />
+            <CircularStat 
+              label="Temps passé" 
+              value={isDemo ? "15m" : "24h"} 
+              sublabel="Étude" 
+              percent={isDemo ? 20 : 85} 
+              color="#7c3aed" 
+            />
+            <CircularStat 
+              label="Score Moyen" 
+              value={isDemo ? "68%" : "72.5%"} 
+              sublabel="Cible : 80%+" 
+              percent={isDemo ? 68 : 72.5} 
+              color="#10b981" 
+            />
           </div>
         </CardContent>
       </Card>
