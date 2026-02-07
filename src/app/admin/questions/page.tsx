@@ -5,29 +5,10 @@ import { useEffect, useState } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, doc, getDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
-import { 
-  Card, 
-  CardContent 
-} from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { 
-  Loader2, 
-  PlusCircle, 
-  Pencil, 
-  Trash2, 
-  BookCopy, 
-  ChevronLeft,
-  Upload,
-  Download
-} from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Loader2, PlusCircle, Pencil, Trash2, BookCopy, ChevronLeft, Upload, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Link from 'next/link';
@@ -82,19 +63,16 @@ export default function QuestionsListPage() {
   };
 
   const downloadTemplate = () => {
-    const templateData = [
-      {
-        statement: "Énoncez votre question PMP ici.",
-        option1: "Option A",
-        option2: "Option B",
-        option3: "Option C",
-        option4: "Option D",
-        option5: "",
-        explanation: "Justification du mindset PMI.",
-        correct: "A"
-      }
-    ];
-
+    const templateData = [{
+      statement: "Énoncez votre question PMP ici.",
+      option1: "Option A",
+      option2: "Option B",
+      option3: "Option C",
+      option4: "Option D",
+      option5: "",
+      explanation: "Justification du mindset PMI.",
+      correct: "A"
+    }];
     const worksheet = XLSX.utils.json_to_sheet(templateData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Template");

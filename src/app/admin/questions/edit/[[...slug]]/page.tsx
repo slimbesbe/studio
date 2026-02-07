@@ -14,11 +14,7 @@ export default function AdminEditRedirect() {
 
   useEffect(() => {
     if (slug && slug.length >= 2) {
-      // Si on a examId et questionId
       router.replace(`/admin/manage-question/${slug[0]}/${slug[1]}`);
-    } else if (slug && slug.length === 1) {
-      // Cas ambigu (id seul)
-      router.replace('/admin/questions');
     } else {
       router.replace('/admin/questions');
     }
