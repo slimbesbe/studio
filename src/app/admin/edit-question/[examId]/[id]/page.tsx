@@ -42,7 +42,6 @@ export default function EditQuestionPage() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Form State
   const [statement, setStatement] = useState("");
   const [explanation, setExplanation] = useState("");
   const [isMultipleCorrect, setIsMultipleCorrect] = useState(false);
@@ -54,7 +53,6 @@ export default function EditQuestionPage() {
   const [isActive, setIsActive] = useState(true);
   const [questionCode, setQuestionCode] = useState("");
 
-  // Fetch question data
   const questionRef = useMemoFirebase(() => doc(db, 'exams', examId, 'questions', questionId), [db, examId, questionId]);
   const { data: questionData, isLoading: isQuestionLoading } = useDoc(questionRef);
 
