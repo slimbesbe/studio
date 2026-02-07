@@ -40,7 +40,6 @@ export default function QuestionsListPage() {
         if (!adminDoc.exists()) router.push('/dashboard');
         else {
           setIsAdmin(true);
-          // Initialisation silencieuse des examens si nécessaire
           EXAMS.forEach(async (e) => {
             await setDoc(doc(db, 'exams', e.id), { id: e.id, title: e.title, isActive: true }, { merge: true });
           });

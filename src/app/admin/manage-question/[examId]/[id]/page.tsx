@@ -235,7 +235,7 @@ export default function ManageQuestionPage() {
         <CardFooter className="bg-muted/10 border-t p-8 flex justify-end">
           <Button onClick={handleSubmit} disabled={isSubmitting} size="lg" className="px-12 rounded-xl h-14 font-black uppercase tracking-widest shadow-xl bg-primary">
             {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
-            Enregistrer les modifications
+            Enregistrer
           </Button>
         </CardFooter>
       </Card>

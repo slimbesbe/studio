@@ -164,7 +164,7 @@ export default function ExamPage() {
         <Card className="w-full max-w-2xl shadow-3xl bg-white border-none overflow-hidden rounded-[50px]">
           <CardHeader className="text-center py-20 bg-muted/20">
             <h1 className="text-9xl font-black text-slate-900 tracking-[0.2em] uppercase italic">Pause</h1>
-            <p className="text-2xl text-slate-500 mt-6 font-bold uppercase tracking-[0.4em] italic">Simulation PMP® Suspendue</p>
+            <p className="text-2xl text-slate-500 mt-6 font-bold uppercase tracking-[0.4em] italic">Simulation Suspendue</p>
           </CardHeader>
           <CardContent className="flex flex-col gap-8 p-16 bg-white">
             <Button className="h-28 text-4xl font-black bg-primary hover:bg-primary/90 rounded-[35px] uppercase tracking-widest shadow-2xl transition-transform hover:scale-[1.02]" onClick={() => setShowPauseScreen(false)}>
@@ -189,7 +189,7 @@ export default function ExamPage() {
       <div className="max-w-4xl mx-auto py-12 space-y-8 animate-fade-in">
         <Card className="shadow-2xl overflow-hidden bg-white border-none rounded-[60px]">
           <CardHeader className="border-b bg-muted/30 py-10">
-            <CardTitle className="text-center font-black text-3xl uppercase tracking-widest text-primary italic">Rapport de Performance PMP® Officiel</CardTitle>
+            <CardTitle className="text-center font-black text-3xl uppercase tracking-widest text-primary italic">Rapport de Performance Officiel</CardTitle>
           </CardHeader>
           <CardContent className="py-40 px-16">
             <div className="relative w-full max-w-3xl mx-auto">
@@ -201,28 +201,22 @@ export default function ExamPage() {
               <div className="relative flex w-full h-28 rounded-[35px] overflow-hidden border-4 shadow-inner bg-slate-100">
                 {PERFORMANCE_ZONES.map((zone, idx) => (
                   <div key={idx} className={cn(zone.color, "border-r-4 border-white/50 flex items-center justify-center relative")} style={{ width: zone.width }}>
-                    <span className="text-[11px] font-black text-white uppercase text-center px-2 leading-tight tracking-tighter drop-shadow-md z-10">{zone.label}</span>
                   </div>
                 ))}
               </div>
               
               <div className="absolute top-0 bottom-0 transition-all duration-1000 z-30" style={{ left: `${percentage}%`, transform: 'translateX(-50%)' }}>
-                 <div className="absolute -top-24 flex flex-col items-center w-32 left-1/2 -translate-x-1/2">
-                    <span className="text-[22px] font-black text-black mb-1 tracking-widest italic">YOU</span>
-                    <div className="w-2 h-16 bg-black rounded-full" />
-                 </div>
-                 <div className="absolute -bottom-48 flex flex-col items-center w-[400px] left-1/2 -translate-x-1/2">
-                    <div className="w-2 h-16 bg-black mb-4 rounded-full" />
-                    <span className="text-[42px] font-black text-primary uppercase tracking-tighter text-center italic leading-none drop-shadow-sm">
-                      {appreciation.label}
-                    </span>
+                 <div className="absolute -top-16 flex flex-col items-center w-32 left-1/2 -translate-x-1/2">
+                    <span className="text-[18px] font-black text-black mb-1 tracking-widest italic">YOU</span>
+                    <div className="w-1.5 h-8 bg-black rounded-full" />
                  </div>
               </div>
             </div>
 
-            <div className="text-center space-y-6 pt-64">
-              <p className="text-[180px] leading-none font-black text-primary tracking-tighter drop-shadow-2xl italic">{percentage}%</p>
-              <p className="text-4xl font-black text-muted-foreground uppercase tracking-[0.4em] italic">{examResult.score} / {examResult.total} POINTS OBTENUS</p>
+            <div className="text-center space-y-6 pt-32">
+              <p className="text-[140px] leading-none font-black text-primary tracking-tighter drop-shadow-2xl italic">{percentage}%</p>
+              <p className="text-3xl font-black text-muted-foreground uppercase tracking-[0.4em] italic">{examResult.score} / {examResult.total} POINTS</p>
+              <p className="text-2xl font-black text-primary uppercase mt-4 italic">{appreciation.label}</p>
             </div>
           </CardContent>
           <CardFooter className="flex gap-8 p-16 border-t bg-muted/10">
@@ -272,9 +266,9 @@ export default function ExamPage() {
             </div>
             <div className="p-16 bg-primary/5 rounded-[60px] border-l-[24px] border-l-primary mt-20 shadow-inner">
               <h4 className="font-black mb-12 text-primary flex items-center gap-8 text-3xl uppercase tracking-widest italic">
-                <Info className="h-12 w-12" /> MINDSET OFFICIEL PMI®
+                <Info className="h-12 w-12" /> MINDSET OFFICIEL
               </h4>
-              <p className="whitespace-pre-wrap text-3xl leading-relaxed text-slate-700 font-bold italic">{q.explanation || "Explication non disponible pour cette question."}</p>
+              <p className="whitespace-pre-wrap text-3xl leading-relaxed text-slate-700 font-bold italic">{q.explanation || "Explication non disponible."}</p>
             </div>
           </CardContent>
           <CardFooter className="justify-between p-16 border-t bg-muted/5">
@@ -291,7 +285,7 @@ export default function ExamPage() {
       <div className="max-w-7xl mx-auto py-12 space-y-16">
         <div className="text-center space-y-6">
           <h1 className="text-[110px] leading-none font-black text-primary uppercase italic tracking-tighter drop-shadow-2xl">Simulateur PMP®</h1>
-          <p className="text-4xl text-slate-500 font-black uppercase tracking-[0.5em] italic">Excellence & Performance Haute Fidélité</p>
+          <p className="text-4xl text-slate-500 font-black uppercase tracking-[0.5em] italic">Excellence & Performance</p>
         </div>
         
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-12">
@@ -300,7 +294,7 @@ export default function ExamPage() {
               <CardHeader className="p-16">
                 <CardTitle className="text-5xl font-black uppercase tracking-tight italic">Examen {num}</CardTitle>
                 <div className="h-3 w-24 bg-primary/20 rounded-full my-8" />
-                <p className="text-slate-600 font-bold leading-relaxed text-2xl uppercase tracking-tight italic">Simulation complète de 180 questions mode réel.</p>
+                <p className="text-slate-600 font-bold leading-relaxed text-2xl uppercase tracking-tight italic">Simulation complète.</p>
               </CardHeader>
               <CardFooter className="p-16 pt-0">
                 <Button variant={selectedExamId === `exam${num}` ? "default" : "outline"} className="w-full h-24 font-black text-3xl rounded-[30px] uppercase tracking-widest shadow-xl border-4 transition-all bg-primary text-white">
@@ -314,11 +308,11 @@ export default function ExamPage() {
         <div className="flex flex-col gap-12 items-center pt-16">
           {savedState && (
             <Button variant="outline" className="w-full max-w-4xl h-32 border-[10px] border-primary text-primary font-black text-5xl rounded-[60px] hover:bg-primary/5 shadow-3xl uppercase tracking-widest animate-pulse italic" onClick={() => startExam(true)}>
-              REPRENDRE LA SESSION EN COURS
+              REPRENDRE LA SESSION
             </Button>
           )}
           <Button size="lg" className="w-full max-w-4xl h-40 text-7xl font-black bg-primary text-white uppercase shadow-[0_40px_100px_-20px_rgba(var(--primary),0.5)] rounded-[60px] hover:scale-[1.01] transition-transform tracking-[0.1em] italic" disabled={!selectedExamId || isSubmitting} onClick={() => startExam(false)}>
-            {isSubmitting ? <Loader2 className="animate-spin mr-12 h-28 w-28" /> : <PlayCircle className="mr-12 h-28 w-28" />} LANCER LA SIMULATION
+            {isSubmitting ? <Loader2 className="animate-spin mr-12 h-28 w-28" /> : <PlayCircle className="mr-12 h-28 w-28" />} LANCER
           </Button>
         </div>
       </div>
@@ -342,7 +336,7 @@ export default function ExamPage() {
           <div className="text-7xl font-black text-primary bg-primary/5 border-[8px] border-primary/20 px-20 py-8 rounded-[50px] shadow-inner tabular-nums italic">
             {formatTime(timeLeft)}
           </div>
-          <Button variant="destructive" size="lg" className="font-black h-28 px-24 uppercase shadow-3xl rounded-[50px] text-4xl tracking-widest hover:scale-[1.02] transition-transform italic border-4" onClick={() => { if(confirm("Terminer et soumettre l'examen ?")) finishExam(); }}>
+          <Button variant="destructive" size="lg" className="font-black h-28 px-24 uppercase shadow-3xl rounded-[50px] text-4xl tracking-widest hover:scale-[1.02] transition-transform italic border-4" onClick={() => { if(confirm("Terminer ?")) finishExam(); }}>
             TERMINER
           </Button>
         </div>
