@@ -137,7 +137,7 @@ export default function ExamPage() {
       }
       setIsExamStarted(true);
       setIsReviewMode(false);
-      setIsPauseScreenDismissed(true); // Cacher l'écran de pause quand on commence/reprend
+      setIsPauseScreenDismissed(true);
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur", description: "Impossible de charger l'examen." });
     } finally {
@@ -431,3 +431,4 @@ export default function ExamPage() {
     </div>
   );
 }
+
