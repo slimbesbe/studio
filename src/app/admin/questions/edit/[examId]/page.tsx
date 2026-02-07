@@ -1,3 +1,12 @@
 
 "use client";
-export default function Removed() { return null; }
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
+export default function Removed() { 
+  const router = useRouter();
+  useEffect(() => {
+    router.replace('/admin/questions');
+  }, [router]);
+  return null; 
+}

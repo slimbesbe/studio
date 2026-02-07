@@ -251,7 +251,7 @@ export default function ExamPage() {
     const percentage = Math.round((examResult.score / examResult.total) * 100);
     const currentZoneIndex = PERFORMANCE_ZONES.findIndex(z => percentage >= z.range[0] && percentage < z.range[1]);
     const appreciation = PERFORMANCE_ZONES[currentZoneIndex === -1 ? 0 : currentZoneIndex];
-    const markerPosition = 12.5 + (currentZoneIndex * 25);
+    const markerPosition = percentage; // Use raw percentage for positioning
 
     return (
       <div className="max-w-4xl mx-auto py-12 space-y-8 animate-fade-in">
@@ -262,21 +262,26 @@ export default function ExamPage() {
           <CardContent className="py-24">
             <div className="relative w-full max-w-3xl mx-auto px-4">
               <div className="flex w-full text-[12px] font-black text-slate-400 uppercase mb-4 tracking-widest">
-                 <div className="w-1/2 text-center">Falling</div>
-                 <div className="w-1/2 text-center relative border-l-2 border-slate-200">Passing</div>
+                 <div className="w-[65%] text-center">Falling</div>
+                 <div className="w-[35%] text-center relative border-l-2 border-slate-200">Passing</div>
               </div>
 
               <div className="relative flex w-full h-20 rounded-lg overflow-hidden border shadow-inner bg-slate-100">
-                {PERFORMANCE_ZONES.map((zone, i) => (
-                  <div key={zone.label} className={`w-1/4 h-full border-r last:border-r-0 flex items-center justify-center ${i === currentZoneIndex ? zone.color : 'bg-slate-200 opacity-40'}`}>
-                    <span className="text-[10px] font-black text-white uppercase text-center px-1 leading-tight select-none drop-shadow-md">
-                      {zone.label}
-                    </span>
-                  </div>
-                ))}
+                <div className="w-[50%] h-full bg-[#F44336] border-r flex items-center justify-center">
+                   <span className="text-[10px] font-black text-white uppercase text-center px-1 leading-tight select-none">Needs Improvement</span>
+                </div>
+                <div className="w-[15%] h-full bg-[#FFC107] border-r flex items-center justify-center">
+                   <span className="text-[10px] font-black text-white uppercase text-center px-1 leading-tight select-none">Below Target</span>
+                </div>
+                <div className="w-[15%] h-full bg-[#4CAF50] border-r flex items-center justify-center">
+                   <span className="text-[10px] font-black text-white uppercase text-center px-1 leading-tight select-none">Target</span>
+                </div>
+                <div className="w-[20%] h-full bg-[#009688] flex items-center justify-center">
+                   <span className="text-[10px] font-black text-white uppercase text-center px-1 leading-tight select-none">Above Target</span>
+                </div>
               </div>
 
-              <div className="absolute top-[-50px] transition-all duration-1000 flex flex-col items-center z-20" style={{ left: `${markerPosition}%`, transform: 'translateX(-50%)' }}>
+              <div className="absolute top-[-40px] transition-all duration-1000 flex flex-col items-center z-20" style={{ left: `${markerPosition}%`, transform: 'translateX(-50%)' }}>
                 <span className="text-[14px] font-black text-black mb-1">YOU</span>
                 <div className="w-[4px] h-6 bg-black" />
                 <div className="h-20" />
