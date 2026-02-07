@@ -187,11 +187,13 @@ export default function ExamPage() {
           </CardHeader>
           <CardContent className="py-24">
             <div className="relative w-full max-w-3xl mx-auto px-4 mt-20">
+              {/* Zones labels Falling/Passing */}
               <div className="flex w-full text-[12px] font-black text-slate-400 uppercase mb-4 tracking-widest">
                 <div className="w-[65%] text-center">Falling</div>
                 <div className="w-[35%] text-center relative border-l-2 border-slate-200">Passing</div>
               </div>
               
+              {/* La barre de couleur avec labels internes */}
               <div className="relative flex w-full h-20 rounded-lg overflow-hidden border shadow-inner bg-slate-100">
                 {PERFORMANCE_ZONES.map((zone, idx) => (
                   <div key={idx} className={`${zone.color} border-r border-white/20 flex items-center justify-center`} style={{ width: zone.width }}>
@@ -202,17 +204,24 @@ export default function ExamPage() {
                 ))}
               </div>
 
-              {/* CURSEUR YOU */}
+              {/* CURSEUR YOU AVEC TRAITS ET TEXTE BLEU GRAS */}
               <div 
-                className="absolute top-[-80px] transition-all duration-1000 flex flex-col items-center z-20" 
+                className="absolute top-0 bottom-0 transition-all duration-1000 z-20" 
                 style={{ left: `${percentage}%`, transform: 'translateX(-50%)' }}
               >
-                <span className="text-[14px] font-black text-black mb-1">YOU</span>
-                <div className="w-[2px] h-12 bg-black" /> {/* Trait haut */}
-                <div className="mt-20 w-[2px] h-12 bg-black" /> {/* Trait bas */}
-                <span className="text-[22px] font-black text-[#006699] whitespace-nowrap mt-4 uppercase tracking-tight">
-                  {appreciation.label}
-                </span>
+                 {/* Marqueur YOU haut */}
+                 <div className="absolute -top-16 flex flex-col items-center w-32 left-1/2 -translate-x-1/2">
+                    <span className="text-[14px] font-black text-black mb-1">YOU</span>
+                    <div className="w-[2px] h-12 bg-black" />
+                 </div>
+
+                 {/* Marqueur YOU bas + Appreciation */}
+                 <div className="absolute -bottom-24 flex flex-col items-center w-64 left-1/2 -translate-x-1/2">
+                    <div className="w-[2px] h-12 bg-black mb-2" />
+                    <span className="text-[22px] font-black text-[#006699] whitespace-nowrap uppercase tracking-tight text-center">
+                      {appreciation.label}
+                    </span>
+                 </div>
               </div>
             </div>
 
