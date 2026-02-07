@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, AlertCircle, CheckCircle2, FileSpreadsheet, XCircle } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2, FileSpreadsheet, XCircle, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useUser } from '@/firebase';
 import { collection, doc, writeBatch, serverTimestamp, runTransaction } from 'firebase/firestore';
@@ -42,7 +42,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
   const [parsedData, setParsedData] = useState<ParsedQuestion[]>([]);
   const [errors, setErrors] = useState<{line: number, msg: string}[]>([]);
   
-  const { db } = useFirestore();
+  const { firestore: db } = useFirebase();
   const { profile, user } = useUser();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -103,7 +103,6 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
           
           let isValidLine = true;
           correctIds.forEach(cid => {
-             // On supporte A, B, C, D, E ou 1, 2, 3, 4, 5
              let id = cid;
              if (['A','B','C','D','E'].includes(cid)) {
                id = (cid.charCodeAt(0) - 64).toString();
@@ -149,7 +148,6 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
       const total = parsedData.length;
       const batchSize = 100;
       
-      // Récupération globale du compteur pour les codes uniques
       const counterRef = doc(db, 'counters', 'questions');
       let startCounter = 0;
       
@@ -275,7 +273,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
         </div>
 
         <DialogFooter className="border-t pt-4">
-          <Button variant="outline" onClick={onClose} disabled={isImporting}>Annuler</Button>
+          <Button variant="outline" onClose={onClose} disabled={isImporting}>Annuler</Button>
           <Button 
             disabled={parsedData.length === 0 || isImporting} 
             onClick={handleImport}
@@ -289,3 +287,5 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
     </Dialog>
   );
 }
+
+import { useFirebase } from '@/firebase';
