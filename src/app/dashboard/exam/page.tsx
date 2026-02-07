@@ -36,7 +36,7 @@ const EXAMS = [
 ];
 
 export default function ExamPage() {
-  const { user, profile, isUserLoading } = useUser();
+  const { user, profile } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   const isDemo = user?.isAnonymous;
@@ -185,21 +185,6 @@ export default function ExamPage() {
     }
   };
 
-  const handleCancelExam = async () => {
-    if (isDemo || !examStateRef) {
-      setIsExamStarted(false);
-      return;
-    }
-    try {
-      await deleteDoc(examStateRef);
-      setIsExamStarted(false);
-      setExamResult(null);
-      setSelectedExamId(null);
-    } catch (e) {
-      toast({ variant: "destructive", title: "Erreur." });
-    }
-  };
-
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -207,11 +192,11 @@ export default function ExamPage() {
     return `${h > 0 ? h + ':' : ''}${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  if (isUserLoading || isStateLoading) {
+  if (isStateLoading) {
     return <div className="h-[60vh] flex items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
   }
 
-  // Pause Screen
+  // Écran de Pause
   if (showPauseScreen) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4 animate-fade-in">
@@ -237,7 +222,7 @@ export default function ExamPage() {
             <Button 
               variant="outline" 
               className="w-full h-16 text-xl font-bold text-red-500 border-red-500 hover:bg-red-50 uppercase tracking-widest rounded-md" 
-              onClick={handleCancelExam}
+              onClick={() => { setIsExamStarted(false); setExamResult(null); setSelectedExamId(null); }}
             >
               ARRETER ET ANNULER
             </Button>
@@ -251,7 +236,6 @@ export default function ExamPage() {
     const percentage = Math.round((examResult.score / examResult.total) * 100);
     const currentZoneIndex = PERFORMANCE_ZONES.findIndex(z => percentage >= z.range[0] && percentage < z.range[1]);
     const appreciation = PERFORMANCE_ZONES[currentZoneIndex === -1 ? 0 : currentZoneIndex];
-    const markerPosition = percentage; // Use raw percentage for positioning
 
     return (
       <div className="max-w-4xl mx-auto py-12 space-y-8 animate-fade-in">
@@ -281,23 +265,19 @@ export default function ExamPage() {
                 </div>
               </div>
 
-              <div className="absolute top-[-40px] transition-all duration-1000 flex flex-col items-center z-20" style={{ left: `${markerPosition}%`, transform: 'translateX(-50%)' }}>
+              <div className="absolute top-[-40px] transition-all duration-1000 flex flex-col items-center z-20" style={{ left: `${percentage}%`, transform: 'translateX(-50%)' }}>
                 <span className="text-[14px] font-black text-black mb-1">YOU</span>
-                <div className="w-[4px] h-6 bg-black" />
-                <div className="h-20" />
-                <div className="w-[4px] h-6 bg-black" />
+                <div className="w-[2px] h-8 bg-black mb-20" />
+                <div className="w-[2px] h-8 bg-black mt-2" />
                 <span className="text-[18px] font-black text-[#006699] whitespace-nowrap mt-2 uppercase tracking-tight">
                   {appreciation.label}
                 </span>
               </div>
             </div>
 
-            <div className="text-center space-y-4 pt-24">
+            <div className="text-center space-y-4 pt-48">
                <p className="text-7xl font-black text-primary tracking-tighter">{percentage}%</p>
                <p className="text-xl font-bold text-muted-foreground">{examResult.score} / {examResult.total} points obtenus</p>
-               <div className="max-w-2xl mx-auto p-6 bg-muted/20 rounded-2xl border border-dashed mt-12 text-[12px] font-medium text-muted-foreground italic leading-relaxed">
-                 « Ce simulateur utilise une estimation pédagogique basée sur le barème standard du PMI. Seul le rapport officiel du PMI fait foi pour l'obtention de la certification. »
-               </div>
             </div>
           </CardContent>
           <CardFooter className="flex gap-4 p-8 bg-muted/10 border-t">
@@ -388,7 +368,6 @@ export default function ExamPage() {
               onClick={() => startExam(true)}
             >
               <span className="flex items-center gap-2"><Clock className="h-5 w-5" /> REPRENDRE LA SESSION EN COURS</span>
-              <span className="text-xs font-medium opacity-70 italic">Sauvegardé le {formatDate(savedState.updatedAt)}</span>
             </Button>
           </div>
         )}
@@ -435,14 +414,11 @@ export default function ExamPage() {
 
       <Card className="shadow-2xl border-t-8 border-t-primary animate-slide-up bg-white p-10 min-h-[400px]">
         <CardHeader className="pb-12 pt-6">
-          <CardTitle className="text-2xl leading-relaxed font-bold text-slate-800">{q.statement}</CardTitle>
-          {q.isMultipleCorrect && (
-            <Badge variant="secondary" className="w-fit mt-4 text-xs font-black bg-accent/10 text-accent">CHOIX MULTIPLES</Badge>
-          )}
+          <CardTitle className="text-2xl leading-relaxed font-bold text-slate-800">{q?.statement}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-8">
           <div className="grid gap-6">
-            {q.options.map((opt: any, idx: number) => {
+            {q?.options.map((opt: any, idx: number) => {
               const isSelected = answers[q.id]?.includes(opt.id);
               return (
                 <div key={opt.id} onClick={() => {
@@ -473,10 +449,4 @@ export default function ExamPage() {
       </div>
     </div>
   );
-}
-
-function formatDate(ts: any) {
-  if (!ts) return '';
-  const date = ts?.toDate ? ts.toDate() : new Date(ts);
-  return date.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }

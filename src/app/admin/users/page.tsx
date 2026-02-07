@@ -19,7 +19,7 @@ import {
   Trash2, 
   BarChart,
   TrendingUp,
-  Eye
+  Target
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -147,11 +147,11 @@ export default function UsersListPage() {
               <TableRow>
                 <TableHead>Utilisateur</TableHead>
                 <TableHead className="text-center"><BarChart className="h-4 w-4 inline mr-1" /> Moyenne</TableHead>
-                <TableHead className="text-center"><TrendingUp className="h-4 w-4 inline mr-1" /> Simulations</TableHead>
+                <TableHead className="text-center"><Target className="h-4 w-4 inline mr-1" /> Simulations</TableHead>
+                <TableHead className="text-center"><TrendingUp className="h-4 w-4 inline mr-1" /> Progression</TableHead>
                 <TableHead className="text-center"><Clock className="h-4 w-4 inline mr-1" /> Temps Total</TableHead>
                 <TableHead>Première Connexion</TableHead>
                 <TableHead>Dernière Connexion</TableHead>
-                <TableHead>Statut</TableHead>
                 <TableHead className="text-right px-6">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -177,6 +177,14 @@ export default function UsersListPage() {
                   <TableCell className="text-center">
                     <Badge variant="secondary" className="font-mono">{u.simulationsCount || 0}</Badge>
                   </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-16 bg-muted rounded-full h-2 overflow-hidden">
+                        <div className="bg-primary h-full transition-all" style={{ width: `${Math.min(100, Math.round((u.simulationsCount || 0) / 5 * 100))}%` }} />
+                      </div>
+                      <span className="text-[10px] font-bold">{Math.min(100, Math.round((u.simulationsCount || 0) / 5 * 100))}%</span>
+                    </div>
+                  </TableCell>
                   <TableCell className="text-center text-xs font-medium">
                     {formatTime(u.totalTimeSpent)}
                   </TableCell>
@@ -185,11 +193,6 @@ export default function UsersListPage() {
                   </TableCell>
                   <TableCell className="text-[10px] text-muted-foreground">
                     {formatDate(u.lastLoginAt)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={u.status === 'disabled' ? "bg-red-500" : (u.status === 'expired' ? "bg-amber-500" : "bg-emerald-500")}>
-                      {u.status === 'active' ? 'ACTIF' : (u.status === 'expired' ? 'EXPIRÉ' : 'DÉSACTIVÉ')}
-                    </Badge>
                   </TableCell>
                   <TableCell className="text-right px-6">
                     <DropdownMenu>
