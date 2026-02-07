@@ -12,10 +12,10 @@ import { Trophy, Clock, ChevronRight, ChevronLeft, Loader2, PlayCircle, Info, Pa
 import { useToast } from '@/hooks/use-toast';
 
 const PERFORMANCE_ZONES = [
-  { label: "Needs Improvement", color: "bg-[#F44336]", range: [0, 50] },
-  { label: "Below Target", color: "bg-[#FFC107]", range: [50, 65] },
-  { label: "Target", color: "bg-[#4CAF50]", range: [65, 80] },
-  { label: "Above Target", color: "bg-[#009688]", range: [80, 101] },
+  { label: "Needs Improvement", color: "bg-[#F44336]", range: [0, 50], width: '50%' },
+  { label: "Below Target", color: "bg-[#FFC107]", range: [50, 65], width: '15%' },
+  { label: "Target", color: "bg-[#4CAF50]", range: [65, 80], width: '15%' },
+  { label: "Above Target", color: "bg-[#009688]", range: [80, 101], width: '20%' },
 ];
 
 const EXAMS = [
@@ -160,8 +160,8 @@ export default function ExamPage() {
 
   if (showPauseScreen) {
     return (
-      <div className="min-h-screen fixed inset-0 z-[100] bg-background flex items-center justify-center p-4 animate-fade-in">
-        <Card className="w-full max-w-2xl shadow-2xl border-none overflow-hidden">
+      <div className="min-h-screen fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+        <Card className="w-full max-w-2xl shadow-2xl border-none overflow-hidden bg-white">
           <CardHeader className="text-center pt-16 pb-12 bg-muted/20">
             <h1 className="text-7xl font-light text-slate-800 tracking-[0.2em] uppercase">Pause</h1>
             <p className="text-xl text-slate-500 mt-4">Simulation PMP® suspendue</p>
@@ -182,28 +182,41 @@ export default function ExamPage() {
     return (
       <div className="max-w-4xl mx-auto py-12 space-y-8 animate-fade-in">
         <Card className="shadow-2xl overflow-hidden border-none bg-white">
-          <CardHeader className="border-b bg-muted/30"><CardTitle className="text-center font-bold">Rapport de Performance PMP®</CardTitle></CardHeader>
+          <CardHeader className="border-b bg-muted/30">
+            <CardTitle className="text-center font-bold">Rapport de Performance PMP®</CardTitle>
+          </CardHeader>
           <CardContent className="py-24">
-            <div className="relative w-full max-w-3xl mx-auto px-4">
+            <div className="relative w-full max-w-3xl mx-auto px-4 mt-20">
               <div className="flex w-full text-[12px] font-black text-slate-400 uppercase mb-4 tracking-widest">
                 <div className="w-[65%] text-center">Falling</div>
                 <div className="w-[35%] text-center relative border-l-2 border-slate-200">Passing</div>
               </div>
+              
               <div className="relative flex w-full h-20 rounded-lg overflow-hidden border shadow-inner bg-slate-100">
                 {PERFORMANCE_ZONES.map((zone, idx) => (
-                  <div key={idx} className={`${zone.color} border-r flex items-center justify-center`} style={{ width: idx === 0 ? '50%' : idx === 1 ? '15%' : idx === 2 ? '15%' : '20%' }}>
-                    <span className="text-[10px] font-black text-white uppercase text-center px-1 leading-tight select-none">{zone.label}</span>
+                  <div key={idx} className={`${zone.color} border-r border-white/20 flex items-center justify-center`} style={{ width: zone.width }}>
+                    <span className="text-[10px] font-black text-white uppercase text-center px-1 leading-tight select-none">
+                      {zone.label}
+                    </span>
                   </div>
                 ))}
               </div>
-              <div className="absolute top-[-50px] transition-all duration-1000 flex flex-col items-center z-20" style={{ left: `${percentage}%`, transform: 'translateX(-50%)' }}>
+
+              {/* CURSEUR YOU */}
+              <div 
+                className="absolute top-[-80px] transition-all duration-1000 flex flex-col items-center z-20" 
+                style={{ left: `${percentage}%`, transform: 'translateX(-50%)' }}
+              >
                 <span className="text-[14px] font-black text-black mb-1">YOU</span>
-                <div className="w-[2px] h-10 bg-black" />
-                <div className="mt-20 w-[2px] h-10 bg-black" />
-                <span className="text-[22px] font-black text-[#006699] whitespace-nowrap mt-4 uppercase tracking-tight">{appreciation.label}</span>
+                <div className="w-[2px] h-12 bg-black" /> {/* Trait haut */}
+                <div className="mt-20 w-[2px] h-12 bg-black" /> {/* Trait bas */}
+                <span className="text-[22px] font-black text-[#006699] whitespace-nowrap mt-4 uppercase tracking-tight">
+                  {appreciation.label}
+                </span>
               </div>
             </div>
-            <div className="text-center space-y-4 pt-56">
+
+            <div className="text-center space-y-4 pt-48">
               <p className="text-7xl font-black text-primary tracking-tighter">{percentage}%</p>
               <p className="text-xl font-bold text-muted-foreground">{examResult.score} / {examResult.total} points obtenus</p>
             </div>
