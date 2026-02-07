@@ -30,7 +30,7 @@ const EXAMS = [
 const PERFORMANCE_ZONES = [
   { label: "Needs Improvement", color: "bg-red-500", range: [0, 50] },
   { label: "Below Target", color: "bg-amber-400", range: [50, 65] },
-  { label: "Target", color: "bg-emerald-400", range: [65, 80] },
+  { label: "Target", color: "bg-emerald-500", range: [65, 80] },
   { label: "Above Target", color: "bg-teal-600", range: [80, 101] },
 ];
 
@@ -280,7 +280,7 @@ export default function ExamPage() {
                 ))}
               </div>
 
-              {/* Marqueur YOU tel que demandé */}
+              {/* Marqueur YOU avec traits noirs haut/bas */}
               <div className="absolute top-[-45px] transition-all duration-1000 flex flex-col items-center z-20" style={{ left: `${markerPosition}%`, transform: 'translateX(-50%)' }}>
                 <span className="text-[14px] font-black text-black mb-1">YOU</span>
                 <div className="w-[3px] h-4 bg-black" />

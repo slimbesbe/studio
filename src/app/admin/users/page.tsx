@@ -36,7 +36,6 @@ export default function UsersListPage() {
   const { toast } = useToast();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [userToDelete, setUserToDelete] = useState<any | null>(null);
-  const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   
   const [passwordChangeUser, setPasswordChangeUser] = useState<any | null>(null);
   const [newPassword, setNewPassword] = useState('');
@@ -63,18 +62,18 @@ export default function UsersListPage() {
         status: newStatus,
         updatedAt: Timestamp.now()
       });
-      toast({ title: "Statut mis à jour", description: `Le compte est maintenant ${newStatus === 'active' ? 'activé' : 'désactivé'}.` });
+      toast({ title: "Statut mis à jour" });
     } catch (e) {
-      toast({ variant: "destructive", title: "Erreur", description: "Impossible de modifier le statut." });
+      toast({ variant: "destructive", title: "Erreur" });
     }
   };
 
   const handleSendResetEmail = async (email: string) => {
     try {
       await sendPasswordResetEmail(auth, email);
-      toast({ title: "Email envoyé", description: `Un lien de réinitialisation a été envoyé à ${email}.` });
+      toast({ title: "Email envoyé" });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Erreur", description: "Impossible d'envoyer l'email." });
+      toast({ variant: "destructive", title: "Erreur" });
     }
   };
 
@@ -90,7 +89,7 @@ export default function UsersListPage() {
         password: newPassword,
         updatedAt: Timestamp.now()
       });
-      toast({ title: "Record mis à jour" });
+      toast({ title: "Mot de passe record mis à jour" });
       setPasswordChangeUser(null);
       setNewPassword('');
     } catch (e) {
@@ -107,7 +106,7 @@ export default function UsersListPage() {
       if (userToDelete.role === 'admin' || userToDelete.role === 'super_admin') {
         await deleteDoc(doc(db, 'roles_admin', userToDelete.id));
       }
-      toast({ title: "Supprimé" });
+      toast({ title: "Utilisateur supprimé" });
       setUserToDelete(null);
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur" });
@@ -147,9 +146,9 @@ export default function UsersListPage() {
           <Button variant="ghost" size="icon" asChild><Link href="/admin/dashboard"><ChevronLeft /></Link></Button>
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Users className="h-8 w-8 text-accent" /> Gestion Globale des Utilisateurs
+              <Users className="h-8 w-8 text-accent" /> Gestion Globale Utilisateurs
             </h1>
-            <p className="text-muted-foreground">{users?.length || 0} participants actifs</p>
+            <p className="text-muted-foreground">{users?.length || 0} participants enregistrés</p>
           </div>
         </div>
         <Button asChild className="bg-accent hover:bg-accent/90">
@@ -212,7 +211,7 @@ export default function UsersListPage() {
                           <Mail className="mr-2 h-4 w-4" /> Envoyer Reset Email
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setPasswordChangeUser(u)}>
-                          <Key className="mr-2 h-4 w-4" /> Voir/Modif Password Record
+                          <Key className="mr-2 h-4 w-4" /> Voir/Modif Password record
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-destructive" onClick={() => setUserToDelete(u)}>
@@ -228,7 +227,6 @@ export default function UsersListPage() {
         </CardContent>
       </Card>
 
-      {/* Reused Password Dialog from existing codebase */}
       <Dialog open={!!passwordChangeUser} onOpenChange={() => setPasswordChangeUser(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Record de mot de passe</DialogTitle></DialogHeader>
