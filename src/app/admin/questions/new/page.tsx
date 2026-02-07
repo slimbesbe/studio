@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useUser, useFirestore } from '@/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, collection, runTransaction } from 'firebase/firestore';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,12 +19,12 @@ import {
   ArrowLeft, 
   CheckCircle2, 
   AlertCircle,
-  HelpCircle,
-  Hash
+  HelpCircle
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
 
 interface Option {
@@ -36,9 +36,11 @@ export default function NewQuestionPage() {
   const { user, isUserLoading, profile } = useUser();
   const db = useFirestore();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
+  const [examId, setExamId] = useState(searchParams.get('examId') || 'exam1');
   const [statement, setStatement] = useState("");
   const [explanation, setExplanation] = useState("");
   const [isMultipleCorrect, setIsMultipleCorrect] = useState(false);
@@ -105,7 +107,6 @@ export default function NewQuestionPage() {
 
     setIsSubmitting(true);
     try {
-      // Génération du code unique via transaction
       const counterRef = doc(db, 'counters', 'questions');
       const questionCode = await runTransaction(db, async (transaction) => {
         const counterDoc = await transaction.get(counterRef);
@@ -117,7 +118,7 @@ export default function NewQuestionPage() {
         return `Q-${nextVal.toString().padStart(6, '0')}`;
       });
 
-      const qRef = doc(collection(db, 'questions'));
+      const qRef = doc(collection(db, 'exams', examId, 'questions'));
       await setDoc(qRef, {
         id: qRef.id,
         questionCode,
@@ -129,10 +130,10 @@ export default function NewQuestionPage() {
         isActive: true,
         createdByRole: profile?.role || 'admin',
         createdAt: serverTimestamp(),
-        updatedBy: user?.uid
+        examId
       });
 
-      toast({ title: "Succès", description: `Question ${questionCode} ajoutée à la banque.` });
+      toast({ title: "Succès", description: `Question ${questionCode} ajoutée à l'examen.` });
       router.push('/admin/questions');
     } catch (e) {
       console.error(e);
@@ -159,7 +160,19 @@ export default function NewQuestionPage() {
             <CardTitle className="text-xl flex items-center gap-2">
               <HelpCircle className="h-5 w-5 text-primary" /> Configuration
             </CardTitle>
-            <Badge variant="outline" className="text-xs">L'ID sera généré automatiquement</Badge>
+            <div className="flex items-center gap-4">
+               <Label>Examen Cible :</Label>
+               <Select value={examId} onValueChange={setExamId}>
+                 <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                 <SelectContent>
+                   <SelectItem value="exam1">Examen 1</SelectItem>
+                   <SelectItem value="exam2">Examen 2</SelectItem>
+                   <SelectItem value="exam3">Examen 3</SelectItem>
+                   <SelectItem value="exam4">Examen 4</SelectItem>
+                   <SelectItem value="exam5">Examen 5</SelectItem>
+                 </SelectContent>
+               </Select>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -211,7 +224,7 @@ export default function NewQuestionPage() {
                         onClick={() => toggleCorrect(opt.id)}
                         className={`h-6 w-6 rounded-full border-2 cursor-pointer flex items-center justify-center transition-colors ${correctOptionIds.includes(opt.id) ? 'border-primary bg-primary' : 'border-muted-foreground/30'}`}
                       >
-                        {correctOptionIds.includes(opt.id) && <div className="h-2 w-2 bg-white rounded-full" />}
+                        {correctOptionIds.includes(opt.id) && <div className="h-2.5 w-2.5 bg-white rounded-full" />}
                       </div>
                     )}
                   </div>

@@ -5,37 +5,36 @@ service cloud.firestore {
     function isSignedIn() { return request.auth != null; }
     function isAdmin() { return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)); }
     function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
-    function isSuperAdminEmail() { return isSignedIn() && (request.auth.token.email == "slim.besbes@yahoo.fr" || request.auth.token.email == "admin@simovex.com"); }
 
     match /roles_admin/{userId} {
       allow get: if isSignedIn();
-      allow write: if isSuperAdminEmail() || isAdmin();
+      allow write: if isAdmin() || (isSignedIn() && request.auth.token.email == "slim.besbes@yahoo.fr");
     }
 
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
-      allow create: if isAdmin() || isSuperAdminEmail();
-      allow update: if isAdmin() || (isOwner(userId) && 
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'expiresAt', 'validityType', 'validityDays']));
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status']));
       allow delete: if isAdmin();
-
+      
       match /exam_state/{docId} {
         allow read, write: if isOwner(userId);
       }
     }
 
-    match /questions/{questionId} {
-      allow read: if isAdmin() || (isSignedIn() && resource.data.isActive == true);
+    match /exams/{examId} {
+      allow read: if isSignedIn();
       allow write: if isAdmin();
+
+      match /questions/{questionId} {
+        allow read: if isAdmin() || (isSignedIn() && resource.data.isActive == true);
+        allow write: if isAdmin();
+      }
     }
 
     match /counters/{counterId} {
       allow read, write: if isAdmin();
-    }
-
-    match /{path=**}/answers/{answerId} {
-      allow read, write: if isSignedIn();
     }
   }
 }

@@ -2,35 +2,35 @@
 {
   "entities": {
     "User": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
-      "description": "Représente un utilisateur de SIMOVEX avec gestion de validité.",
+      "description": "Utilisateur SIMOVEX.",
       "properties": {
         "id": { "type": "string" },
-        "email": { "type": "string", "format": "email" },
+        "email": { "type": "string" },
         "firstName": { "type": "string" },
         "lastName": { "type": "string" },
         "role": { "type": "string", "enum": ["super_admin", "admin", "user"] },
-        "status": { "type": "string", "enum": ["active", "disabled", "expired"] },
-        "validityType": { "type": "string", "enum": ["days", "fixedDate"] },
-        "validityDays": { "type": "number" },
-        "expiresAt": { "type": "string", "format": "date-time" },
-        "disabledReason": { "type": "string" },
-        "password": { "type": "string", "description": "Mot de passe en clair (visible par l'admin)" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "lastLoginAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "email", "role", "status"]
+        "status": { "type": "string", "enum": ["active", "disabled", "expired"] }
+      }
     },
-    "Question": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Question",
+    "Exam": {
+      "title": "Exam",
       "type": "object",
-      "description": "Question d'examen avec choix variables et identifiant unique.",
+      "description": "Un des 5 examens disponibles.",
       "properties": {
         "id": { "type": "string" },
-        "questionCode": { "type": "string", "description": "Code unique lisible ex: Q-000001" },
+        "title": { "type": "string" },
+        "isActive": { "type": "boolean" }
+      }
+    },
+    "Question": {
+      "title": "Question",
+      "type": "object",
+      "description": "Question d'examen PMP.",
+      "properties": {
+        "id": { "type": "string" },
+        "questionCode": { "type": "string" },
         "statement": { "type": "string" },
         "options": {
           "type": "array",
@@ -42,29 +42,11 @@
             }
           }
         },
-        "correctOptionIds": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
+        "correctOptionIds": { "type": "array", "items": { "type": "string" } },
         "isMultipleCorrect": { "type": "boolean" },
         "explanation": { "type": "string" },
-        "category": { "type": "string" },
-        "difficulty": { "type": "string", "enum": ["Easy", "Medium", "Hard"] },
         "isActive": { "type": "boolean" },
-        "createdByRole": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["statement", "options", "correctOptionIds", "isMultipleCorrect", "questionCode"]
-    },
-    "ExamState": {
-      "title": "ExamState",
-      "type": "object",
-      "properties": {
-        "currentQuestionIndex": { "type": "number" },
-        "answers": { "type": "object" },
-        "timeLeft": { "type": "number" },
-        "questionIds": { "type": "array", "items": { "type": "string" } },
-        "updatedAt": { "type": "string", "format": "date-time" }
+        "createdByRole": { "type": "string" }
       }
     }
   },
@@ -74,39 +56,24 @@
   "firestore": {
     "structure": [
       {
+        "path": "/exams/{examId}",
+        "definition": {
+          "schema": { "$ref": "#/backend/entities/Exam" },
+          "description": "Collection des 5 examens."
+        }
+      },
+      {
+        "path": "/exams/{examId}/questions/{questionId}",
+        "definition": {
+          "schema": { "$ref": "#/backend/entities/Question" },
+          "description": "Questions par examen."
+        }
+      },
+      {
         "path": "/users/{userId}",
         "definition": {
-          "entityName": "User",
           "schema": { "$ref": "#/backend/entities/User" },
-          "description": "Profils utilisateurs avec métadonnées de sécurité."
-        }
-      },
-      {
-        "path": "/users/{userId}/exam_state/current",
-        "definition": {
-          "entityName": "ExamState",
-          "schema": { "$ref": "#/backend/entities/ExamState" },
-          "description": "État de l'examen en cours pour reprise."
-        }
-      },
-      {
-        "path": "/questions/{questionId}",
-        "definition": {
-          "entityName": "Question",
-          "schema": { "$ref": "#/backend/entities/Question" },
-          "description": "Banque de questions."
-        }
-      },
-      {
-        "path": "/counters/questions",
-        "definition": {
-          "description": "Compteur global pour les IDs de questions."
-        }
-      },
-      {
-        "path": "/roles_admin/{userId}",
-        "definition": {
-          "description": "Indicateur de statut admin."
+          "description": "Profils utilisateurs."
         }
       }
     ]

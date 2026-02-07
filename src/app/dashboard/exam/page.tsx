@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, where, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, doc, setDoc, deleteDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -21,11 +21,20 @@ import {
   History as HistoryIcon,
   BookOpen,
   XCircle,
-  Info
+  Info,
+  Check
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+
+const EXAMS = [
+  { id: 'exam1', title: 'Examen 1', desc: 'Simulation complète - Module 1' },
+  { id: 'exam2', title: 'Examen 2', desc: 'Simulation complète - Module 2' },
+  { id: 'exam3', title: 'Examen 3', desc: 'Simulation complète - Module 3' },
+  { id: 'exam4', title: 'Examen 4', desc: 'Simulation complète - Module 4' },
+  { id: 'exam5', title: 'Examen 5', desc: 'Simulation complète - Module 5' },
+];
 
 export default function ExamPage() {
   const { user, isUserLoading } = useUser();
@@ -33,6 +42,7 @@ export default function ExamPage() {
   const { toast } = useToast();
   const isDemo = user?.isAnonymous;
 
+  const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
   const [isExamStarted, setIsExamStarted] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string[]>>({});
@@ -41,6 +51,7 @@ export default function ExamPage() {
   const [examResult, setExamResult] = useState<{ score: number; total: number } | null>(null);
   const [sessionQuestionIds, setSessionQuestionIds] = useState<string[]>([]);
   const [isReviewMode, setIsReviewMode] = useState(false);
+  const [examQuestions, setExamQuestions] = useState<any[]>([]);
 
   // State persistence ref
   const examStateRef = useMemoFirebase(() => {
@@ -49,21 +60,19 @@ export default function ExamPage() {
 
   const { data: savedState, isLoading: isStateLoading } = useDoc(examStateRef);
 
-  // Fetch all questions for pool
-  const questionsQuery = useMemoFirebase(() => {
-    return query(
-      collection(db, 'questions'),
-      where('isActive', '==', true)
-    );
-  }, [db]);
-
-  const { data: allQuestions, isLoading: isQuestionsLoading } = useCollection(questionsQuery);
-
-  // Filtered questions based on session IDs
-  const activeQuestions = useMemo(() => {
-    if (!allQuestions || sessionQuestionIds.length === 0) return [];
-    return sessionQuestionIds.map(id => allQuestions.find(q => q.id === id)).filter(Boolean) as any[];
-  }, [allQuestions, sessionQuestionIds]);
+  // Sync state to Firestore on change
+  const saveProgress = useCallback((updatedIndex?: number, updatedAnswers?: any) => {
+    if (isDemo || !examStateRef || !isExamStarted) return;
+    
+    setDoc(examStateRef, {
+      selectedExamId,
+      currentQuestionIndex: updatedIndex !== undefined ? updatedIndex : currentQuestionIndex,
+      answers: updatedAnswers !== undefined ? updatedAnswers : answers,
+      timeLeft: timeLeft,
+      questionIds: sessionQuestionIds,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+  }, [isDemo, examStateRef, isExamStarted, currentQuestionIndex, answers, timeLeft, sessionQuestionIds, selectedExamId]);
 
   // Timer logic
   useEffect(() => {
@@ -72,9 +81,6 @@ export default function ExamPage() {
       timer = setInterval(() => {
         setTimeLeft((prev) => {
           const newTime = prev - 1;
-          if (newTime % 30 === 0 && !isDemo && examStateRef) {
-             setDoc(examStateRef, { timeLeft: newTime }, { merge: true });
-          }
           return newTime;
         });
       }, 1000);
@@ -82,57 +88,80 @@ export default function ExamPage() {
       handleFinishExam();
     }
     return () => clearInterval(timer);
-  }, [isExamStarted, timeLeft, examResult, isDemo, examStateRef]);
+  }, [isExamStarted, timeLeft, examResult]);
 
-  // Sync state to Firestore on change
-  const saveProgress = useCallback((updatedIndex?: number, updatedAnswers?: any) => {
-    if (isDemo || !examStateRef || !isExamStarted) return;
-    
-    setDoc(examStateRef, {
-      currentQuestionIndex: updatedIndex !== undefined ? updatedIndex : currentQuestionIndex,
-      answers: updatedAnswers !== undefined ? updatedAnswers : answers,
-      timeLeft: timeLeft,
-      questionIds: sessionQuestionIds,
-      updatedAt: serverTimestamp()
-    }, { merge: true });
-  }, [isDemo, examStateRef, isExamStarted, currentQuestionIndex, answers, timeLeft, sessionQuestionIds]);
+  const startExam = async (resume: boolean = false) => {
+    const examToLoad = resume && savedState ? savedState.selectedExamId : selectedExamId;
+    if (!examToLoad) return;
 
-  const startExam = (resume: boolean = false) => {
-    if (!allQuestions || allQuestions.length === 0) {
-      toast({ variant: "destructive", title: "Erreur", description: "Aucune question disponible." });
-      return;
-    }
+    setIsSubmitting(true);
+    try {
+      const qSnap = await getDocs(query(collection(db, 'exams', examToLoad, 'questions'), where('isActive', '==', true)));
+      const questions = qSnap.docs.map(d => ({ ...d.data(), id: d.id }));
 
-    if (resume && savedState) {
-      setSessionQuestionIds(savedState.questionIds || []);
-      setAnswers(savedState.answers || {});
-      setCurrentQuestionIndex(savedState.currentQuestionIndex || 0);
-      setTimeLeft(savedState.timeLeft || 0);
+      if (questions.length === 0) {
+        toast({ variant: "destructive", title: "Erreur", description: "Aucune question dans cet examen." });
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (resume && savedState) {
+        setExamQuestions(questions.filter(q => savedState.questionIds.includes(q.id)));
+        setSessionQuestionIds(savedState.questionIds || []);
+        setAnswers(savedState.answers || {});
+        setCurrentQuestionIndex(savedState.currentQuestionIndex || 0);
+        setTimeLeft(savedState.timeLeft || 0);
+        setSelectedExamId(savedState.selectedExamId);
+      } else {
+        const pool = [...questions].sort(() => 0.5 - Math.random());
+        const selected = pool.slice(0, isDemo ? 10 : 180);
+        const ids = selected.map(q => q.id);
+        
+        setExamQuestions(selected);
+        setSessionQuestionIds(ids);
+        setTimeLeft(ids.length * 120);
+        setCurrentQuestionIndex(0);
+        setAnswers({});
+        setExamResult(null);
+        
+        if (!isDemo && examStateRef) {
+          await setDoc(examStateRef, {
+            selectedExamId: examToLoad,
+            questionIds: ids,
+            currentQuestionIndex: 0,
+            answers: {},
+            timeLeft: ids.length * 120,
+            updatedAt: serverTimestamp()
+          });
+        }
+      }
       setIsExamStarted(true);
       setIsReviewMode(false);
-      return;
+    } catch (e) {
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible de charger l'examen." });
+    } finally {
+      setIsSubmitting(false);
     }
+  };
 
-    const pool = [...allQuestions].sort(() => 0.5 - Math.random());
-    const selected = pool.slice(0, isDemo ? 10 : 180);
-    const ids = selected.map(q => q.id);
+  const handleFinishExam = async () => {
+    if (examQuestions.length === 0) return;
+    setIsSubmitting(true);
     
-    setSessionQuestionIds(ids);
-    setTimeLeft(ids.length * 120);
-    setCurrentQuestionIndex(0);
-    setAnswers({});
-    setExamResult(null);
-    setIsExamStarted(true);
-    setIsReviewMode(false);
+    let score = 0;
+    examQuestions.forEach(q => {
+      const userAns = answers[q.id] || [];
+      const correctAns = q.correctOptionIds || [];
+      if (userAns.length === correctAns.length && userAns.every(val => correctAns.includes(val))) {
+        score++;
+      }
+    });
+
+    setExamResult({ score, total: examQuestions.length });
+    setIsSubmitting(false);
 
     if (!isDemo && examStateRef) {
-      setDoc(examStateRef, {
-        questionIds: ids,
-        currentQuestionIndex: 0,
-        answers: {},
-        timeLeft: ids.length * 120,
-        updatedAt: serverTimestamp()
-      });
+      await deleteDoc(examStateRef);
     }
   };
 
@@ -143,135 +172,58 @@ export default function ExamPage() {
     return `${h > 0 ? h + ':' : ''}${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const toggleOption = (questionId: string, optionId: string, isMultiple: boolean) => {
-    if (isReviewMode) return;
-    const current = answers[questionId] || [];
-    let newAnswers;
-    if (isMultiple) {
-      if (current.includes(optionId)) {
-        newAnswers = { ...answers, [questionId]: current.filter(id => id !== optionId) };
-      } else {
-        newAnswers = { ...answers, [questionId]: [...current, optionId] };
-      }
-    } else {
-      newAnswers = { ...answers, [questionId]: [optionId] };
-    }
-    setAnswers(newAnswers);
-    saveProgress(undefined, newAnswers);
-  };
-
-  const handleFinishExam = async () => {
-    if (activeQuestions.length === 0) return;
-    setIsSubmitting(true);
-    
-    let score = 0;
-    activeQuestions.forEach(q => {
-      const userAns = answers[q.id] || [];
-      const correctAns = q.correctOptionIds || [];
-      
-      if (userAns.length === correctAns.length && userAns.every(val => correctAns.includes(val))) {
-        score++;
-      }
-    });
-
-    setExamResult({ score, total: activeQuestions.length });
-    setIsSubmitting(false);
-
-    if (!isDemo && examStateRef) {
-      await deleteDoc(examStateRef);
-    }
-  };
-
-  if (isUserLoading || isQuestionsLoading || isStateLoading) {
-    return (
-      <div className="h-[60vh] flex flex-col items-center justify-center gap-4">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="text-muted-foreground animate-pulse">Chargement de votre session...</p>
-      </div>
-    );
+  if (isUserLoading || isStateLoading) {
+    return <div className="h-[60vh] flex items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
   }
 
-  if (isReviewMode && examResult) {
-    const currentQuestion = activeQuestions[currentQuestionIndex];
-    const userAns = answers[currentQuestion.id] || [];
-    const correctAns = currentQuestion.correctOptionIds || [];
-    const isCorrect = userAns.length === correctAns.length && userAns.every(val => correctAns.includes(val));
+  if (examResult) {
+    const percentage = Math.round((examResult.score / examResult.total) * 100);
+    const getAppreciation = (pct: number) => {
+      if (pct < 50) return { label: "NEEDS IMPROVEMENT", index: 0, color: "bg-red-500" };
+      if (pct < 65) return { label: "BELOW TARGET", index: 1, color: "bg-amber-400" };
+      if (pct < 80) return { label: "TARGET", index: 2, color: "bg-emerald-400" };
+      return { label: "ABOVE TARGET", index: 3, color: "bg-teal-600" };
+    };
+    const app = getAppreciation(percentage);
 
     return (
-      <div className="max-w-4xl mx-auto space-y-6 animate-fade-in pb-20">
-        <div className="flex items-center justify-between border-b pb-4">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" onClick={() => setIsReviewMode(false)}>
-              <ChevronLeft className="mr-2 h-4 w-4" /> Retour au score
-            </Button>
-            <h2 className="text-2xl font-bold">Révision des questions</h2>
-          </div>
-          <Badge variant="outline" className="text-lg font-mono">
-            {currentQuestionIndex + 1} / {activeQuestions.length}
-          </Badge>
-        </div>
-
-        <Card className={`shadow-xl border-t-4 ${isCorrect ? 'border-t-emerald-500' : 'border-t-destructive'}`}>
-          <CardHeader>
-            <div className="flex justify-between items-start mb-2">
-              <Badge variant={isCorrect ? "default" : "destructive"} className={isCorrect ? "bg-emerald-500" : ""}>
-                {isCorrect ? "Correct" : "Incorrect"}
-              </Badge>
-              <Badge variant="secondary">{currentQuestion.category || 'PMP Knowledge'}</Badge>
-            </div>
-            <CardTitle className="text-xl md:text-2xl leading-relaxed">
-              {currentQuestion.statement}
-            </CardTitle>
+      <div className="max-w-4xl mx-auto py-10 space-y-8 animate-fade-in">
+        <Card className="shadow-2xl">
+          <CardHeader className="border-b">
+            <CardTitle>Résultat Simulation - {EXAMS.find(e => e.id === selectedExamId)?.title}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid gap-3">
-              {currentQuestion.options.map((opt: any, idx: number) => {
-                const isSelected = userAns.includes(opt.id);
-                const isOptionCorrect = correctAns.includes(opt.id);
-                
-                let borderColor = 'border-transparent bg-secondary/30';
-                if (isOptionCorrect) borderColor = 'border-emerald-500 bg-emerald-50';
-                else if (isSelected && !isOptionCorrect) borderColor = 'border-destructive bg-destructive/5';
-
-                return (
-                  <div 
-                    key={opt.id}
-                    className={`flex items-start gap-4 p-4 rounded-xl border-2 transition-all ${borderColor}`}
-                  >
-                    <div className="pt-1">
-                      {isOptionCorrect ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : isSelected ? <XCircle className="h-5 w-5 text-destructive" /> : <div className="h-5 w-5" />}
-                    </div>
-                    <div className="flex-1 text-sm md:text-base">
-                      <span className="font-bold mr-2">{String.fromCharCode(65 + idx)}.</span>
-                      {opt.text}
-                    </div>
-                  </div>
-                );
-              })}
+          <CardContent className="py-10 space-y-12">
+            <div className="relative mt-8 mb-16 w-full max-w-2xl mx-auto">
+              <div className="flex w-full h-10 border rounded-sm overflow-hidden bg-muted/20">
+                {[0, 1, 2, 3].map(idx => (
+                  <div key={idx} className={`w-1/4 border-r last:border-0 ${app.index === idx ? app.color : 'opacity-20'}`} />
+                ))}
+              </div>
+              <div className="absolute top-[-30px] w-full flex justify-between text-[10px] font-bold text-muted-foreground uppercase">
+                <span>Needs Imp.</span>
+                <span>Below Target</span>
+                <span>Target</span>
+                <span>Above Target</span>
+              </div>
+              <div className="absolute bottom-[-25px] w-full flex justify-center">
+                 <Badge variant="outline" className="font-bold text-primary uppercase">{app.label}</Badge>
+              </div>
             </div>
 
-            <div className="p-6 bg-muted/50 rounded-xl border-l-4 border-l-primary space-y-3">
-              <h4 className="font-bold flex items-center gap-2 text-primary">
-                <Info className="h-5 w-5" /> Explication & Mindset PMI
-              </h4>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                {currentQuestion.explanation || "Aucune explication fournie pour cette question."}
-              </p>
+            <div className="text-center space-y-4">
+               <p className="text-5xl font-black text-primary">{percentage}%</p>
+               <p className="text-muted-foreground">{examResult.score} / {examResult.total} questions correctes</p>
+               <p className="text-[10px] italic text-muted-foreground mt-6">
+                 « Les pourcentages affichés sont des estimations pédagogiques. Le PMI ne communique pas de score chiffré officiel. »
+               </p>
             </div>
           </CardContent>
-          <CardFooter className="flex justify-between border-t p-6">
-            <Button 
-              variant="outline" 
-              onClick={() => setCurrentQuestionIndex(Math.max(0, currentQuestionIndex - 1))}
-              disabled={currentQuestionIndex === 0}
-            >
-              Précédent
+          <CardFooter className="flex gap-4 p-6 bg-muted/20">
+            <Button variant="outline" className="flex-1" onClick={() => { setIsReviewMode(true); setCurrentQuestionIndex(0); }}>
+              EXPLICATIONS
             </Button>
-            <Button 
-              onClick={() => setCurrentQuestionIndex(Math.min(activeQuestions.length - 1, currentQuestionIndex + 1))}
-              disabled={currentQuestionIndex === activeQuestions.length - 1}
-            >
-              Suivant
+            <Button className="flex-1" onClick={() => { setExamResult(null); setIsExamStarted(false); setSelectedExamId(null); }}>
+              TERMINER
             </Button>
           </CardFooter>
         </Card>
@@ -279,119 +231,44 @@ export default function ExamPage() {
     );
   }
 
-  if (examResult) {
-    const percentage = Math.round((examResult.score / examResult.total) * 100);
+  if (isReviewMode) {
+    const q = examQuestions[currentQuestionIndex];
+    const userAns = answers[q.id] || [];
+    const isCorrect = userAns.length === q.correctOptionIds.length && userAns.every(v => q.correctOptionIds.includes(v));
     
-    const getAppreciation = (pct: number) => {
-      if (pct < 50) return { label: "NEEDS IMPROVEMENT", color: "bg-red-100", solidColor: "bg-red-400", index: 0 };
-      if (pct < 65) return { label: "BELOW TARGET", color: "bg-amber-100", solidColor: "bg-amber-400", index: 1 };
-      if (pct < 80) return { label: "TARGET", color: "bg-emerald-100", solidColor: "bg-emerald-400", index: 2 };
-      return { label: "ABOVE TARGET", color: "bg-teal-100", solidColor: "bg-teal-600", index: 3 };
-    };
-
-    const appreciation = getAppreciation(percentage);
-    const isSuccess = percentage >= 65;
-
-    // Calcul de la position visuelle sur la barre (4 zones de 25% chacune)
-    const calculateVisualPosition = (pct: number) => {
-      if (pct < 50) return (pct / 50) * 25;
-      if (pct < 65) return 25 + ((pct - 50) / 15) * 25;
-      if (pct < 80) return 50 + ((pct - 65) / 15) * 25;
-      return 75 + ((pct - 80) / 20) * 25;
-    };
-    const visualPosition = calculateVisualPosition(percentage);
-
     return (
-      <div className="max-w-4xl mx-auto space-y-8 animate-fade-in py-12">
-        <Card className="shadow-2xl overflow-visible border-none">
+      <div className="max-w-4xl mx-auto space-y-6 pb-20">
+        <Button variant="ghost" onClick={() => setIsReviewMode(false)}><ChevronLeft /> Retour aux résultats</Button>
+        <Card className={`border-t-4 ${isCorrect ? 'border-t-emerald-500' : 'border-t-red-500'}`}>
           <CardHeader>
-            <CardTitle className="text-2xl font-bold border-b pb-4">
-              Your Overall Score Performance: <span className="text-[#0369a1]">{isSuccess ? "Pass" : "Fail"}</span>
-              {isSuccess && <p className="text-xs font-normal text-muted-foreground mt-1">Congratulations on earning your certification!</p>}
-            </CardTitle>
+            <div className="flex justify-between mb-2">
+               <Badge variant={isCorrect ? "default" : "destructive"}>{isCorrect ? "Correct" : "Incorrect"}</Badge>
+               <span className="text-xs font-mono">{currentQuestionIndex + 1} / {examQuestions.length}</span>
+            </div>
+            <CardTitle className="text-xl">{q.statement}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-12 py-10">
-            {/* PMP Official Style Visual Chart */}
-            <div className="relative mt-12 mb-20 w-full max-w-3xl mx-auto">
-              {/* Top Labels (Falling / Passing) */}
-              <div className="flex w-full text-[10px] font-bold text-muted-foreground mb-2 relative px-1">
-                <div className="w-[50%] text-center pr-4">Falling</div>
-                <div className="absolute left-1/2 top-0 h-4 border-l border-sky-400 opacity-50" />
-                <div className="w-[50%] text-center pl-4">Passing</div>
-              </div>
-
-              {/* The 4-Zone Bar Container */}
-              <div className="relative flex w-full h-12 border border-sky-100 rounded-sm overflow-visible bg-white">
-                {/* Zone 1: Needs Improvement (0-25%) */}
-                <div className={`w-1/4 h-full border-r border-sky-50 transition-opacity duration-500 ${appreciation.index === 0 ? 'bg-red-400' : 'bg-red-100 opacity-40'}`} />
-                {/* Zone 2: Below Target (25-50%) */}
-                <div className={`w-1/4 h-full border-r border-sky-50 transition-opacity duration-500 ${appreciation.index === 1 ? 'bg-amber-400' : 'bg-amber-100 opacity-40'}`} />
-                {/* Zone 3: Target (50-75%) */}
-                <div className={`w-1/4 h-full border-r border-sky-50 transition-opacity duration-500 ${appreciation.index === 2 ? 'bg-emerald-400' : 'bg-emerald-100 opacity-40'}`} />
-                {/* Zone 4: Above Target (75-100%) */}
-                <div className={`w-1/4 h-full transition-opacity duration-500 ${appreciation.index === 3 ? 'bg-teal-600' : 'bg-teal-100 opacity-40'}`} />
-
-                {/* Vertical Cursor Indicator */}
-                <div 
-                  className="absolute top-0 bottom-0 flex flex-col items-center z-30 transition-all duration-1000 ease-out"
-                  style={{ left: `${visualPosition}%`, transform: 'translateX(-50%)' }}
-                >
-                  {/* YOU Label & Top Marker */}
-                  <div className="absolute -top-8 flex flex-col items-center">
-                    <span className="text-[11px] font-black text-black">YOU</span>
-                    <div className="h-3 w-0.5 bg-black" />
+          <CardContent className="space-y-6">
+            <div className="space-y-3">
+              {q.options.map((opt: any, idx: number) => {
+                const isSelected = userAns.includes(opt.id);
+                const isCorrectOpt = q.correctOptionIds.includes(opt.id);
+                return (
+                  <div key={opt.id} className={`p-4 rounded-xl border-2 flex items-center gap-4 ${isCorrectOpt ? 'border-emerald-500 bg-emerald-50' : isSelected ? 'border-red-500 bg-red-50' : 'border-muted'}`}>
+                    <div className="font-bold">{String.fromCharCode(65 + idx)}.</div>
+                    <div className="flex-1">{opt.text}</div>
+                    {isCorrectOpt && <CheckCircle2 className="text-emerald-500" />}
                   </div>
-                  
-                  {/* Bottom Marker */}
-                  <div className="absolute -bottom-3 flex flex-col items-center">
-                    <div className="h-3 w-0.5 bg-black" />
-                    {/* Appraisal Label under the marker */}
-                    <span className="text-[10px] font-bold text-[#0369a1] whitespace-nowrap mt-1 uppercase">
-                      {appreciation.label}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bottom Labels for Zones */}
-              <div className="flex w-full mt-2 text-[9px] font-semibold text-muted-foreground/60 px-0.5">
-                <div className="w-1/4 text-left">Needs Improvement</div>
-                <div className="w-1/4 text-left">Below Target</div>
-                <div className="w-1/4 text-left">Target</div>
-                <div className="w-1/4 text-left">Above Target</div>
-              </div>
+                );
+              })}
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t">
-              <div className="space-y-2">
-                <p className="text-muted-foreground text-sm">Score estimé</p>
-                <div className="text-5xl font-black text-primary">{percentage}%</div>
-              </div>
-              <div className="space-y-4">
-                <p className="text-muted-foreground text-sm">Détails</p>
-                <p className="text-sm font-medium">
-                   {examResult.score} / {examResult.total} questions correctes
-                </p>
-                <Badge variant="outline" className={`text-xs px-3 py-1 ${appreciation.color}`}>
-                  Status: <strong>{appreciation.label}</strong>
-                </Badge>
-              </div>
-            </div>
-
-            <div className="pt-6">
-              <p className="text-[11px] text-muted-foreground italic max-w-lg mx-auto leading-relaxed border-t pt-4 text-center">
-                « Les pourcentages affichés sont des estimations pédagogiques. 
-                Le PMI ne communique pas de score chiffré officiel pour l’examen PMP® »
-              </p>
+            <div className="p-4 bg-primary/5 rounded-xl border-l-4 border-l-primary">
+              <h4 className="font-bold mb-2 flex items-center gap-2"><Info className="h-4 w-4" /> Explication</h4>
+              <p className="text-sm">{q.explanation || "Pas d'explication."}</p>
             </div>
           </CardContent>
-          <CardFooter className="flex gap-4 p-6 bg-muted/20 rounded-b-lg">
-            <Button onClick={() => { setIsReviewMode(true); setCurrentQuestionIndex(0); }} variant="outline" className="flex-1 h-12 shadow-sm font-bold">
-              <BookOpen className="mr-2 h-4 w-4" /> EXPLICATIONS
-            </Button>
-            <Button onClick={() => setExamResult(null)} className="flex-1 h-12 shadow-md font-bold">
-              <PlayCircle className="mr-2 h-4 w-4" /> NOUVELLE SIMULATION
-            </Button>
+          <CardFooter className="justify-between">
+            <Button variant="outline" onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))} disabled={currentQuestionIndex === 0}>Précédent</Button>
+            <Button onClick={() => setCurrentQuestionIndex(prev => Math.min(examQuestions.length - 1, prev + 1))} disabled={currentQuestionIndex === examQuestions.length - 1}>Suivant</Button>
           </CardFooter>
         </Card>
       </div>
@@ -400,140 +277,86 @@ export default function ExamPage() {
 
   if (!isExamStarted) {
     return (
-      <div className="max-w-3xl mx-auto space-y-8 animate-fade-in">
-        <div className="flex flex-col items-center text-center space-y-4">
-          <div className="bg-primary/10 p-4 rounded-2xl">
-            <PlayCircle className="h-12 w-12 text-primary" />
-          </div>
+      <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
+        <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold text-primary">Simulation d'Examen PMP</h1>
-          <p className="text-muted-foreground">Reprenez votre progression ou lancez une nouvelle session.</p>
+          <p className="text-muted-foreground">Sélectionnez l'examen que vous souhaitez passer.</p>
         </div>
 
         {savedState && (
-          <Card className="border-primary bg-primary/5 shadow-lg animate-pulse hover:animate-none">
-            <CardContent className="p-6 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <HistoryIcon className="h-10 w-10 text-primary" />
-                <div>
-                  <h3 className="font-bold text-lg">Examen en cours détecté</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Question {savedState.currentQuestionIndex + 1} • {formatTime(savedState.timeLeft)} restants
-                  </p>
-                </div>
-              </div>
-              <Button onClick={() => startExam(true)} size="lg" className="bg-primary hover:bg-primary/90">
-                Reprendre <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
-            </CardContent>
+          <Card className="border-primary bg-primary/5 p-6 flex items-center justify-between">
+            <div>
+              <h3 className="font-bold">Session en cours détectée</h3>
+              <p className="text-sm text-muted-foreground">Examen: {EXAMS.find(e => e.id === savedState.selectedExamId)?.title}</p>
+            </div>
+            <Button onClick={() => startExam(true)} disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="animate-spin" /> : "Reprendre"}
+            </Button>
           </Card>
         )}
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Clock className="h-5 w-5 text-primary" /> Conditions
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-muted-foreground">Questions</span>
-                <span className="font-bold">{isDemo ? 10 : 180}</span>
-              </div>
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-muted-foreground">Temps estimé</span>
-                <span className="font-bold">{isDemo ? '20' : '230'} min</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-amber-50 border-amber-200">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2 text-amber-800">
-                <AlertCircle className="h-5 w-5" /> Persistence
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-amber-900">
-              Votre progression est sauvegardée automatiquement à chaque réponse. Vous pouvez quitter et revenir plus tard pour finir votre session.
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {EXAMS.map(exam => (
+            <Card key={exam.id} className={`hover:ring-2 hover:ring-primary transition-all cursor-pointer ${selectedExamId === exam.id ? 'ring-2 ring-primary bg-primary/5' : ''}`} onClick={() => setSelectedExamId(exam.id)}>
+              <CardHeader>
+                <CardTitle className="text-lg">{exam.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">{exam.desc}</p>
+              </CardContent>
+              <CardFooter>
+                <Button variant={selectedExamId === exam.id ? "default" : "outline"} className="w-full">
+                  {selectedExamId === exam.id ? "Sélectionné" : "Choisir"}
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
         </div>
 
-        <Button 
-          onClick={() => startExam(false)} 
-          size="lg" 
-          variant={savedState ? "outline" : "default"}
-          className="w-full h-16 text-xl font-bold"
-        >
-          {savedState ? "Démarrer une nouvelle simulation" : "Lancer la simulation"} 
-          <ChevronRight className="ml-2 h-6 w-6" />
+        <Button size="lg" className="w-full h-16 text-xl font-bold" disabled={!selectedExamId || isSubmitting} onClick={() => startExam(false)}>
+          {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : <PlayCircle className="mr-2 h-6 w-6" />}
+          Démarrer l'examen
         </Button>
       </div>
     );
   }
 
-  const currentQuestion = activeQuestions[currentQuestionIndex];
-  const progress = ((currentQuestionIndex + 1) / activeQuestions.length) * 100;
-
-  if (!currentQuestion) return <div className="text-center p-20"><Loader2 className="animate-spin inline mr-2" /> Préparation des questions...</div>;
+  const q = examQuestions[currentQuestionIndex];
+  const progress = ((currentQuestionIndex + 1) / examQuestions.length) * 100;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-fade-in pb-20">
-      {/* Exam Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur py-4 border-b space-y-4">
-        <div className="flex items-center justify-between px-2">
-          <div className="flex items-center gap-4">
-            <Badge variant="outline" className="text-lg font-mono px-3 py-1">
-              Q {currentQuestionIndex + 1} / {activeQuestions.length}
-            </Badge>
-            <div className="flex items-center gap-2 text-primary font-bold">
-              <Clock className="h-5 w-5" /> {formatTime(timeLeft)}
-            </div>
-          </div>
-          <Button variant="destructive" size="sm" onClick={() => { if(confirm("Terminer et soumettre l'examen ?")) handleFinishExam() }}>
-            <Send className="mr-2 h-4 w-4" /> Terminer
-          </Button>
+    <div className="max-w-4xl mx-auto space-y-6 pb-24">
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur py-4 border-b space-y-4">
+        <div className="flex justify-between items-center">
+           <Badge variant="outline" className="text-lg font-mono">Q {currentQuestionIndex + 1} / {examQuestions.length}</Badge>
+           <div className="flex items-center gap-2 font-bold text-primary"><Clock className="h-5 w-5" /> {formatTime(timeLeft)}</div>
+           <Button variant="destructive" size="sm" onClick={() => confirm("Soumettre l'examen ?") && handleFinishExam()}>Soumettre</Button>
         </div>
         <Progress value={progress} className="h-2" />
       </div>
 
-      {/* Question Content */}
-      <Card className="shadow-xl border-t-4 border-t-primary min-h-[400px]">
+      <Card className="shadow-xl border-t-4 border-t-primary">
         <CardHeader>
-          <div className="flex justify-between items-start mb-2">
-            <Badge variant="secondary">{currentQuestion.category || 'PMP Knowledge'}</Badge>
-            {currentQuestion.isMultipleCorrect && (
-              <Badge variant="outline" className="text-amber-600 border-amber-200">Choix Multiples</Badge>
-            )}
-          </div>
-          <CardTitle className="text-xl md:text-2xl leading-relaxed font-semibold">
-            {currentQuestion.statement}
-          </CardTitle>
+          <CardTitle className="text-xl leading-relaxed">{q.statement}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3">
-            {currentQuestion.options.map((opt: any, idx: number) => {
-              const isSelected = answers[currentQuestion.id]?.includes(opt.id);
-              
+            {q.options.map((opt: any, idx: number) => {
+              const isSelected = answers[q.id]?.includes(opt.id);
               return (
-                <div 
-                  key={opt.id}
-                  onClick={() => toggleOption(currentQuestion.id, opt.id, !!currentQuestion.isMultipleCorrect)}
-                  className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all hover:bg-muted/50 ${isSelected ? 'border-primary bg-primary/5 shadow-inner' : 'border-transparent bg-secondary/30'}`}
-                >
-                  <div className="pt-1">
-                    {currentQuestion.isMultipleCorrect ? (
-                      <Checkbox checked={isSelected} />
-                    ) : (
-                      <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-primary' : 'border-muted-foreground'}`}>
-                        {isSelected && <div className="h-2.5 w-2.5 rounded-full bg-primary" />}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 text-sm md:text-base">
-                    <span className="font-bold mr-2">{String.fromCharCode(65 + idx)}.</span>
-                    {opt.text}
-                  </div>
+                <div key={opt.id} onClick={() => {
+                  const current = answers[q.id] || [];
+                  let newAns;
+                  if (q.isMultipleCorrect) {
+                    newAns = isSelected ? current.filter(id => id !== opt.id) : [...current, opt.id];
+                  } else {
+                    newAns = [opt.id];
+                  }
+                  setAnswers({ ...answers, [q.id]: newAns });
+                  saveProgress(undefined, { ...answers, [q.id]: newAns });
+                }} className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-4 ${isSelected ? 'border-primary bg-primary/5' : 'border-muted hover:bg-muted/50'}`}>
+                  <div className="font-bold">{String.fromCharCode(65 + idx)}.</div>
+                  <div className="flex-1">{opt.text}</div>
                 </div>
               );
             })}
@@ -541,42 +364,10 @@ export default function ExamPage() {
         </CardContent>
       </Card>
 
-      {/* Footer Navigation */}
-      <div className="fixed bottom-0 left-64 right-0 p-6 bg-background/80 backdrop-blur border-t z-20">
+      <div className="fixed bottom-0 left-64 right-0 p-6 bg-background border-t">
         <div className="max-w-4xl mx-auto flex justify-between gap-4">
-          <Button 
-            variant="outline" 
-            onClick={() => {
-              const nextIdx = Math.max(0, currentQuestionIndex - 1);
-              setCurrentQuestionIndex(nextIdx);
-              saveProgress(nextIdx);
-            }}
-            disabled={currentQuestionIndex === 0}
-            className="flex-1 h-12"
-          >
-            <ChevronLeft className="mr-2 h-4 w-4" /> Précédent
-          </Button>
-          
-          {currentQuestionIndex < activeQuestions.length - 1 ? (
-            <Button 
-              onClick={() => {
-                const nextIdx = currentQuestionIndex + 1;
-                setCurrentQuestionIndex(nextIdx);
-                saveProgress(nextIdx);
-              }}
-              className="flex-1 h-12 shadow-lg"
-            >
-              Suivant <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
-          ) : (
-            <Button 
-              onClick={handleFinishExam}
-              disabled={isSubmitting}
-              className="flex-1 h-12 bg-emerald-600 hover:bg-emerald-700 shadow-lg"
-            >
-              {isSubmitting ? <Loader2 className="animate-spin" /> : <><CheckCircle2 className="mr-2 h-4 w-4" /> Soumettre</>}
-            </Button>
-          )}
+          <Button variant="outline" className="flex-1" onClick={() => setCurrentQuestionIndex(p => Math.max(0, p - 1))} disabled={currentQuestionIndex === 0}>Précédent</Button>
+          <Button className="flex-1" onClick={() => setCurrentQuestionIndex(p => Math.min(examQuestions.length - 1, p + 1))} disabled={currentQuestionIndex === examQuestions.length - 1}>Suivant</Button>
         </div>
       </div>
     </div>
