@@ -22,7 +22,8 @@ import {
   BookOpen,
   XCircle,
   Info,
-  Check
+  Check,
+  Pause
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
@@ -52,6 +53,7 @@ export default function ExamPage() {
   const [sessionQuestionIds, setSessionQuestionIds] = useState<string[]>([]);
   const [isReviewMode, setIsReviewMode] = useState(false);
   const [examQuestions, setExamQuestions] = useState<any[]>([]);
+  const [isPauseScreenDismissed, setIsPauseScreenDismissed] = useState(false);
 
   // State persistence ref
   const examStateRef = useMemoFirebase(() => {
@@ -170,6 +172,17 @@ export default function ExamPage() {
     }
   };
 
+  const handleCancelExam = async () => {
+    if (isDemo || !examStateRef) return;
+    try {
+      await deleteDoc(examStateRef);
+      setIsPauseScreenDismissed(false);
+      toast({ title: "Session annulée", description: "La simulation a été supprimée." });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible d'annuler la session." });
+    }
+  };
+
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -179,6 +192,43 @@ export default function ExamPage() {
 
   if (isUserLoading || isStateLoading) {
     return <div className="h-[60vh] flex items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
+  }
+
+  // ÉCRAN DE PAUSE (Si session active détectée au chargement)
+  if (savedState && !isExamStarted && !isPauseScreenDismissed && !examResult) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center p-4 animate-fade-in">
+        <Card className="w-full max-w-2xl shadow-2xl border-none">
+          <CardHeader className="text-center pt-12 pb-8">
+            <h1 className="text-6xl font-light text-slate-800 mb-8">Pause</h1>
+            <p className="text-xl text-slate-600">Vous avez une simulation active.</p>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4 px-12 pb-16">
+            <Button 
+              className="w-full h-14 text-lg font-bold bg-[#635BFF] hover:bg-[#5249e0] text-white rounded-md shadow-md uppercase tracking-wider"
+              onClick={() => startExam(true)}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Continuer"}
+            </Button>
+            <Button 
+              variant="outline" 
+              className="w-full h-14 text-lg font-bold text-[#635BFF] border-slate-200 hover:bg-slate-50 rounded-md shadow-sm uppercase tracking-wider"
+              onClick={() => setIsPauseScreenDismissed(true)}
+            >
+              Arreter et Sauvegarder
+            </Button>
+            <Button 
+              variant="outline" 
+              className="w-full h-14 text-lg font-bold text-[#635BFF] border-slate-200 hover:bg-slate-50 rounded-md shadow-sm uppercase tracking-wider"
+              onClick={handleCancelExam}
+            >
+              Arreter et Annuler
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   if (examResult) {
@@ -211,7 +261,6 @@ export default function ExamPage() {
           <CardContent className="py-12 space-y-16 overflow-hidden">
             
             <div className="relative mt-12 mb-20 w-full max-w-3xl mx-auto">
-              {/* FALLING / PASSING Lables */}
               <div className="flex w-full text-[11px] font-bold text-slate-500 uppercase mb-8">
                  <div className="w-1/2 text-center">Falling</div>
                  <div className="w-1/2 text-center relative">
@@ -220,7 +269,6 @@ export default function ExamPage() {
                  </div>
               </div>
 
-              {/* segments container */}
               <div className="relative flex w-full h-12 rounded-xl overflow-hidden border">
                 <div className={`w-1/4 h-full border-r bg-red-500 ${app.index === 0 ? 'opacity-100' : 'opacity-20'}`} />
                 <div className={`w-1/4 h-full border-r bg-amber-400 ${app.index === 1 ? 'opacity-100' : 'opacity-20'}`} />
@@ -228,7 +276,6 @@ export default function ExamPage() {
                 <div className={`w-1/4 h-full bg-teal-600 ${app.index === 3 ? 'opacity-100' : 'opacity-20'}`} />
               </div>
 
-              {/* Marker "YOU" */}
               <div 
                 className="absolute top-[-30px] transition-all duration-1000 ease-out flex flex-col items-center pointer-events-none" 
                 style={{ left: `${markerPosition}%`, transform: 'translateX(-50%)' }}
@@ -241,7 +288,6 @@ export default function ExamPage() {
                 </span>
               </div>
 
-              {/* Labels centered under segments */}
               <div className="w-full flex mt-4 text-[9px] font-semibold text-slate-400 uppercase">
                 <div className="w-1/4 text-center">Needs Improvement</div>
                 <div className="w-1/4 text-center">Below Target</div>
@@ -266,7 +312,7 @@ export default function ExamPage() {
             <Button variant="outline" className="flex-1 font-bold h-12" onClick={() => { setIsReviewMode(true); setCurrentQuestionIndex(0); }}>
               EXPLICATIONS
             </Button>
-            <Button className="flex-1 font-bold h-12" onClick={() => { setExamResult(null); setIsExamStarted(false); setSelectedExamId(null); }}>
+            <Button className="flex-1 font-bold h-12" onClick={() => { setExamResult(null); setIsExamStarted(false); setSelectedExamId(null); setIsPauseScreenDismissed(false); }}>
               RETOUR ACCUEIL
             </Button>
           </CardFooter>
