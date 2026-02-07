@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, UserPlus, ChevronLeft, Users, ShieldCheck, User, MoreHorizontal, Clock, AlertTriangle, Key, Trash2, Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { Loader2, UserPlus, ChevronLeft, Users, ShieldCheck, User, MoreHorizontal, Clock, AlertTriangle, Key, Trash2, Eye, EyeOff, Lock, Mail, TrendingUp, BarChart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
@@ -38,7 +38,6 @@ export default function UsersListPage() {
   const [userToDelete, setUserToDelete] = useState<any | null>(null);
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   
-  // State for password change dialog
   const [passwordChangeUser, setPasswordChangeUser] = useState<any | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -73,16 +72,9 @@ export default function UsersListPage() {
   const handleSendResetEmail = async (email: string) => {
     try {
       await sendPasswordResetEmail(auth, email);
-      toast({ 
-        title: "Email envoyé", 
-        description: `Un lien de réinitialisation a été envoyé à ${email}.` 
-      });
+      toast({ title: "Email envoyé", description: `Un lien de réinitialisation a été envoyé à ${email}.` });
     } catch (e: any) {
-      toast({ 
-        variant: "destructive", 
-        title: "Erreur", 
-        description: "Impossible d'envoyer l'email." 
-      });
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible d'envoyer l'email." });
     }
   };
 
@@ -98,15 +90,11 @@ export default function UsersListPage() {
         password: newPassword,
         updatedAt: Timestamp.now()
       });
-
-      toast({ 
-        title: "Record SIMOVEX mis à jour", 
-        description: `Note: Pour que l'utilisateur puisse se connecter avec ce nouveau mot de passe, il doit utiliser le lien de réinitialisation email.` 
-      });
+      toast({ title: "Record mis à jour" });
       setPasswordChangeUser(null);
       setNewPassword('');
     } catch (e) {
-      toast({ variant: "destructive", title: "Erreur", description: "Impossible de mettre à jour le record." });
+      toast({ variant: "destructive", title: "Erreur" });
     } finally {
       setIsChangingPassword(false);
     }
@@ -119,27 +107,32 @@ export default function UsersListPage() {
       if (userToDelete.role === 'admin' || userToDelete.role === 'super_admin') {
         await deleteDoc(doc(db, 'roles_admin', userToDelete.id));
       }
-      toast({ title: "Supprimé", description: "Le profil utilisateur a été supprimé." });
+      toast({ title: "Supprimé" });
       setUserToDelete(null);
     } catch (e) {
-      toast({ variant: "destructive", title: "Erreur", description: "Impossible de supprimer." });
+      toast({ variant: "destructive", title: "Erreur" });
     }
   };
 
-  const togglePasswordVisibility = (userId: string) => {
-    setShowPasswords(prev => ({ ...prev, [userId]: !prev[userId] }));
+  const formatTime = (seconds: number) => {
+    if (!seconds) return '0m';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+  };
+
+  const formatDate = (ts: any) => {
+    if (!ts) return '-';
+    const date = ts?.toDate ? ts.toDate() : new Date(ts);
+    return date.toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
   };
 
   const getStatusBadge = (user: any) => {
     const expiresAt = user.expiresAt?.seconds ? new Date(user.expiresAt.seconds * 1000) : null;
     const isExpired = expiresAt && expiresAt < new Date();
-    
     if (user.status === 'disabled') return <Badge variant="destructive">Désactivé</Badge>;
     if (isExpired) return <Badge variant="destructive" className="bg-orange-600 hover:bg-orange-700"><Clock className="mr-1 h-3 w-3" /> Expiré</Badge>;
-    
-    const daysLeft = expiresAt ? Math.ceil((expiresAt.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null;
-    if (daysLeft && daysLeft <= 7) return <Badge variant="secondary" className="bg-amber-100 text-amber-700 border-amber-200"><AlertTriangle className="mr-1 h-3 w-3" /> J-{daysLeft}</Badge>;
-    
     return <Badge className="bg-emerald-500 hover:bg-emerald-600">Actif</Badge>;
   };
 
@@ -148,15 +141,15 @@ export default function UsersListPage() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-8 max-w-[1600px] mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild><Link href="/admin/dashboard"><ChevronLeft /></Link></Button>
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Users className="h-8 w-8 text-accent" /> Gestion des Utilisateurs
+              <Users className="h-8 w-8 text-accent" /> Gestion Globale des Utilisateurs
             </h1>
-            <p className="text-muted-foreground">{users?.length || 0} comptes enregistrés</p>
+            <p className="text-muted-foreground">{users?.length || 0} participants actifs</p>
           </div>
         </div>
         <Button asChild className="bg-accent hover:bg-accent/90">
@@ -164,52 +157,49 @@ export default function UsersListPage() {
         </Button>
       </div>
 
-      <Card className="shadow-lg">
+      <Card className="shadow-lg border-none overflow-hidden">
         <CardContent className="p-0">
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-muted/50">
               <TableRow>
                 <TableHead>Utilisateur</TableHead>
-                <TableHead>Rôle</TableHead>
-                <TableHead>Mot de passe (Record)</TableHead>
+                <TableHead className="text-center"><BarChart className="h-4 w-4 inline mr-1" /> Moyenne</TableHead>
+                <TableHead className="text-center"><TrendingUp className="h-4 w-4 inline mr-1" /> Simulations</TableHead>
+                <TableHead className="text-center"><Clock className="h-4 w-4 inline mr-1" /> Temps Total</TableHead>
+                <TableHead>Dernière Connexion</TableHead>
                 <TableHead>Statut</TableHead>
-                <TableHead>Expiration</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users?.map((u) => (
-                <TableRow key={u.id} className="hover:bg-muted/30">
+              {users?.sort((a,b) => (b.lastLoginAt?.seconds || 0) - (a.lastLoginAt?.seconds || 0)).map((u) => (
+                <TableRow key={u.id} className="hover:bg-muted/20">
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center font-bold text-sm text-primary">
+                      <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center font-bold text-xs text-primary">
                         {u.firstName?.[0]}{u.lastName?.[0]}
                       </div>
                       <div>
-                        <div className="font-bold">{u.firstName} {u.lastName}</div>
-                        <div className="text-xs text-muted-foreground">{u.email}</div>
+                        <div className="font-bold text-sm">{u.firstName} {u.lastName}</div>
+                        <div className="text-[10px] text-muted-foreground">{u.email}</div>
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    {u.role === 'super_admin' || u.role === 'admin' ? (
-                      <Badge className="bg-primary/10 text-primary border-primary/20 gap-1"><ShieldCheck className="h-3 w-3" /> {u.role === 'super_admin' ? 'Super Admin' : 'Admin'}</Badge>
-                    ) : (
-                      <Badge variant="outline" className="gap-1"><User className="h-3 w-3" /> User</Badge>
-                    )}
+                  <TableCell className="text-center">
+                    <span className={`font-bold ${u.averageScore >= 80 ? 'text-emerald-600' : u.averageScore >= 65 ? 'text-blue-600' : 'text-slate-500'}`}>
+                      {u.averageScore || 0}%
+                    </span>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2 font-mono text-xs">
-                      {showPasswords[u.id] ? u.password || 'Non défini' : '••••••••'}
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => togglePasswordVisibility(u.id)}>
-                        {showPasswords[u.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                      </Button>
-                    </div>
+                  <TableCell className="text-center">
+                    <Badge variant="outline" className="font-mono">{u.simulationsCount || 0}</Badge>
+                  </TableCell>
+                  <TableCell className="text-center text-xs font-medium">
+                    {formatTime(u.totalTimeSpent)}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {formatDate(u.lastLoginAt)}
                   </TableCell>
                   <TableCell>{getStatusBadge(u)}</TableCell>
-                  <TableCell className="text-xs">
-                    {u.expiresAt ? new Date(u.expiresAt.seconds * 1000).toLocaleDateString() : 'Illimitée'}
-                  </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -218,11 +208,11 @@ export default function UsersListPage() {
                           {u.status === 'disabled' ? 'Réactiver le compte' : 'Désactiver le compte'}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-primary" onClick={() => handleSendResetEmail(u.email)}>
-                          <Mail className="mr-2 h-4 w-4" /> Envoyer Reset Email (Recommandé)
+                        <DropdownMenuItem onClick={() => handleSendResetEmail(u.email)}>
+                          <Mail className="mr-2 h-4 w-4" /> Envoyer Reset Email
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setPasswordChangeUser(u)}>
-                          <Key className="mr-2 h-4 w-4" /> Modifier Record Password
+                          <Key className="mr-2 h-4 w-4" /> Voir/Modif Password Record
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-destructive" onClick={() => setUserToDelete(u)}>
@@ -238,39 +228,22 @@ export default function UsersListPage() {
         </CardContent>
       </Card>
 
-      {/* Password Change Dialog */}
+      {/* Reused Password Dialog from existing codebase */}
       <Dialog open={!!passwordChangeUser} onOpenChange={() => setPasswordChangeUser(null)}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Modifier le record de mot de passe</DialogTitle>
-            <DialogDescription>
-              Mettre à jour le mot de passe visible dans SIMOVEX pour <strong>{passwordChangeUser?.firstName}</strong>.
-            </DialogDescription>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Record de mot de passe</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs flex gap-2">
-              <AlertTriangle className="h-4 w-4 shrink-0" />
-              <p>Attention: Changer cette valeur ne change pas le mot de passe réel de l'utilisateur dans le système d'authentification. Utilisez <strong>l'envoi d'email</strong> pour une réinitialisation effective.</p>
+            <div className="p-3 bg-muted rounded-lg font-mono text-center text-lg font-bold">
+               {passwordChangeUser?.password || 'N/A'}
             </div>
             <div className="space-y-2">
-              <Label>Nouveau mot de passe (SIMOVEX)</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  type="text" 
-                  placeholder="Nouveau mot de passe" 
-                  className="pl-10" 
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                />
-              </div>
+              <Label>Modifier le record SIMOVEX</Label>
+              <Input value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Nouveau mot de passe" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPasswordChangeUser(null)}>Annuler</Button>
-            <Button onClick={handleUpdatePassword} disabled={isChangingPassword}>
-              {isChangingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : "Mettre à jour le record"}
-            </Button>
+            <Button variant="outline" onClick={() => setPasswordChangeUser(null)}>Fermer</Button>
+            <Button onClick={handleUpdatePassword} disabled={isChangingPassword}>Mettre à jour</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -279,16 +252,11 @@ export default function UsersListPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer l'utilisateur ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Cette action supprimera le profil de <strong>{userToDelete?.firstName} {userToDelete?.lastName}</strong>.
-              L'utilisateur ne pourra plus accéder à SIMOVEX. Cette action est irréversible.
-            </AlertDialogDescription>
+            <AlertDialogDescription>Action irréversible pour {userToDelete?.firstName}.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteUser} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Supprimer définitivement
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleDeleteUser} className="bg-destructive text-destructive-foreground">Supprimer</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

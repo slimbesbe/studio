@@ -6,19 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
   PlayCircle,
-  BrainCircuit,
-  Loader2
+  Loader2,
+  Clock,
+  Calendar,
+  History
 } from 'lucide-react';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  Cell
-} from 'recharts';
 import { useUser } from '@/firebase';
 import Link from 'next/link';
 
@@ -74,6 +66,29 @@ export default function DashboardPage() {
     );
   }
 
+  const simulationsCount = profile?.simulationsCount || 0;
+  const averageScore = profile?.averageScore || 0;
+  const totalSeconds = profile?.totalTimeSpent || 0;
+  
+  const formatTotalTime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+  };
+
+  const formatDate = (ts: any) => {
+    if (!ts) return 'N/A';
+    const date = ts?.toDate ? ts.toDate() : new Date(ts);
+    return date.toLocaleString('fr-FR', { 
+      day: '2-digit', 
+      month: 'short', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   return (
     <div className="space-y-10 animate-fade-in max-w-7xl mx-auto pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -84,49 +99,84 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" className="rounded-full px-6" disabled={isDemo}>Rapport PDF</Button>
+          <Button variant="outline" className="rounded-full px-6" asChild disabled={isDemo}>
+            <Link href="/dashboard/history">
+              <History className="mr-2 h-4 w-4" /> Historique
+            </Link>
+          </Button>
           <Button className="rounded-full px-6 shadow-xl uppercase font-bold" asChild>
             <Link href="/dashboard/exam"><PlayCircle className="mr-2 h-4 w-4" /> Simulation</Link>
           </Button>
         </div>
       </div>
 
-      <Card className="border-none shadow-none bg-transparent">
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            <CircularStat 
-              label="Simulations réalisées" 
-              value={isDemo ? 1 : 14} 
-              sublabel="Total" 
-              percent={isDemo ? 10 : 65} 
-              color="#6366f1" 
-            />
-            <CircularStat 
-              label="Questions répondues" 
-              value={isDemo ? 10 : 842} 
-              sublabel="Total" 
-              percent={isDemo ? 5 : 78} 
-              color="#8b5cf6" 
-            />
-            <CircularStat 
-              label="Temps passé" 
-              value={isDemo ? "15m" : "24h"} 
-              sublabel="Étude" 
-              percent={isDemo ? 20 : 85} 
-              color="#7c3aed" 
-            />
-            <CircularStat 
-              label="Score Moyen" 
-              value={isDemo ? "68%" : "72.5%"} 
-              sublabel="Cible : 80%+" 
-              percent={isDemo ? 68 : 72.5} 
-              color="#10b981" 
-            />
-          </div>
-        </CardContent>
-      </Card>
-      
-      {/* Reste du contenu omis pour la brièveté... */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <Card className="lg:col-span-3 border-none shadow-sm bg-card">
+          <CardHeader>
+            <CardTitle className="text-lg">Statistiques de performance</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              <CircularStat 
+                label="Simulations réalisées" 
+                value={simulationsCount} 
+                sublabel="Total" 
+                percent={Math.min(100, (simulationsCount / 20) * 100)} 
+                color="#6366f1" 
+              />
+              <CircularStat 
+                label="Moyenne Générale" 
+                value={`${averageScore}%`} 
+                sublabel="Cible : 80%+" 
+                percent={averageScore} 
+                color="#10b981" 
+              />
+              <CircularStat 
+                label="Temps passé" 
+                value={formatTotalTime(totalSeconds)} 
+                sublabel="Etude Active" 
+                percent={Math.min(100, (totalSeconds / 360000) * 100)} 
+                color="#8b5cf6" 
+              />
+              <CircularStat 
+                label="Progression PMP" 
+                value={`${Math.min(100, Math.round((simulationsCount / 10) * 100))}%`} 
+                sublabel="Vers Certification" 
+                percent={Math.min(100, (simulationsCount / 10) * 100)} 
+                color="#f59e0b" 
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-none shadow-sm bg-card">
+          <CardHeader>
+            <CardTitle className="text-lg">Sessions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                <Calendar className="h-3 w-3" /> Première connexion
+              </div>
+              <p className="text-sm font-medium">{formatDate(profile?.firstLoginAt)}</p>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                <Clock className="h-3 w-3" /> Dernière connexion
+              </div>
+              <p className="text-sm font-medium">{formatDate(profile?.lastLoginAt)}</p>
+            </div>
+
+            <div className="pt-4 border-t">
+              <div className="bg-primary/5 rounded-lg p-4 border border-primary/10">
+                <p className="text-xs text-primary font-bold uppercase mb-1">Status du compte</p>
+                <Badge className="bg-emerald-500 hover:bg-emerald-500 uppercase text-[10px]">Actif</Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

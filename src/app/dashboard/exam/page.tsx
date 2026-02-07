@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useUser, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, where, doc, setDoc, deleteDoc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { collection, query, where, doc, setDoc, deleteDoc, serverTimestamp, getDocs, addDoc, increment } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -35,7 +35,7 @@ const PERFORMANCE_ZONES = [
 ];
 
 export default function ExamPage() {
-  const { user, isUserLoading } = useUser();
+  const { user, profile, isUserLoading } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   const isDemo = user?.isAnonymous;
@@ -45,6 +45,7 @@ export default function ExamPage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string[]>>({});
   const [timeLeft, setTimeLeft] = useState(0);
+  const [initialTime, setInitialTime] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [examResult, setExamResult] = useState<{ score: number; total: number } | null>(null);
   const [sessionQuestionIds, setSessionQuestionIds] = useState<string[]>([]);
@@ -66,10 +67,11 @@ export default function ExamPage() {
       currentQuestionIndex: updatedIndex !== undefined ? updatedIndex : currentQuestionIndex,
       answers: updatedAnswers !== undefined ? updatedAnswers : answers,
       timeLeft: timeLeft,
+      initialTime: initialTime,
       questionIds: sessionQuestionIds,
       updatedAt: serverTimestamp()
     }, { merge: true });
-  }, [isDemo, examStateRef, isExamStarted, currentQuestionIndex, answers, timeLeft, sessionQuestionIds, selectedExamId, examResult]);
+  }, [isDemo, examStateRef, isExamStarted, currentQuestionIndex, answers, timeLeft, initialTime, sessionQuestionIds, selectedExamId, examResult]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -104,15 +106,18 @@ export default function ExamPage() {
         setAnswers(savedState.answers || {});
         setCurrentQuestionIndex(savedState.currentQuestionIndex || 0);
         setTimeLeft(savedState.timeLeft || 0);
+        setInitialTime(savedState.initialTime || (savedState.questionIds?.length * 120) || 0);
         setSelectedExamId(savedState.selectedExamId);
       } else {
         const pool = [...questions].sort(() => 0.5 - Math.random());
         const selected = pool.slice(0, isDemo ? 10 : 180);
         const ids = selected.map(q => q.id);
+        const totalDuration = ids.length * 120;
         
         setExamQuestions(selected);
         setSessionQuestionIds(ids);
-        setTimeLeft(ids.length * 120);
+        setTimeLeft(totalDuration);
+        setInitialTime(totalDuration);
         setCurrentQuestionIndex(0);
         setAnswers({});
         setExamResult(null);
@@ -123,7 +128,8 @@ export default function ExamPage() {
             questionIds: ids,
             currentQuestionIndex: 0,
             answers: {},
-            timeLeft: ids.length * 120,
+            timeLeft: totalDuration,
+            initialTime: totalDuration,
             updatedAt: serverTimestamp()
           });
         }
@@ -152,13 +158,47 @@ export default function ExamPage() {
         }
       });
 
+      const percentage = Math.round((score / examQuestions.length) * 100);
+      const timeSpent = initialTime - timeLeft;
+
       setExamResult({ score, total: examQuestions.length });
 
-      if (!isDemo && examStateRef) {
-        await deleteDoc(examStateRef);
+      if (!isDemo && user) {
+        const userDocRef = doc(db, 'users', user.uid);
+        const resultsColRef = collection(db, 'users', user.uid, 'exam_results');
+
+        // Update profile statistics
+        const currentSimsCount = profile?.simulationsCount || 0;
+        const currentTotalScore = profile?.totalScore || 0;
+        const newSimsCount = currentSimsCount + 1;
+        const newTotalScore = currentTotalScore + percentage;
+        const newAvgScore = Math.round(newTotalScore / newSimsCount);
+
+        await setDoc(userDocRef, {
+          simulationsCount: newSimsCount,
+          totalScore: newTotalScore,
+          averageScore: newAvgScore,
+          totalTimeSpent: increment(timeSpent),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        // Save individual result
+        await addDoc(resultsColRef, {
+          examId: selectedExamId,
+          score,
+          total: examQuestions.length,
+          percentage,
+          timeSpent,
+          completedAt: serverTimestamp()
+        });
+
+        if (examStateRef) {
+          await deleteDoc(examStateRef);
+        }
       }
     } catch (e) {
-      toast({ variant: "destructive", title: "Erreur", description: "Une erreur est survenue." });
+      console.error(e);
+      toast({ variant: "destructive", title: "Erreur", description: "Une erreur est survenue lors de l'enregistrement des résultats." });
     } finally {
       setIsSubmitting(false);
     }
@@ -246,7 +286,6 @@ export default function ExamPage() {
                 ))}
               </div>
 
-              {/* CURSEUR YOU */}
               <div className="absolute top-[-55px] transition-all duration-1000 flex flex-col items-center z-20" style={{ left: `${markerPosition}%`, transform: 'translateX(-50%)' }}>
                 <span className="text-[14px] font-black text-black mb-1">YOU</span>
                 <div className="w-[3px] h-4 bg-black" />

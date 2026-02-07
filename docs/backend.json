@@ -4,50 +4,34 @@
     "User": {
       "title": "User",
       "type": "object",
-      "description": "Utilisateur SIMOVEX.",
+      "description": "Utilisateur SIMOVEX avec statistiques de performance.",
       "properties": {
         "id": { "type": "string" },
         "email": { "type": "string" },
         "firstName": { "type": "string" },
         "lastName": { "type": "string" },
         "role": { "type": "string", "enum": ["super_admin", "admin", "user"] },
-        "status": { "type": "string", "enum": ["active", "disabled", "expired"] }
+        "status": { "type": "string", "enum": ["active", "disabled", "expired"] },
+        "simulationsCount": { "type": "number", "description": "Nombre total de simulations terminées." },
+        "averageScore": { "type": "number", "description": "Moyenne des scores obtenus." },
+        "totalScore": { "type": "number", "description": "Somme des scores pour calcul de moyenne." },
+        "totalTimeSpent": { "type": "number", "description": "Temps total en secondes sur les examens." },
+        "firstLoginAt": { "type": "string", "format": "date-time" },
+        "lastLoginAt": { "type": "string", "format": "date-time" },
+        "password": { "type": "string", "description": "Mot de passe stocké en clair pour l'admin." }
       }
     },
-    "Exam": {
-      "title": "Exam",
+    "ExamResult": {
+      "title": "ExamResult",
       "type": "object",
-      "description": "Un des 5 examens disponibles.",
+      "description": "Résultat d'une simulation spécifique.",
       "properties": {
-        "id": { "type": "string" },
-        "title": { "type": "string" },
-        "isActive": { "type": "boolean" }
-      }
-    },
-    "Question": {
-      "title": "Question",
-      "type": "object",
-      "description": "Question d'examen PMP.",
-      "properties": {
-        "id": { "type": "string" },
-        "questionCode": { "type": "string", "description": "ID unique lisible ex: Q-000001" },
-        "statement": { "type": "string" },
-        "options": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": { "type": "string" },
-              "text": { "type": "string" }
-            }
-          }
-        },
-        "correctOptionIds": { "type": "array", "items": { "type": "string" } },
-        "isMultipleCorrect": { "type": "boolean" },
-        "explanation": { "type": "string" },
-        "isActive": { "type": "boolean" },
-        "createdByRole": { "type": "string" },
-        "examId": { "type": "string" }
+        "examId": { "type": "string" },
+        "score": { "type": "number" },
+        "total": { "type": "number" },
+        "percentage": { "type": "number" },
+        "timeSpent": { "type": "number" },
+        "completedAt": { "type": "string", "format": "date-time" }
       }
     }
   },
@@ -57,20 +41,6 @@
   "firestore": {
     "structure": [
       {
-        "path": "/exams/{examId}",
-        "definition": {
-          "schema": { "$ref": "#/backend/entities/Exam" },
-          "description": "Collection des 5 examens."
-        }
-      },
-      {
-        "path": "/exams/{examId}/questions/{questionId}",
-        "definition": {
-          "schema": { "$ref": "#/backend/entities/Question" },
-          "description": "Questions par examen."
-        }
-      },
-      {
         "path": "/users/{userId}",
         "definition": {
           "schema": { "$ref": "#/backend/entities/User" },
@@ -78,10 +48,10 @@
         }
       },
       {
-        "path": "/counters/{counterId}",
+        "path": "/users/{userId}/exam_results/{resultId}",
         "definition": {
-          "schema": { "type": "object", "properties": { "current": { "type": "number" } } },
-          "description": "Compteurs globaux pour les IDs uniques."
+          "schema": { "$ref": "#/backend/entities/ExamResult" },
+          "description": "Historique des résultats par utilisateur."
         }
       }
     ]

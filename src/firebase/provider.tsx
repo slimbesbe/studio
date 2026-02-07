@@ -1,11 +1,11 @@
 
 'use client';
 
-import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
+import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, onSnapshot, Timestamp } from 'firebase/firestore';
+import { Firestore, doc, onSnapshot, Timestamp, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
-import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { useRouter, usePathname } from 'next/navigation';
 
 interface FirebaseProviderProps {
@@ -63,14 +63,17 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   useEffect(() => {
     if (!auth || !firestore) return;
 
-    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Écouter le profil utilisateur en temps réel pour détecter expiration/désactivation
-        const unsubscribeProfile = onSnapshot(doc(firestore, 'users', firebaseUser.uid), (docSnap) => {
+        // Track connection timestamps
+        const userDocRef = doc(firestore, 'users', firebaseUser.uid);
+        
+        // Listen to profile
+        const unsubscribeProfile = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
             const profileData = docSnap.data();
             
-            // Vérification de l'expiration côté client (sécurité supplémentaire)
+            // Check expiry
             let isExpired = false;
             if (profileData.expiresAt) {
               const expiryDate = profileData.expiresAt instanceof Timestamp 
@@ -90,7 +93,17 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               isUserLoading: false 
             }));
 
-            // Redirection si le compte n'est pas actif
+            // Update login timestamps if needed (only once per session ideally)
+            if (!sessionStorage.getItem(`logged_${firebaseUser.uid}`)) {
+              const updateData: any = { lastLoginAt: serverTimestamp() };
+              if (!profileData.firstLoginAt) {
+                updateData.firstLoginAt = serverTimestamp();
+              }
+              setDoc(userDocRef, updateData, { merge: true });
+              sessionStorage.setItem(`logged_${firebaseUser.uid}`, 'true');
+            }
+
+            // Redirect if not active
             if (currentStatus !== 'active' && pathname.startsWith('/dashboard') && !firebaseUser.isAnonymous) {
                router.push('/access-denied');
             }
@@ -155,7 +168,7 @@ export const useUser = () => {
 };
 
 export function useMemoFirebase<T>(factory: () => T, deps: React.DependencyList): T & {__memo?: boolean} {
-  const memoized = useMemo(factory, deps);
+  const memoized = React.useMemo(factory, deps);
   if(typeof memoized === 'object' && memoized !== null) {
     (memoized as any).__memo = true;
   }
