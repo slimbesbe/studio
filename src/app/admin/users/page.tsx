@@ -47,7 +47,7 @@ export default function UsersListPage() {
     const newStatus = currentStatus === 'active' ? 'disabled' : 'active';
     try {
       await updateDoc(doc(db, 'users', userId), { status: newStatus, updatedAt: Timestamp.now() });
-      toast({ title: "Statut mis à jour", description: `L'utilisateur est désormais ${newStatus}.` });
+      toast({ title: "Statut mis à jour" });
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur" });
     }
@@ -55,7 +55,7 @@ export default function UsersListPage() {
 
   const handleUpdatePassword = async () => {
     if (!passwordChangeUser || newPassword.length < 6) {
-      toast({ variant: "destructive", title: "Erreur", description: "Le mot de passe doit contenir au moins 6 caractères." });
+      toast({ variant: "destructive", title: "Erreur", description: "6 caractères min." });
       return;
     }
     setIsChangingPassword(true);
@@ -110,95 +110,93 @@ export default function UsersListPage() {
 
   return (
     <div className="p-10 max-w-[1600px] mx-auto space-y-10 animate-fade-in">
-      <div className="flex items-center justify-between bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+      <div className="flex items-center justify-between bg-white p-8 rounded-[40px] shadow-xl border-2">
         <div className="flex items-center gap-6">
-          <Button variant="ghost" size="icon" asChild className="h-14 w-14 rounded-2xl hover:bg-slate-50 border shadow-sm">
-            <Link href="/admin/dashboard"><ChevronLeft className="h-6 w-6" /></Link>
+          <Button variant="ghost" size="icon" asChild className="h-16 w-16 rounded-3xl hover:bg-slate-50 border-2 shadow-sm">
+            <Link href="/admin/dashboard"><ChevronLeft className="h-8 w-8" /></Link>
           </Button>
           <div>
             <h1 className="text-4xl font-black flex items-center gap-4 text-primary italic uppercase tracking-tighter">
-              <Users className="h-10 w-10 text-accent" /> Suivi Global Participants
+              <Users className="h-12 w-12 text-accent" /> Suivi Global Participants
             </h1>
-            <p className="text-slate-500 font-medium mt-1">Surveillez les performances et l'activité en temps réel.</p>
+            <p className="text-slate-500 font-bold mt-1 uppercase tracking-widest text-sm">Gestion des accès et analyse des performances en temps réel.</p>
           </div>
         </div>
-        <Button asChild className="bg-accent hover:bg-accent/90 h-16 px-10 rounded-2xl font-black uppercase tracking-widest shadow-xl">
+        <Button asChild className="bg-accent hover:bg-accent/90 h-16 px-12 rounded-[24px] font-black uppercase tracking-widest shadow-2xl scale-105">
           <Link href="/admin/users/new">
-            <UserPlus className="mr-3 h-6 w-6" /> Créer Participant
+            <UserPlus className="mr-3 h-7 w-7" /> Créer Participant
           </Link>
         </Button>
       </div>
 
-      <Card className="shadow-2xl border-none overflow-hidden bg-white rounded-[40px]">
+      <Card className="shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border-none overflow-hidden bg-white rounded-[60px]">
         <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-muted/30">
-              <TableRow className="h-20 border-b-2">
-                <TableHead className="px-10 font-black uppercase tracking-widest text-xs">Participant</TableHead>
-                <TableHead className="text-center font-black uppercase tracking-widest text-xs"><BarChart className="h-4 w-4 inline mr-2 text-primary" /> Score Moyen</TableHead>
-                <TableHead className="text-center font-black uppercase tracking-widest text-xs"><Target className="h-4 w-4 inline mr-2 text-primary" /> Simulations</TableHead>
-                <TableHead className="text-center font-black uppercase tracking-widest text-xs"><TrendingUp className="h-4 w-4 inline mr-2 text-primary" /> Progression</TableHead>
-                <TableHead className="text-center font-black uppercase tracking-widest text-xs"><Clock className="h-4 w-4 inline mr-2 text-primary" /> Temps Étude</TableHead>
-                <TableHead className="font-black uppercase tracking-widest text-xs">Première Connexion</TableHead>
+              <TableRow className="h-24 border-b-4">
+                <TableHead className="px-12 font-black uppercase tracking-widest text-xs">Participant</TableHead>
+                <TableHead className="text-center font-black uppercase tracking-widest text-xs"><BarChart className="h-4 w-4 inline mr-2" /> Score Moyen</TableHead>
+                <TableHead className="text-center font-black uppercase tracking-widest text-xs"><Target className="h-4 w-4 inline mr-2" /> Simulations</TableHead>
+                <TableHead className="text-center font-black uppercase tracking-widest text-xs"><TrendingUp className="h-4 w-4 inline mr-2" /> Progression</TableHead>
+                <TableHead className="text-center font-black uppercase tracking-widest text-xs"><Clock className="h-4 w-4 inline mr-2" /> Temps Étude</TableHead>
                 <TableHead className="font-black uppercase tracking-widest text-xs">Dernière Connexion</TableHead>
-                <TableHead className="text-right px-10 font-black uppercase tracking-widest text-xs">Actions</TableHead>
+                <TableHead className="text-right px-12 font-black uppercase tracking-widest text-xs">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {users?.sort((a,b) => (b.lastLoginAt?.seconds || 0) - (a.lastLoginAt?.seconds || 0)).map((u) => (
-                <TableRow key={u.id} className="h-24 hover:bg-slate-50/80 transition-colors border-b last:border-0 group">
-                  <TableCell className="px-10">
-                    <div className="flex items-center gap-4">
-                      <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center font-black text-primary text-lg shadow-inner group-hover:scale-110 transition-transform">
+                <TableRow key={u.id} className="h-28 hover:bg-slate-50/80 transition-all border-b last:border-0 group">
+                  <TableCell className="px-12">
+                    <div className="flex items-center gap-5">
+                      <div className="h-16 w-16 rounded-[22px] bg-primary/10 flex items-center justify-center font-black text-primary text-xl shadow-inner group-hover:rotate-6 transition-transform">
                         {u.firstName?.[0]}{u.lastName?.[0]}
                       </div>
                       <div className="space-y-1">
-                        <div className="font-black text-lg text-slate-800 leading-none">{u.firstName} {u.lastName}</div>
-                        <div className="text-xs text-slate-400 font-bold flex items-center gap-1"><Mail className="h-3 w-3" /> {u.email}</div>
+                        <div className="font-black text-xl text-slate-800 leading-none">{u.firstName} {u.lastName}</div>
+                        <div className="text-xs text-slate-400 font-black flex items-center gap-1 uppercase italic tracking-tighter"><Mail className="h-3 w-3" /> {u.email}</div>
                       </div>
                     </div>
                   </TableCell>
                   <TableCell className="text-center">
-                    <span className={`text-2xl font-black ${u.averageScore >= 80 ? 'text-emerald-500' : u.averageScore >= 60 ? 'text-amber-500' : 'text-slate-400'}`}>
+                    <span className={`text-3xl font-black italic tracking-tighter ${u.averageScore >= 80 ? 'text-emerald-500' : u.averageScore >= 60 ? 'text-amber-500' : 'text-slate-400'}`}>
                       {u.averageScore || 0}%
                     </span>
                   </TableCell>
                   <TableCell className="text-center">
-                    <Badge variant="secondary" className="px-5 py-2 text-sm font-black rounded-xl border-2">
+                    <Badge variant="secondary" className="px-6 py-3 text-lg font-black rounded-2xl border-2 shadow-sm italic">
                       {u.simulationsCount || 0}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="w-24 bg-slate-100 rounded-full h-3 overflow-hidden shadow-inner border">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-28 bg-slate-100 rounded-full h-4 overflow-hidden shadow-inner border-2">
                         <div 
                           className="bg-primary h-full transition-all duration-1000" 
                           style={{ width: `${Math.min(100, Math.round((u.simulationsCount || 0) / 5 * 100))}%` }} 
                         />
                       </div>
-                      <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">
                         {Math.min(100, Math.round((u.simulationsCount || 0) / 5 * 100))}% PRÊT
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-center font-black text-slate-600">{formatTime(u.totalTimeSpent)}</TableCell>
-                  <TableCell className="text-xs font-bold text-slate-500">{formatDate(u.firstLoginAt)}</TableCell>
-                  <TableCell className="text-xs font-bold text-slate-500">{formatDate(u.lastLoginAt)}</TableCell>
-                  <TableCell className="text-right px-10">
+                  <TableCell className="text-center font-black text-slate-600 italic text-lg">{formatTime(u.totalTimeSpent)}</TableCell>
+                  <TableCell className="text-xs font-black text-slate-500 italic uppercase tracking-tighter">{formatDate(u.lastLoginAt)}</TableCell>
+                  <TableCell className="text-right px-12">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-12 w-12 rounded-xl hover:bg-slate-200"><Users className="h-5 w-5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-14 w-14 rounded-2xl hover:bg-slate-200 border-2"><Users className="h-6 w-6" /></Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-64 p-2 rounded-2xl shadow-2xl">
-                        <DropdownMenuItem className="h-12 rounded-xl font-bold px-4" onClick={() => toggleStatus(u.id, u.status || 'active')}>
-                          {u.status === 'disabled' ? '✅ Réactiver le compte' : '🚫 Désactiver le compte'}
+                      <DropdownMenuContent align="end" className="w-72 p-3 rounded-[28px] shadow-2xl border-4">
+                        <DropdownMenuItem className="h-14 rounded-2xl font-black uppercase tracking-widest px-6 italic" onClick={() => toggleStatus(u.id, u.status || 'active')}>
+                          {u.status === 'disabled' ? '✅ Réactiver' : '🚫 Désactiver'}
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="h-12 rounded-xl font-bold px-4" onClick={() => { setPasswordChangeUser(u); setNewPassword(''); }}>
-                          <Key className="mr-3 h-5 w-5" /> Gérer mot de passe
+                        <DropdownMenuItem className="h-14 rounded-2xl font-black uppercase tracking-widest px-6 italic" onClick={() => { setPasswordChangeUser(u); setNewPassword(''); }}>
+                          <Key className="mr-3 h-6 w-6" /> Accès
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator className="my-2" />
-                        <DropdownMenuItem className="h-12 rounded-xl font-bold px-4 text-destructive focus:bg-destructive/10 focus:text-destructive" onClick={() => setUserToDelete(u)}>
-                          <Trash2 className="mr-3 h-5 w-5" /> Supprimer définitivement
+                        <DropdownMenuSeparator className="my-3 border-2" />
+                        <DropdownMenuItem className="h-14 rounded-2xl font-black uppercase tracking-widest px-6 text-destructive focus:bg-destructive/10 focus:text-destructive italic" onClick={() => setUserToDelete(u)}>
+                          <Trash2 className="mr-3 h-6 w-6" /> Supprimer
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -210,47 +208,49 @@ export default function UsersListPage() {
         </CardContent>
       </Card>
 
+      {/* Password Dialog */}
       <Dialog open={!!passwordChangeUser} onOpenChange={() => setPasswordChangeUser(null)}>
-        <DialogContent className="rounded-[32px] max-w-md p-10">
-          <DialogHeader><DialogTitle className="text-2xl font-black uppercase italic tracking-tighter">Gérer les accès</DialogTitle></DialogHeader>
-          <div className="space-y-6 py-6">
-            <div className="space-y-2">
-              <Label className="font-bold text-muted-foreground uppercase text-xs tracking-widest">Mot de passe actuel (Visible par l'admin)</Label>
-              <div className="p-6 bg-primary/5 rounded-2xl text-center font-mono text-2xl font-black border-2 border-dashed border-primary/20 text-primary">
+        <DialogContent className="rounded-[40px] max-w-lg p-12 border-4 shadow-3xl">
+          <DialogHeader><DialogTitle className="text-3xl font-black uppercase italic tracking-tighter text-primary">Gestion des accès</DialogTitle></DialogHeader>
+          <div className="space-y-8 py-8">
+            <div className="space-y-3">
+              <Label className="font-black text-muted-foreground uppercase text-xs tracking-widest italic">Mot de passe actuel</Label>
+              <div className="p-8 bg-primary/5 rounded-[32px] text-center font-mono text-3xl font-black border-4 border-dashed border-primary/20 text-primary shadow-inner">
                 {passwordChangeUser?.password || '---'}
               </div>
             </div>
-            <div className="space-y-3">
-              <Label className="font-bold uppercase text-xs tracking-widest">Nouveau mot de passe</Label>
+            <div className="space-y-4">
+              <Label className="font-black uppercase text-xs tracking-widest italic">Nouveau mot de passe</Label>
               <Input 
                 value={newPassword} 
                 onChange={(e) => setNewPassword(e.target.value)} 
-                placeholder="6 caractères minimum" 
-                className="h-14 rounded-2xl font-bold text-lg"
+                placeholder="6 caractères min." 
+                className="h-16 rounded-[24px] font-black text-xl border-2"
               />
             </div>
           </div>
-          <DialogFooter className="gap-3 sm:gap-0">
-            <Button variant="outline" className="h-14 rounded-2xl font-bold flex-1" onClick={() => setPasswordChangeUser(null)}>Annuler</Button>
-            <Button className="h-14 rounded-2xl font-black bg-primary flex-1 shadow-lg" onClick={handleUpdatePassword} disabled={isChangingPassword}>
-              {isChangingPassword ? <Loader2 className="animate-spin h-5 w-5" /> : "Enregistrer"}
+          <DialogFooter className="gap-4">
+            <Button variant="outline" className="h-16 rounded-2xl font-black uppercase tracking-widest flex-1 border-4" onClick={() => setPasswordChangeUser(null)}>Annuler</Button>
+            <Button className="h-16 rounded-2xl font-black bg-primary flex-1 shadow-2xl uppercase tracking-widest" onClick={handleUpdatePassword} disabled={isChangingPassword}>
+              {isChangingPassword ? <Loader2 className="animate-spin h-6 w-6" /> : "Enregistrer"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Delete Dialog */}
       <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
-        <AlertDialogContent className="rounded-[32px] p-10">
+        <AlertDialogContent className="rounded-[40px] p-12 border-4 shadow-3xl">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-2xl font-black uppercase text-destructive">Confirmer la suppression ?</AlertDialogTitle>
-            <AlertDialogDescription className="text-lg font-medium pt-4">
-              Toutes les données de <strong>{userToDelete?.firstName} {userToDelete?.lastName}</strong> seront définitivement effacées du système. Cette action est irréversible.
+            <AlertDialogTitle className="text-3xl font-black uppercase text-destructive italic tracking-tighter">Suppression Définitive ?</AlertDialogTitle>
+            <AlertDialogDescription className="text-xl font-bold pt-6 text-slate-600 leading-relaxed uppercase tracking-tight">
+              Toutes les données de <strong>{userToDelete?.firstName} {userToDelete?.lastName}</strong> seront effacées. Cette action est irréversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="mt-8 gap-4">
-            <AlertDialogCancel className="h-14 rounded-2xl font-bold">Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteUser} className="h-14 rounded-2xl font-black bg-destructive hover:bg-destructive/90 shadow-xl">
-              Confirmer la suppression
+          <AlertDialogFooter className="mt-10 gap-6">
+            <AlertDialogCancel className="h-16 rounded-2xl font-black uppercase tracking-widest border-4">Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteUser} className="h-16 rounded-2xl font-black bg-destructive hover:bg-destructive/90 shadow-2xl uppercase tracking-widest">
+              Confirmer
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -258,3 +258,4 @@ export default function UsersListPage() {
     </div>
   );
 }
+

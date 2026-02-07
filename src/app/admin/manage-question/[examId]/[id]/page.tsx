@@ -152,7 +152,7 @@ export default function EditQuestionPage() {
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild><Link href="/admin/questions"><ArrowLeft /></Link></Button>
         <div className="flex flex-col">
-          <h1 className="text-3xl font-bold">Modifier la Question</h1>
+          <h1 className="text-3xl font-bold italic uppercase tracking-tighter">Modifier la Question</h1>
           {questionCode && (
             <div className="flex items-center gap-1 text-primary font-mono text-sm mt-1">
               <Hash className="h-3 w-3" /> {questionCode}
@@ -161,30 +161,30 @@ export default function EditQuestionPage() {
         </div>
       </div>
 
-      <Card className="border-t-4 border-t-primary shadow-xl">
-        <CardHeader><CardTitle className="text-xl flex items-center gap-2"><HelpCircle className="h-5 w-5 text-primary" /> Configuration</CardTitle></CardHeader>
+      <Card className="border-t-8 border-t-primary shadow-2xl rounded-3xl">
+        <CardHeader><CardTitle className="text-xl flex items-center gap-2 uppercase tracking-widest"><HelpCircle className="h-5 w-5 text-primary" /> Configuration</CardTitle></CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="statement">Énoncé</Label>
+            <Label htmlFor="statement" className="font-bold">Énoncé</Label>
             <Textarea 
               id="statement" 
-              className="min-h-[120px] text-lg"
+              className="min-h-[120px] text-lg font-medium"
               value={statement}
               onChange={(e) => setStatement(e.target.value)}
             />
           </div>
 
-          <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border">
+          <div className="flex items-center justify-between p-6 bg-muted/30 rounded-2xl border-2">
             <div className="space-y-0.5">
-              <Label className="text-base">Réponses multiples</Label>
-              <p className="text-sm text-muted-foreground">Permettre de sélectionner plusieurs réponses.</p>
+              <Label className="text-base font-bold">Réponses multiples</Label>
+              <p className="text-sm text-muted-foreground uppercase tracking-tight font-medium">Autoriser plusieurs bons choix.</p>
             </div>
             <Switch checked={isMultipleCorrect} onCheckedChange={setIsMultipleCorrect} />
           </div>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label>Options</Label>
+              <Label className="font-bold">Options</Label>
               <Button variant="outline" size="sm" onClick={handleAddOption} disabled={options.length >= 10}>
                 <Plus className="mr-2 h-4 w-4" /> Ajouter
               </Button>
@@ -192,23 +192,23 @@ export default function EditQuestionPage() {
 
             <div className="space-y-3">
               {options.map((opt, index) => (
-                <div key={opt.id} className="flex gap-3 items-start">
+                <div key={opt.id} className="flex gap-4 items-start">
                   <div className="pt-2">
                     {isMultipleCorrect ? (
-                      <Checkbox checked={correctOptionIds.includes(opt.id)} onCheckedChange={() => toggleCorrect(opt.id)} />
+                      <Checkbox checked={correctOptionIds.includes(opt.id)} onCheckedChange={() => toggleCorrect(opt.id)} className="h-6 w-6" />
                     ) : (
                       <div 
                         onClick={() => toggleCorrect(opt.id)}
-                        className={`h-5 w-5 rounded-full border-2 cursor-pointer flex items-center justify-center ${correctOptionIds.includes(opt.id) ? 'border-primary bg-primary' : 'border-muted-foreground/30'}`}
+                        className={`h-6 w-6 rounded-full border-4 cursor-pointer flex items-center justify-center ${correctOptionIds.includes(opt.id) ? 'border-primary bg-primary' : 'border-muted'}`}
                       >
-                        {correctOptionIds.includes(opt.id) && <div className="h-1.5 w-1.5 bg-white rounded-full" />}
+                        {correctOptionIds.includes(opt.id) && <div className="h-2 w-2 bg-white rounded-full" />}
                       </div>
                     )}
                   </div>
                   <Input 
                     value={opt.text}
                     onChange={(e) => handleOptionTextChange(opt.id, e.target.value)}
-                    className={correctOptionIds.includes(opt.id) ? "border-emerald-500 bg-emerald-50/30" : ""}
+                    className={correctOptionIds.includes(opt.id) ? "border-emerald-500 bg-emerald-50/50 font-bold" : "font-medium"}
                   />
                   <Button variant="ghost" size="icon" onClick={() => handleRemoveOption(opt.id)} disabled={options.length <= 2}>
                     <Trash2 className="h-4 w-4" />
@@ -219,26 +219,27 @@ export default function EditQuestionPage() {
           </div>
 
           <div className="space-y-2 pt-4">
-            <Label className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-600" /> Explication</Label>
+            <Label className="flex items-center gap-2 font-bold"><CheckCircle2 className="h-4 w-4 text-emerald-600" /> Explication Mindset PMI</Label>
             <Textarea 
-              className="min-h-[100px]"
+              className="min-h-[120px] italic font-medium"
               value={explanation}
               onChange={(e) => setExplanation(e.target.value)}
             />
           </div>
 
-          <div className="flex items-center justify-between p-4 bg-muted/10 rounded-lg border border-dashed">
-            <div className="space-y-0.5"><Label className="text-base">Statut</Label></div>
+          <div className="flex items-center justify-between p-4 bg-muted/10 rounded-2xl border-2 border-dashed">
+            <div className="space-y-0.5"><Label className="text-base font-bold">Statut Actif</Label></div>
             <Switch checked={isActive} onCheckedChange={setIsActive} />
           </div>
         </CardContent>
-        <CardFooter className="bg-muted/10 border-t p-6 flex justify-end">
-          <Button onClick={handleSubmit} disabled={isSubmitting} size="lg" className="px-8 rounded-md">
-            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            Mettre à jour
+        <CardFooter className="bg-muted/10 border-t p-8 flex justify-end">
+          <Button onClick={handleSubmit} disabled={isSubmitting} size="lg" className="px-12 rounded-xl h-14 font-black uppercase tracking-widest shadow-xl">
+            {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
+            Enregistrer
           </Button>
         </CardFooter>
       </Card>
     </div>
   );
 }
+
