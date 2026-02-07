@@ -60,7 +60,6 @@ export default function QuestionsListPage() {
         if (!adminDoc.exists()) router.push('/dashboard');
         else {
           setIsAdmin(true);
-          // Initialiser les examens s'ils n'existent pas
           EXAMS.forEach(async (e) => {
             await setDoc(doc(db, 'exams', e.id), { id: e.id, title: e.title, isActive: true }, { merge: true });
           });
@@ -86,24 +85,14 @@ export default function QuestionsListPage() {
   const downloadTemplate = () => {
     const templateData = [
       {
-        statement: "Énoncez votre question PMP ici. Exemple : Quel est le rôle du Chef de Projet dans une équipe Scrum ?",
-        option1: "Servir de facilitateur (Servant Leader)",
-        option2: "Donner des ordres directs",
-        option3: "Gérer le budget de manière isolée",
-        option4: "Écrire le code à la place de l'équipe",
+        statement: "Énoncez votre question PMP ici.",
+        option1: "Option A",
+        option2: "Option B",
+        option3: "Option C",
+        option4: "Option D",
         option5: "",
-        explanation: "Dans le mindset PMI / Agile, le chef de projet agit comme un servant leader.",
+        explanation: "Justification du mindset PMI.",
         correct: "A"
-      },
-      {
-        statement: "Question à choix multiples : Lesquels sont des artefacts Scrum ? (Sélectionnez 2)",
-        option1: "Product Backlog",
-        option2: "Project Charter",
-        option3: "Sprint Backlog",
-        option4: "Gantt Chart",
-        option5: "",
-        explanation: "Le Product Backlog et le Sprint Backlog sont des artefacts officiels Scrum.",
-        correct: "A,C"
       }
     ];
 
@@ -111,11 +100,6 @@ export default function QuestionsListPage() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
     XLSX.writeFile(workbook, "template_questions_simovex.xlsx");
-    
-    toast({
-      title: "Modèle téléchargé",
-      description: "Utilisez ce fichier pour remplir vos questions."
-    });
   };
 
   if (isUserLoading || isAdmin === null) {
@@ -142,7 +126,7 @@ export default function QuestionsListPage() {
           </div>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={downloadTemplate} className="border-primary text-primary hover:bg-primary/5">
+          <Button variant="outline" onClick={downloadTemplate}>
             <Download className="mr-2 h-4 w-4" /> Modèle Excel
           </Button>
           <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
@@ -175,7 +159,6 @@ export default function QuestionsListPage() {
                       <TableHead className="w-24">Code</TableHead>
                       <TableHead className="w-[40%]">Énoncé</TableHead>
                       <TableHead>Type</TableHead>
-                      <TableHead>Options</TableHead>
                       <TableHead>Statut</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -183,11 +166,11 @@ export default function QuestionsListPage() {
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-12"><Loader2 className="animate-spin inline mr-2" /> Chargement...</TableCell>
+                        <TableCell colSpan={5} className="text-center py-12"><Loader2 className="animate-spin inline mr-2" /> Chargement...</TableCell>
                       </TableRow>
                     ) : questions?.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">Aucune question pour cet examen.</TableCell>
+                        <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">Aucune question.</TableCell>
                       </TableRow>
                     ) : (
                       questions?.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)).map((q) => (
@@ -196,7 +179,7 @@ export default function QuestionsListPage() {
                             {q.questionCode || '---'}
                           </TableCell>
                           <TableCell className="py-4">
-                            <p className="line-clamp-2 max-w-md text-sm">{q.statement}</p>
+                            <p className="line-clamp-2 text-sm">{q.statement}</p>
                           </TableCell>
                           <TableCell>
                             <Badge variant={q.isMultipleCorrect ? "secondary" : "outline"}>
@@ -204,13 +187,8 @@ export default function QuestionsListPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Layers className="h-3 w-3" /> {q.options?.length || 0}
-                            </div>
-                          </TableCell>
-                          <TableCell>
                             {q.isActive !== false ? (
-                              <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200">Actif</Badge>
+                              <Badge className="bg-emerald-100 text-emerald-700">Actif</Badge>
                             ) : (
                               <Badge variant="secondary">Inactif</Badge>
                             )}

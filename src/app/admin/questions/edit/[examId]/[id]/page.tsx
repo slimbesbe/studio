@@ -1,6 +1,16 @@
 
-// Cette route est obsolète et a été déplacée pour éviter des conflits de paramètres.
-// Redirection gérée par le composant QuestionsListPage.
-export default function ObsoletePage() {
+"use client";
+
+import { useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+
+export default function RedirectPage() {
+  const router = useRouter();
+  const params = useParams();
+  
+  useEffect(() => {
+    router.replace(`/admin/edit-question/${params.examId}/${params.id}`);
+  }, [params, router]);
+
   return null;
 }
