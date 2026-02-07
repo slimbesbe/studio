@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, UserPlus, ChevronLeft, Users, Clock, Key, Trash2, BarChart, TrendingUp, Target, Mail } from 'lucide-react';
+import { Loader2, UserPlus, ChevronLeft, Users, User, Clock, Key, Trash2, BarChart, TrendingUp, Target, Mail } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
@@ -134,7 +134,9 @@ export default function UsersListPage() {
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow className="h-24 border-b-4">
-                <TableHead className="px-12 font-black uppercase tracking-widest text-xs">Participant</TableHead>
+                <TableHead className="px-12 font-black uppercase tracking-widest text-xs">
+                  <User className="h-4 w-4 inline mr-2" /> Participant
+                </TableHead>
                 <TableHead className="text-center font-black uppercase tracking-widest text-xs"><BarChart className="h-4 w-4 inline mr-2" /> Score Moyen</TableHead>
                 <TableHead className="text-center font-black uppercase tracking-widest text-xs"><Target className="h-4 w-4 inline mr-2" /> Simulations</TableHead>
                 <TableHead className="text-center font-black uppercase tracking-widest text-xs"><TrendingUp className="h-4 w-4 inline mr-2" /> Progression</TableHead>

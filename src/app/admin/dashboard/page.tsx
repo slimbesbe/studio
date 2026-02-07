@@ -109,7 +109,7 @@ export default function AdminDashboard() {
             <div className="flex gap-3">
               <Button asChild className="flex-1 bg-accent hover:bg-accent/90">
                 <Link href="/admin/users">
-                  <Settings className="mr-2 h-4 w-4" /> Gérer les comptes
+                  <Users className="mr-2 h-4 w-4" /> Gérer les comptes
                 </Link>
               </Button>
               <Button asChild variant="outline" className="flex-1 border-accent text-accent hover:bg-accent/5">
