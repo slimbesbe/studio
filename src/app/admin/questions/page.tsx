@@ -27,6 +27,7 @@ import {
   ChevronLeft,
   Layers,
   Upload,
+  Download,
   FileSpreadsheet
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { ImportQuestionsModal } from '@/components/admin/ImportQuestionsModal';
+import * as XLSX from 'xlsx';
 
 const EXAMS = [
   { id: 'exam1', title: 'Examen 1' },
@@ -82,6 +84,41 @@ export default function QuestionsListPage() {
     }
   };
 
+  const downloadTemplate = () => {
+    const templateData = [
+      {
+        statement: "Énoncez votre question PMP ici. Exemple : Quel est le rôle du Chef de Projet dans une équipe Scrum ?",
+        option1: "Servir de facilitateur (Servant Leader)",
+        option2: "Donner des ordres directs",
+        option3: "Gérer le budget de manière isolée",
+        option4: "Écrire le code à la place de l'équipe",
+        option5: "",
+        explanation: "Dans le mindset PMI / Agile, le chef de projet agit comme un servant leader.",
+        correct: "A"
+      },
+      {
+        statement: "Question à choix multiples : Lesquels sont des artefacts Scrum ? (Sélectionnez 2)",
+        option1: "Product Backlog",
+        option2: "Project Charter",
+        option3: "Sprint Backlog",
+        option4: "Gantt Chart",
+        option5: "",
+        explanation: "Le Product Backlog et le Sprint Backlog sont des artefacts officiels Scrum.",
+        correct: "A,C"
+      }
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(templateData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
+    XLSX.writeFile(workbook, "template_questions_simovex.xlsx");
+    
+    toast({
+      title: "Modèle téléchargé",
+      description: "Utilisez ce fichier pour remplir vos questions."
+    });
+  };
+
   if (isUserLoading || isAdmin === null) {
     return (
       <div className="h-screen flex items-center justify-center">
@@ -106,6 +143,9 @@ export default function QuestionsListPage() {
           </div>
         </div>
         <div className="flex gap-3">
+          <Button variant="outline" onClick={downloadTemplate} className="border-primary text-primary hover:bg-primary/5">
+            <Download className="mr-2 h-4 w-4" /> Modèle Excel
+          </Button>
           <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
             <Upload className="mr-2 h-4 w-4" /> Importer Excel
           </Button>
