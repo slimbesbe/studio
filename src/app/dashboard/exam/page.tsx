@@ -193,7 +193,6 @@ export default function ExamPage() {
 
     const app = getAppreciation(percentage);
 
-    // Calcul de la position du curseur interpolée pour qu'il soit dans le bon rectangle de 25%
     const calculateMarkerPosition = (pct: number) => {
       if (pct < 50) return (pct / 50) * 25;
       if (pct < 65) return 25 + ((pct - 50) / 15) * 25;
@@ -209,40 +208,41 @@ export default function ExamPage() {
           <CardHeader className="border-b">
             <CardTitle>Résultat Simulation - {EXAMS.find(e => e.id === selectedExamId)?.title}</CardTitle>
           </CardHeader>
-          <CardContent className="py-12 space-y-16">
+          <CardContent className="py-12 space-y-16 overflow-hidden">
             
-            {/* Graphique de Performance PMI */}
             <div className="relative mt-12 mb-20 w-full max-w-3xl mx-auto">
-              
-              {/* Labels Falling / Passing */}
-              <div className="absolute top-[-50px] w-full flex text-[11px] font-bold text-slate-500 uppercase">
+              {/* FALLING / PASSING Lables */}
+              <div className="flex w-full text-[11px] font-bold text-slate-500 uppercase mb-8">
                  <div className="w-1/2 text-center">Falling</div>
-                 <div className="w-1/2 text-center border-l border-sky-300">Passing</div>
+                 <div className="w-1/2 text-center relative">
+                   <div className="absolute left-0 top-[-10px] bottom-[-40px] w-[1px] bg-sky-300" />
+                   Passing
+                 </div>
               </div>
 
-              {/* Barre de progression avec 4 segments */}
-              <div className="flex w-full h-12 rounded-sm overflow-hidden border">
+              {/* segments container */}
+              <div className="relative flex w-full h-12 rounded-xl overflow-hidden border">
                 <div className={`w-1/4 h-full border-r bg-red-500 ${app.index === 0 ? 'opacity-100' : 'opacity-20'}`} />
                 <div className={`w-1/4 h-full border-r bg-amber-400 ${app.index === 1 ? 'opacity-100' : 'opacity-20'}`} />
                 <div className={`w-1/4 h-full border-r bg-emerald-400 ${app.index === 2 ? 'opacity-100' : 'opacity-20'}`} />
                 <div className={`w-1/4 h-full bg-teal-600 ${app.index === 3 ? 'opacity-100' : 'opacity-20'}`} />
               </div>
 
-              {/* Marqueur dynamique YOU */}
+              {/* Marker "YOU" */}
               <div 
-                className="absolute top-[-35px] transition-all duration-1000 ease-out flex flex-col items-center" 
+                className="absolute top-[-30px] transition-all duration-1000 ease-out flex flex-col items-center pointer-events-none" 
                 style={{ left: `${markerPosition}%`, transform: 'translateX(-50%)' }}
               >
-                <span className="text-xs font-black text-black mb-1">YOU</span>
-                <div className="w-[2px] h-3 bg-black mb-12" /> {/* Trait du haut */}
-                <div className="w-[2px] h-3 bg-black mt-1" /> {/* Trait du bas */}
-                <span className="text-xs font-bold text-[#006699] whitespace-nowrap mt-1 uppercase">
+                <span className="text-[11px] font-black text-black mb-1">YOU</span>
+                <div className="w-[2px] h-3 bg-black mb-12" />
+                <div className="w-[2px] h-3 bg-black mt-1" />
+                <span className="text-[12px] font-bold text-[#006699] whitespace-nowrap mt-1 uppercase">
                   {app.label}
                 </span>
               </div>
 
-              {/* Labels du bas */}
-              <div className="w-full flex justify-between mt-3 text-[9px] font-semibold text-slate-400 uppercase">
+              {/* Labels centered under segments */}
+              <div className="w-full flex mt-4 text-[9px] font-semibold text-slate-400 uppercase">
                 <div className="w-1/4 text-center">Needs Improvement</div>
                 <div className="w-1/4 text-center">Below Target</div>
                 <div className="w-1/4 text-center">Target</div>
@@ -250,7 +250,7 @@ export default function ExamPage() {
               </div>
             </div>
 
-            <div className="text-center space-y-4 pt-4">
+            <div className="text-center space-y-4 pt-10">
                <p className="text-5xl font-black text-primary">{percentage}%</p>
                <p className="text-muted-foreground">{examResult.score} / {examResult.total} questions correctes</p>
                
