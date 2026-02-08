@@ -1,298 +1,306 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Filter, 
-  Play, 
-  Layers, 
-  Settings2,
-  BookOpen,
-  Zap,
-  Globe,
-  Users as UsersIcon,
-  Loader2,
-  Brain,
-  ChevronRight,
-  Info,
-  CheckCircle2,
-  XCircle
+  Filter, Play, Layers, Globe, Users as UsersIcon, Loader2, 
+  Brain, ChevronRight, Info, CheckCircle2, XCircle, RotateCcw,
+  BookOpen, Zap, Settings2
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Slider } from '@/components/ui/slider';
-import { useUser } from '@/firebase';
-import { generateDemoQuestions, type DemoQuestionsOutput } from '@/ai/flows/generate-demo-questions';
+import { useUser, useFirestore } from '@/firebase';
+import { startTrainingSession, submitPracticeAnswer, type PracticeFilters } from '@/lib/services/practice-service';
+import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
-const FILTER_CATEGORIES = [
-  { id: 'people', name: 'People', icon: UsersIcon, count: 450 },
-  { id: 'process', name: 'Process', icon: Layers, count: 1200 },
-  { id: 'business', name: 'Business Environment', icon: Globe, count: 350 },
+const MODES = [
+  { id: 'domain', name: 'Par Domaine', icon: Layers, desc: 'Ciblez People, Process ou Business.' },
+  { id: 'approach', name: 'Par Approche', icon: Globe, desc: 'Agile, Prédictif ou Hybride.' },
+  { id: 'kill_mistake', name: 'Kill Mistake', icon: Brain, desc: 'Uniquement vos erreurs passées.', color: 'text-amber-500' },
 ];
 
 export default function PracticePage() {
-  const { user } = useUser();
-  const isDemo = user?.isAnonymous;
-  const [questionCount, setQuestionCount] = useState([20]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [demoQuestions, setDemoQuestions] = useState<DemoQuestionsOutput['questions'] | null>(null);
-  const [activeQuestionIndex, setActiveQuestionIndex] = useState<number | null>(null);
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
-  const [showExplanation, setShowExplanation] = useState(false);
+  const { user, profile } = useUser();
+  const db = useFirestore();
+  const { toast } = useToast();
 
-  useEffect(() => {
-    if (isDemo && !demoQuestions && !isGenerating) {
-      handleStartDemo();
-    }
-  }, [isDemo]);
+  const [step, setStep] = useState<'setup' | 'session' | 'summary'>('setup');
+  const [mode, setMode] = useState<string>('domain');
+  const [filters, setFilters] = useState<PracticeFilters>({});
+  const [count, setCount] = useState<number>(10);
+  
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [sessionResults, setSessionResults] = useState({ correct: 0, total: 0 });
+  
+  const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
+  const [correction, setCorrection] = useState<any | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleStartDemo = async () => {
-    setIsGenerating(true);
+  const handleStart = async () => {
+    setIsLoading(true);
     try {
-      const result = await generateDemoQuestions();
-      setDemoQuestions(result.questions);
-      setActiveQuestionIndex(0);
-    } catch (error) {
-      console.error("Erreur lors de la préparation des questions", error);
+      const data = await startTrainingSession(db, user!.uid, mode, filters, count);
+      setQuestions(data);
+      setStep('session');
+      setCurrentIndex(0);
+      setSessionResults({ correct: 0, total: data.length });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Erreur", description: e.message });
     } finally {
-      setIsGenerating(false);
+      setIsLoading(false);
     }
   };
 
-  const handleAnswerSelect = (choice: 'A' | 'B' | 'C' | 'D') => {
-    if (showExplanation) return;
-    setSelectedAnswer(choice);
-    setShowExplanation(true);
-  };
-
-  const handleNextQuestion = () => {
-    if (demoQuestions && activeQuestionIndex !== null && activeQuestionIndex < demoQuestions.length - 1) {
-      setActiveQuestionIndex(activeQuestionIndex + 1);
-      setSelectedAnswer(null);
-      setShowExplanation(false);
+  const handleNext = () => {
+    if (currentIndex < questions.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+      setSelectedChoice(null);
+      setCorrection(null);
+    } else {
+      setStep('summary');
     }
   };
 
-  if (isDemo && (isGenerating || activeQuestionIndex !== null)) {
-    const currentQuestion = demoQuestions?.[activeQuestionIndex!];
+  const handleRevealCorrection = async () => {
+    if (!selectedChoice || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const res = await submitPracticeAnswer(db, user!.uid, questions[currentIndex].id, selectedChoice);
+      setCorrection(res);
+      if (res.isCorrect) setSessionResults(prev => ({ ...prev, correct: prev.correct + 1 }));
+    } catch (e) {
+      toast({ variant: "destructive", title: "Erreur lors de la correction" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
+  if (step === 'session') {
+    const q = questions[currentIndex];
     return (
-      <div className="space-y-8 animate-fade-in max-w-4xl mx-auto">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-headline font-bold text-primary flex items-center gap-2">
-              <Zap className="h-8 w-8 text-amber-500" />
-              Session DÉMO
-            </h1>
-            <p className="text-muted-foreground mt-1">10 questions sélectionnées pour votre session d'entraînement.</p>
-          </div>
-          <Badge variant="outline" className="text-lg px-4 py-1 border-amber-200 bg-amber-50 text-amber-700">
-            Question {activeQuestionIndex! + 1} / 10
+      <div className="max-w-4xl mx-auto space-y-6 animate-fade-in py-8">
+        <div className="flex justify-between items-center">
+          <Badge variant="outline" className="text-sm font-black italic border-2 px-4 py-1">
+            QUESTION {currentIndex + 1} / {questions.length}
           </Badge>
+          <div className="flex gap-2">
+            <Badge className="bg-primary/10 text-primary border-none font-bold italic uppercase tracking-widest text-[10px]">
+              {mode.replace('_', ' ')}
+            </Badge>
+          </div>
         </div>
 
-        {isGenerating ? (
-          <Card className="p-12 text-center flex flex-col items-center gap-4">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <h2 className="text-xl font-bold">Initialisation de la session...</h2>
-            <p className="text-muted-foreground">Préparation d'une sélection de questions adaptées.</p>
-          </Card>
-        ) : currentQuestion ? (
-          <Card className="shadow-xl border-t-4 border-t-amber-500">
-            <CardHeader>
-              <div className="flex justify-between items-start mb-4">
-                <Badge variant="secondary">{currentQuestion.domain}</Badge>
-              </div>
-              <CardTitle className="text-xl leading-relaxed">
-                {currentQuestion.text}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-3">
-                {[
-                  { key: 'A', text: currentQuestion.choiceA },
-                  { key: 'B', text: currentQuestion.choiceB },
-                  { key: 'C', text: currentQuestion.choiceC },
-                  { key: 'D', text: currentQuestion.choiceD },
-                ].map((choice) => {
-                  const isCorrect = choice.key === currentQuestion.correctAnswer;
-                  const isSelected = choice.key === selectedAnswer;
-                  
-                  let variant: "outline" | "default" | "destructive" | "secondary" = "outline";
-                  if (showExplanation) {
-                    if (isCorrect) variant = "default";
-                    else if (isSelected) variant = "destructive";
-                  }
-
-                  return (
-                    <Button 
-                      key={choice.key}
-                      variant={variant}
-                      className={cn(
-                        "h-auto py-4 px-6 justify-start text-left whitespace-normal text-sm font-medium",
-                        showExplanation && isCorrect && "bg-emerald-600 hover:bg-emerald-600 text-white border-emerald-600",
-                        showExplanation && isSelected && !isCorrect && "bg-destructive text-white border-destructive"
-                      )}
-                      onClick={() => handleAnswerSelect(choice.key as any)}
-                    >
-                      <span className="font-bold mr-4">{choice.key}.</span>
-                      {choice.text}
-                    </Button>
-                  );
-                })}
-              </div>
-
-              {showExplanation && (
-                <div className="mt-8 p-6 bg-secondary/30 rounded-xl border-l-4 border-l-primary animate-slide-up">
-                  <h4 className="font-bold flex items-center gap-2 mb-3 text-primary">
-                    <Info className="h-5 w-5" /> Explication & Mindset PMI
-                  </h4>
-                  <p className="text-sm leading-relaxed mb-6">
-                    {currentQuestion.explanation}
-                  </p>
-                  
-                  {activeQuestionIndex! < 9 ? (
-                    <Button onClick={handleNextQuestion} className="w-full">
-                      Question Suivante <ChevronRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  ) : (
-                    <div className="text-center p-4 bg-emerald-50 rounded-lg border border-emerald-100">
-                      <p className="text-emerald-700 font-bold">Session terminée !</p>
-                      <p className="text-sm text-emerald-600 mt-1">Bravo, vous avez terminé les 10 questions de démo.</p>
+        <Card className="shadow-2xl border-t-8 border-t-primary rounded-[32px] overflow-hidden">
+          <CardHeader className="p-8 pb-4">
+            <CardTitle className="text-xl leading-relaxed font-black italic text-slate-800">
+              {q.statement || q.text}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-8 space-y-4">
+            <div className="grid gap-3">
+              {(q.options || q.choices || []).map((opt: any, idx: number) => {
+                const optId = opt.id || String.fromCharCode(65 + idx);
+                const isSelected = selectedChoice === optId;
+                const isCorrect = correction?.correctOptionIds?.includes(optId);
+                
+                return (
+                  <div 
+                    key={idx} 
+                    onClick={() => !correction && setSelectedChoice(optId)}
+                    className={cn(
+                      "p-5 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-4 shadow-sm",
+                      isSelected && !correction ? "border-primary bg-primary/5 scale-[1.01]" : "border-slate-100 hover:border-slate-300",
+                      correction && isCorrect ? "border-emerald-500 bg-emerald-50" : "",
+                      correction && isSelected && !isCorrect ? "border-red-500 bg-red-50" : ""
+                    )}
+                  >
+                    <div className={cn(
+                      "h-8 w-8 rounded-full flex items-center justify-center font-black text-xs shrink-0 border-2",
+                      isSelected ? "bg-primary text-white border-primary" : "bg-white text-slate-400",
+                      correction && isCorrect ? "bg-emerald-500 text-white border-emerald-500" : "",
+                      correction && isSelected && !isCorrect ? "bg-red-500 text-white border-red-500" : ""
+                    )}>
+                      {String.fromCharCode(65 + idx)}
                     </div>
-                  )}
+                    <div className={cn("flex-1 text-sm font-bold italic pt-1", isSelected ? "text-slate-900" : "text-slate-600")}>
+                      {opt.text || opt}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {correction && (
+              <div className="mt-8 p-6 bg-slate-50 rounded-[24px] border-l-8 border-l-primary animate-slide-up shadow-inner">
+                <h4 className="font-black text-primary flex items-center gap-2 mb-3 uppercase tracking-widest italic text-xs">
+                  <Info className="h-4 w-4" /> Mindset Officiel & Justification
+                </h4>
+                <div className="space-y-4 text-sm font-bold italic text-slate-700 leading-relaxed whitespace-pre-wrap">
+                  {correction.explanation?.correctRationale || correction.explanation}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        ) : null}
+              </div>
+            )}
+          </CardContent>
+          <CardFooter className="p-8 bg-slate-50/50 border-t flex justify-between gap-4">
+            <Button 
+              variant="outline" 
+              className="flex-1 h-14 rounded-xl border-2 font-black uppercase tracking-widest text-xs disabled:opacity-30" 
+              onClick={handleRevealCorrection}
+              disabled={!selectedChoice || !!correction || isSubmitting}
+            >
+              {isSubmitting ? <Loader2 className="animate-spin h-4 w-4" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+              Voir correction
+            </Button>
+            <Button 
+              className="flex-1 h-14 rounded-xl bg-primary font-black uppercase tracking-widest text-xs shadow-xl hover:scale-[1.02] transition-transform" 
+              onClick={handleNext}
+              disabled={!selectedChoice && !correction}
+            >
+              Question suivante <ChevronRight className="ml-2 h-4 w-4" />
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  if (step === 'summary') {
+    const score = Math.round((sessionResults.correct / sessionResults.total) * 100);
+    return (
+      <div className="max-w-2xl mx-auto py-16 text-center space-y-10 animate-fade-in">
+        <div className="space-y-4">
+          <h1 className="text-5xl font-black italic uppercase tracking-tighter text-primary">Session Terminée</h1>
+          <p className="text-slate-500 font-bold uppercase tracking-widest text-sm">Analyse de vos performances</p>
+        </div>
+        
+        <Card className="rounded-[40px] shadow-2xl border-none p-12 space-y-8 bg-white relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-5">
+            <Trophy className="h-32 w-32" />
+          </div>
+          <div className="space-y-2">
+            <span className="text-8xl font-black italic tracking-tighter text-primary">{score}%</span>
+            <p className="text-xl font-black text-slate-400 uppercase tracking-widest italic">{sessionResults.correct} / {sessionResults.total} Correctes</p>
+          </div>
+          <Button className="w-full h-16 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl text-lg italic" onClick={() => setStep('setup')}>
+            Nouvelle Session
+          </Button>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-headline font-bold text-primary flex items-center gap-2">
-          <BookOpen className="h-8 w-8" />
-          Pratique Libre
+    <div className="max-w-5xl mx-auto space-y-10 animate-fade-in py-8">
+      <div className="space-y-2">
+        <h1 className="text-4xl font-black italic uppercase tracking-tighter text-primary flex items-center gap-4">
+          <BookOpen className="h-10 w-10" /> Pratique Libre
         </h1>
-        <p className="text-muted-foreground mt-1">Sélectionnez vos critères pour une session personnalisée.</p>
+        <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Entraînement ciblé et correction du mindset</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="h-5 w-5 text-primary" />
-              Critères de sélection
-            </CardTitle>
-            <CardDescription>Ciblez des domaines spécifiques ou des types de questions.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {FILTER_CATEGORIES.map((cat) => (
-                <div 
-                  key={cat.id} 
-                  className="p-4 rounded-xl border-2 border-transparent bg-secondary/50 hover:bg-secondary hover:border-primary/20 transition-all cursor-pointer group"
-                >
-                  <cat.icon className="h-8 w-8 text-primary mb-3 group-hover:scale-110 transition-transform" />
-                  <h3 className="font-bold text-sm">{cat.name}</h3>
-                  <p className="text-xs text-muted-foreground mt-1">{cat.count} questions dispos</p>
-                </div>
-              ))}
-            </div>
+        <div className="lg:col-span-2 space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {MODES.map((m) => (
+              <Card 
+                key={m.id} 
+                onClick={() => setMode(m.id)}
+                className={cn(
+                  "cursor-pointer transition-all border-4 p-6 rounded-[28px] group hover:shadow-lg",
+                  mode === m.id ? "border-primary bg-primary/5 shadow-inner" : "border-slate-100 hover:border-slate-200"
+                )}
+              >
+                <m.icon className={cn("h-10 w-10 mb-4 transition-transform group-hover:scale-110", m.color || "text-primary")} />
+                <h3 className="font-black italic uppercase text-sm tracking-tight mb-1">{m.name}</h3>
+                <p className="text-[10px] font-bold text-slate-400 leading-tight uppercase italic">{m.desc}</p>
+              </Card>
+            ))}
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className="rounded-[32px] border-none shadow-xl p-8 space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-3">
-                <Label>Approche</Label>
-                <Select defaultValue="all">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Toutes les approches" />
+                <Label className="font-black uppercase text-[10px] tracking-[0.2em] text-slate-400">Nombre de questions</Label>
+                <Select value={String(count)} onValueChange={(v) => setCount(Number(v))}>
+                  <SelectTrigger className="h-14 rounded-xl border-2 font-black italic shadow-sm">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Toutes</SelectItem>
-                    <SelectItem value="predictive">Prédictive (Waterfalls)</SelectItem>
-                    <SelectItem value="agile">Agile</SelectItem>
-                    <SelectItem value="hybrid">Hybride</SelectItem>
+                    {[5, 10, 20, 50].map(n => <SelectItem key={n} value={String(n)}>{n} QUESTIONS</SelectItem>)}
+                    <SelectItem value="0">TOUT DISPONIBLE</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-3">
-                <Label>Difficulté</Label>
-                <Select defaultValue="medium">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Difficulté" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="easy">Facile</SelectItem>
-                    <SelectItem value="medium">Moyen</SelectItem>
-                    <SelectItem value="hard">Difficile</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
 
-            <div className="space-y-6 pt-4 border-t">
-              <div className="flex justify-between items-center">
-                <Label>Nombre de questions</Label>
-                <Badge variant="secondary" className="font-bold">{questionCount[0]}</Badge>
-              </div>
-              <Slider 
-                value={questionCount} 
-                onValueChange={setQuestionCount} 
-                max={180} 
-                step={5} 
-                min={5}
-              />
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Mode Apprentissage</Label>
-                  <p className="text-xs text-muted-foreground">Affiche l'explication après chaque question.</p>
+              {mode === 'domain' && (
+                <div className="space-y-3">
+                  <Label className="font-black uppercase text-[10px] tracking-[0.2em] text-slate-400">Domaine PMP®</Label>
+                  <Select onValueChange={(v) => setFilters({ ...filters, domain: v })}>
+                    <SelectTrigger className="h-14 rounded-xl border-2 font-black italic shadow-sm">
+                      <SelectValue placeholder="TOUS LES DOMAINES" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="People">PEOPLE</SelectItem>
+                      <SelectItem value="Process">PROCESS</SelectItem>
+                      <SelectItem value="Business">BUSINESS ENVIRONMENT</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <Switch defaultChecked />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              )}
 
-        <Card className="h-fit lg:sticky lg:top-8 border-primary/20 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="text-lg">Résumé de la session</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Domaines</span>
-                <span className="font-medium">Tous sélectionnés</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Approche</span>
-                <span className="font-medium">Mélange</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Temps estimé</span>
-                <span className="font-medium">{Math.floor(questionCount[0] * 1.2)} minutes</span>
-              </div>
+              {mode === 'approach' && (
+                <div className="space-y-3">
+                  <Label className="font-black uppercase text-[10px] tracking-[0.2em] text-slate-400">Approche Projet</Label>
+                  <Select onValueChange={(v) => setFilters({ ...filters, approach: v })}>
+                    <SelectTrigger className="h-14 rounded-xl border-2 font-black italic shadow-sm">
+                      <SelectValue placeholder="TOUTES LES APPROCHES" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Predictive">PRÉDICTIVE (WATERFALL)</SelectItem>
+                      <SelectItem value="Agile">AGILE</SelectItem>
+                      <SelectItem value="Hybrid">HYBRIDE</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
-            <div className="pt-4 border-t space-y-3">
-              <Button className="w-full h-12 shadow-lg shadow-primary/20" size="lg">
-                <Play className="mr-2 h-4 w-4" /> Démarrer la session
-              </Button>
-              <Button variant="outline" className="w-full">
-                <Settings2 className="mr-2 h-4 w-4" /> Paramètres Avancés
-              </Button>
+          </Card>
+        </div>
+
+        <div className="space-y-6">
+          <Card className="rounded-[32px] bg-primary p-8 text-white shadow-2xl space-y-6 border-none">
+            <div className="space-y-2">
+              <h3 className="font-black italic uppercase tracking-tighter text-xl">Prêt à pratiquer ?</h3>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-primary-foreground/60 italic leading-relaxed">
+                Mode Apprentissage actif. Les corrections sont affichées à votre demande pour ancrer les concepts.
+              </p>
             </div>
-          </CardContent>
-        </Card>
+            <Button 
+              className="w-full h-16 rounded-2xl bg-white text-primary font-black uppercase tracking-widest italic shadow-xl hover:bg-slate-50 transition-all text-lg"
+              disabled={isLoading}
+              onClick={handleStart}
+            >
+              {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : <><Play className="mr-3 h-6 w-6" /> Lancer</>}
+            </Button>
+          </Card>
+          
+          <div className="bg-slate-100/50 p-6 rounded-[24px] border-2 border-dashed space-y-3">
+            <div className="flex items-center gap-3 text-slate-400">
+              <Settings2 className="h-4 w-4" />
+              <span className="font-black uppercase text-[10px] tracking-widest italic">Info Session</span>
+            </div>
+            <p className="text-[10px] font-bold text-slate-500 uppercase leading-relaxed italic">
+              Vos erreurs seront automatiquement ajoutées à votre liste "Kill Mistake" pour une révision ultérieure.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
-}
-
-function cn(...inputs: any[]) {
-  return inputs.filter(Boolean).join(' ');
 }

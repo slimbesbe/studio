@@ -12,26 +12,54 @@
         "lastName": { "type": "string" },
         "role": { "type": "string", "enum": ["super_admin", "admin", "user"] },
         "status": { "type": "string", "enum": ["active", "disabled", "expired"] },
-        "simulationsCount": { "type": "number", "description": "Nombre total de simulations terminées." },
-        "averageScore": { "type": "number", "description": "Moyenne des scores obtenus." },
-        "totalScore": { "type": "number", "description": "Somme des scores pour calcul de moyenne." },
-        "totalTimeSpent": { "type": "number", "description": "Temps total en secondes sur les examens." },
-        "firstLoginAt": { "type": "string", "format": "date-time" },
-        "lastLoginAt": { "type": "string", "format": "date-time" },
-        "password": { "type": "string", "description": "Mot de passe stocké en clair pour l'admin." }
+        "simulationsCount": { "type": "number" },
+        "averageScore": { "type": "number" },
+        "totalTimeSpent": { "type": "number" }
       }
     },
-    "ExamResult": {
-      "title": "ExamResult",
+    "Question": {
+      "title": "Question",
       "type": "object",
-      "description": "Résultat d'une simulation spécifique.",
       "properties": {
-        "examId": { "type": "string" },
-        "score": { "type": "number" },
-        "total": { "type": "number" },
-        "percentage": { "type": "number" },
-        "timeSpent": { "type": "number" },
-        "completedAt": { "type": "string", "format": "date-time" }
+        "id": { "type": "string" },
+        "text": { "type": "string" },
+        "choices": { "type": "array", "items": { "type": "string" } },
+        "correctChoice": { "type": "string", "description": "Index ou ID du bon choix" },
+        "explanation": {
+          "type": "object",
+          "properties": {
+            "correctRationale": { "type": "string" },
+            "distractorRationales": { "type": "object" }
+          }
+        },
+        "tags": {
+          "type": "object",
+          "properties": {
+            "domain": { "type": "string", "enum": ["People", "Process", "Business"] },
+            "approach": { "type": "string", "enum": ["Predictive", "Agile", "Hybrid"] },
+            "difficulty": { "type": "string", "enum": ["Easy", "Medium", "Hard"] }
+          }
+        },
+        "isActive": { "type": "boolean" }
+      }
+    },
+    "TrainingSession": {
+      "title": "TrainingSession",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "mode": { "type": "string", "enum": ["domain", "approach", "kill_mistake"] },
+        "filters": { "type": "object" },
+        "questionIds": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string", "enum": ["active", "finished"] },
+        "summary": {
+          "type": "object",
+          "properties": {
+            "total": { "type": "number" },
+            "correct": { "type": "number" },
+            "wrong": { "type": "number" }
+          }
+        }
       }
     }
   },
@@ -41,18 +69,20 @@
   "firestore": {
     "structure": [
       {
-        "path": "/users/{userId}",
-        "definition": {
-          "schema": { "$ref": "#/backend/entities/User" },
-          "description": "Profils utilisateurs."
-        }
+        "path": "/questions/{questionId}",
+        "definition": { "schema": { "$ref": "#/backend/entities/Question" }, "description": "Banque centrale" }
       },
       {
-        "path": "/users/{userId}/exam_results/{resultId}",
-        "definition": {
-          "schema": { "$ref": "#/backend/entities/ExamResult" },
-          "description": "Historique des résultats par utilisateur."
-        }
+        "path": "/users/{userId}/sessions/{sessionId}",
+        "definition": { "schema": { "$ref": "#/backend/entities/TrainingSession" }, "description": "Sessions d'entraînement" }
+      },
+      {
+        "path": "/users/{userId}/attempts/{attemptId}",
+        "definition": { "schema": { "type": "object" }, "description": "Réponses individuelles" }
+      },
+      {
+        "path": "/users/{userId}/killMistakes/{questionId}",
+        "definition": { "schema": { "type": "object" }, "description": "Suivi des erreurs à corriger" }
       }
     ]
   }

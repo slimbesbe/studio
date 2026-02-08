@@ -9,15 +9,14 @@ import {
   BookOpen, 
   History, 
   Brain, 
-  Settings, 
   LogOut, 
   Trophy,
-  ShieldAlert,
   Loader2,
   Lock,
   BookCopy,
   Users,
-  LayoutGrid
+  LayoutGrid,
+  ShieldAlert
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
@@ -43,7 +42,6 @@ export function Sidebar() {
 
   const isDemo = user?.isAnonymous;
 
-  // Memoize refs
   const userProfileRef = useMemoFirebase(() => {
     return user && !user.isAnonymous ? doc(firestore, 'users', user.uid) : null;
   }, [firestore, user]);
@@ -55,7 +53,6 @@ export function Sidebar() {
   const { data: profile } = useDoc(userProfileRef);
   const { data: adminDoc } = useDoc(adminDocRef);
 
-  // isAdmin check logic
   const isAdmin = !!adminDoc || profile?.role === 'super_admin' || profile?.role === 'admin';
 
   const handleSignOut = async () => {
@@ -64,7 +61,7 @@ export function Sidebar() {
   };
 
   const handleNavClick = (e: React.MouseEvent, href: string) => {
-    if (isDemo && href !== '/dashboard/practice') {
+    if (isDemo && href !== '/dashboard/practice' && href !== '/dashboard') {
       e.preventDefault();
       toast({
         variant: "destructive",
@@ -95,65 +92,35 @@ export function Sidebar() {
         {navItems.map((item) => (
           <Link
             key={item.href}
-            href={isDemo && item.href !== '/dashboard/practice' ? '#' : item.href}
+            href={isDemo && item.href !== '/dashboard/practice' && item.href !== '/dashboard' ? '#' : item.href}
             onClick={(e) => handleNavClick(e, item.href)}
             className={cn(
               "flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
               pathname === item.href 
-                ? "bg-primary text-white" 
+                ? "bg-primary text-white shadow-sm" 
                 : "text-muted-foreground hover:bg-secondary hover:text-primary",
-              isDemo && item.href !== '/dashboard/practice' && "opacity-50"
+              isDemo && item.href !== '/dashboard/practice' && item.href !== '/dashboard' && "opacity-50"
             )}
           >
             <div className="flex items-center gap-3">
               <item.icon className="h-4 w-4" />
               {item.name}
             </div>
-            {isDemo && item.href !== '/dashboard/practice' && <Lock className="h-3 w-3" />}
+            {isDemo && item.href !== '/dashboard/practice' && item.href !== '/dashboard' && <Lock className="h-3 w-3" />}
           </Link>
         ))}
         
         {isAdmin && (
           <div className="pt-4 mt-4 border-t space-y-1">
             <p className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 mt-2">Administration</p>
-            
-            <Link
-              href="/admin/dashboard"
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                pathname === '/admin/dashboard' 
-                  ? "bg-accent text-white" 
-                  : "text-muted-foreground hover:bg-secondary hover:text-primary"
-              )}
-            >
-              <LayoutGrid className="h-4 w-4" />
-              Vue d'ensemble
+            <Link href="/admin/dashboard" className={cn("flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors", pathname === '/admin/dashboard' ? "bg-accent text-white" : "text-muted-foreground hover:bg-secondary")}>
+              <LayoutGrid className="h-4 w-4" /> Vue d'ensemble
             </Link>
-
-            <Link
-              href="/admin/questions"
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                pathname.startsWith('/admin/questions') 
-                  ? "bg-accent text-white" 
-                  : "text-muted-foreground hover:bg-secondary hover:text-primary"
-              )}
-            >
-              <BookCopy className="h-4 w-4" />
-              Banque de questions
+            <Link href="/admin/questions" className={cn("flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors", pathname.startsWith('/admin/questions') ? "bg-accent text-white" : "text-muted-foreground hover:bg-secondary")}>
+              <BookCopy className="h-4 w-4" /> Banque de questions
             </Link>
-
-            <Link
-              href="/admin/users"
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                pathname.startsWith('/admin/users') 
-                  ? "bg-accent text-white" 
-                  : "text-muted-foreground hover:bg-secondary hover:text-primary"
-              )}
-            >
-              <Users className="h-4 w-4" />
-              Utilisateurs
+            <Link href="/admin/users" className={cn("flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors", pathname.startsWith('/admin/users') ? "bg-accent text-white" : "text-muted-foreground hover:bg-secondary")}>
+              <Users className="h-4 w-4" /> Utilisateurs
             </Link>
           </div>
         )}
@@ -161,34 +128,20 @@ export function Sidebar() {
 
       <div className="p-4 border-t space-y-4">
         {isUserLoading ? (
-          <div className="flex items-center justify-center py-2">
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-          </div>
+          <div className="flex items-center justify-center py-2"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
         ) : (
           <div className="flex items-center gap-3 px-3">
-            <div className={cn(
-              "h-8 w-8 rounded-full flex items-center justify-center text-white font-bold text-xs",
-              isDemo ? "bg-amber-500" : (isAdmin ? "bg-primary" : "bg-accent")
-            )}>
+            <div className={cn("h-8 w-8 rounded-full flex items-center justify-center text-white font-bold text-xs", isDemo ? "bg-amber-500" : (isAdmin ? "bg-primary" : "bg-accent"))}>
               {initials}
             </div>
             <div className="flex-1 overflow-hidden">
-              <p className="text-sm font-bold truncate">
-                {isDemo ? "Utilisateur DÉMO" : (profile?.firstName ? `${profile.firstName} ${profile.lastName}` : (user?.email?.split('@')[0] || 'Utilisateur'))}
-              </p>
-              <p className="text-xs text-muted-foreground truncate italic">
-                {isDemo ? "Mode limité" : (isAdmin ? 'Super Admin' : 'Participant')}
-              </p>
+              <p className="text-sm font-bold truncate">{profile?.firstName ? `${profile.firstName} ${profile.lastName}` : 'Utilisateur'}</p>
+              <p className="text-xs text-muted-foreground truncate italic">{isAdmin ? 'Super Admin' : 'Participant'}</p>
             </div>
           </div>
         )}
-        <Button 
-          variant="ghost" 
-          className="w-full justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10" 
-          onClick={handleSignOut}
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          Déconnexion
+        <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-destructive" onClick={handleSignOut}>
+          <LogOut className="mr-2 h-4 w-4" /> Déconnexion
         </Button>
       </div>
     </div>
