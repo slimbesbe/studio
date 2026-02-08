@@ -413,10 +413,11 @@ export default function ExamPage() {
         </div>
 
         <AlertDialog open={isConfirmSubmitOpen} onOpenChange={setIsConfirmSubmitOpen}>
-          <AlertDialogContent className="rounded-[40px] p-12 border-4 shadow-3xl !bg-white z-[100] border-primary/20">
+          <AlertDialogContent className="rounded-[40px] p-8 md:p-12 border-4 shadow-3xl !bg-white z-[100] border-primary/20 sm:max-w-2xl w-[95vw]">
             <AlertDialogHeader className="flex flex-col items-center text-center">
-              <AlertDialogTitle className="text-3xl font-black uppercase text-primary italic tracking-tighter flex items-center gap-3 mb-6">
-                <ShieldAlert className="h-10 w-10 text-amber-500" /> CONFIRMATION FINALE
+              <AlertDialogTitle className="text-2xl md:text-3xl font-black uppercase text-primary italic tracking-tighter flex items-center justify-center gap-3 mb-6 w-full">
+                <ShieldAlert className="h-10 w-10 text-amber-500 shrink-0" /> 
+                <span className="text-center">CONFIRMATION FINALE</span>
               </AlertDialogTitle>
               <div className="bg-slate-50 p-8 rounded-3xl border-2 border-dashed border-slate-200 w-full mb-6">
                 <AlertDialogDescription className="text-xl font-black text-slate-900 leading-relaxed uppercase tracking-tight">
