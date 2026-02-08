@@ -64,7 +64,11 @@ export default function ExamPage() {
   const [timeLeft, setTimeLeft] = useState(TOTAL_PMP_TIME);
   const [initialTime, setInitialTime] = useState(TOTAL_PMP_TIME);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [examResult, setExamResult] = useState<{ score: number; total: number } | null>(null);
+  const [examResult, setExamResult] = useState<{ 
+    score: number; 
+    total: number; 
+    domainScores: Record<string, { score: number, total: number }> 
+  } | null>(null);
   const [examQuestions, setExamQuestions] = useState<any[]>([]);
   const [showPauseScreen, setShowPauseScreen] = useState(false);
   const [isReviewMode, setIsReviewMode] = useState(false);
@@ -198,12 +202,24 @@ export default function ExamPage() {
     setIsSubmitting(true);
     try {
       let score = 0;
+      const domainScores: Record<string, { score: number, total: number }> = {
+        'People': { score: 0, total: 0 },
+        'Process': { score: 0, total: 0 },
+        'Business': { score: 0, total: 0 }
+      };
       const attemptResults: any[] = [];
 
       examQuestions.forEach(q => {
         const uAns = answers[q.id] || [];
         const cAns = q.correctOptionIds || [];
         const isCorrect = uAns.length === cAns.length && uAns.every(v => cAns.includes(v));
+        
+        const domain = q.tags?.domain || 'Process';
+        if (domainScores[domain]) {
+          domainScores[domain].total++;
+          if (isCorrect) domainScores[domain].score++;
+        }
+
         if (isCorrect) score++;
         
         attemptResults.push({
@@ -240,7 +256,7 @@ export default function ExamPage() {
         await logExamAttempts(db, user.uid, attemptResults);
       }
 
-      setExamResult({ score, total: examQuestions.length });
+      setExamResult({ score, total: examQuestions.length, domainScores });
       setIsItemReviewMode(false);
     } catch (e) {
       console.error(e);
@@ -515,6 +531,35 @@ export default function ExamPage() {
             <div className="text-center space-y-4 pt-12">
               <p className="text-6xl leading-none font-black text-primary tracking-tighter italic">{percentage}%</p>
               <p className="text-lg font-black text-muted-foreground uppercase tracking-widest italic">{examResult.score} / {examResult.total} POINTS</p>
+            </div>
+
+            <div className="mt-12 space-y-6 pt-8 border-t">
+              <h3 className="text-2xl font-black text-slate-900 italic uppercase tracking-tight">Your Performance by Domain:</h3>
+              <p className="text-sm text-slate-500 font-medium italic">
+                Using the same categories (as above), your performance has been calculated within each domain. 
+                This will help you identify your strong areas as well as those needing improvement so that you can plan your future professional development.
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 border-2 rounded-2xl overflow-hidden divide-x-2 divide-y-2 md:divide-y-0">
+                {['People', 'Process', 'Business'].map(domainKey => {
+                  const dStats = examResult.domainScores[domainKey] || { score: 0, total: 0 };
+                  const dPercent = dStats.total > 0 ? Math.round((dStats.score / dStats.total) * 100) : 0;
+                  const dAppreciation = PERFORMANCE_ZONES.find(z => dPercent >= z.range[0] && dPercent < z.range[1]) || PERFORMANCE_ZONES[0];
+                  
+                  return (
+                    <div key={domainKey} className="flex flex-col">
+                      <div className="bg-slate-50 p-4 text-center border-b-2 font-black uppercase text-xs tracking-widest text-slate-600">
+                        {domainKey === 'Business' ? 'Business Environment' : domainKey}
+                      </div>
+                      <div className="p-6 text-center flex-1 flex items-center justify-center">
+                        <span className={cn("text-lg font-black uppercase italic tracking-tighter", dAppreciation.color.replace('bg-', 'text-'))}>
+                          {dAppreciation.label}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </CardContent>
           <CardFooter className="flex gap-4 p-8 border-t bg-muted/10">
