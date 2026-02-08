@@ -1,14 +1,14 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Filter, Play, Layers, Globe, Users as UsersIcon, Loader2, 
-  Brain, ChevronRight, Info, CheckCircle2, XCircle, RotateCcw,
-  BookOpen, Zap, Settings2
+  Play, Layers, Globe, Loader2, 
+  Brain, ChevronRight, Info, CheckCircle2,
+  BookOpen, Settings2, Trophy, ArrowRight
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -16,6 +16,8 @@ import { useUser, useFirestore } from '@/firebase';
 import { startTrainingSession, submitPracticeAnswer, type PracticeFilters } from '@/lib/services/practice-service';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import Link from 'next/link';
 
 const MODES = [
   { id: 'domain', name: 'Par Domaine', icon: Layers, desc: 'Ciblez People, Process ou Business.' },
@@ -24,7 +26,7 @@ const MODES = [
 ];
 
 export default function PracticePage() {
-  const { user, profile } = useUser();
+  const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
 
@@ -41,6 +43,7 @@ export default function PracticePage() {
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   const [correction, setCorrection] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isKMDialogOpen, setIsKMDialogOpen] = useState(false);
 
   const handleStart = async () => {
     setIsLoading(true);
@@ -86,17 +89,17 @@ export default function PracticePage() {
     return (
       <div className="max-w-4xl mx-auto space-y-6 animate-fade-in py-8">
         <div className="flex justify-between items-center">
-          <Badge variant="outline" className="text-sm font-black italic border-2 px-4 py-1">
+          <Badge variant="outline" className="text-sm font-black italic border-2 px-4 py-1 bg-white">
             QUESTION {currentIndex + 1} / {questions.length}
           </Badge>
           <div className="flex gap-2">
-            <Badge className="bg-primary/10 text-primary border-none font-bold italic uppercase tracking-widest text-[10px]">
+            <Badge className="bg-primary/10 text-primary border-none font-black italic uppercase tracking-widest text-[10px]">
               {mode.replace('_', ' ')}
             </Badge>
           </div>
         </div>
 
-        <Card className="shadow-2xl border-t-8 border-t-primary rounded-[32px] overflow-hidden">
+        <Card className="shadow-2xl border-t-8 border-t-primary rounded-[32px] overflow-hidden bg-white">
           <CardHeader className="p-8 pb-4">
             <CardTitle className="text-xl leading-relaxed font-black italic text-slate-800">
               {q.statement || q.text}
@@ -176,7 +179,7 @@ export default function PracticePage() {
       <div className="max-w-2xl mx-auto py-16 text-center space-y-10 animate-fade-in">
         <div className="space-y-4">
           <h1 className="text-5xl font-black italic uppercase tracking-tighter text-primary">Session Terminée</h1>
-          <p className="text-slate-500 font-bold uppercase tracking-widest text-sm">Analyse de vos performances</p>
+          <p className="text-slate-500 font-bold uppercase tracking-widest text-sm italic">Analyse de vos performances</p>
         </div>
         
         <Card className="rounded-[40px] shadow-2xl border-none p-12 space-y-8 bg-white relative overflow-hidden">
@@ -201,7 +204,7 @@ export default function PracticePage() {
         <h1 className="text-4xl font-black italic uppercase tracking-tighter text-primary flex items-center gap-4">
           <BookOpen className="h-10 w-10" /> Pratique Libre
         </h1>
-        <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Entraînement ciblé et correction du mindset</p>
+        <p className="text-slate-500 font-bold uppercase tracking-widest text-xs italic">Entraînement ciblé et correction du mindset</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -210,7 +213,13 @@ export default function PracticePage() {
             {MODES.map((m) => (
               <Card 
                 key={m.id} 
-                onClick={() => setMode(m.id)}
+                onClick={() => {
+                  if (m.id === 'kill_mistake') {
+                    setIsKMDialogOpen(true);
+                  } else {
+                    setMode(m.id);
+                  }
+                }}
                 className={cn(
                   "cursor-pointer transition-all border-4 p-6 rounded-[28px] group hover:shadow-lg",
                   mode === m.id ? "border-primary bg-primary/5 shadow-inner" : "border-slate-100 hover:border-slate-200"
@@ -223,12 +232,12 @@ export default function PracticePage() {
             ))}
           </div>
 
-          <Card className="rounded-[32px] border-none shadow-xl p-8 space-y-8">
+          <Card className="rounded-[32px] border-none shadow-xl p-8 space-y-8 bg-white">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-3">
-                <Label className="font-black uppercase text-[10px] tracking-[0.2em] text-slate-400">Nombre de questions</Label>
+                <Label className="font-black uppercase text-[10px] tracking-[0.2em] text-slate-400 italic">Nombre de questions</Label>
                 <Select value={String(count)} onValueChange={(v) => setCount(Number(v))}>
-                  <SelectTrigger className="h-14 rounded-xl border-2 font-black italic shadow-sm">
+                  <SelectTrigger className="h-14 rounded-xl border-2 font-black italic shadow-sm bg-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -240,9 +249,9 @@ export default function PracticePage() {
 
               {mode === 'domain' && (
                 <div className="space-y-3">
-                  <Label className="font-black uppercase text-[10px] tracking-[0.2em] text-slate-400">Domaine PMP®</Label>
+                  <Label className="font-black uppercase text-[10px] tracking-[0.2em] text-slate-400 italic">Domaine PMP®</Label>
                   <Select onValueChange={(v) => setFilters({ ...filters, domain: v })}>
-                    <SelectTrigger className="h-14 rounded-xl border-2 font-black italic shadow-sm">
+                    <SelectTrigger className="h-14 rounded-xl border-2 font-black italic shadow-sm bg-white">
                       <SelectValue placeholder="TOUS LES DOMAINES" />
                     </SelectTrigger>
                     <SelectContent>
@@ -256,9 +265,9 @@ export default function PracticePage() {
 
               {mode === 'approach' && (
                 <div className="space-y-3">
-                  <Label className="font-black uppercase text-[10px] tracking-[0.2em] text-slate-400">Approche Projet</Label>
+                  <Label className="font-black uppercase text-[10px] tracking-[0.2em] text-slate-400 italic">Approche Projet</Label>
                   <Select onValueChange={(v) => setFilters({ ...filters, approach: v })}>
-                    <SelectTrigger className="h-14 rounded-xl border-2 font-black italic shadow-sm">
+                    <SelectTrigger className="h-14 rounded-xl border-2 font-black italic shadow-sm bg-white">
                       <SelectValue placeholder="TOUTES LES APPROCHES" />
                     </SelectTrigger>
                     <SelectContent>
@@ -301,6 +310,41 @@ export default function PracticePage() {
           </div>
         </div>
       </div>
+
+      <Dialog open={isKMDialogOpen} onOpenChange={setIsKMDialogOpen}>
+        <DialogContent className="rounded-[40px] p-8 max-w-lg border-4">
+          <DialogHeader>
+            <DialogTitle className="text-3xl font-black text-primary italic uppercase tracking-tighter flex items-center gap-3">
+              <Brain className="h-8 w-8 text-amber-500" /> Kill Mistake
+            </DialogTitle>
+            <DialogDescription className="text-sm font-bold uppercase tracking-widest italic text-slate-500 mt-2">
+              Que souhaitez-vous faire avec vos erreurs passées ?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-6">
+            <Button asChild variant="outline" className="h-20 rounded-3xl border-2 hover:bg-slate-50 flex flex-col items-start px-6 gap-1 group">
+              <Link href="/dashboard/kill-mistakes" className="w-full">
+                <span className="font-black text-slate-900 group-hover:text-primary transition-colors italic uppercase text-sm flex items-center justify-between w-full">
+                  1/ Analyser mes erreurs <ArrowRight className="h-4 w-4" />
+                </span>
+                <span className="text-[10px] font-bold text-slate-400 italic uppercase">Revue détaillée avec correction et mindset PMI</span>
+              </Link>
+            </Button>
+            <Button 
+              onClick={() => { setMode('kill_mistake'); setIsKMDialogOpen(false); }}
+              className="h-20 rounded-3xl bg-primary flex flex-col items-start px-6 gap-1 group shadow-xl hover:scale-[1.02] transition-transform"
+            >
+              <span className="font-black text-white italic uppercase text-sm flex items-center justify-between w-full">
+                2/ Re-répondre aux questions <Play className="h-4 w-4 fill-white" />
+              </span>
+              <span className="text-[10px] font-black text-primary-foreground/60 italic uppercase text-left">Lancer un entraînement uniquement sur les échecs (Pratique & Examens)</span>
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsKMDialogOpen(false)} className="font-black uppercase tracking-widest italic text-xs text-slate-400">Annuler</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

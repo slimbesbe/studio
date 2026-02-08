@@ -1,170 +1,194 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
   Brain, 
-  Calendar, 
   RotateCcw, 
   CheckCircle2, 
   XCircle,
-  AlertCircle,
-  ChevronRight,
-  Info
+  Info,
+  Loader2,
+  Trophy,
+  Play
 } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
-// Mock mistakes data
-const MOCK_MISTAKES = [
-  {
-    id: '1',
-    question: "Un membre de l'équipe ne respecte pas les délais de ses tâches. Que doit faire le chef de projet en premier ?",
-    yourAnswer: "Dénoncer le membre au sponsor de projet",
-    correctAnswer: "Rencontrer le membre en privé pour comprendre la cause",
-    domain: "People",
-    approach: "Predictive",
-    missedCount: 3,
-    nextReview: "Aujourd'hui",
-    status: 'critical'
-  },
-  {
-    id: '2',
-    question: "Pendant une itération, le Product Owner souhaite ajouter une nouvelle fonctionnalité critique. L'équipe doit :",
-    yourAnswer: "Arrêter l'itération en cours",
-    correctAnswer: "Ajouter la fonctionnalité au Product Backlog pour la prochaine planification",
-    domain: "Process",
-    approach: "Agile",
-    missedCount: 1,
-    nextReview: "Dans 2 jours",
-    status: 'moderate'
-  }
-];
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, doc, getDoc } from 'firebase/firestore';
+import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
 export default function KillMistakesPage() {
-  const [selectedMistake, setSelectedMistake] = useState<typeof MOCK_MISTAKES[0] | null>(null);
+  const { user } = useUser();
+  const db = useFirestore();
+  const [selectedMistake, setSelectedMistake] = useState<any>(null);
+  const [questionDetails, setQuestionDetails] = useState<any>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+
+  const mistakesQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(db, 'users', user.uid, 'killMistakes'), where('status', '==', 'wrong'));
+  }, [db, user]);
+
+  const { data: mistakes, isLoading: isLoadingMistakes } = useCollection(mistakesQuery);
+
+  useEffect(() => {
+    async function fetchDetails() {
+      if (!selectedMistake) return;
+      setIsLoadingDetails(true);
+      try {
+        const qDoc = await getDoc(doc(db, 'questions', selectedMistake.questionId));
+        if (qDoc.exists()) {
+          setQuestionDetails(qDoc.data());
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsLoadingDetails(false);
+      }
+    }
+    fetchDetails();
+  }, [selectedMistake, db]);
+
+  if (isLoadingMistakes) {
+    return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
+  }
+
+  const correctedCount = 0; // Ideally tracked in profile
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 animate-fade-in max-w-7xl mx-auto py-8">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-8 rounded-[40px] shadow-xl border-2">
         <div>
-          <h1 className="text-3xl font-headline font-bold text-primary flex items-center gap-2">
-            <Brain className="h-8 w-8 text-amber-500" />
+          <h1 className="text-4xl font-black text-primary italic uppercase tracking-tighter flex items-center gap-4">
+            <Brain className="h-12 w-12 text-amber-500" />
             Kill Mistakes
           </h1>
-          <p className="text-muted-foreground mt-1">Système de répétition espacée (Spaced Repetition) pour éliminer vos lacunes.</p>
+          <p className="text-slate-500 font-bold mt-1 uppercase tracking-widest text-sm italic">Système de répétition espacée pour éliminer vos lacunes.</p>
         </div>
-        <div className="flex gap-2">
-          <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none px-3 py-1">
-            <CheckCircle2 className="mr-1 h-3 w-3" /> 145 Erreurs Corrigées
+        <div className="flex gap-4">
+          <Badge className="bg-emerald-100 text-emerald-700 border-2 border-emerald-200 px-6 py-2 rounded-2xl font-black italic">
+            <CheckCircle2 className="mr-2 h-4 w-4" /> {correctedCount} ERREURS CORRIGÉES
           </Badge>
-          <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none px-3 py-1">
-            <AlertCircle className="mr-1 h-3 w-3" /> 14 En Attente
+          <Badge className="bg-amber-100 text-amber-700 border-2 border-amber-200 px-6 py-2 rounded-2xl font-black italic">
+            <Info className="mr-2 h-4 w-4" /> {mistakes?.length || 0} EN ATTENTE
           </Badge>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 space-y-4">
-          <Tabs defaultValue="today" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="today">Aujourd'hui</TabsTrigger>
-              <TabsTrigger value="all">Tout</TabsTrigger>
-            </TabsList>
-            <TabsContent value="today" className="mt-4 space-y-4">
-              {MOCK_MISTAKES.map((mistake) => (
+          <Card className="rounded-[32px] shadow-lg border-none overflow-hidden h-full flex flex-col">
+            <CardHeader className="bg-muted/30 border-b p-6">
+              <CardTitle className="text-xs font-black uppercase tracking-widest italic">Liste des erreurs</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 flex-1 overflow-y-auto max-h-[600px] space-y-3">
+              {mistakes?.length === 0 ? (
+                <div className="text-center py-20 text-slate-400 italic font-bold uppercase text-xs">Aucune erreur en attente. Félicitations !</div>
+              ) : mistakes?.map((mistake) => (
                 <Card 
                   key={mistake.id} 
-                  className={`cursor-pointer transition-all hover:ring-2 hover:ring-primary/20 ${selectedMistake?.id === mistake.id ? 'ring-2 ring-primary' : ''}`}
+                  className={cn(
+                    "cursor-pointer transition-all border-2 rounded-2xl hover:border-primary/40",
+                    selectedMistake?.id === mistake.id ? 'border-primary bg-primary/5 shadow-md scale-[1.02]' : 'border-slate-100'
+                  )}
                   onClick={() => setSelectedMistake(mistake)}
                 >
-                  <CardContent className="p-4 space-y-3">
-                    <div className="flex justify-between items-start">
-                      <Badge variant={mistake.status === 'critical' ? 'destructive' : 'secondary'}>
-                        {mistake.missedCount}x Échecs
+                  <CardContent className="p-4 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Badge variant="destructive" className="font-black italic px-2 py-0.5 text-[10px]">
+                        {mistake.wrongCount}x ÉCHECS
                       </Badge>
-                      <span className="text-[10px] text-muted-foreground flex items-center">
-                        <Calendar className="mr-1 h-3 w-3" /> {mistake.nextReview}
-                      </span>
                     </div>
-                    <p className="text-sm font-bold line-clamp-2 leading-tight">
-                      {mistake.question}
+                    <p className="text-sm font-bold text-slate-700 line-clamp-2 leading-snug italic">
+                      Question #{mistake.questionId.substring(0, 8)}
                     </p>
-                    <div className="flex gap-2">
-                      <Badge variant="outline" className="text-[10px] py-0">{mistake.domain}</Badge>
-                      <Badge variant="outline" className="text-[10px] py-0">{mistake.approach}</Badge>
-                    </div>
                   </CardContent>
                 </Card>
               ))}
-            </TabsContent>
-          </Tabs>
+            </CardContent>
+            <div className="p-4 border-t bg-muted/10">
+              <Button asChild className="w-full h-12 rounded-xl font-black uppercase tracking-widest bg-primary shadow-lg italic">
+                <Link href="/dashboard/practice?mode=kill_mistake">
+                  <Play className="mr-2 h-4 w-4" /> Re-répondre aux erreurs
+                </Link>
+              </Button>
+            </div>
+          </Card>
         </div>
 
         <div className="lg:col-span-2">
           {selectedMistake ? (
-            <Card className="h-full border-t-4 border-t-amber-500 shadow-xl animate-slide-up">
-              <CardHeader>
-                <div className="flex justify-between items-start">
+            <div className="space-y-6 animate-slide-up">
+              <Card className="rounded-[40px] shadow-2xl border-none overflow-hidden bg-white">
+                <CardHeader className="bg-white p-8 pb-4 flex flex-row items-center justify-between">
                   <div>
-                    <CardTitle className="text-xl">Analyse de l'Erreur</CardTitle>
-                    <CardDescription>Comprendre pourquoi vous avez échoué et ancrer le mindset PMI.</CardDescription>
+                    <CardTitle className="text-3xl font-black text-slate-900 italic tracking-tight">Analyse de l'Erreur</CardTitle>
+                    <CardDescription className="text-sm font-bold text-slate-500 uppercase tracking-widest italic mt-1">Comprendre pourquoi vous avez échoué et ancrer le mindset PMI.</CardDescription>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => setSelectedMistake(null)}>
-                    <RotateCcw className="h-4 w-4" />
+                  <Button variant="ghost" size="icon" className="rounded-full border-2 h-10 w-10" onClick={() => window.location.reload()}>
+                    <RotateCcw className="h-5 w-5" />
                   </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="p-4 bg-muted/50 rounded-lg border">
-                  <h4 className="font-bold mb-2 flex items-center gap-2">
-                    <Info className="h-4 w-4 text-primary" /> Énoncé de la question
-                  </h4>
-                  <p className="text-sm italic">{selectedMistake.question}</p>
-                </div>
+                </CardHeader>
+                <CardContent className="p-8 space-y-8">
+                  {isLoadingDetails ? (
+                    <div className="py-20 flex justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>
+                  ) : questionDetails && (
+                    <>
+                      <div className="p-6 bg-slate-50 rounded-3xl border-2 border-slate-100 shadow-inner">
+                        <h4 className="font-black mb-3 flex items-center gap-2 text-slate-900 uppercase text-xs tracking-widest italic">
+                          <Info className="h-4 w-4 text-primary" /> Énoncé de la question
+                        </h4>
+                        <p className="text-lg font-bold text-slate-700 italic leading-relaxed">{questionDetails.statement || questionDetails.text}</p>
+                      </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-4 border-l-4 border-l-destructive bg-destructive/5 rounded-r-lg">
-                    <h5 className="text-xs font-bold text-destructive uppercase mb-1 flex items-center gap-1">
-                      <XCircle className="h-3 w-3" /> Votre réponse
-                    </h5>
-                    <p className="text-sm font-medium">{selectedMistake.yourAnswer}</p>
-                  </div>
-                  <div className="p-4 border-l-4 border-l-emerald-500 bg-emerald-50 rounded-r-lg">
-                    <h5 className="text-xs font-bold text-emerald-600 uppercase mb-1 flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3" /> Bonne réponse
-                    </h5>
-                    <p className="text-sm font-medium">{selectedMistake.correctAnswer}</p>
-                  </div>
-                </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="p-6 rounded-3xl border-l-[12px] border-l-red-500 bg-red-50/50 shadow-sm space-y-2">
+                          <h5 className="text-[10px] font-black text-red-600 uppercase tracking-[0.2em] flex items-center gap-2 italic">
+                            <XCircle className="h-4 w-4" /> Votre réponse
+                          </h5>
+                          <p className="font-bold text-slate-800 italic">
+                            {questionDetails.options?.find((o: any) => o.id === selectedMistake.lastSelectedChoiceId)?.text || selectedMistake.lastSelectedChoiceId || "N/A"}
+                          </p>
+                        </div>
+                        <div className="p-6 rounded-3xl border-l-[12px] border-l-emerald-500 bg-emerald-50/50 shadow-sm space-y-2">
+                          <h5 className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] flex items-center gap-2 italic">
+                            <CheckCircle2 className="h-4 w-4" /> Bonne réponse
+                          </h5>
+                          <p className="font-bold text-slate-800 italic">
+                            {questionDetails.options?.find((o: any) => questionDetails.correctOptionIds?.includes(o.id))?.text || questionDetails.correctChoice || "N/A"}
+                          </p>
+                        </div>
+                      </div>
 
-                <div className="space-y-3 pt-4 border-t">
-                  <h4 className="font-bold flex items-center gap-2 text-primary">
-                    <Brain className="h-5 w-5 text-accent" /> Mindset PMI & Explication
-                  </h4>
-                  <div className="text-sm space-y-3 leading-relaxed text-muted-foreground">
-                    <p>Le mindset PMI privilégie toujours l'action proactive et directe avec les parties prenantes avant toute escalade. Dénoncer un membre au sponsor sans avoir discuté avec lui au préalable va à l'encontre des principes de leadership du serviteur.</p>
-                    <p><strong>Action recommandée :</strong> Privilégier la communication en face à face pour identifier les bloqueurs ou le manque de compétences.</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 pt-6">
-                  <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700">
-                    J'ai compris ! <ChevronRight className="ml-2 h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" className="flex-1">
-                    Reprendre demain
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                      <div className="space-y-4 pt-6 border-t-2 border-slate-50">
+                        <h4 className="font-black flex items-center gap-3 text-primary uppercase text-sm tracking-widest italic">
+                          <Brain className="h-6 w-6 text-accent" /> Mindset PMI & Explication
+                        </h4>
+                        <div className="bg-slate-50 p-8 rounded-[32px] border-2 border-slate-100 shadow-inner">
+                          <div className="text-base font-bold italic text-slate-700 leading-relaxed whitespace-pre-wrap">
+                            {questionDetails.explanation?.correctRationale || questionDetails.explanation || "Explication détaillée en attente."}
+                          </div>
+                          <div className="mt-6 p-4 bg-white/50 rounded-2xl border-2 border-dashed border-slate-200">
+                            <p className="text-xs font-black uppercase text-slate-400 mb-1 tracking-widest">Action recommandée :</p>
+                            <p className="text-sm font-bold text-primary italic">Privilégier la communication proactive et l'alignement stratégique avant toute escalade.</p>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           ) : (
-            <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-center p-8 bg-muted/20 rounded-2xl border-2 border-dashed border-muted">
-              <Brain className="h-16 w-16 text-muted mb-4" />
-              <h3 className="text-xl font-bold text-muted-foreground">Sélectionnez une erreur pour commencer la révision</h3>
-              <p className="text-sm text-muted-foreground max-w-sm mt-2">Cliquez sur une des cartes à gauche pour voir l'explication détaillée générée par notre IA.</p>
+            <div className="h-full min-h-[500px] flex flex-col items-center justify-center text-center p-12 bg-white rounded-[60px] border-4 border-dashed border-slate-100 shadow-inner">
+              <div className="bg-amber-100/50 p-8 rounded-full mb-6">
+                <Brain className="h-20 w-20 text-amber-500 opacity-40" />
+              </div>
+              <h3 className="text-2xl font-black text-slate-400 italic uppercase tracking-tighter">Sélectionnez une erreur</h3>
+              <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic max-w-sm mt-2">Cliquez sur une carte à gauche pour analyser la cause profonde de l'échec.</p>
             </div>
           )}
         </div>

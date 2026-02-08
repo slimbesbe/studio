@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -10,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Clock, ChevronRight, ChevronLeft, Loader2, PlayCircle, Info, Pause } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { logExamAttempts } from '@/lib/services/practice-service';
 
 const PERFORMANCE_ZONES = [
   { label: "Needs Improvement", color: "bg-[#F44336]", range: [0, 50], width: '50%' },
@@ -110,11 +112,21 @@ export default function ExamPage() {
     setIsSubmitting(true);
     try {
       let score = 0;
+      const attemptResults: any[] = [];
+
       examQuestions.forEach(q => {
         const uAns = answers[q.id] || [];
         const cAns = q.correctOptionIds || [];
-        if (uAns.length === cAns.length && uAns.every(v => cAns.includes(v))) score++;
+        const isCorrect = uAns.length === cAns.length && uAns.every(v => cAns.includes(v));
+        if (isCorrect) score++;
+        
+        attemptResults.push({
+          questionId: q.id,
+          selectedChoiceIds: uAns,
+          isCorrect
+        });
       });
+
       const percentage = Math.round((score / examQuestions.length) * 100);
       setExamResult({ score, total: examQuestions.length });
       
@@ -126,7 +138,6 @@ export default function ExamPage() {
           simulationsCount: newCount,
           totalScore: newTotalScore,
           averageScore: Math.round(newTotalScore / newCount),
-          // totalTimeSpent is now tracked globally by a heartbeat in FirebaseProvider
           updatedAt: serverTimestamp()
         }, { merge: true });
         
@@ -138,6 +149,9 @@ export default function ExamPage() {
           timeSpent: initialTime - timeLeft,
           completedAt: serverTimestamp()
         });
+
+        // Log attempts and update KillMistakes
+        await logExamAttempts(db, user.uid, attemptResults);
         
         if (examStateRef) await deleteDoc(examStateRef);
       }
@@ -193,21 +207,25 @@ export default function ExamPage() {
           <CardContent className="py-16 px-10">
             <div className="relative w-full max-w-2xl mx-auto">
               <div className="flex w-full text-[10px] font-black text-slate-500 uppercase mb-4 tracking-widest">
-                <div className="w-[65%] text-center italic">Falling</div>
-                <div className="w-[35%] text-center border-l-2 border-slate-300 italic">Passing</div>
+                <div className="w-[50%] text-center">Needs Improvement</div>
+                <div className="w-[15%] text-center">Below Target</div>
+                <div className="w-[15%] text-center">Target</div>
+                <div className="w-[20%] text-center">Above Target</div>
               </div>
               
               <div className="relative flex w-full h-10 rounded-full overflow-hidden border-2 shadow-inner bg-slate-100">
                 {PERFORMANCE_ZONES.map((zone, idx) => (
-                  <div key={idx} className={cn(zone.color, "border-r border-white/50 flex items-center justify-center relative")} style={{ width: zone.width }}>
-                  </div>
+                  <div key={idx} className={cn(zone.color, "border-r border-white/50")} style={{ width: zone.width }}></div>
                 ))}
               </div>
               
               <div className="absolute top-0 bottom-0 transition-all duration-1000 z-30" style={{ left: `${percentage}%`, transform: 'translateX(-50%)' }}>
                  <div className="absolute -top-10 flex flex-col items-center w-24 left-1/2 -translate-x-1/2">
-                    <span className="text-xs font-black text-black mb-1 tracking-widest italic">YOU</span>
+                    <span className="text-xs font-black text-black mb-1 tracking-widest italic uppercase">YOU</span>
                     <div className="w-1 h-3 bg-black rounded-full" />
+                 </div>
+                 <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs font-black text-primary italic uppercase">
+                    {appreciation.label}
                  </div>
               </div>
             </div>
@@ -215,7 +233,6 @@ export default function ExamPage() {
             <div className="text-center space-y-4 pt-12">
               <p className="text-6xl leading-none font-black text-primary tracking-tighter italic">{percentage}%</p>
               <p className="text-lg font-black text-muted-foreground uppercase tracking-widest italic">{examResult.score} / {examResult.total} POINTS</p>
-              <p className="text-base font-black text-primary uppercase mt-2 italic">{appreciation.label}</p>
             </div>
           </CardContent>
           <CardFooter className="flex gap-4 p-8 border-t bg-muted/10">
