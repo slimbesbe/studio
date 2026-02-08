@@ -14,7 +14,8 @@
         "status": { "type": "string", "enum": ["active", "disabled", "expired"] },
         "simulationsCount": { "type": "number" },
         "averageScore": { "type": "number" },
-        "totalTimeSpent": { "type": "number" }
+        "totalTimeSpent": { "type": "number" },
+        "allowedExams": { "type": "array", "items": { "type": "string" }, "description": "Liste des IDs d'examens autorisés (ex: exam1, exam2)" }
       }
     },
     "Question": {

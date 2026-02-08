@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Clock, ChevronRight, ChevronLeft, Loader2, PlayCircle, Info, Pause, Tags } from 'lucide-react';
+import { Clock, ChevronRight, ChevronLeft, Loader2, PlayCircle, Info, Pause, Tags, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { logExamAttempts } from '@/lib/services/practice-service';
@@ -18,6 +18,14 @@ const PERFORMANCE_ZONES = [
   { label: "Below Target", color: "bg-[#FFC107]", range: [50, 65], width: '15%' },
   { label: "Target", color: "bg-[#4CAF50]", range: [65, 80], width: '15%' },
   { label: "Above Target", color: "bg-[#009688]", range: [80, 101], width: '20%' },
+];
+
+const ALL_EXAMS = [
+  { id: 'exam1', num: 1 },
+  { id: 'exam2', num: 2 },
+  { id: 'exam3', num: 3 },
+  { id: 'exam4', num: 4 },
+  { id: 'exam5', num: 5 },
 ];
 
 export default function ExamPage() {
@@ -37,6 +45,11 @@ export default function ExamPage() {
   const [examQuestions, setExamQuestions] = useState<any[]>([]);
   const [showPauseScreen, setShowPauseScreen] = useState(false);
   const [isReviewMode, setIsReviewMode] = useState(false);
+
+  // Filtrer les examens autorisés
+  const allowedExams = isDemo 
+    ? ALL_EXAMS // Mode démo voit tout mais limité à 10 questions
+    : ALL_EXAMS.filter(exam => profile?.allowedExams?.includes(exam.id) || profile?.role === 'super_admin');
 
   const examStateRef = useMemoFirebase(() => {
     return user && !user.isAnonymous ? doc(db, 'users', user.uid, 'exam_state', 'current') : null;
@@ -150,9 +163,7 @@ export default function ExamPage() {
           completedAt: serverTimestamp()
         });
 
-        // Log attempts and update KillMistakes
         await logExamAttempts(db, user.uid, attemptResults);
-        
         if (examStateRef) await deleteDoc(examStateRef);
       }
     } catch (e) {
@@ -167,28 +178,6 @@ export default function ExamPage() {
     const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
     return `${h > 0 ? h + ':' : ''}${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
-
-  // Helper labels for tags
-  const getDomainLabel = (d: string) => {
-    if (d === 'People') return 'People';
-    if (d === 'Process') return 'Processus';
-    if (d === 'Business') return 'Business';
-    return d;
-  };
-
-  const getApproachLabel = (a: string) => {
-    if (a === 'Predictive') return 'Prédictif';
-    if (a === 'Agile') return 'Agile';
-    if (a === 'Hybrid') return 'Hybride';
-    return a;
-  };
-
-  const getDifficultyLabel = (d: string) => {
-    if (d === 'Easy') return 'Facile';
-    if (d === 'Medium') return 'Moyen';
-    if (d === 'Hard') return 'Difficile';
-    return d;
   };
 
   if (isStateLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
@@ -206,10 +195,10 @@ export default function ExamPage() {
               CONTINUER
             </Button>
             <Button variant="outline" className="h-14 text-xl font-black text-primary border-primary hover:bg-primary/5 rounded-xl uppercase tracking-widest border-2" onClick={() => { saveProgress(); setIsExamStarted(false); setShowPauseScreen(false); }}>
-              ARRETER ET SAUVEGARDER
+              SAUVEGARDER
             </Button>
             <Button variant="outline" className="h-14 text-xl font-black text-red-500 border-red-500 hover:bg-red-50 rounded-xl uppercase tracking-widest border-2" onClick={() => { if(confirm("Arrêter sans sauvegarder ?")) { setIsExamStarted(false); setSelectedExamId(null); setShowPauseScreen(false); } }}>
-              ARRETER ET ANNULER
+              ANNULER
             </Button>
           </CardContent>
         </Card>
@@ -258,8 +247,8 @@ export default function ExamPage() {
             </div>
           </CardContent>
           <CardFooter className="flex gap-4 p-8 border-t bg-muted/10">
-            <Button variant="outline" className="flex-1 font-black h-14 rounded-2xl border-2 uppercase tracking-widest hover:bg-slate-50" onClick={() => { setIsReviewMode(true); setCurrentQuestionIndex(0); }}>REVOIR MES ERREURS</Button>
-            <Button className="flex-1 font-black h-14 rounded-2xl bg-primary text-white shadow-xl uppercase tracking-widest hover:scale-[1.02] transition-transform" onClick={() => { setExamResult(null); setIsExamStarted(false); setSelectedExamId(null); }}>RETOUR DASHBOARD</Button>
+            <Button variant="outline" className="flex-1 font-black h-12 rounded-2xl border-2 uppercase tracking-widest hover:bg-slate-50" onClick={() => { setIsReviewMode(true); setCurrentQuestionIndex(0); }}>REVOIR MES ERREURS</Button>
+            <Button className="flex-1 font-black h-12 rounded-2xl bg-primary text-white shadow-xl uppercase tracking-widest hover:scale-[1.02] transition-transform" onClick={() => { setExamResult(null); setIsExamStarted(false); setSelectedExamId(null); }}>RETOUR DASHBOARD</Button>
           </CardFooter>
         </Card>
       </div>
@@ -303,17 +292,16 @@ export default function ExamPage() {
               })}
             </div>
 
-            {/* PMP Tags Display */}
             {q.tags && (
               <div className="flex flex-wrap gap-2 pt-4">
                 <Badge variant="outline" className="flex items-center gap-1.5 font-bold uppercase text-[10px] py-1 border-slate-200">
-                  <Tags className="h-3 w-3 text-primary" /> Approche : {getApproachLabel(q.tags.approach)}
+                  <Tags className="h-3 w-3 text-primary" /> Approche : {q.tags.approach}
                 </Badge>
                 <Badge variant="outline" className="flex items-center gap-1.5 font-bold uppercase text-[10px] py-1 border-slate-200">
-                  <Tags className="h-3 w-3 text-primary" /> Domaine : {getDomainLabel(q.tags.domain)}
+                  <Tags className="h-3 w-3 text-primary" /> Domaine : {q.tags.domain}
                 </Badge>
                 <Badge variant="outline" className="flex items-center gap-1.5 font-bold uppercase text-[10px] py-1 border-slate-200">
-                  <Tags className="h-3 w-3 text-primary" /> Niveau : {getDifficultyLabel(q.tags.difficulty)}
+                  <Tags className="h-3 w-3 text-primary" /> Niveau : {q.tags.difficulty}
                 </Badge>
               </div>
             )}
@@ -338,37 +326,47 @@ export default function ExamPage() {
     return (
       <div className="max-w-5xl mx-auto py-8 space-y-8">
         <div className="text-center space-y-1">
-          <h1 className="text-4xl leading-none font-black text-primary uppercase italic tracking-tighter">Simulateur PMP®</h1>
+          <h1 className="text-3xl leading-none font-black text-primary uppercase italic tracking-tighter">Simulateur PMP®</h1>
           <p className="text-lg text-slate-500 font-black uppercase tracking-widest italic">Excellence & Performance</p>
         </div>
         
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {[1,2,3,4,5].map(num => (
-            <Card key={num} className={cn("cursor-pointer border-t-4 transition-all hover:scale-[1.01] hover:shadow-md rounded-2xl overflow-hidden", selectedExamId === `exam${num}` ? 'border-t-primary bg-primary/5 ring-2 ring-primary/10 shadow-md' : 'border-t-muted shadow-sm')} onClick={() => setSelectedExamId(`exam${num}`)}>
-              <CardHeader className="p-6">
-                <CardTitle className="text-lg font-black uppercase tracking-tight italic">Examen {num}</CardTitle>
-                <div className="h-0.5 w-8 bg-primary/20 rounded-full my-3" />
-                <p className="text-slate-600 font-bold leading-relaxed text-xs uppercase tracking-tight italic">Simulation complète.</p>
-              </CardHeader>
-              <CardFooter className="p-6 pt-0">
-                <Button variant={selectedExamId === `exam${num}` ? "default" : "outline"} className="w-full h-10 font-black text-xs rounded-lg uppercase tracking-widest shadow-sm border-2 transition-all bg-primary text-white">
-                  {selectedExamId === `exam${num}` ? "SÉLECTIONNÉ" : "SÉLECTIONNER"}
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
+        {allowedExams.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 bg-white rounded-[40px] shadow-inner border-4 border-dashed border-slate-100">
+            <Lock className="h-16 w-16 text-slate-300" />
+            <h2 className="text-2xl font-black text-slate-400 italic uppercase">Accès restreint</h2>
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic max-w-md">Vous n'avez pas encore accès aux simulations d'examen. Veuillez contacter votre formateur.</p>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {allowedExams.map(exam => (
+              <Card key={exam.id} className={cn("cursor-pointer border-t-4 transition-all hover:scale-[1.01] hover:shadow-md rounded-2xl overflow-hidden", selectedExamId === exam.id ? 'border-t-primary bg-primary/5 ring-2 ring-primary/10 shadow-md' : 'border-t-muted shadow-sm')} onClick={() => setSelectedExamId(exam.id)}>
+                <CardHeader className="p-6">
+                  <CardTitle className="text-lg font-black uppercase tracking-tight italic">Examen {exam.num}</CardTitle>
+                  <div className="h-0.5 w-8 bg-primary/20 rounded-full my-3" />
+                  <p className="text-slate-600 font-bold leading-relaxed text-xs uppercase tracking-tight italic">Simulation complète.</p>
+                </CardHeader>
+                <CardFooter className="p-6 pt-0">
+                  <Button variant={selectedExamId === exam.id ? "default" : "outline"} className="w-full h-10 font-black text-xs rounded-lg uppercase tracking-widest shadow-sm border-2 transition-all bg-primary text-white">
+                    {selectedExamId === exam.id ? "SÉLECTIONNÉ" : "SÉLECTIONNER"}
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
         
-        <div className="flex flex-col gap-4 items-center pt-6">
-          {savedState && (
-            <Button variant="outline" className="w-full max-w-lg h-14 border-2 border-primary text-primary font-black text-lg rounded-xl hover:bg-primary/5 shadow-md uppercase tracking-widest animate-pulse italic" onClick={() => startExam(true)}>
-              REPRENDRE LA SESSION
+        {allowedExams.length > 0 && (
+          <div className="flex flex-col gap-4 items-center pt-6">
+            {savedState && allowedExams.some(e => e.id === savedState.selectedExamId) && (
+              <Button variant="outline" className="w-full max-w-lg h-12 border-2 border-primary text-primary font-black text-lg rounded-xl hover:bg-primary/5 shadow-md uppercase tracking-widest animate-pulse italic" onClick={() => startExam(true)}>
+                REPRENDRE LA SESSION
+              </Button>
+            )}
+            <Button size="lg" className="w-full max-w-lg h-14 text-2xl font-black bg-primary text-white uppercase shadow-lg rounded-xl hover:scale-[1.01] transition-transform tracking-widest italic" disabled={!selectedExamId || isSubmitting} onClick={() => startExam(false)}>
+              {isSubmitting ? <Loader2 className="animate-spin mr-3 h-6 w-6" /> : <PlayCircle className="mr-3 h-6 w-6" />} LANCER
             </Button>
-          )}
-          <Button size="lg" className="w-full max-w-lg h-16 text-2xl font-black bg-primary text-white uppercase shadow-lg rounded-xl hover:scale-[1.01] transition-transform tracking-widest italic" disabled={!selectedExamId || isSubmitting} onClick={() => startExam(false)}>
-            {isSubmitting ? <Loader2 className="animate-spin mr-3 h-6 w-6" /> : <PlayCircle className="mr-3 h-6 w-6" />} LANCER
-          </Button>
-        </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -397,9 +395,9 @@ export default function ExamPage() {
         <Progress value={progress} className="h-3 rounded-full bg-slate-100 border-2 shadow-inner" />
       </div>
 
-      <Card className="shadow-lg border-t-[8px] border-t-primary bg-white p-6 min-h-[300px] rounded-3xl overflow-hidden">
+      <Card className="shadow-lg border-t-[8px] border-t-primary bg-white p-6 min-h-[250px] rounded-3xl overflow-hidden">
         <CardHeader className="pb-6">
-          <CardTitle className="text-xl leading-relaxed font-black text-slate-900 tracking-tight italic">
+          <CardTitle className="text-lg leading-relaxed font-black text-slate-900 tracking-tight italic">
             {q?.statement}
           </CardTitle>
         </CardHeader>
@@ -418,7 +416,7 @@ export default function ExamPage() {
                   <div className={cn("h-8 w-8 rounded-full flex items-center justify-center font-black text-xs shrink-0 shadow-sm", isSelected ? 'bg-primary text-white scale-105' : 'bg-white text-primary border-2')}>
                     {String.fromCharCode(65 + idx)}
                   </div>
-                  <div className={cn("flex-1 text-base pt-0.5 leading-relaxed", isSelected ? 'font-black text-slate-900 italic' : 'text-slate-700 font-bold')}>
+                  <div className={cn("flex-1 text-sm pt-0.5 leading-relaxed", isSelected ? 'font-black text-slate-900 italic' : 'text-slate-700 font-bold')}>
                     {opt.text}
                   </div>
                 </div>
@@ -430,10 +428,10 @@ export default function ExamPage() {
 
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-3xl border-t-2 z-[70] shadow-xl">
         <div className="max-w-4xl mx-auto flex justify-between gap-4">
-          <Button variant="outline" className="flex-1 h-14 font-black text-lg rounded-xl uppercase border-2 hover:bg-slate-50 tracking-widest italic" onClick={() => { const i = Math.max(0, currentQuestionIndex - 1); setCurrentQuestionIndex(i); saveProgress(i); }} disabled={currentQuestionIndex === 0}>
+          <Button variant="outline" className="flex-1 h-12 font-black text-lg rounded-xl uppercase border-2 hover:bg-slate-50 tracking-widest italic" onClick={() => { const i = Math.max(0, currentQuestionIndex - 1); setCurrentQuestionIndex(i); saveProgress(i); }} disabled={currentQuestionIndex === 0}>
             <ChevronLeft className="mr-3 h-6 w-6" /> PRÉCÉDENT
           </Button>
-          <Button className="flex-1 h-14 font-black text-lg rounded-xl shadow-lg uppercase bg-primary text-white hover:scale-[1.01] transition-transform tracking-widest italic" onClick={() => { const i = Math.min(examQuestions.length - 1, currentQuestionIndex + 1); setCurrentQuestionIndex(i); saveProgress(i); }} disabled={currentQuestionIndex === examQuestions.length - 1}>
+          <Button className="flex-1 h-12 font-black text-lg rounded-xl shadow-lg uppercase bg-primary text-white hover:scale-[1.01] transition-transform tracking-widest italic" onClick={() => { const i = Math.min(examQuestions.length - 1, currentQuestionIndex + 1); setCurrentQuestionIndex(i); saveProgress(i); }} disabled={currentQuestionIndex === examQuestions.length - 1}>
             SUIVANT <ChevronRight className="mr-3 h-6 w-6" />
           </Button>
         </div>

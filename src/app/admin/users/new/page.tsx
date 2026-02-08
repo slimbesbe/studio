@@ -13,10 +13,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, UserPlus, ArrowLeft, ShieldCheck, Mail, Lock, User, Clock, Calendar } from 'lucide-react';
+import { Loader2, UserPlus, ArrowLeft, ShieldCheck, Mail, Lock, User, Clock, Calendar, Trophy, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
+
+const AVAILABLE_EXAMS = [
+  { id: 'exam1', title: 'Examen 1' },
+  { id: 'exam2', title: 'Examen 2' },
+  { id: 'exam3', title: 'Examen 3' },
+  { id: 'exam4', title: 'Examen 4' },
+  { id: 'exam5', title: 'Examen 5' },
+];
 
 export default function NewUserPage() {
   const { user: adminUser, isUserLoading } = useUser();
@@ -27,6 +36,7 @@ export default function NewUserPage() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validityType, setValidityType] = useState('days');
+  const [selectedExams, setSelectedExams] = useState<string[]>(['exam1']); // Par défaut, accès à l'Examen 1
   
   const [formData, setFormData] = useState({
     firstName: '',
@@ -49,10 +59,21 @@ export default function NewUserPage() {
     checkAdmin();
   }, [adminUser, isUserLoading, db, router]);
 
+  const toggleExam = (id: string) => {
+    setSelectedExams(prev => 
+      prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id]
+    );
+  };
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password.length < 6) {
       toast({ variant: "destructive", title: "Erreur", description: "Le mot de passe doit faire au moins 6 caractères." });
+      return;
+    }
+
+    if (selectedExams.length === 0 && formData.role === 'user') {
+      toast({ variant: "destructive", title: "Accès requis", description: "Veuillez sélectionner au moins un examen pour le participant." });
       return;
     }
 
@@ -65,7 +86,6 @@ export default function NewUserPage() {
       const userCredential = await createUserWithEmailAndPassword(secondaryAuth, formData.email, formData.password);
       const newUid = userCredential.user.uid;
 
-      // Calcul de la date d'expiration
       let expiresAt: Date | null = null;
       if (validityType === 'days') {
         const days = parseInt(formData.validityDays);
@@ -75,7 +95,6 @@ export default function NewUserPage() {
         expiresAt = new Date(formData.fixedDate);
       }
 
-      // On enregistre le mot de passe en clair dans Firestore pour que l'admin puisse le voir
       await setDoc(doc(db, 'users', newUid), {
         id: newUid,
         email: formData.email,
@@ -87,6 +106,7 @@ export default function NewUserPage() {
         validityType,
         validityDays: validityType === 'days' ? parseInt(formData.validityDays) : null,
         expiresAt: expiresAt ? Timestamp.fromDate(expiresAt) : null,
+        allowedExams: selectedExams,
         createdAt: Timestamp.now(),
       });
 
@@ -110,7 +130,7 @@ export default function NewUserPage() {
   if (isUserLoading || isAdmin === null) return <div className="h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
 
   return (
-    <div className="p-8 max-2xl mx-auto space-y-6">
+    <div className="p-8 max-w-4xl mx-auto space-y-6">
       <Button variant="ghost" asChild><Link href="/admin/users"><ArrowLeft className="mr-2 h-4 w-4" /> Retour</Link></Button>
 
       <Card className="border-t-4 border-t-accent shadow-xl">
@@ -124,74 +144,97 @@ export default function NewUserPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleCreateUser} className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Prénom</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Prénom" className="pl-10" required value={formData.firstName} onChange={(e) => setFormData({...formData, firstName: e.target.value})} />
+          <form onSubmit={handleCreateUser} className="space-y-8">
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Prénom</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input placeholder="Prénom" className="pl-10" required value={formData.firstName} onChange={(e) => setFormData({...formData, firstName: e.target.value})} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Nom</Label>
+                  <Input placeholder="Nom" required value={formData.lastName} onChange={(e) => setFormData({...formData, lastName: e.target.value})} />
                 </div>
               </div>
+
               <div className="space-y-2">
-                <Label>Nom</Label>
-                <Input placeholder="Nom" required value={formData.lastName} onChange={(e) => setFormData({...formData, lastName: e.target.value})} />
+                <Label>Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input type="email" placeholder="email@exemple.com" className="pl-10" required value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Mot de passe temporaire</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input type="text" placeholder="Saisissez un mot de passe" className="pl-10" required value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
+                </div>
+                <p className="text-[10px] text-muted-foreground italic">Ce mot de passe sera visible par l'administrateur dans la liste des utilisateurs.</p>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input type="email" placeholder="email@exemple.com" className="pl-10" required value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
+            <div className="space-y-4 border-t pt-6">
+              <Label className="text-base font-black uppercase tracking-widest flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-primary" /> Accès aux Simulations
+              </Label>
+              <p className="text-xs text-muted-foreground mb-4">Cochez les examens auxquels ce participant pourra accéder.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {AVAILABLE_EXAMS.map((exam) => (
+                  <div 
+                    key={exam.id} 
+                    onClick={() => toggleExam(exam.id)}
+                    className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${selectedExams.includes(exam.id) ? 'bg-primary/5 border-primary shadow-sm' : 'bg-muted/10 border-transparent hover:border-muted-foreground/20'}`}
+                  >
+                    <Checkbox checked={selectedExams.includes(exam.id)} onCheckedChange={() => toggleExam(exam.id)} className="h-5 w-5" />
+                    <span className={`text-sm font-black italic uppercase ${selectedExams.includes(exam.id) ? 'text-primary' : 'text-slate-500'}`}>{exam.title}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Mot de passe temporaire</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input type="text" placeholder="Saisissez un mot de passe" className="pl-10" required value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
-              </div>
-              <p className="text-[10px] text-muted-foreground">Ce mot de passe sera visible par l'administrateur dans la liste des utilisateurs.</p>
-            </div>
-
-            <div className="space-y-4 border-t pt-4">
-              <Label className="text-lg font-bold">Validité du compte</Label>
+            <div className="space-y-4 border-t pt-6">
+              <Label className="text-base font-black uppercase tracking-widest flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary" /> Validité du compte
+              </Label>
               <Tabs value={validityType} onValueChange={setValidityType} className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="days"><Clock className="mr-2 h-4 w-4" /> Nombre de jours</TabsTrigger>
-                  <TabsTrigger value="fixedDate"><Calendar className="mr-2 h-4 w-4" /> Date fixe</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-2 h-12 bg-muted/20">
+                  <TabsTrigger value="days" className="font-bold italic uppercase text-xs"><Clock className="mr-2 h-4 w-4" /> Durée (Jours)</TabsTrigger>
+                  <TabsTrigger value="fixedDate" className="font-bold italic uppercase text-xs"><Calendar className="mr-2 h-4 w-4" /> Date Fixe</TabsTrigger>
                 </TabsList>
                 <TabsContent value="days" className="pt-4">
                   <div className="space-y-2">
-                    <Label>Durée de l'accès (en jours)</Label>
-                    <Input type="number" min="1" value={formData.validityDays} onChange={(e) => setFormData({...formData, validityDays: e.target.value})} />
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Nombre de jours d'accès</Label>
+                    <Input type="number" min="1" value={formData.validityDays} onChange={(e) => setFormData({...formData, validityDays: e.target.value})} className="h-12 text-lg font-black italic" />
                   </div>
                 </TabsContent>
                 <TabsContent value="fixedDate" className="pt-4">
                   <div className="space-y-2">
-                    <Label>Expire le</Label>
-                    <Input type="date" value={formData.fixedDate} onChange={(e) => setFormData({...formData, fixedDate: e.target.value})} />
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Expire le</Label>
+                    <Input type="date" value={formData.fixedDate} onChange={(e) => setFormData({...formData, fixedDate: e.target.value})} className="h-12 text-lg font-black italic" />
                   </div>
                 </TabsContent>
               </Tabs>
             </div>
 
-            <div className="space-y-2 border-t pt-4">
-              <Label>Rôle du compte</Label>
+            <div className="space-y-2 border-t pt-6">
+              <Label className="text-xs font-bold uppercase text-muted-foreground">Rôle du compte</Label>
               <Select value={formData.role} onValueChange={(val) => setFormData({...formData, role: val})}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-12 font-black italic"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="user">User (Participant Standard)</SelectItem>
+                  <SelectItem value="user">Participant Standard</SelectItem>
                   <SelectItem value="admin">Administrateur</SelectItem>
                   <SelectItem value="super_admin">Super Admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <Button type="submit" className="w-full bg-accent hover:bg-accent/90 h-12 font-bold" disabled={isSubmitting}>
-              {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Création...</> : <><ShieldCheck className="mr-2 h-4 w-4" /> Créer et Activer</>}
+            <Button type="submit" className="w-full bg-accent hover:bg-accent/90 h-14 font-black uppercase tracking-widest text-lg shadow-xl" disabled={isSubmitting}>
+              {isSubmitting ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Création...</> : <><ShieldCheck className="mr-2 h-5 w-5" /> Activer le Participant</>}
             </Button>
           </form>
         </CardContent>
