@@ -12,8 +12,8 @@ import {
   XCircle,
   Info,
   Loader2,
-  Trophy,
-  Play
+  Play,
+  Tags
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, getDoc } from 'firebase/firestore';
@@ -52,11 +52,32 @@ export default function KillMistakesPage() {
     fetchDetails();
   }, [selectedMistake, db]);
 
+  const getDomainLabel = (d: string) => {
+    if (d === 'People') return 'People';
+    if (d === 'Process') return 'Processus';
+    if (d === 'Business') return 'Business';
+    return d;
+  };
+
+  const getApproachLabel = (a: string) => {
+    if (a === 'Predictive') return 'Prédictif';
+    if (a === 'Agile') return 'Agile';
+    if (a === 'Hybrid') return 'Hybride';
+    return a;
+  };
+
+  const getDifficultyLabel = (d: string) => {
+    if (d === 'Easy') return 'Facile';
+    if (d === 'Medium') return 'Moyen';
+    if (d === 'Hard') return 'Difficile';
+    return d;
+  };
+
   if (isLoadingMistakes) {
     return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
-  const correctedCount = 0; // Ideally tracked in profile
+  const correctedCount = 0; // Tracked in history usually
 
   return (
     <div className="space-y-8 animate-fade-in max-w-7xl mx-auto py-8">
@@ -69,9 +90,6 @@ export default function KillMistakesPage() {
           <p className="text-slate-500 font-bold mt-1 uppercase tracking-widest text-sm italic">Système de répétition espacée pour éliminer vos lacunes.</p>
         </div>
         <div className="flex gap-4">
-          <Badge className="bg-emerald-100 text-emerald-700 border-2 border-emerald-200 px-6 py-2 rounded-2xl font-black italic">
-            <CheckCircle2 className="mr-2 h-4 w-4" /> {correctedCount} ERREURS CORRIGÉES
-          </Badge>
           <Badge className="bg-amber-100 text-amber-700 border-2 border-amber-200 px-6 py-2 rounded-2xl font-black italic">
             <Info className="mr-2 h-4 w-4" /> {mistakes?.length || 0} EN ATTENTE
           </Badge>
@@ -164,6 +182,21 @@ export default function KillMistakesPage() {
                       </div>
 
                       <div className="space-y-4 pt-6 border-t-2 border-slate-50">
+                        {/* Question Context Tags */}
+                        {questionDetails.tags && (
+                          <div className="flex flex-wrap gap-2 mb-4">
+                            <Badge variant="secondary" className="flex items-center gap-1.5 font-bold uppercase text-[9px] py-0.5 bg-white border">
+                              <Tags className="h-3 w-3 text-primary" /> Approche : {getApproachLabel(questionDetails.tags.approach)}
+                            </Badge>
+                            <Badge variant="secondary" className="flex items-center gap-1.5 font-bold uppercase text-[9px] py-0.5 bg-white border">
+                              <Tags className="h-3 w-3 text-primary" /> Domaine : {getDomainLabel(questionDetails.tags.domain)}
+                            </Badge>
+                            <Badge variant="secondary" className="flex items-center gap-1.5 font-bold uppercase text-[9px] py-0.5 bg-white border">
+                              <Tags className="h-3 w-3 text-primary" /> Niveau : {getDifficultyLabel(questionDetails.tags.difficulty)}
+                            </Badge>
+                          </div>
+                        )}
+
                         <h4 className="font-black flex items-center gap-3 text-primary uppercase text-sm tracking-widest italic">
                           <Brain className="h-6 w-6 text-accent" /> Mindset PMI & Explication
                         </h4>
@@ -173,7 +206,7 @@ export default function KillMistakesPage() {
                           </div>
                           <div className="mt-6 p-4 bg-white/50 rounded-2xl border-2 border-dashed border-slate-200">
                             <p className="text-xs font-black uppercase text-slate-400 mb-1 tracking-widest">Action recommandée :</p>
-                            <p className="text-sm font-bold text-primary italic">Privilégier la communication proactive et l'alignement stratégique avant toute escalade.</p>
+                            <p className="text-sm font-bold text-primary italic">Analyser les distracteurs pour comprendre pourquoi l'autre option semblait correcte.</p>
                           </div>
                         </div>
                       </div>

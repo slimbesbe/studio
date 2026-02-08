@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Clock, ChevronRight, ChevronLeft, Loader2, PlayCircle, Info, Pause } from 'lucide-react';
+import { Clock, ChevronRight, ChevronLeft, Loader2, PlayCircle, Info, Pause, Tags } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { logExamAttempts } from '@/lib/services/practice-service';
@@ -169,6 +169,28 @@ export default function ExamPage() {
     return `${h > 0 ? h + ':' : ''}${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
+  // Helper labels for tags
+  const getDomainLabel = (d: string) => {
+    if (d === 'People') return 'People';
+    if (d === 'Process') return 'Processus';
+    if (d === 'Business') return 'Business';
+    return d;
+  };
+
+  const getApproachLabel = (a: string) => {
+    if (a === 'Predictive') return 'Prédictif';
+    if (a === 'Agile') return 'Agile';
+    if (a === 'Hybrid') return 'Hybride';
+    return a;
+  };
+
+  const getDifficultyLabel = (d: string) => {
+    if (d === 'Easy') return 'Facile';
+    if (d === 'Medium') return 'Moyen';
+    if (d === 'Hard') return 'Difficile';
+    return d;
+  };
+
   if (isStateLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
 
   if (showPauseScreen) {
@@ -254,7 +276,7 @@ export default function ExamPage() {
           <ChevronLeft className="mr-2 h-4 w-4" /> Retour
         </Button>
         <Card className={cn("border-t-8 shadow-xl rounded-3xl overflow-hidden", isCorrect ? 'border-t-emerald-500' : 'border-t-red-500')}>
-          <CardHeader className="bg-muted/5 p-6">
+          <CardHeader className="bg-muted/5 p-6 pb-2">
             <div className="flex justify-between items-center mb-4">
               <Badge variant={isCorrect ? "default" : "destructive"} className="px-3 py-0.5 text-xs font-black tracking-widest uppercase rounded-full shadow-sm">
                 {isCorrect ? "CORRECT" : "ERREUR"}
@@ -280,6 +302,22 @@ export default function ExamPage() {
                 );
               })}
             </div>
+
+            {/* PMP Tags Display */}
+            {q.tags && (
+              <div className="flex flex-wrap gap-2 pt-4">
+                <Badge variant="outline" className="flex items-center gap-1.5 font-bold uppercase text-[10px] py-1 border-slate-200">
+                  <Tags className="h-3 w-3 text-primary" /> Approche : {getApproachLabel(q.tags.approach)}
+                </Badge>
+                <Badge variant="outline" className="flex items-center gap-1.5 font-bold uppercase text-[10px] py-1 border-slate-200">
+                  <Tags className="h-3 w-3 text-primary" /> Domaine : {getDomainLabel(q.tags.domain)}
+                </Badge>
+                <Badge variant="outline" className="flex items-center gap-1.5 font-bold uppercase text-[10px] py-1 border-slate-200">
+                  <Tags className="h-3 w-3 text-primary" /> Niveau : {getDifficultyLabel(q.tags.difficulty)}
+                </Badge>
+              </div>
+            )}
+
             <div className="p-4 bg-primary/5 rounded-xl border-l-4 border-l-primary mt-6 shadow-inner">
               <h4 className="font-black mb-2 text-primary flex items-center gap-2 text-xs uppercase tracking-widest italic">
                 <Info className="h-4 w-4" /> MINDSET OFFICIEL

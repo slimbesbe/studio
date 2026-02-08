@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useRouter, useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,10 +19,12 @@ import {
   ArrowLeft, 
   CheckCircle2, 
   HelpCircle,
-  Hash
+  Hash,
+  Tags
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
 
 interface Option {
@@ -53,6 +55,11 @@ export default function ManageQuestionPage() {
   const [isActive, setIsActive] = useState(true);
   const [questionCode, setQuestionCode] = useState("");
 
+  // PMP Tags
+  const [domain, setDomain] = useState("Process");
+  const [approach, setApproach] = useState("Predictive");
+  const [difficulty, setDifficulty] = useState("Medium");
+
   const questionRef = useMemoFirebase(() => doc(db, 'exams', examId, 'questions', questionId), [db, examId, questionId]);
   const { data: questionData, isLoading: isQuestionLoading } = useDoc(questionRef);
 
@@ -76,6 +83,11 @@ export default function ManageQuestionPage() {
       setCorrectOptionIds(questionData.correctOptionIds || []);
       setIsActive(questionData.isActive !== false);
       setQuestionCode(questionData.questionCode || "");
+      if (questionData.tags) {
+        setDomain(questionData.tags.domain || "Process");
+        setApproach(questionData.tags.approach || "Predictive");
+        setDifficulty(questionData.tags.difficulty || "Medium");
+      }
     }
   }, [questionData]);
 
@@ -124,7 +136,7 @@ export default function ManageQuestionPage() {
 
     setIsSubmitting(true);
     try {
-      await updateDoc(doc(db, 'exams', examId, 'questions', questionId), {
+      const updateData = {
         statement,
         options,
         correctOptionIds,
@@ -132,7 +144,22 @@ export default function ManageQuestionPage() {
         explanation,
         isActive,
         updatedAt: serverTimestamp(),
-      });
+        tags: {
+          domain,
+          approach,
+          difficulty
+        }
+      };
+
+      await updateDoc(doc(db, 'exams', examId, 'questions', questionId), updateData);
+      
+      // Also sync to global questions collection
+      await setDoc(doc(db, 'questions', questionId), {
+        ...updateData,
+        id: questionId,
+        questionCode,
+        examId
+      }, { merge: true });
 
       toast({ title: "Succès", description: "Question mise à jour." });
       router.push('/admin/questions');
@@ -172,6 +199,42 @@ export default function ManageQuestionPage() {
               value={statement}
               onChange={(e) => setStatement(e.target.value)}
             />
+          </div>
+
+          <div className="grid grid-cols-3 gap-4 p-4 bg-muted/20 rounded-xl border border-dashed">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2 text-xs font-black uppercase"><Tags className="h-3 w-3" /> Domaine</Label>
+              <Select value={domain} onValueChange={setDomain}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="People">People</SelectItem>
+                  <SelectItem value="Process">Processus</SelectItem>
+                  <SelectItem value="Business">Business</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2 text-xs font-black uppercase"><Tags className="h-3 w-3" /> Approche</Label>
+              <Select value={approach} onValueChange={setApproach}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Predictive">Prédictif</SelectItem>
+                  <SelectItem value="Agile">Agile</SelectItem>
+                  <SelectItem value="Hybrid">Hybride</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2 text-xs font-black uppercase"><Tags className="h-3 w-3" /> Niveau</Label>
+              <Select value={difficulty} onValueChange={setDifficulty}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Easy">Facile</SelectItem>
+                  <SelectItem value="Medium">Moyen</SelectItem>
+                  <SelectItem value="Hard">Difficile</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="flex items-center justify-between p-6 bg-muted/30 rounded-2xl border-2">

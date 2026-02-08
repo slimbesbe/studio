@@ -8,7 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Play, Layers, Globe, Loader2, 
   Brain, ChevronRight, Info, CheckCircle2,
-  BookOpen, Settings2, Trophy, ArrowRight
+  BookOpen, Settings2, Trophy, ArrowRight,
+  Tags
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -84,6 +85,28 @@ export default function PracticePage() {
     }
   };
 
+  // Helper labels for tags
+  const getDomainLabel = (d: string) => {
+    if (d === 'People') return 'People';
+    if (d === 'Process') return 'Processus';
+    if (d === 'Business') return 'Business';
+    return d;
+  };
+
+  const getApproachLabel = (a: string) => {
+    if (a === 'Predictive') return 'Prédictif';
+    if (a === 'Agile') return 'Agile';
+    if (a === 'Hybrid') return 'Hybride';
+    return a;
+  };
+
+  const getDifficultyLabel = (d: string) => {
+    if (d === 'Easy') return 'Facile';
+    if (d === 'Medium') return 'Moyen';
+    if (d === 'Hard') return 'Difficile';
+    return d;
+  };
+
   if (step === 'session') {
     const q = questions[currentIndex];
     return (
@@ -141,6 +164,21 @@ export default function PracticePage() {
 
             {correction && (
               <div className="mt-8 p-6 bg-slate-50 rounded-[24px] border-l-8 border-l-primary animate-slide-up shadow-inner">
+                {/* PMP Tags display in correction */}
+                {q.tags && (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    <Badge variant="secondary" className="flex items-center gap-1.5 font-bold uppercase text-[9px] py-0.5 bg-white border">
+                      Approche : {getApproachLabel(q.tags.approach)}
+                    </Badge>
+                    <Badge variant="secondary" className="flex items-center gap-1.5 font-bold uppercase text-[9px] py-0.5 bg-white border">
+                      Domaine : {getDomainLabel(q.tags.domain)}
+                    </Badge>
+                    <Badge variant="secondary" className="flex items-center gap-1.5 font-bold uppercase text-[9px] py-0.5 bg-white border">
+                      Niveau : {getDifficultyLabel(q.tags.difficulty)}
+                    </Badge>
+                  </div>
+                )}
+
                 <h4 className="font-black text-primary flex items-center gap-2 mb-3 uppercase tracking-widest italic text-xs">
                   <Info className="h-4 w-4" /> Mindset Officiel & Justification
                 </h4>
@@ -256,7 +294,7 @@ export default function PracticePage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="People">PEOPLE</SelectItem>
-                      <SelectItem value="Process">PROCESS</SelectItem>
+                      <SelectItem value="Process">PROCESSUS</SelectItem>
                       <SelectItem value="Business">BUSINESS ENVIRONMENT</SelectItem>
                     </SelectContent>
                   </Select>

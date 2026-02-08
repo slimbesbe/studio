@@ -19,11 +19,11 @@ import {
   ArrowLeft, 
   CheckCircle2, 
   AlertCircle,
-  HelpCircle
+  HelpCircle,
+  Tags
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
 
@@ -51,6 +51,11 @@ export default function NewQuestionPage() {
   const [correctOptionIds, setCorrectOptionIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // PMP Tags
+  const [domain, setDomain] = useState("Process");
+  const [approach, setApproach] = useState("Predictive");
+  const [difficulty, setDifficulty] = useState("Medium");
+
   useEffect(() => {
     async function checkAdmin() {
       if (user) {
@@ -64,7 +69,8 @@ export default function NewQuestionPage() {
 
   const handleAddOption = () => {
     if (options.length >= 10) return;
-    const newId = (options.length > 0 ? Math.max(...options.map(o => parseInt(o.id) || 0)) : 0 + 1).toString();
+    const maxId = options.length > 0 ? Math.max(...options.map(o => parseInt(o.id) || 0)) : 0;
+    const newId = (maxId + 1).toString();
     setOptions([...options, { id: newId, text: '' }]);
   };
 
@@ -119,7 +125,7 @@ export default function NewQuestionPage() {
       });
 
       const qRef = doc(collection(db, 'exams', examId, 'questions'));
-      await setDoc(qRef, {
+      const qData = {
         id: qRef.id,
         questionCode,
         statement,
@@ -130,10 +136,20 @@ export default function NewQuestionPage() {
         isActive: true,
         createdByRole: profile?.role || 'admin',
         createdAt: serverTimestamp(),
-        examId
-      });
+        examId,
+        tags: {
+          domain,
+          approach,
+          difficulty
+        }
+      };
 
-      toast({ title: "Succès", description: `Question ${questionCode} ajoutée à l'examen.` });
+      await setDoc(qRef, qData);
+      
+      // Also sync to global questions collection for practice filtering
+      await setDoc(doc(db, 'questions', qRef.id), qData);
+
+      toast({ title: "Succès", description: `Question ${questionCode} ajoutée.` });
       router.push('/admin/questions');
     } catch (e) {
       console.error(e);
@@ -187,6 +203,42 @@ export default function NewQuestionPage() {
             />
           </div>
 
+          <div className="grid grid-cols-3 gap-4 p-4 bg-muted/20 rounded-xl border border-dashed">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2 text-xs font-black uppercase"><Tags className="h-3 w-3" /> Domaine</Label>
+              <Select value={domain} onValueChange={setDomain}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="People">People</SelectItem>
+                  <SelectItem value="Process">Processus</SelectItem>
+                  <SelectItem value="Business">Business</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2 text-xs font-black uppercase"><Tags className="h-3 w-3" /> Approche</Label>
+              <Select value={approach} onValueChange={setApproach}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Predictive">Prédictif</SelectItem>
+                  <SelectItem value="Agile">Agile</SelectItem>
+                  <SelectItem value="Hybrid">Hybride</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2 text-xs font-black uppercase"><Tags className="h-3 w-3" /> Niveau</Label>
+              <Select value={difficulty} onValueChange={setDifficulty}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Easy">Facile</SelectItem>
+                  <SelectItem value="Medium">Moyen</SelectItem>
+                  <SelectItem value="Hard">Difficile</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border">
             <div className="space-y-0.5">
               <Label className="text-base">Réponses multiples</Label>
@@ -233,7 +285,7 @@ export default function NewQuestionPage() {
                       placeholder={`Option ${index + 1}`} 
                       value={opt.text}
                       onChange={(e) => handleOptionTextChange(opt.id, e.target.value)}
-                      className={correctOptionIds.includes(opt.id) ? "border-emerald-500 bg-emerald-50/30" : ""}
+                      className={correctOptionIds.includes(opt.id) ? "border-emerald-500 bg-emerald-50/30 font-bold" : ""}
                     />
                   </div>
                   <Button 
