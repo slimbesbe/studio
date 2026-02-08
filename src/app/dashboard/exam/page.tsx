@@ -11,13 +11,24 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Clock, ChevronRight, ChevronLeft, Loader2, PlayCircle, 
   Info, Pause, Tags, Lock, Flag, Calculator as CalcIcon, 
-  MessageSquare, CheckCircle2, AlertTriangle, ListChecks
+  MessageSquare, CheckCircle2, AlertTriangle, ListChecks,
+  Coffee, ShieldAlert
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { logExamAttempts } from '@/lib/services/practice-service';
 import { Calculator } from '@/components/dashboard/Calculator';
 import { Textarea } from '@/components/ui/textarea';
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle 
+} from "@/components/ui/alert-dialog";
 
 const PERFORMANCE_ZONES = [
   { label: "Needs Improvement", color: "bg-[#F44336]", range: [0, 50], width: '50%' },
@@ -34,6 +45,10 @@ const ALL_EXAMS = [
   { id: 'exam5', num: 5 },
 ];
 
+const QUESTIONS_PER_PART = 60;
+const TOTAL_PMP_TIME = 230 * 60; // 230 minutes in seconds
+const BREAK_DURATION = 10 * 60; // 10 minutes in seconds
+
 export default function ExamPage() {
   const { user, profile } = useUser();
   const db = useFirestore();
@@ -46,8 +61,8 @@ export default function ExamPage() {
   const [answers, setAnswers] = useState<Record<string, string[]>>({});
   const [flags, setFlags] = useState<Record<string, boolean>>({});
   const [comments, setComments] = useState<Record<string, string>>({});
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [initialTime, setInitialTime] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(TOTAL_PMP_TIME);
+  const [initialTime, setInitialTime] = useState(TOTAL_PMP_TIME);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [examResult, setExamResult] = useState<{ score: number; total: number } | null>(null);
   const [examQuestions, setExamQuestions] = useState<any[]>([]);
@@ -55,8 +70,13 @@ export default function ExamPage() {
   const [isReviewMode, setIsReviewMode] = useState(false);
   const [isItemReviewMode, setIsItemReviewMode] = useState(false);
   const [isCalcOpen, setIsCalcOpen] = useState(false);
+  
+  // PMP Specific states
+  const [examPart, setExamPart] = useState<1 | 2 | 3>(1);
+  const [isOnBreak, setIsOnBreak] = useState(false);
+  const [breakTimeLeft, setBreakTimeLeft] = useState(BREAK_DURATION);
+  const [isConfirmSubmitOpen, setIsConfirmSubmitOpen] = useState(false);
 
-  // Filtrer les examens autorisés
   const allowedExams = isDemo 
     ? ALL_EXAMS 
     : ALL_EXAMS.filter(exam => profile?.allowedExams?.includes(exam.id) || profile?.role === 'super_admin');
@@ -78,17 +98,31 @@ export default function ExamPage() {
       timeLeft,
       initialTime,
       questionIds: examQuestions.map(q => q.id),
+      examPart,
       updatedAt: serverTimestamp()
     }, { merge: true });
-  }, [isDemo, examStateRef, isExamStarted, currentQuestionIndex, answers, flags, comments, timeLeft, initialTime, examQuestions, selectedExamId, examResult]);
+  }, [isDemo, examStateRef, isExamStarted, currentQuestionIndex, answers, flags, comments, timeLeft, initialTime, examQuestions, selectedExamId, examResult, examPart]);
 
+  // Main Exam Timer
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (isExamStarted && timeLeft > 0 && !examResult && !showPauseScreen && !isItemReviewMode) {
+    if (isExamStarted && timeLeft > 0 && !examResult && !showPauseScreen && !isItemReviewMode && !isOnBreak) {
       timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
     }
     return () => clearInterval(timer);
-  }, [isExamStarted, timeLeft, examResult, showPauseScreen, isItemReviewMode]);
+  }, [isExamStarted, timeLeft, examResult, showPauseScreen, isItemReviewMode, isOnBreak]);
+
+  // Break Timer
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isOnBreak && breakTimeLeft > 0) {
+      timer = setInterval(() => setBreakTimeLeft((prev) => prev - 1), 1000);
+    } else if (isOnBreak && breakTimeLeft === 0) {
+      setIsOnBreak(false);
+      setBreakTimeLeft(BREAK_DURATION);
+    }
+    return () => clearInterval(timer);
+  }, [isOnBreak, breakTimeLeft]);
 
   const startExam = async (resume: boolean = false) => {
     const examToLoad = resume && savedState ? savedState.selectedExamId : selectedExamId;
@@ -111,30 +145,51 @@ export default function ExamPage() {
         setFlags(savedState.flags || {});
         setComments(savedState.comments || {});
         setCurrentQuestionIndex(savedState.currentQuestionIndex || 0);
-        setTimeLeft(savedState.timeLeft || 0);
-        setInitialTime(savedState.initialTime || 0);
+        setTimeLeft(savedState.timeLeft || TOTAL_PMP_TIME);
+        setInitialTime(savedState.initialTime || TOTAL_PMP_TIME);
         setSelectedExamId(savedState.selectedExamId);
+        setExamPart(savedState.examPart || 1);
       } else {
         const pool = [...questions].sort(() => 0.5 - Math.random());
-        const selected = pool.slice(0, isDemo ? 10 : 180);
-        const duration = selected.length * 72;
+        const selected = pool.slice(0, 180);
         setExamQuestions(selected);
-        setTimeLeft(duration);
-        setInitialTime(duration);
+        setTimeLeft(TOTAL_PMP_TIME);
+        setInitialTime(TOTAL_PMP_TIME);
         setCurrentQuestionIndex(0);
         setAnswers({});
         setFlags({});
         setComments({});
         setExamResult(null);
+        setExamPart(1);
       }
       setIsExamStarted(true);
       setShowPauseScreen(false);
       setIsItemReviewMode(false);
       setIsReviewMode(false);
+      setIsOnBreak(false);
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur lors du chargement" });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleFinishSection = () => {
+    setIsConfirmSubmitOpen(true);
+  };
+
+  const confirmSectionSubmission = async () => {
+    setIsConfirmSubmitOpen(false);
+    if (examPart < 3) {
+      setIsOnBreak(true);
+      setBreakTimeLeft(BREAK_DURATION);
+      const nextPart = (examPart + 1) as 2 | 3;
+      setExamPart(nextPart);
+      setCurrentQuestionIndex((nextPart - 1) * QUESTIONS_PER_PART);
+      setIsItemReviewMode(false);
+      saveProgress((nextPart - 1) * QUESTIONS_PER_PART);
+    } else {
+      await finishExam();
     }
   };
 
@@ -161,7 +216,6 @@ export default function ExamPage() {
       const percentage = Math.round((score / examQuestions.length) * 100);
       
       if (!isDemo && user) {
-        // Delete state FIRST to prevent resume button appearing
         if (examStateRef) await deleteDoc(examStateRef);
 
         const newCount = (profile?.simulationsCount || 0) + 1;
@@ -218,9 +272,15 @@ export default function ExamPage() {
       });
       return;
     }
-    const nextIdx = Math.min(examQuestions.length - 1, currentQuestionIndex + 1);
-    setCurrentQuestionIndex(nextIdx);
-    saveProgress(nextIdx);
+
+    const currentPartMax = examPart * QUESTIONS_PER_PART - 1;
+    if (currentQuestionIndex < currentPartMax) {
+      const nextIdx = currentQuestionIndex + 1;
+      setCurrentQuestionIndex(nextIdx);
+      saveProgress(nextIdx);
+    } else {
+      setIsItemReviewMode(true);
+    }
   };
 
   const formatTime = (seconds: number) => {
@@ -231,6 +291,38 @@ export default function ExamPage() {
   };
 
   if (isStateLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
+
+  if (isOnBreak) {
+    return (
+      <div className="fixed inset-0 z-[100] bg-slate-900 flex items-center justify-center p-4">
+        <Card className="w-full max-w-2xl shadow-2xl bg-white border-none rounded-[40px] overflow-hidden animate-slide-up">
+          <CardHeader className="text-center py-12 bg-primary/5">
+            <div className="mx-auto bg-primary/10 h-20 w-20 rounded-full flex items-center justify-center mb-6">
+              <Coffee className="h-10 w-10 text-primary" />
+            </div>
+            <h1 className="text-4xl font-black text-slate-900 tracking-wider uppercase italic">PAUSE OPTIONNELLE</h1>
+            <p className="text-sm text-slate-500 mt-2 font-bold uppercase tracking-widest italic">Vous avez terminé la Partie {examPart - 1}</p>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center gap-8 p-12 bg-white">
+            <div className="text-7xl font-black text-primary tabular-nums italic bg-slate-50 px-12 py-6 rounded-3xl border-4 border-dashed border-primary/20">
+              {formatTime(breakTimeLeft)}
+            </div>
+            <div className="text-center max-w-sm space-y-4">
+              <p className="text-slate-600 font-bold leading-relaxed italic">
+                Prenez quelques minutes pour vous reposer. Votre chronomètre d'examen est en pause.
+              </p>
+              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest leading-tight">
+                Note : Vous ne pourrez plus modifier les réponses de la section précédente après avoir repris.
+              </p>
+            </div>
+            <Button size="lg" className="h-16 px-12 text-xl font-black bg-primary hover:bg-primary/90 rounded-2xl uppercase tracking-widest shadow-xl scale-105" onClick={() => setIsOnBreak(false)}>
+              REPRENDRE L'EXAMEN
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (showPauseScreen) {
     return (
@@ -257,6 +349,10 @@ export default function ExamPage() {
   }
 
   if (isItemReviewMode) {
+    const startIdx = (examPart - 1) * QUESTIONS_PER_PART;
+    const endIdx = examPart * QUESTIONS_PER_PART;
+    const partQuestions = examQuestions.slice(startIdx, endIdx);
+
     return (
       <div className="max-w-6xl mx-auto py-10 space-y-8 animate-fade-in px-4">
         <div className="flex justify-between items-center bg-white p-8 rounded-[32px] shadow-xl border-2">
@@ -264,24 +360,27 @@ export default function ExamPage() {
             <h1 className="text-3xl font-black text-primary uppercase italic tracking-tight flex items-center gap-3">
               <ListChecks className="h-8 w-8" /> Item Review Screen
             </h1>
-            <p className="text-slate-500 font-bold uppercase tracking-widest text-xs mt-1">Vérifiez vos réponses avant de soumettre définitivement.</p>
+            <p className="text-slate-500 font-bold uppercase tracking-widest text-xs mt-1">
+              Partie {examPart} : Vérifiez vos réponses avant de soumettre cette section.
+            </p>
           </div>
           <div className="flex gap-4">
             <Button variant="outline" className="h-12 px-8 font-black uppercase tracking-widest border-2 rounded-xl" onClick={() => setIsItemReviewMode(false)}>RETOUR</Button>
-            <Button className="h-12 px-8 font-black uppercase tracking-widest bg-primary text-white rounded-xl shadow-lg" onClick={finishExam} disabled={isSubmitting}>
-              {isSubmitting ? <Loader2 className="animate-spin h-4 w-4" /> : "SUBMIT EXAM"}
+            <Button className="h-12 px-8 font-black uppercase tracking-widest bg-primary text-white rounded-xl shadow-lg" onClick={handleFinishSection}>
+              {examPart === 3 ? "SUBMIT EXAM" : `SUBMIT SECTION ${examPart}`}
             </Button>
           </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {examQuestions.map((q, idx) => {
+          {partQuestions.map((q, idx) => {
+            const absoluteIdx = startIdx + idx;
             const hasAnswer = answers[q.id] && answers[q.id].length > 0;
             const isFlagged = flags[q.id];
             return (
               <div 
                 key={q.id} 
-                onClick={() => { setCurrentQuestionIndex(idx); setIsItemReviewMode(false); }}
+                onClick={() => { setCurrentQuestionIndex(absoluteIdx); setIsItemReviewMode(false); }}
                 className={cn(
                   "relative p-4 h-24 rounded-2xl border-2 cursor-pointer transition-all flex flex-col items-center justify-center gap-1 group overflow-hidden",
                   hasAnswer ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200',
@@ -289,18 +388,38 @@ export default function ExamPage() {
                 )}
               >
                 {isFlagged && <div className="absolute top-1 right-1"><Flag className="h-3 w-3 fill-amber-500 text-amber-500" /></div>}
-                <span className="text-xl font-black italic text-slate-800">{idx + 1}</span>
+                <span className="text-xl font-black italic text-slate-800">{absoluteIdx + 1}</span>
                 <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{hasAnswer ? 'ANSWERED' : 'INCOMPLETE'}</span>
                 <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors" />
               </div>
             );
           })}
         </div>
+
+        <AlertDialog open={isConfirmSubmitOpen} onOpenChange={setIsConfirmSubmitOpen}>
+          <AlertDialogContent className="rounded-[40px] p-12 border-4 shadow-3xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-3xl font-black uppercase text-primary italic tracking-tighter flex items-center gap-3">
+                <ShieldAlert className="h-8 w-8 text-amber-500" /> CONFIRMATION FINALE
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-xl font-bold pt-6 text-slate-600 leading-relaxed uppercase tracking-tight">
+                Êtes-vous sûr de vouloir soumettre la <strong>Partie {examPart}</strong> ?<br/><br/>
+                <span className="text-red-500">ATTENTION :</span> Une fois soumis, vous ne pourrez plus revenir en arrière pour modifier vos réponses dans cette section.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="mt-10 gap-6">
+              <AlertDialogCancel className="h-16 rounded-2xl font-black uppercase tracking-widest border-4">REVENIR À LA RÉVISION</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmSectionSubmission} className="h-16 rounded-2xl font-black bg-primary hover:bg-primary/90 shadow-2xl uppercase tracking-widest">
+                OUI, JE CONFIRME LA SOUMISSION
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }
 
-  // REVIEW MODE SCREEN
+  // REVIEW MODE SCREEN (After Exam is finished)
   if (isReviewMode) {
     const q = examQuestions[currentQuestionIndex];
     const uAns = answers[q.id] || [];
@@ -486,11 +605,14 @@ export default function ExamPage() {
               <CalcIcon className="h-5 w-5" />
             </Button>
           </div>
-          <div className="text-2xl font-black text-primary bg-primary/5 border-2 border-primary/20 px-4 py-1.5 rounded-xl shadow-inner tabular-nums italic">
-            {formatTime(timeLeft)}
+          <div className="flex flex-col items-end">
+            <div className="text-2xl font-black text-primary bg-primary/5 border-2 border-primary/20 px-4 py-1.5 rounded-xl shadow-inner tabular-nums italic">
+              {formatTime(timeLeft)}
+            </div>
+            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">COMPTE À REBOURS EXAMEN</span>
           </div>
           <Button variant="destructive" size="sm" className="font-black h-10 px-6 uppercase shadow-sm rounded-lg text-sm tracking-widest hover:scale-[1.02] transition-transform italic border-2" onClick={() => setIsItemReviewMode(true)}>
-            FINISH EXAM
+            REVIEW SECTION {examPart}
           </Button>
         </div>
         <Progress value={progress} className="h-3 rounded-full bg-slate-100 border-2 shadow-inner" />
@@ -522,7 +644,6 @@ export default function ExamPage() {
                       "p-5 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-5 shadow-sm group", 
                       isSelected ? 'border-primary bg-primary/5 ring-4 ring-primary/5' : 'border-slate-100 hover:border-primary/40 bg-slate-50/30'
                     )}>
-                      {/* Circle for single, Square for multi */}
                       <div className={cn(
                         "h-8 w-8 flex items-center justify-center font-black text-xs shrink-0 shadow-sm transition-all border-2",
                         isMulti ? "rounded-lg" : "rounded-full",
@@ -579,7 +700,7 @@ export default function ExamPage() {
               <AlertTriangle className="h-4 w-4" /> Exam Protocol
             </div>
             <p className="text-[10px] text-amber-600 font-bold italic leading-relaxed">
-              Une fois soumis, vous ne pourrez plus modifier vos réponses. Utilisez le Flag pour revenir sur les questions incertaines.
+              Une fois soumis, vous ne pourrez plus modifier vos réponses dans cette partie. Utilisez le Flag pour revenir sur les questions incertaines.
             </p>
           </div>
         </div>
@@ -587,11 +708,24 @@ export default function ExamPage() {
 
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-3xl border-t-2 z-[70] shadow-xl">
         <div className="max-w-4xl mx-auto flex justify-between gap-4">
-          <Button variant="outline" className="flex-1 h-14 font-black text-lg rounded-xl uppercase border-2 hover:bg-slate-50 tracking-widest italic" onClick={() => { const i = Math.max(0, currentQuestionIndex - 1); setCurrentQuestionIndex(i); saveProgress(i); }} disabled={currentQuestionIndex === 0}>
+          <Button 
+            variant="outline" 
+            className="flex-1 h-14 font-black text-lg rounded-xl uppercase border-2 hover:bg-slate-50 tracking-widest italic" 
+            onClick={() => { 
+              const minIdx = (examPart - 1) * QUESTIONS_PER_PART;
+              const i = Math.max(minIdx, currentQuestionIndex - 1); 
+              setCurrentQuestionIndex(i); 
+              saveProgress(i); 
+            }} 
+            disabled={currentQuestionIndex === (examPart - 1) * QUESTIONS_PER_PART}
+          >
             <ChevronLeft className="mr-3 h-6 w-6" /> PREVIOUS
           </Button>
-          <Button className="flex-1 h-14 font-black text-lg rounded-xl shadow-lg uppercase bg-primary text-white hover:scale-[1.01] transition-transform tracking-widest italic" onClick={handleNext} disabled={currentQuestionIndex === examQuestions.length - 1}>
-            NEXT <ChevronRight className="mr-3 h-6 w-6" />
+          <Button 
+            className="flex-1 h-14 font-black text-lg rounded-xl shadow-lg uppercase bg-primary text-white hover:scale-[1.01] transition-transform tracking-widest italic" 
+            onClick={handleNext}
+          >
+            {currentQuestionIndex === (examPart * QUESTIONS_PER_PART - 1) ? "REVIEW PART" : "NEXT"} <ChevronRight className="mr-3 h-6 w-6" />
           </Button>
         </div>
       </div>
