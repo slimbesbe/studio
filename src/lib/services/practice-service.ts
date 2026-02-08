@@ -110,9 +110,11 @@ export async function logExamAttempts(
   
   for (const res of results) {
     const attemptRef = doc(collection(db, 'users', userId, 'attempts'));
+    const selectedChoiceId = res.selectedChoiceIds.length > 0 ? res.selectedChoiceIds[0] : 'unanswered';
+    
     batch.set(attemptRef, {
       questionId: res.questionId,
-      selectedChoiceId: res.selectedChoiceIds[0], // Simplified for logging
+      selectedChoiceId: selectedChoiceId,
       isCorrect: res.isCorrect,
       context: 'exam',
       answeredAt: serverTimestamp()
@@ -125,7 +127,7 @@ export async function logExamAttempts(
         wrongCount: increment(1),
         lastWrongAt: serverTimestamp(),
         questionId: res.questionId,
-        lastSelectedChoiceId: res.selectedChoiceIds[0]
+        lastSelectedChoiceId: selectedChoiceId
       }, { merge: true });
     } else {
       batch.set(kmRef, {

@@ -130,6 +130,7 @@ export default function ExamPage() {
       setIsExamStarted(true);
       setShowPauseScreen(false);
       setIsItemReviewMode(false);
+      setIsReviewMode(false);
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur lors du chargement" });
     } finally {
@@ -158,9 +159,11 @@ export default function ExamPage() {
       });
 
       const percentage = Math.round((score / examQuestions.length) * 100);
-      setExamResult({ score, total: examQuestions.length });
       
       if (!isDemo && user) {
+        // Delete state FIRST to prevent resume button appearing
+        if (examStateRef) await deleteDoc(examStateRef);
+
         const newCount = (profile?.simulationsCount || 0) + 1;
         const newTotalScore = (profile?.totalScore || 0) + percentage;
         
@@ -181,9 +184,12 @@ export default function ExamPage() {
         });
 
         await logExamAttempts(db, user.uid, attemptResults);
-        if (examStateRef) await deleteDoc(examStateRef);
       }
+
+      setExamResult({ score, total: examQuestions.length });
+      setIsItemReviewMode(false);
     } catch (e) {
+      console.error(e);
       toast({ variant: "destructive", title: "Erreur de sauvegarde." });
     } finally {
       setIsSubmitting(false);
@@ -262,7 +268,9 @@ export default function ExamPage() {
           </div>
           <div className="flex gap-4">
             <Button variant="outline" className="h-12 px-8 font-black uppercase tracking-widest border-2 rounded-xl" onClick={() => setIsItemReviewMode(false)}>RETOUR</Button>
-            <Button className="h-12 px-8 font-black uppercase tracking-widest bg-primary text-white rounded-xl shadow-lg" onClick={finishExam}>SUBMIT EXAM</Button>
+            <Button className="h-12 px-8 font-black uppercase tracking-widest bg-primary text-white rounded-xl shadow-lg" onClick={finishExam} disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="animate-spin h-4 w-4" /> : "SUBMIT EXAM"}
+            </Button>
           </div>
         </div>
 
@@ -292,6 +300,61 @@ export default function ExamPage() {
     );
   }
 
+  // REVIEW MODE SCREEN
+  if (isReviewMode) {
+    const q = examQuestions[currentQuestionIndex];
+    const uAns = answers[q.id] || [];
+    const isCorrect = uAns.length === (q.correctOptionIds?.length || 0) && uAns.every(v => q.correctOptionIds?.includes(v));
+    return (
+      <div className="max-w-4xl mx-auto space-y-6 py-6 px-4">
+        <Button variant="ghost" onClick={() => setIsReviewMode(false)} className="font-black text-primary uppercase tracking-widest mb-2 hover:bg-primary/5 h-10 px-4 rounded-xl border-2">
+          <ChevronLeft className="mr-2 h-4 w-4" /> Retour au Rapport
+        </Button>
+        <Card className={cn("border-t-8 shadow-xl rounded-3xl overflow-hidden", isCorrect ? 'border-t-emerald-500' : 'border-t-red-500')}>
+          <CardHeader className="bg-muted/5 p-6 pb-2">
+            <div className="flex justify-between items-center mb-4">
+              <Badge variant={isCorrect ? "default" : "destructive"} className="px-3 py-0.5 text-xs font-black tracking-widest uppercase rounded-full shadow-sm">
+                {isCorrect ? "CORRECT" : "ERREUR"}
+              </Badge>
+              <span className="text-xs font-black text-muted-foreground bg-white border-2 px-3 py-1.5 rounded-lg shadow-sm italic">
+                {currentQuestionIndex + 1} / {examQuestions.length}
+              </span>
+            </div>
+            <CardTitle className="text-lg leading-relaxed font-black text-slate-800 italic">{q.statement}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 p-6">
+            <div className="grid gap-3">
+              {q.options.map((opt: any, idx: number) => {
+                const isSelected = uAns.includes(opt.id);
+                const isCorrectOpt = q.correctOptionIds?.includes(opt.id);
+                return (
+                  <div key={opt.id} className={cn("p-3 rounded-xl border-2 flex items-center gap-3 transition-all", isCorrectOpt ? 'border-emerald-500 bg-emerald-50 shadow-sm' : isSelected ? 'border-red-400 bg-red-50' : 'border-muted bg-white')}>
+                    <div className={cn("h-8 w-8 rounded-full flex items-center justify-center font-black text-xs shrink-0", isCorrectOpt ? 'bg-emerald-500 text-white' : isSelected ? 'bg-red-500 text-white' : 'bg-muted text-muted-foreground')}>
+                      {String.fromCharCode(65 + idx)}
+                    </div>
+                    <div className="flex-1 font-black text-sm text-slate-700 italic">{opt.text}</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="p-4 bg-primary/5 rounded-xl border-l-4 border-l-primary mt-6 shadow-inner">
+              <h4 className="font-black mb-2 text-primary flex items-center gap-2 text-xs uppercase tracking-widest italic">
+                <Info className="h-4 w-4" /> MINDSET OFFICIEL
+              </h4>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700 font-bold italic">{q.explanation || "Explication non disponible."}</p>
+            </div>
+          </CardContent>
+          <CardFooter className="justify-between p-6 border-t bg-muted/5">
+            <Button variant="outline" size="sm" className="font-black px-4 h-9 rounded-lg uppercase border-2 text-xs" onClick={() => setCurrentQuestionIndex(p => Math.max(0, p - 1))} disabled={currentQuestionIndex === 0}>PRÉCÉDENT</Button>
+            <Button variant="outline" size="sm" className="font-black px-4 h-9 rounded-lg uppercase border-2 text-xs" onClick={() => setCurrentQuestionIndex(p => Math.min(examQuestions.length - 1, p + 1))} disabled={currentQuestionIndex === examQuestions.length - 1}>SUIVANT</Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  // RESULTS SCREEN
   if (examResult) {
     const percentage = Math.round((examResult.score / examResult.total) * 100);
     const appreciation = PERFORMANCE_ZONES.find(z => percentage >= z.range[0] && percentage < z.range[1]) || PERFORMANCE_ZONES[0];
@@ -334,60 +397,7 @@ export default function ExamPage() {
           </CardContent>
           <CardFooter className="flex gap-4 p-8 border-t bg-muted/10">
             <Button variant="outline" className="flex-1 font-black h-12 rounded-2xl border-2 uppercase tracking-widest hover:bg-slate-50" onClick={() => { setIsReviewMode(true); setCurrentQuestionIndex(0); }}>REVOIR MES ERREURS</Button>
-            <Button className="flex-1 font-black h-12 rounded-2xl bg-primary text-white shadow-xl uppercase tracking-widest hover:scale-[1.02] transition-transform" onClick={() => { setExamResult(null); setIsExamStarted(false); setSelectedExamId(null); }}>RETOUR DASHBOARD</Button>
-          </CardFooter>
-        </Card>
-      </div>
-    );
-  }
-
-  if (isReviewMode) {
-    const q = examQuestions[currentQuestionIndex];
-    const uAns = answers[q.id] || [];
-    const isCorrect = uAns.length === (q.correctOptionIds?.length || 0) && uAns.every(v => q.correctOptionIds?.includes(v));
-    return (
-      <div className="max-w-4xl mx-auto space-y-6 py-6 px-4">
-        <Button variant="ghost" onClick={() => setIsReviewMode(false)} className="font-black text-primary uppercase tracking-widest mb-2 hover:bg-primary/5 h-10 px-4 rounded-xl border-2">
-          <ChevronLeft className="mr-2 h-4 w-4" /> Retour
-        </Button>
-        <Card className={cn("border-t-8 shadow-xl rounded-3xl overflow-hidden", isCorrect ? 'border-t-emerald-500' : 'border-t-red-500')}>
-          <CardHeader className="bg-muted/5 p-6 pb-2">
-            <div className="flex justify-between items-center mb-4">
-              <Badge variant={isCorrect ? "default" : "destructive"} className="px-3 py-0.5 text-xs font-black tracking-widest uppercase rounded-full shadow-sm">
-                {isCorrect ? "CORRECT" : "ERREUR"}
-              </Badge>
-              <span className="text-xs font-black text-muted-foreground bg-white border-2 px-3 py-1.5 rounded-lg shadow-sm italic">
-                {currentQuestionIndex + 1} / {examQuestions.length}
-              </span>
-            </div>
-            <CardTitle className="text-lg leading-relaxed font-black text-slate-800 italic">{q.statement}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 p-6">
-            <div className="grid gap-3">
-              {q.options.map((opt: any, idx: number) => {
-                const isSelected = uAns.includes(opt.id);
-                const isCorrectOpt = q.correctOptionIds?.includes(opt.id);
-                return (
-                  <div key={opt.id} className={cn("p-3 rounded-xl border-2 flex items-center gap-3 transition-all", isCorrectOpt ? 'border-emerald-500 bg-emerald-50 shadow-sm' : isSelected ? 'border-red-400 bg-red-50' : 'border-muted bg-white')}>
-                    <div className={cn("h-8 w-8 rounded-full flex items-center justify-center font-black text-xs shrink-0", isCorrectOpt ? 'bg-emerald-500 text-white' : isSelected ? 'bg-red-500 text-white' : 'bg-muted text-muted-foreground')}>
-                      {String.fromCharCode(65 + idx)}
-                    </div>
-                    <div className="flex-1 font-black text-sm text-slate-700 italic">{opt.text}</div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="p-4 bg-primary/5 rounded-xl border-l-4 border-l-primary mt-6 shadow-inner">
-              <h4 className="font-black mb-2 text-primary flex items-center gap-2 text-xs uppercase tracking-widest italic">
-                <Info className="h-4 w-4" /> MINDSET OFFICIEL
-              </h4>
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700 font-bold italic">{q.explanation || "Explication non disponible."}</p>
-            </div>
-          </CardContent>
-          <CardFooter className="justify-between p-6 border-t bg-muted/5">
-            <Button variant="outline" size="sm" className="font-black px-4 h-9 rounded-lg uppercase border-2 text-xs" onClick={() => setCurrentQuestionIndex(p => Math.max(0, p - 1))} disabled={currentQuestionIndex === 0}>PRÉCÉDENT</Button>
-            <Button variant="outline" size="sm" className="font-black px-4 h-9 rounded-lg uppercase border-2 text-xs" onClick={() => setCurrentQuestionIndex(p => Math.min(examQuestions.length - 1, p + 1))} disabled={currentQuestionIndex === examQuestions.length - 1}>SUIVANT</Button>
+            <Button className="flex-1 font-black h-12 rounded-2xl bg-primary text-white shadow-xl uppercase tracking-widest hover:scale-[1.02] transition-transform" onClick={() => { setExamResult(null); setIsExamStarted(false); setSelectedExamId(null); setIsReviewMode(false); }}>RETOUR DASHBOARD</Button>
           </CardFooter>
         </Card>
       </div>
