@@ -8,10 +8,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Clock, ChevronRight, ChevronLeft, Loader2, PlayCircle, Info, Pause, Tags, Lock } from 'lucide-react';
+import { 
+  Clock, ChevronRight, ChevronLeft, Loader2, PlayCircle, 
+  Info, Pause, Tags, Lock, Flag, Calculator as CalcIcon, 
+  MessageSquare, CheckCircle2, AlertTriangle, ListChecks
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { logExamAttempts } from '@/lib/services/practice-service';
+import { Calculator } from '@/components/dashboard/Calculator';
+import { Textarea } from '@/components/ui/textarea';
 
 const PERFORMANCE_ZONES = [
   { label: "Needs Improvement", color: "bg-[#F44336]", range: [0, 50], width: '50%' },
@@ -38,6 +44,8 @@ export default function ExamPage() {
   const [isExamStarted, setIsExamStarted] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string[]>>({});
+  const [flags, setFlags] = useState<Record<string, boolean>>({});
+  const [comments, setComments] = useState<Record<string, string>>({});
   const [timeLeft, setTimeLeft] = useState(0);
   const [initialTime, setInitialTime] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -45,10 +53,12 @@ export default function ExamPage() {
   const [examQuestions, setExamQuestions] = useState<any[]>([]);
   const [showPauseScreen, setShowPauseScreen] = useState(false);
   const [isReviewMode, setIsReviewMode] = useState(false);
+  const [isItemReviewMode, setIsItemReviewMode] = useState(false);
+  const [isCalcOpen, setIsCalcOpen] = useState(false);
 
   // Filtrer les examens autorisés
   const allowedExams = isDemo 
-    ? ALL_EXAMS // Mode démo voit tout mais limité à 10 questions
+    ? ALL_EXAMS 
     : ALL_EXAMS.filter(exam => profile?.allowedExams?.includes(exam.id) || profile?.role === 'super_admin');
 
   const examStateRef = useMemoFirebase(() => {
@@ -63,20 +73,22 @@ export default function ExamPage() {
       selectedExamId,
       currentQuestionIndex: updatedIndex !== undefined ? updatedIndex : currentQuestionIndex,
       answers: updatedAnswers !== undefined ? updatedAnswers : answers,
+      flags,
+      comments,
       timeLeft,
       initialTime,
       questionIds: examQuestions.map(q => q.id),
       updatedAt: serverTimestamp()
     }, { merge: true });
-  }, [isDemo, examStateRef, isExamStarted, currentQuestionIndex, answers, timeLeft, initialTime, examQuestions, selectedExamId, examResult]);
+  }, [isDemo, examStateRef, isExamStarted, currentQuestionIndex, answers, flags, comments, timeLeft, initialTime, examQuestions, selectedExamId, examResult]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (isExamStarted && timeLeft > 0 && !examResult && !showPauseScreen) {
+    if (isExamStarted && timeLeft > 0 && !examResult && !showPauseScreen && !isItemReviewMode) {
       timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
     }
     return () => clearInterval(timer);
-  }, [isExamStarted, timeLeft, examResult, showPauseScreen]);
+  }, [isExamStarted, timeLeft, examResult, showPauseScreen, isItemReviewMode]);
 
   const startExam = async (resume: boolean = false) => {
     const examToLoad = resume && savedState ? savedState.selectedExamId : selectedExamId;
@@ -96,6 +108,8 @@ export default function ExamPage() {
         const filtered = questions.filter(q => savedState.questionIds.includes(q.id));
         setExamQuestions(filtered);
         setAnswers(savedState.answers || {});
+        setFlags(savedState.flags || {});
+        setComments(savedState.comments || {});
         setCurrentQuestionIndex(savedState.currentQuestionIndex || 0);
         setTimeLeft(savedState.timeLeft || 0);
         setInitialTime(savedState.initialTime || 0);
@@ -109,10 +123,13 @@ export default function ExamPage() {
         setInitialTime(duration);
         setCurrentQuestionIndex(0);
         setAnswers({});
+        setFlags({});
+        setComments({});
         setExamResult(null);
       }
       setIsExamStarted(true);
       setShowPauseScreen(false);
+      setIsItemReviewMode(false);
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur lors du chargement" });
     } finally {
@@ -173,6 +190,33 @@ export default function ExamPage() {
     }
   };
 
+  const toggleFlag = (qId: string) => {
+    const newFlags = { ...flags, [qId]: !flags[qId] };
+    setFlags(newFlags);
+    saveProgress(undefined, undefined);
+  };
+
+  const updateComment = (qId: string, val: string) => {
+    const newComments = { ...comments, [qId]: val };
+    setComments(newComments);
+  };
+
+  const handleNext = () => {
+    const qId = examQuestions[currentQuestionIndex].id;
+    if (!answers[qId] || answers[qId].length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Attention",
+        description: "You have not yet viewed the entire screen. Veuillez sélectionner une réponse.",
+        duration: 3000
+      });
+      return;
+    }
+    const nextIdx = Math.min(examQuestions.length - 1, currentQuestionIndex + 1);
+    setCurrentQuestionIndex(nextIdx);
+    saveProgress(nextIdx);
+  };
+
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -202,6 +246,48 @@ export default function ExamPage() {
             </Button>
           </CardContent>
         </Card>
+      </div>
+    );
+  }
+
+  if (isItemReviewMode) {
+    return (
+      <div className="max-w-6xl mx-auto py-10 space-y-8 animate-fade-in px-4">
+        <div className="flex justify-between items-center bg-white p-8 rounded-[32px] shadow-xl border-2">
+          <div>
+            <h1 className="text-3xl font-black text-primary uppercase italic tracking-tight flex items-center gap-3">
+              <ListChecks className="h-8 w-8" /> Item Review Screen
+            </h1>
+            <p className="text-slate-500 font-bold uppercase tracking-widest text-xs mt-1">Vérifiez vos réponses avant de soumettre définitivement.</p>
+          </div>
+          <div className="flex gap-4">
+            <Button variant="outline" className="h-12 px-8 font-black uppercase tracking-widest border-2 rounded-xl" onClick={() => setIsItemReviewMode(false)}>RETOUR</Button>
+            <Button className="h-12 px-8 font-black uppercase tracking-widest bg-primary text-white rounded-xl shadow-lg" onClick={finishExam}>SUBMIT EXAM</Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          {examQuestions.map((q, idx) => {
+            const hasAnswer = answers[q.id] && answers[q.id].length > 0;
+            const isFlagged = flags[q.id];
+            return (
+              <div 
+                key={q.id} 
+                onClick={() => { setCurrentQuestionIndex(idx); setIsItemReviewMode(false); }}
+                className={cn(
+                  "relative p-4 h-24 rounded-2xl border-2 cursor-pointer transition-all flex flex-col items-center justify-center gap-1 group overflow-hidden",
+                  hasAnswer ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200',
+                  isFlagged && 'ring-2 ring-amber-400'
+                )}
+              >
+                {isFlagged && <div className="absolute top-1 right-1"><Flag className="h-3 w-3 fill-amber-500 text-amber-500" /></div>}
+                <span className="text-xl font-black italic text-slate-800">{idx + 1}</span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{hasAnswer ? 'ANSWERED' : 'INCOMPLETE'}</span>
+                <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors" />
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   }
@@ -260,7 +346,7 @@ export default function ExamPage() {
     const uAns = answers[q.id] || [];
     const isCorrect = uAns.length === (q.correctOptionIds?.length || 0) && uAns.every(v => q.correctOptionIds?.includes(v));
     return (
-      <div className="max-w-4xl mx-auto space-y-6 py-6">
+      <div className="max-w-4xl mx-auto space-y-6 py-6 px-4">
         <Button variant="ghost" onClick={() => setIsReviewMode(false)} className="font-black text-primary uppercase tracking-widest mb-2 hover:bg-primary/5 h-10 px-4 rounded-xl border-2">
           <ChevronLeft className="mr-2 h-4 w-4" /> Retour
         </Button>
@@ -292,20 +378,6 @@ export default function ExamPage() {
               })}
             </div>
 
-            {q.tags && (
-              <div className="flex flex-wrap gap-2 pt-4">
-                <Badge variant="outline" className="flex items-center gap-1.5 font-bold uppercase text-[10px] py-1 border-slate-200">
-                  <Tags className="h-3 w-3 text-primary" /> Approche : {q.tags.approach}
-                </Badge>
-                <Badge variant="outline" className="flex items-center gap-1.5 font-bold uppercase text-[10px] py-1 border-slate-200">
-                  <Tags className="h-3 w-3 text-primary" /> Domaine : {q.tags.domain}
-                </Badge>
-                <Badge variant="outline" className="flex items-center gap-1.5 font-bold uppercase text-[10px] py-1 border-slate-200">
-                  <Tags className="h-3 w-3 text-primary" /> Niveau : {q.tags.difficulty}
-                </Badge>
-              </div>
-            )}
-
             <div className="p-4 bg-primary/5 rounded-xl border-l-4 border-l-primary mt-6 shadow-inner">
               <h4 className="font-black mb-2 text-primary flex items-center gap-2 text-xs uppercase tracking-widest italic">
                 <Info className="h-4 w-4" /> MINDSET OFFICIEL
@@ -324,7 +396,7 @@ export default function ExamPage() {
 
   if (!isExamStarted) {
     return (
-      <div className="max-w-5xl mx-auto py-8 space-y-8">
+      <div className="max-w-5xl mx-auto py-8 space-y-8 px-4">
         <div className="text-center space-y-1">
           <h1 className="text-3xl leading-none font-black text-primary uppercase italic tracking-tighter">Simulateur PMP®</h1>
           <p className="text-lg text-slate-500 font-black uppercase tracking-widest italic">Excellence & Performance</p>
@@ -373,8 +445,10 @@ export default function ExamPage() {
 
   const q = examQuestions[currentQuestionIndex];
   const progress = ((currentQuestionIndex + 1) / examQuestions.length) * 100;
+  const isFlagged = flags[q.id];
+
   return (
-    <div className="max-w-4xl mx-auto space-y-4 pb-32 py-4 animate-fade-in">
+    <div className="max-w-5xl mx-auto space-y-4 pb-32 py-4 px-4 animate-fade-in">
       <div className="sticky top-0 z-[60] bg-background/95 backdrop-blur-3xl py-4 border-b-2 shadow-sm px-6 rounded-b-2xl border-primary/10">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-3">
@@ -384,58 +458,135 @@ export default function ExamPage() {
             <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-muted/80 rounded-lg border-2" onClick={() => setShowPauseScreen(true)}>
               <Pause className="h-5 w-5 text-slate-800" />
             </Button>
+            <div className="h-10 w-[1px] bg-slate-200 mx-1" />
+            <Button 
+              variant={isFlagged ? "default" : "outline"} 
+              size="icon" 
+              className={cn("h-10 w-10 rounded-lg border-2", isFlagged ? "bg-amber-500 hover:bg-amber-600 border-amber-600" : "")} 
+              onClick={() => toggleFlag(q.id)}
+            >
+              <Flag className={cn("h-5 w-5", isFlagged ? "fill-white" : "")} />
+            </Button>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className={cn("h-10 w-10 rounded-lg border-2", isCalcOpen ? "bg-primary text-white" : "")} 
+              onClick={() => setIsCalcOpen(!isCalcOpen)}
+            >
+              <CalcIcon className="h-5 w-5" />
+            </Button>
           </div>
           <div className="text-2xl font-black text-primary bg-primary/5 border-2 border-primary/20 px-4 py-1.5 rounded-xl shadow-inner tabular-nums italic">
             {formatTime(timeLeft)}
           </div>
-          <Button variant="destructive" size="sm" className="font-black h-10 px-6 uppercase shadow-sm rounded-lg text-sm tracking-widest hover:scale-[1.02] transition-transform italic border-2" onClick={() => { if(confirm("Terminer ?")) finishExam(); }}>
-            TERMINER
+          <Button variant="destructive" size="sm" className="font-black h-10 px-6 uppercase shadow-sm rounded-lg text-sm tracking-widest hover:scale-[1.02] transition-transform italic border-2" onClick={() => setIsItemReviewMode(true)}>
+            FINISH EXAM
           </Button>
         </div>
         <Progress value={progress} className="h-3 rounded-full bg-slate-100 border-2 shadow-inner" />
       </div>
 
-      <Card className="shadow-lg border-t-[8px] border-t-primary bg-white p-6 min-h-[250px] rounded-3xl overflow-hidden">
-        <CardHeader className="pb-6">
-          <CardTitle className="text-lg leading-relaxed font-black text-slate-900 tracking-tight italic">
-            {q?.statement}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3">
-            {q?.options.map((opt: any, idx: number) => {
-              const isSelected = answers[q.id]?.includes(opt.id);
-              return (
-                <div key={opt.id} onClick={() => {
-                  const current = answers[q.id] || [];
-                  const newAns = q.isMultipleCorrect ? (isSelected ? current.filter(id => id !== opt.id) : [...current, opt.id]) : [opt.id];
-                  const updated = { ...answers, [q.id]: newAns };
-                  setAnswers(updated);
-                  saveProgress(undefined, updated);
-                }} className={cn("p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-4 shadow-sm", isSelected ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/40 bg-slate-50/50')}>
-                  <div className={cn("h-8 w-8 rounded-full flex items-center justify-center font-black text-xs shrink-0 shadow-sm", isSelected ? 'bg-primary text-white scale-105' : 'bg-white text-primary border-2')}>
-                    {String.fromCharCode(65 + idx)}
-                  </div>
-                  <div className={cn("flex-1 text-sm pt-0.5 leading-relaxed", isSelected ? 'font-black text-slate-900 italic' : 'text-slate-700 font-bold')}>
-                    {opt.text}
-                  </div>
-                </div>
-              );
-            })}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+        <div className="lg:col-span-3 space-y-6">
+          <Card className="shadow-lg border-t-[8px] border-t-primary bg-white p-6 min-h-[300px] rounded-3xl overflow-hidden relative">
+            <CardHeader className="pb-6">
+              <div className="flex justify-between items-start">
+                <CardTitle className="text-xl leading-relaxed font-black text-slate-900 tracking-tight italic">
+                  {q?.statement}
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4">
+                {q?.options.map((opt: any, idx: number) => {
+                  const isSelected = answers[q.id]?.includes(opt.id);
+                  const isMulti = q.isMultipleCorrect;
+                  return (
+                    <div key={opt.id} onClick={() => {
+                      const current = answers[q.id] || [];
+                      const newAns = isMulti ? (isSelected ? current.filter(id => id !== opt.id) : [...current, opt.id]) : [opt.id];
+                      const updated = { ...answers, [q.id]: newAns };
+                      setAnswers(updated);
+                      saveProgress(undefined, updated);
+                    }} className={cn(
+                      "p-5 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-5 shadow-sm group", 
+                      isSelected ? 'border-primary bg-primary/5 ring-4 ring-primary/5' : 'border-slate-100 hover:border-primary/40 bg-slate-50/30'
+                    )}>
+                      {/* Circle for single, Square for multi */}
+                      <div className={cn(
+                        "h-8 w-8 flex items-center justify-center font-black text-xs shrink-0 shadow-sm transition-all border-2",
+                        isMulti ? "rounded-lg" : "rounded-full",
+                        isSelected ? 'bg-primary text-white scale-110 border-primary' : 'bg-white text-primary border-slate-300 group-hover:border-primary/50'
+                      )}>
+                        {String.fromCharCode(65 + idx)}
+                      </div>
+                      <div className={cn("flex-1 text-base pt-0.5 leading-relaxed", isSelected ? 'font-black text-slate-900 italic' : 'text-slate-700 font-bold')}>
+                        {opt.text}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-[24px] border-2 border-dashed bg-slate-50/50 p-6">
+            <div className="flex items-center gap-3 text-slate-500 mb-4 font-black uppercase text-xs tracking-widest italic">
+              <MessageSquare className="h-4 w-4" /> Notes & Comments
+            </div>
+            <Textarea 
+              placeholder="Ajoutez vos commentaires sur cette question ici..." 
+              className="bg-white rounded-xl h-24 border-2 focus:ring-primary font-bold italic"
+              value={comments[q.id] || ''}
+              onChange={(e) => updateComment(q.id, e.target.value)}
+            />
+          </Card>
+        </div>
+
+        <div className="hidden lg:block space-y-4">
+          <div className="bg-white p-6 rounded-[24px] shadow-lg border-2 space-y-4">
+            <h3 className="font-black italic uppercase text-xs tracking-[0.2em] text-primary flex items-center gap-2">
+              <Tags className="h-4 w-4" /> Context Tags
+            </h3>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Domaine</span>
+                <Badge variant="secondary" className="w-full justify-center h-8 rounded-lg font-black uppercase italic tracking-tighter text-[10px]">{q.tags?.domain || 'N/A'}</Badge>
+              </div>
+              <div className="space-y-1">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Approche</span>
+                <Badge variant="secondary" className="w-full justify-center h-8 rounded-lg font-black uppercase italic tracking-tighter text-[10px]">{q.tags?.approach || 'N/A'}</Badge>
+              </div>
+              <div className="space-y-1">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Difficulté</span>
+                <Badge variant="secondary" className="w-full justify-center h-8 rounded-lg font-black uppercase italic tracking-tighter text-[10px]">{q.tags?.difficulty || 'N/A'}</Badge>
+              </div>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+
+          <div className="bg-amber-50 p-6 rounded-[24px] border-2 border-amber-100 shadow-sm space-y-2">
+            <div className="flex items-center gap-2 text-amber-700 font-black text-[10px] uppercase tracking-widest italic">
+              <AlertTriangle className="h-4 w-4" /> Exam Protocol
+            </div>
+            <p className="text-[10px] text-amber-600 font-bold italic leading-relaxed">
+              Une fois soumis, vous ne pourrez plus modifier vos réponses. Utilisez le Flag pour revenir sur les questions incertaines.
+            </p>
+          </div>
+        </div>
+      </div>
 
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-3xl border-t-2 z-[70] shadow-xl">
         <div className="max-w-4xl mx-auto flex justify-between gap-4">
-          <Button variant="outline" className="flex-1 h-12 font-black text-lg rounded-xl uppercase border-2 hover:bg-slate-50 tracking-widest italic" onClick={() => { const i = Math.max(0, currentQuestionIndex - 1); setCurrentQuestionIndex(i); saveProgress(i); }} disabled={currentQuestionIndex === 0}>
-            <ChevronLeft className="mr-3 h-6 w-6" /> PRÉCÉDENT
+          <Button variant="outline" className="flex-1 h-14 font-black text-lg rounded-xl uppercase border-2 hover:bg-slate-50 tracking-widest italic" onClick={() => { const i = Math.max(0, currentQuestionIndex - 1); setCurrentQuestionIndex(i); saveProgress(i); }} disabled={currentQuestionIndex === 0}>
+            <ChevronLeft className="mr-3 h-6 w-6" /> PREVIOUS
           </Button>
-          <Button className="flex-1 h-12 font-black text-lg rounded-xl shadow-lg uppercase bg-primary text-white hover:scale-[1.01] transition-transform tracking-widest italic" onClick={() => { const i = Math.min(examQuestions.length - 1, currentQuestionIndex + 1); setCurrentQuestionIndex(i); saveProgress(i); }} disabled={currentQuestionIndex === examQuestions.length - 1}>
-            SUIVANT <ChevronRight className="mr-3 h-6 w-6" />
+          <Button className="flex-1 h-14 font-black text-lg rounded-xl shadow-lg uppercase bg-primary text-white hover:scale-[1.01] transition-transform tracking-widest italic" onClick={handleNext} disabled={currentQuestionIndex === examQuestions.length - 1}>
+            NEXT <ChevronRight className="mr-3 h-6 w-6" />
           </Button>
         </div>
       </div>
+
+      {isCalcOpen && <Calculator onClose={() => setIsCalcOpen(false)} />}
     </div>
   );
 }
