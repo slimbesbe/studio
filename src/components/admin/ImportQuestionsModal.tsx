@@ -162,6 +162,14 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
     reader.readAsBinaryString(file);
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      parseFile(selectedFile);
+    }
+  };
+
   const handleImport = async () => {
     if (parsedData.length === 0) return;
     setIsImporting(true);
@@ -249,6 +257,13 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
                 <Button variant="ghost" size="sm" onClick={() => setFile(null)}>Changer</Button>
               </div>
 
+              {isParsing && (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="animate-spin h-8 w-8 text-primary" />
+                  <p className="ml-3 font-bold">Analyse du fichier en cours...</p>
+                </div>
+              )}
+
               {errors.length > 0 && (
                 <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-xl">
                   <h4 className="text-sm font-bold text-destructive mb-2 flex items-center gap-2">
@@ -272,7 +287,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
 
         <DialogFooter className="border-t pt-4">
           <Button variant="outline" onClick={onClose} disabled={isImporting}>Annuler</Button>
-          <Button disabled={parsedData.length === 0 || isImporting} onClick={handleImport} className="bg-emerald-600 rounded-md">
+          <Button disabled={parsedData.length === 0 || isImporting || isParsing} onClick={handleImport} className="bg-emerald-600 rounded-md">
             {isImporting ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
             Importer {parsedData.length} questions
           </Button>
