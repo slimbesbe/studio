@@ -30,6 +30,13 @@ interface ParsedQuestion {
   correctOptionIds: string[];
   isMultipleCorrect: boolean;
   explanation: string;
+  tags: {
+    domain: string;
+    approach: string;
+    difficulty: string;
+    topic?: string;
+    competence?: string;
+  };
   isValid: boolean;
 }
 
@@ -46,12 +53,27 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      parseFile(selectedFile);
-    }
+  const mapDomain = (val: string) => {
+    const v = String(val || "").toLowerCase();
+    if (v.includes("humain") || v.includes("people")) return "People";
+    if (v.includes("process") || v.includes("processus")) return "Process";
+    if (v.includes("business") || v.includes("environnement") || v.includes("commercial")) return "Business";
+    return "Process";
+  };
+
+  const mapApproach = (val: string) => {
+    const v = String(val || "").toLowerCase();
+    if (v.includes("prédictif") || v.includes("cascade") || v.includes("predictive")) return "Predictive";
+    if (v.includes("agile")) return "Agile";
+    if (v.includes("hybride") || v.includes("hybrid")) return "Hybrid";
+    return "Predictive";
+  };
+
+  const mapDifficulty = (val: string) => {
+    const v = String(val || "").toLowerCase();
+    if (v.includes("facile") || v.includes("easy")) return "Easy";
+    if (v.includes("dur") || v.includes("difficile") || v.includes("hard")) return "Hard";
+    return "Medium";
   };
 
   const parseFile = async (file: File) => {
@@ -72,8 +94,9 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
 
         json.forEach((row, index) => {
           const lineNum = index + 2;
-          const statement = row.statement;
-          const explanation = row.explanation || "";
+          const statement = row["Énoncé"] || row.statement;
+          const justification = row["Justification"] || row.explanation || "";
+          const distractors = row["Explication des distracteurs"] || "";
           const correct = String(row.correct || "");
           
           if (!statement) {
@@ -115,7 +138,14 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
               options,
               correctOptionIds: mappedIds,
               isMultipleCorrect: mappedIds.length > 1,
-              explanation,
+              explanation: `${justification}\n\n${distractors}`.trim(),
+              tags: {
+                domain: mapDomain(row["Domaine ECO"]),
+                approach: mapApproach(row["Approche"]),
+                difficulty: mapDifficulty(row["Niveau"]),
+                topic: row["Tâche ECO"] || "",
+                competence: row["Compétence"] || ""
+              },
               isValid: true
             });
           }
@@ -159,7 +189,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
           const currentCode = startCounter + i + idx + 1;
           const questionCode = `Q-${currentCode.toString().padStart(6, '0')}`;
 
-          batch.set(qRef, {
+          const finalData = {
             ...q,
             id: qRef.id,
             questionCode,
@@ -167,7 +197,12 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
             createdByRole: profile?.role || 'admin',
             createdAt: serverTimestamp(),
             examId
-          });
+          };
+
+          batch.set(qRef, finalData);
+          
+          // Sync global questions
+          batch.set(doc(db, 'questions', qRef.id), finalData);
         });
 
         await batch.commit();
@@ -189,9 +224,9 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileSpreadsheet className="text-emerald-600" /> Importer Questions
+            <FileSpreadsheet className="text-emerald-600" /> Importer Questions (Modèle SIMOVEX)
           </DialogTitle>
-          <DialogDescription>Format requis : statement, option1-5, explanation, correct.</DialogDescription>
+          <DialogDescription>Colonnes requises : Domaine ECO, Approche, Niveau, Énoncé, option1-5, Justification, correct.</DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto py-4">
@@ -201,7 +236,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId }: ImportQuestion
               className="border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer hover:bg-muted/50"
             >
               <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="font-bold">Cliquez pour choisir un fichier Excel</p>
+              <p className="font-bold">Cliquez pour choisir un fichier Excel conforme</p>
               <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx,.xls,.csv" onChange={handleFileChange} />
             </div>
           ) : (

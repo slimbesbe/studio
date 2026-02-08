@@ -64,18 +64,27 @@ export default function QuestionsListPage() {
 
   const downloadTemplate = () => {
     const templateData = [{
-      statement: "Enoncé de la question ?",
+      Q_ID: "#00001",
+      "Domaine ECO": "Humain",
+      "Tâche ECO": "Gérer les conflits",
+      "Approche": "Prédictif",
+      "Compétence": "",
+      "Niveau": "Moyen",
+      "Type de décision": "",
+      "Statut question": "Prêt",
+      "Énoncé": "Votre énoncé de question ici...",
       option1: "Réponse A", 
       option2: "Réponse B", 
       option3: "Réponse C", 
       option4: "Réponse D", 
       option5: "",
-      explanation: "Mindset PMI : L'explication détaillée ici.",
+      "Justification": "Pourquoi c'est la bonne réponse...",
+      "Explication des distracteurs": "Pourquoi les autres sont fausses...",
       correct: "A"
     }];
     const ws = XLSX.utils.json_to_sheet(templateData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Template");
+    XLSX.utils.book_append_sheet(wb, ws, "Template_SIMOVEX");
     XLSX.writeFile(wb, "template_questions_simovex.xlsx");
   };
 
