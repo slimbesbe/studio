@@ -21,6 +21,7 @@ service cloud.firestore {
       match /attempts/{docId} { allow read, write: if isOwner(userId); }
       match /killMistakes/{docId} { allow read, write: if isOwner(userId); }
       match /exam_state/{docId} { allow read, write: if isOwner(userId); }
+      match /exam_results/{docId} { allow read, write: if isOwner(userId); }
     }
 
     match /questions/{questionId} {
