@@ -10,10 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, ArrowLeft, ShieldCheck, Mail, User, Clock, Calendar, Trophy, Pencil } from 'lucide-react';
+import { Loader2, ArrowLeft, ShieldCheck, Mail, User, Clock, Calendar, Trophy, Pencil, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
 
 const AVAILABLE_EXAMS = [
@@ -115,7 +114,11 @@ export default function EditUserPage() {
 
       // Update role in roles_admin if needed
       if (formData.role !== 'user') {
-        await updateDoc(doc(db, 'roles_admin', userId), { updatedAt: Timestamp.now() });
+        const adminRolesRef = doc(db, 'roles_admin', userId);
+        const adminDoc = await getDoc(adminRolesRef);
+        if (!adminDoc.exists()) {
+          await setDoc(adminRolesRef, { createdAt: Timestamp.now(), email: formData.email });
+        }
       }
 
       toast({ title: "Utilisateur mis à jour", description: `Le compte de ${formData.firstName} a été modifié.` });
@@ -175,27 +178,32 @@ export default function EditUserPage() {
               <Label className="text-base font-black uppercase tracking-widest flex items-center gap-2">
                 <Trophy className="h-4 w-4 text-primary" /> Accès aux Simulations
               </Label>
-              <p className="text-xs text-muted-foreground mb-4">Cochez les examens auxquels ce participant pourra accéder.</p>
+              <p className="text-xs text-muted-foreground mb-4">Cliquez sur les examens pour autoriser l'accès.</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {AVAILABLE_EXAMS.map((exam) => (
-                  <div 
-                    key={exam.id} 
-                    onClick={() => toggleExam(exam.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === ' ' || e.key === 'Enter') {
-                        e.preventDefault();
-                        toggleExam(exam.id);
-                      }
-                    }}
-                    role="checkbox"
-                    aria-checked={selectedExams.includes(exam.id)}
-                    tabIndex={0}
-                    className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary ${selectedExams.includes(exam.id) ? 'bg-primary/5 border-primary shadow-sm' : 'bg-muted/10 border-transparent hover:border-muted-foreground/20'}`}
-                  >
-                    <Checkbox checked={selectedExams.includes(exam.id)} className="h-5 w-5 pointer-events-none" />
-                    <span className={`text-sm font-black italic uppercase ${selectedExams.includes(exam.id) ? 'text-primary' : 'text-slate-500'}`}>{exam.title}</span>
-                  </div>
-                ))}
+                {AVAILABLE_EXAMS.map((exam) => {
+                  const isChecked = selectedExams.includes(exam.id);
+                  return (
+                    <div 
+                      key={exam.id} 
+                      onClick={() => toggleExam(exam.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === ' ' || e.key === 'Enter') {
+                          e.preventDefault();
+                          toggleExam(exam.id);
+                        }
+                      }}
+                      role="checkbox"
+                      aria-checked={isChecked}
+                      tabIndex={0}
+                      className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary ${isChecked ? 'bg-primary/5 border-primary shadow-sm' : 'bg-muted/10 border-transparent hover:border-muted-foreground/20'}`}
+                    >
+                      <div className={`h-5 w-5 rounded-md border-2 flex items-center justify-center transition-colors ${isChecked ? 'bg-primary border-primary' : 'bg-white border-muted-foreground/30'}`}>
+                        {isChecked && <Check className="h-3.5 w-3.5 text-white stroke-[4px]" />}
+                      </div>
+                      <span className={`text-sm font-black italic uppercase ${isChecked ? 'text-primary' : 'text-slate-500'}`}>{exam.title}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
