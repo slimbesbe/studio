@@ -188,9 +188,18 @@ export default function NewUserPage() {
                   <div 
                     key={exam.id} 
                     onClick={() => toggleExam(exam.id)}
-                    className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${selectedExams.includes(exam.id) ? 'bg-primary/5 border-primary shadow-sm' : 'bg-muted/10 border-transparent hover:border-muted-foreground/20'}`}
+                    onKeyDown={(e) => {
+                      if (e.key === ' ' || e.key === 'Enter') {
+                        e.preventDefault();
+                        toggleExam(exam.id);
+                      }
+                    }}
+                    role="checkbox"
+                    aria-checked={selectedExams.includes(exam.id)}
+                    tabIndex={0}
+                    className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary ${selectedExams.includes(exam.id) ? 'bg-primary/5 border-primary shadow-sm' : 'bg-muted/10 border-transparent hover:border-muted-foreground/20'}`}
                   >
-                    <Checkbox checked={selectedExams.includes(exam.id)} onCheckedChange={() => toggleExam(exam.id)} className="h-5 w-5" />
+                    <Checkbox checked={selectedExams.includes(exam.id)} className="h-5 w-5 pointer-events-none" />
                     <span className={`text-sm font-black italic uppercase ${selectedExams.includes(exam.id) ? 'text-primary' : 'text-slate-500'}`}>{exam.title}</span>
                   </div>
                 ))}
