@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -723,26 +722,6 @@ export default function ExamPage() {
         </div>
 
         <div className="hidden lg:block space-y-4">
-          <div className="bg-white p-6 rounded-[24px] shadow-lg border-2 space-y-4">
-            <h3 className="font-black italic uppercase text-xs tracking-[0.2em] text-primary flex items-center gap-2">
-              <Tags className="h-4 w-4" /> Context Tags
-            </h3>
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Domaine</span>
-                <Badge variant="secondary" className="w-full justify-center h-8 rounded-lg font-black uppercase italic tracking-tighter text-[10px]">{q.tags?.domain || 'N/A'}</Badge>
-              </div>
-              <div className="space-y-1">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Approche</span>
-                <Badge variant="secondary" className="w-full justify-center h-8 rounded-lg font-black uppercase italic tracking-tighter text-[10px]">{q.tags?.approach || 'N/A'}</Badge>
-              </div>
-              <div className="space-y-1">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Difficulté</span>
-                <Badge variant="secondary" className="w-full justify-center h-8 rounded-lg font-black uppercase italic tracking-tighter text-[10px]">{q.tags?.difficulty || 'N/A'}</Badge>
-              </div>
-            </div>
-          </div>
-
           <div className="bg-amber-50 p-6 rounded-[24px] border-2 border-amber-100 shadow-sm space-y-2">
             <div className="flex items-center gap-2 text-amber-700 font-black text-[10px] uppercase tracking-widest italic">
               <AlertTriangle className="h-4 w-4" /> Exam Protocol
