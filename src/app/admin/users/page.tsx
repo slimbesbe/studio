@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, UserPlus, ChevronLeft, Users, User, Clock, Key, Trash2, BarChart, TrendingUp, Target, Mail } from 'lucide-react';
+import { Loader2, UserPlus, ChevronLeft, Users, User, Clock, Key, Trash2, BarChart, TrendingUp, Target, Mail, Pencil } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
@@ -190,6 +190,11 @@ export default function UsersListPage() {
                         <Button variant="ghost" size="icon" className="h-14 w-14 rounded-2xl hover:bg-slate-200 border-2"><Users className="h-6 w-6" /></Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-72 p-3 rounded-[28px] shadow-2xl border-4">
+                        <DropdownMenuItem asChild className="h-14 rounded-2xl font-black uppercase tracking-widest px-6 italic">
+                          <Link href={`/admin/users/${u.id}/edit`}>
+                            <Pencil className="mr-3 h-6 w-6" /> Modifier
+                          </Link>
+                        </DropdownMenuItem>
                         <DropdownMenuItem className="h-14 rounded-2xl font-black uppercase tracking-widest px-6 italic" onClick={() => toggleStatus(u.id, u.status || 'active')}>
                           {u.status === 'disabled' ? '✅ Réactiver' : '🚫 Désactiver'}
                         </DropdownMenuItem>
