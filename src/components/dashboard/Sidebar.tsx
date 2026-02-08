@@ -8,7 +8,6 @@ import {
   LayoutDashboard, 
   BookOpen, 
   History, 
-  Brain, 
   LogOut, 
   Trophy,
   Loader2,
@@ -28,7 +27,6 @@ const navItems = [
   { name: 'Tableau de bord', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Pratique Libre', href: '/dashboard/practice', icon: BookOpen },
   { name: 'Simulations d\'Examen', href: '/dashboard/exam', icon: Trophy },
-  { name: 'Kill Mistakes', href: '/dashboard/kill-mistakes', icon: Brain },
   { name: 'Historique', href: '/dashboard/history', icon: History },
 ];
 
