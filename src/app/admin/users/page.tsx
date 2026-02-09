@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, UserPlus, ChevronLeft, Users, User, Clock, Key, Trash2, BarChart, TrendingUp, Target, Mail, Pencil } from 'lucide-react';
+import { Loader2, UserPlus, ChevronLeft, Users, User, Clock, Key, Trash2, BarChart, TrendingUp, Target, Mail, Pencil, CalendarDays } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
@@ -100,6 +100,16 @@ export default function UsersListPage() {
     }).toUpperCase();
   };
 
+  const formatShortDate = (ts: any) => {
+    if (!ts) return '-';
+    const date = ts?.toDate ? ts.toDate() : new Date(ts);
+    return date.toLocaleDateString('fr-FR', { 
+      day: '2-digit', 
+      month: 'short', 
+      year: 'numeric'
+    }).toUpperCase();
+  };
+
   if (isUserLoading || isAdmin === null || isLoading) {
     return (
       <div className="h-screen flex items-center justify-center">
@@ -139,8 +149,8 @@ export default function UsersListPage() {
                 </TableHead>
                 <TableHead className="text-center font-black uppercase tracking-widest text-xs"><BarChart className="h-4 w-4 inline mr-2" /> Score Moyen</TableHead>
                 <TableHead className="text-center font-black uppercase tracking-widest text-xs"><Target className="h-4 w-4 inline mr-2" /> Simulations</TableHead>
-                <TableHead className="text-center font-black uppercase tracking-widest text-xs"><TrendingUp className="h-4 w-4 inline mr-2" /> Progression</TableHead>
                 <TableHead className="text-center font-black uppercase tracking-widest text-xs"><Clock className="h-4 w-4 inline mr-2" /> Temps Étude</TableHead>
+                <TableHead className="font-black uppercase tracking-widest text-xs"><CalendarDays className="h-4 w-4 inline mr-2" /> Inscrit le</TableHead>
                 <TableHead className="font-black uppercase tracking-widest text-xs">Dernière Connexion</TableHead>
                 <TableHead className="text-right px-12 font-black uppercase tracking-widest text-xs">Actions</TableHead>
               </TableRow>
@@ -169,20 +179,10 @@ export default function UsersListPage() {
                       {u.simulationsCount || 0}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="w-28 bg-slate-100 rounded-full h-4 overflow-hidden shadow-inner border-2">
-                        <div 
-                          className="bg-primary h-full transition-all duration-1000" 
-                          style={{ width: `${Math.min(100, Math.round((u.simulationsCount || 0) / 5 * 100))}%` }} 
-                        />
-                      </div>
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">
-                        {Math.min(100, Math.round((u.simulationsCount || 0) / 5 * 100))}% PRÊT
-                      </span>
-                    </div>
-                  </TableCell>
                   <TableCell className="text-center font-black text-slate-600 italic text-lg">{formatTime(u.totalTimeSpent)}</TableCell>
+                  <TableCell className="text-xs font-black text-primary italic uppercase tracking-tighter">
+                    {formatShortDate(u.firstLoginAt || u.createdAt)}
+                  </TableCell>
                   <TableCell className="text-xs font-black text-slate-500 italic uppercase tracking-tighter">{formatDate(u.lastLoginAt)}</TableCell>
                   <TableCell className="text-right px-12">
                     <DropdownMenu>
