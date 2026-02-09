@@ -1,6 +1,8 @@
+
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
   PlayCircle,
@@ -9,23 +11,32 @@ import {
   Calendar,
   History,
   TrendingUp,
-  Award
+  Award,
+  Target,
+  Layers,
+  Brain,
+  Zap,
+  BarChart3
 } from 'lucide-react';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
 import Link from 'next/link';
+import { 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, Cell, PieChart, Pie
+} from 'recharts';
+import { cn } from '@/lib/utils';
 
 interface CircularStatProps {
   value: string | number;
-  label: string;
   sublabel: string;
   percent: number;
   color?: string;
 }
 
-const CircularStat = ({ value, label, sublabel, percent, color = "hsl(var(--primary))" }: CircularStatProps) => {
+const CircularStat = ({ value, sublabel, percent, color = "hsl(var(--primary))" }: CircularStatProps) => {
   const radius = 65;
   const circumference = 2 * Math.PI * radius;
-  // On s'assure que le pourcentage reste entre 0 et 100 pour l'affichage visuel
   const visualPercent = Math.min(100, Math.max(0, percent));
   const offset = circumference - (visualPercent / 100) * circumference;
 
@@ -33,37 +44,20 @@ const CircularStat = ({ value, label, sublabel, percent, color = "hsl(var(--prim
     <div className="flex flex-col items-center text-center animate-fade-in group">
       <div className="relative h-40 w-40 flex items-center justify-center mb-6">
         <svg viewBox="0 0 160 160" className="absolute h-full w-full transform -rotate-90">
-          {/* Tracé de fond - Gris fin continu */}
-          <circle 
-            cx="80" 
-            cy="80" 
-            r={radius} 
-            stroke="#f1f5f9" 
-            strokeWidth="6" 
-            fill="transparent" 
-          />
-          {/* Arc de progression - Épais et arrondi */}
+          <circle cx="80" cy="80" r={radius} stroke="#f1f5f9" strokeWidth="6" fill="transparent" />
           <circle
-            cx="80" 
-            cy="80" 
-            r={radius} 
-            stroke={color} 
-            strokeWidth="12" 
-            fill="transparent"
+            cx="80" cy="80" r={radius} stroke={color} strokeWidth="12" fill="transparent"
             strokeDasharray={circumference}
-            style={{ 
-              strokeDashoffset: offset, 
-              transition: 'stroke-dashoffset 2s cubic-bezier(0.4, 0, 0.2, 1)' 
-            }}
+            style={{ strokeDashoffset: offset, transition: 'stroke-dashoffset 2s cubic-bezier(0.4, 0, 0.2, 1)' }}
             strokeLinecap="round"
           />
         </svg>
         <div className="z-10 flex items-center justify-center">
-          <span className="text-5xl font-black text-slate-900 tracking-tighter italic">{value}</span>
+          <span className="text-4xl font-black text-slate-900 tracking-tighter italic">{value}</span>
         </div>
       </div>
       <div className="h-10 flex items-start justify-center">
-        <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] italic leading-tight text-center">
+        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic leading-tight text-center">
           {sublabel}
         </span>
       </div>
@@ -73,125 +67,272 @@ const CircularStat = ({ value, label, sublabel, percent, color = "hsl(var(--prim
 
 export default function DashboardPage() {
   const { user, profile, isUserLoading } = useUser();
+  const db = useFirestore();
   const isDemo = user?.isAnonymous;
 
-  if (isUserLoading) {
-    return (
-      <div className="h-[70vh] flex items-center justify-center">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    );
+  // Data Fetching for KPIs
+  const resultsQuery = useMemoFirebase(() => {
+    if (!user || isDemo) return null;
+    return query(collection(db, 'users', user.uid, 'exam_results'), orderBy('completedAt', 'asc'), limit(50));
+  }, [db, user, isDemo]);
+
+  const attemptsQuery = useMemoFirebase(() => {
+    if (!user || isDemo) return null;
+    return query(collection(db, 'users', user.uid, 'attempts'), orderBy('answeredAt', 'desc'), limit(500));
+  }, [db, user, isDemo]);
+
+  const { data: results, isLoading: isResultsLoading } = useCollection(resultsQuery);
+  const { data: attempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
+
+  // Calculations
+  const stats = useMemo(() => {
+    if (!results || !attempts) return null;
+
+    const totalQuestions = attempts.length;
+    const examResults = results.filter(r => r.examId);
+    const practiceResults = attempts.filter(a => a.context === 'training');
+    
+    const avgExamScore = examResults.length > 0 
+      ? Math.round(examResults.reduce((acc, r) => acc + r.percentage, 0) / examResults.length) 
+      : 0;
+    
+    const avgPracticeScore = practiceResults.length > 0
+      ? Math.round((practiceResults.filter(a => a.isCorrect).length / practiceResults.length) * 100)
+      : 0;
+
+    // Domain Performance
+    const domainStats: Record<string, { correct: number, total: number }> = {
+      'People': { correct: 0, total: 0 },
+      'Process': { correct: 0, total: 0 },
+      'Business': { correct: 0, total: 0 }
+    };
+
+    // Approach Performance
+    const approachStats: Record<string, { correct: number, total: number }> = {
+      'Predictive': { correct: 0, total: 0 },
+      'Agile': { correct: 0, total: 0 },
+      'Hybrid': { correct: 0, total: 0 }
+    };
+
+    attempts.forEach(a => {
+      const d = a.tags?.domain;
+      const app = a.tags?.approach;
+      if (d && domainStats[d]) {
+        domainStats[d].total++;
+        if (a.isCorrect) domainStats[d].correct++;
+      }
+      if (app && approachStats[app]) {
+        approachStats[app].total++;
+        if (a.isCorrect) approachStats[app].correct++;
+      }
+    });
+
+    const domainData = Object.keys(domainStats).map(name => ({
+      name,
+      score: domainStats[name].total > 0 ? Math.round((domainStats[name].correct / domainStats[name].total) * 100) : 0
+    }));
+
+    const approachData = Object.keys(approachStats).map(name => ({
+      name,
+      score: approachStats[name].total > 0 ? Math.round((approachStats[name].correct / approachStats[name].total) * 100) : 0
+    }));
+
+    // Time per question (seconds)
+    const totalExamTime = results.reduce((acc, r) => acc + (r.timeSpent || 0), 0);
+    const totalExamQuestions = results.reduce((acc, r) => acc + (r.total || 0), 0);
+    const avgTimePerQuestion = totalExamQuestions > 0 ? Math.round(totalExamTime / totalExamQuestions) : 0;
+
+    // Recurrence Rate (Faux acquis)
+    // Simplified: Find questions failed twice or more
+    const questionFails: Record<string, number> = {};
+    attempts.forEach(a => {
+      if (!a.isCorrect) {
+        questionFails[a.questionId] = (questionFails[a.questionId] || 0) + 1;
+      }
+    });
+    const multiFailed = Object.values(questionFails).filter(count => count >= 2).length;
+    const recurrenceRate = totalQuestions > 0 ? Math.round((multiFailed / totalQuestions) * 100) : 0;
+
+    return {
+      avgExamScore,
+      avgPracticeScore,
+      totalQuestions,
+      domainData,
+      approachData,
+      avgTimePerQuestion,
+      recurrenceRate,
+      progressionData: results.map((r, i) => ({ name: `Sim ${i+1}`, score: r.percentage }))
+    };
+  }, [results, attempts]);
+
+  if (isUserLoading || isResultsLoading || isAttemptsLoading) {
+    return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
-  const simulationsCount = profile?.simulationsCount || 0;
-  const averageScore = profile?.averageScore || 0;
-  const totalSeconds = profile?.totalTimeSpent || 0;
-  
   const formatTotalTime = (seconds: number) => {
     const s = seconds || 0;
     const h = Math.floor(s / 3600);
     const m = Math.floor((s % 3600) / 60);
-    // Affichage en heures/minutes pour le cumulé total du tableau de bord
-    if (h > 0) {
-      return `${h}H ${m.toString().padStart(2, '0')}`;
-    }
+    if (h > 0) return `${h}H ${m.toString().padStart(2, '0')}`;
     return `${m} MIN`;
   };
 
   const formatDate = (ts: any) => {
     if (!ts) return '---';
     const date = ts?.toDate ? ts.toDate() : new Date(ts);
-    return date.toLocaleString('fr-FR', { 
-      day: '2-digit', 
-      month: 'short', 
-      hour: '2-digit',
-      minute: '2-digit'
-    }).toUpperCase();
+    return date.toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).toUpperCase();
   };
 
   return (
-    <div className="space-y-12 animate-fade-in max-w-7xl mx-auto pb-24 pt-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 bg-white p-12 rounded-[50px] shadow-2xl border-2">
-        <div className="space-y-3">
-          <h1 className="text-5xl font-black text-primary italic uppercase tracking-tighter">Tableau de bord</h1>
-          <p className="text-xl text-slate-500 font-bold uppercase tracking-widest italic">
-            {isDemo ? "Mode DÉMONSTRATION actif." : `Bienvenue, ${profile?.firstName || 'Participant'}.`}
+    <div className="space-y-10 animate-fade-in max-w-7xl mx-auto pb-24 pt-4">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 bg-white p-10 rounded-[40px] shadow-xl border-2">
+        <div className="space-y-2">
+          <h1 className="text-4xl font-black text-primary italic uppercase tracking-tighter">Cockpit de Performance</h1>
+          <p className="text-base text-slate-500 font-bold uppercase tracking-widest italic">
+            {isDemo ? "Mode DÉMO" : `Participant : ${profile?.firstName} ${profile?.lastName}`}
           </p>
         </div>
-        <div className="flex gap-6">
-          <Button variant="outline" className="rounded-[24px] h-16 px-10 font-black uppercase tracking-widest border-4 hover:bg-slate-50 transition-all text-lg shadow-lg" asChild disabled={isDemo}>
-            <Link href="/dashboard/history">
-              <History className="mr-3 h-6 w-6" /> Historique
-            </Link>
+        <div className="flex gap-4">
+          <Button variant="outline" className="rounded-2xl h-14 px-8 font-black uppercase tracking-widest border-4" asChild disabled={isDemo}>
+            <Link href="/dashboard/history"><History className="mr-2 h-5 w-5" /> Historique</Link>
           </Button>
-          <Button className="rounded-[24px] h-16 px-12 shadow-2xl uppercase font-black tracking-widest bg-primary hover:scale-[1.02] transition-transform text-lg italic" asChild>
-            <Link href="/dashboard/exam">
-              <PlayCircle className="mr-3 h-7 w-7" /> Lancer Simulation
-            </Link>
+          <Button className="rounded-2xl h-14 px-10 shadow-xl uppercase font-black tracking-widest bg-primary italic hover:scale-105 transition-all" asChild>
+            <Link href="/dashboard/exam"><PlayCircle className="mr-2 h-6 w-6" /> Lancer Simulation</Link>
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
-        <Card className="lg:col-span-3 border-none shadow-[0_30px_70px_-20px_rgba(0,0,0,0.15)] bg-white rounded-[60px] overflow-hidden">
-          <CardHeader className="border-b-4 bg-muted/10 p-12">
-            <CardTitle className="text-sm font-black uppercase tracking-[0.4em] text-primary flex items-center gap-4 italic">
-              <TrendingUp className="h-6 w-6" /> Statistiques de Performance Temps Réel
+      {/* Primary KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="rounded-[32px] border-none shadow-lg bg-white overflow-hidden group">
+          <CardContent className="p-8 flex flex-col items-center justify-center">
+            <CircularStat value={`${stats?.avgExamScore || 0}%`} sublabel="SCORE SIMULATION" percent={stats?.avgExamScore || 0} color="#3F51B5" />
+          </CardContent>
+        </Card>
+        <Card className="rounded-[32px] border-none shadow-lg bg-white overflow-hidden group">
+          <CardContent className="p-8 flex flex-col items-center justify-center">
+            <CircularStat value={`${stats?.avgPracticeScore || 0}%`} sublabel="SCORE PRATIQUE" percent={stats?.avgPracticeScore || 0} color="#7E57C2" />
+          </CardContent>
+        </Card>
+        <Card className="rounded-[32px] border-none shadow-lg bg-white overflow-hidden group">
+          <CardContent className="p-8 flex flex-col items-center justify-center">
+            <CircularStat value={stats?.totalQuestions || 0} sublabel="QUESTIONS TRAITÉES" percent={Math.min(100, (stats?.totalQuestions || 0) / 10)} color="#10b981" />
+          </CardContent>
+        </Card>
+        <Card className="rounded-[32px] border-none shadow-lg bg-white overflow-hidden group">
+          <CardContent className="p-8 flex flex-col items-center justify-center">
+            <CircularStat value={formatTotalTime(profile?.totalTimeSpent || 0)} sublabel="TEMPS D'ÉTUDE TOTAL" percent={Math.min(100, (profile?.totalTimeSpent || 0) / 180000)} color="#f59e0b" />
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Progression Curve */}
+        <Card className="lg:col-span-2 rounded-[40px] shadow-xl border-none bg-white overflow-hidden">
+          <CardHeader className="border-b p-8 bg-slate-50/50">
+            <CardTitle className="text-xs font-black uppercase tracking-[0.3em] text-primary flex items-center gap-3 italic">
+              <TrendingUp className="h-5 w-5" /> Courbe de progression individuelle
             </CardTitle>
+            <CardDescription className="uppercase text-[10px] font-bold italic">Evolution des scores sur les dernières simulations</CardDescription>
           </CardHeader>
-          <CardContent className="py-24 p-12">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12">
-              <CircularStat 
-                label="Simulations" 
-                value={simulationsCount} 
-                sublabel="TESTS TERMINÉS" 
-                percent={Math.min(100, (simulationsCount / 10) * 100)} 
-                color="#3b82f6" 
-              />
-              <CircularStat 
-                label="Score Moyen" 
-                value={`${averageScore}%`} 
-                sublabel="CIBLE : 80%+" 
-                percent={averageScore} 
-                color="#10b981" 
-              />
-              <CircularStat 
-                label="Préparation" 
-                value={`${Math.min(100, Math.round((simulationsCount / 5) * 100))}%`} 
-                sublabel="ESTIMATION PMP" 
-                percent={Math.min(100, (simulationsCount / 5) * 100)} 
-                color="#f59e0b" 
-              />
-              <CircularStat 
-                label="Temps d'étude" 
-                value={formatTotalTime(totalSeconds)} 
-                sublabel="CUMULÉ TOTAL" 
-                percent={Math.min(100, (totalSeconds / (3600 * 50)) * 100)} 
-                color="#8b5cf6" 
-              />
-            </div>
+          <CardContent className="p-8 h-[350px]">
+            {stats?.progressionData.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={stats.progressionData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} />
+                  <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontWeight: 'bold' }} 
+                    itemStyle={{ color: '#3F51B5' }}
+                  />
+                  <Line type="monotone" dataKey="score" stroke="#3F51B5" strokeWidth={4} dot={{ r: 6, fill: '#3F51B5', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4">
+                <BarChart3 className="h-12 w-12 opacity-20" />
+                <p className="text-xs font-black uppercase italic tracking-widest">Données de progression insuffisantes</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-[0_30px_70px_-20px_rgba(0,0,0,0.15)] bg-white rounded-[60px] overflow-hidden flex flex-col h-full border-l-4">
-          <CardHeader className="border-b-4 bg-muted/10 p-12">
-            <CardTitle className="text-sm font-black uppercase tracking-[0.4em] text-primary flex items-center gap-4 italic">
-              <Award className="h-6 w-6" /> Informations Session
+        {/* Behavioral KPIs */}
+        <div className="space-y-6">
+          <Card className="rounded-[32px] border-none shadow-lg bg-primary text-white p-8">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="bg-white/20 p-3 rounded-2xl"><Zap className="h-6 w-6" /></div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-70 italic">Rythme moyen</p>
+                <h3 className="text-3xl font-black italic tracking-tighter">{stats?.avgTimePerQuestion || 0}s / Q</h3>
+              </div>
+            </div>
+            <p className="text-[10px] font-bold leading-relaxed opacity-80 uppercase italic">
+              Cible PMP : 75s par question. {stats?.avgTimePerQuestion && stats.avgTimePerQuestion <= 75 ? "Excellent rythme !" : "Attention à la gestion du temps."}
+            </p>
+          </Card>
+
+          <Card className="rounded-[32px] border-none shadow-lg bg-amber-500 text-white p-8">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="bg-white/20 p-3 rounded-2xl"><Brain className="h-6 w-6" /></div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-70 italic">Taux de récidive</p>
+                <h3 className="text-3xl font-black italic tracking-tighter">{stats?.recurrenceRate || 0}%</h3>
+              </div>
+            </div>
+            <p className="text-[10px] font-bold leading-relaxed opacity-80 uppercase italic">
+              Questions ratées plusieurs fois. Un taux élevé indique des lacunes structurelles (faux acquis).
+            </p>
+          </Card>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Performance by Domain */}
+        <Card className="rounded-[40px] shadow-xl border-none bg-white overflow-hidden">
+          <CardHeader className="border-b p-8 bg-slate-50/50">
+            <CardTitle className="text-xs font-black uppercase tracking-[0.3em] text-primary flex items-center gap-3 italic">
+              <Layers className="h-5 w-5" /> Performance par Domaine PMP
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-12 space-y-16 flex-1 flex flex-col justify-center">
-            <div className="space-y-5">
-              <div className="flex items-center gap-4 text-[12px] font-black text-muted-foreground uppercase tracking-[0.3em] italic">
-                <Calendar className="h-5 w-5 text-primary" /> Première connexion
-              </div>
-              <p className="text-xl font-black bg-muted/20 p-8 rounded-[32px] border-4 border-slate-100 shadow-inner truncate text-center italic">{formatDate(profile?.firstLoginAt)}</p>
-            </div>
-            <div className="space-y-5">
-              <div className="flex items-center gap-4 text-[12px] font-black text-muted-foreground uppercase tracking-[0.3em] italic">
-                <Clock className="h-5 w-5 text-primary" /> Dernière connexion
-              </div>
-              <p className="text-xl font-black bg-muted/20 p-8 rounded-[32px] border-4 border-slate-100 shadow-inner truncate text-center italic">{formatDate(profile?.lastLoginAt)}</p>
-            </div>
+          <CardContent className="p-8 h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats?.domainData} layout="vertical" margin={{ left: 20 }}>
+                <XAxis type="number" hide domain={[0, 100]} />
+                <YAxis dataKey="name" type="category" stroke="#64748b" fontSize={10} fontWeight="bold" width={80} axisLine={false} tickLine={false} />
+                <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)' }} />
+                <Bar dataKey="score" radius={[0, 10, 10, 0]} barSize={30}>
+                  {stats?.domainData.map((entry, index) => (
+                    <Cell key={index} fill={entry.score >= 80 ? '#10b981' : entry.score >= 65 ? '#3F51B5' : '#f59e0b'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Performance by Approach */}
+        <Card className="rounded-[40px] shadow-xl border-none bg-white overflow-hidden">
+          <CardHeader className="border-b p-8 bg-slate-50/50">
+            <CardTitle className="text-xs font-black uppercase tracking-[0.3em] text-primary flex items-center gap-3 italic">
+              <Target className="h-5 w-5" /> Performance par Approche
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-8 h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats?.approachData} layout="vertical" margin={{ left: 20 }}>
+                <XAxis type="number" hide domain={[0, 100]} />
+                <YAxis dataKey="name" type="category" stroke="#64748b" fontSize={10} fontWeight="bold" width={80} axisLine={false} tickLine={false} />
+                <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)' }} />
+                <Bar dataKey="score" radius={[0, 10, 10, 0]} barSize={30}>
+                  {stats?.approachData.map((entry, index) => (
+                    <Cell key={index} fill={entry.score >= 80 ? '#10b981' : entry.score >= 65 ? '#7E57C2' : '#f59e0b'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>

@@ -66,13 +66,14 @@ export async function submitPracticeAnswer(
   const qData = qDoc.data();
   const isCorrect = qData.correctOptionIds ? qData.correctOptionIds.includes(selectedChoiceId) : qData.correctChoice === selectedChoiceId;
 
-  // Log Attempt
+  // Log Attempt with metadata for KPIs
   const attemptRef = doc(collection(db, 'users', userId, 'attempts'));
   await setDoc(attemptRef, {
     questionId,
     selectedChoiceId,
     isCorrect,
     context,
+    tags: qData.tags || {},
     answeredAt: serverTimestamp()
   });
 
@@ -104,7 +105,7 @@ export async function submitPracticeAnswer(
 export async function logExamAttempts(
   db: Firestore,
   userId: string,
-  results: { questionId: string, selectedChoiceIds: string[], isCorrect: boolean }[]
+  results: { questionId: string, selectedChoiceIds: string[], isCorrect: boolean, tags?: any }[]
 ) {
   const batch = writeBatch(db);
   
@@ -117,6 +118,7 @@ export async function logExamAttempts(
       selectedChoiceId: selectedChoiceId,
       isCorrect: res.isCorrect,
       context: 'exam',
+      tags: res.tags || {},
       answeredAt: serverTimestamp()
     });
 

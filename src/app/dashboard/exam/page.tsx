@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -224,7 +225,8 @@ export default function ExamPage() {
         attemptResults.push({
           questionId: q.id,
           selectedChoiceIds: uAns,
-          isCorrect
+          isCorrect,
+          tags: q.tags || {} // Add tags for KPI analysis
         });
       });
 
