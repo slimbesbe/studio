@@ -1,5 +1,6 @@
 
 import { Sidebar } from '@/components/dashboard/Sidebar';
+import { DemoGuard } from '@/components/dashboard/DemoGuard';
 
 export default function DashboardLayout({
   children,
@@ -10,9 +11,11 @@ export default function DashboardLayout({
     <div className="min-h-screen bg-background">
       <Sidebar />
       <main className="pl-64 min-h-screen">
-        <div className="p-8 max-w-7xl mx-auto">
-          {children}
-        </div>
+        <DemoGuard>
+          <div className="p-8 max-w-7xl mx-auto">
+            {children}
+          </div>
+        </DemoGuard>
       </main>
     </div>
   );

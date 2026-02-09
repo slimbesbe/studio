@@ -58,17 +58,6 @@ export function Sidebar() {
     router.push('/');
   };
 
-  const handleNavClick = (e: React.MouseEvent, href: string) => {
-    if (isDemo && href !== '/dashboard/practice' && href !== '/dashboard') {
-      e.preventDefault();
-      toast({
-        variant: "destructive",
-        title: "Mode DEMO",
-        description: "Non disponible en mode DEMO"
-      });
-    }
-  };
-
   const initials = isDemo 
     ? 'D'
     : profile?.firstName && profile?.lastName 
@@ -90,21 +79,18 @@ export function Sidebar() {
         {navItems.map((item) => (
           <Link
             key={item.href}
-            href={isDemo && item.href !== '/dashboard/practice' && item.href !== '/dashboard' ? '#' : item.href}
-            onClick={(e) => handleNavClick(e, item.href)}
+            href={item.href}
             className={cn(
               "flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
               pathname === item.href 
                 ? "bg-primary text-white shadow-sm" 
-                : "text-muted-foreground hover:bg-secondary hover:text-primary",
-              isDemo && item.href !== '/dashboard/practice' && item.href !== '/dashboard' && "opacity-50"
+                : "text-muted-foreground hover:bg-secondary hover:text-primary"
             )}
           >
             <div className="flex items-center gap-3">
               <item.icon className="h-4 w-4" />
               {item.name}
             </div>
-            {isDemo && item.href !== '/dashboard/practice' && item.href !== '/dashboard' && <Lock className="h-3 w-3" />}
           </Link>
         ))}
         
@@ -133,8 +119,8 @@ export function Sidebar() {
               {initials}
             </div>
             <div className="flex-1 overflow-hidden">
-              <p className="text-sm font-bold truncate">{profile?.firstName ? `${profile.firstName} ${profile.lastName}` : 'Utilisateur'}</p>
-              <p className="text-xs text-muted-foreground truncate italic">{isAdmin ? 'Super Admin' : 'Participant'}</p>
+              <p className="text-sm font-bold truncate">{profile?.firstName ? `${profile.firstName} ${profile.lastName}` : isDemo ? 'Visiteur Démo' : 'Utilisateur'}</p>
+              <p className="text-xs text-muted-foreground truncate italic">{isAdmin ? 'Super Admin' : isDemo ? 'Mode Démo' : 'Participant'}</p>
             </div>
           </div>
         )}
