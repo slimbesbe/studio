@@ -47,7 +47,7 @@ const CircularStat = ({ value, sublabel, percent, color = "hsl(var(--primary))" 
         <svg viewBox="0 0 160 160" className="absolute h-full w-full transform -rotate-90">
           <circle cx="80" cy="80" r={radius} stroke="#f1f5f9" strokeWidth="6" fill="transparent" />
           <circle
-            cx="80" cy="80" r={radius} stroke={color} strokeWidth="12" fill="transparent"
+            cx="80" cy="80" r={radius} stroke={color} strokeWidth={visualPercent > 0 ? 12 : 0} fill="transparent"
             strokeDasharray={circumference}
             style={{ strokeDashoffset: offset, transition: 'stroke-dashoffset 2s cubic-bezier(0.4, 0, 0.2, 1)' }}
             strokeLinecap="round"
@@ -85,6 +85,36 @@ export default function DashboardPage() {
   const { data: attempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
 
   const stats = useMemo(() => {
+    // Inject Mock Data for Demo Mode
+    if (isDemo) {
+      return {
+        avgExamScore: 72,
+        avgPracticeScore: 68,
+        totalQuestions: 450,
+        domainData: [
+          { name: 'People', score: 75 },
+          { name: 'Process', score: 62 },
+          { name: 'Business', score: 80 }
+        ],
+        approachData: [
+          { name: 'Predictive', score: 65 },
+          { name: 'Agile', score: 78 },
+          { name: 'Hybrid', score: 70 }
+        ],
+        avgTimePerQuestion: 72,
+        recurrenceRate: 12,
+        probability: 78,
+        progressionData: [
+          { name: 'Sim 1', score: 60 },
+          { name: 'Sim 2', score: 65 },
+          { name: 'Sim 3', score: 72 },
+          { name: 'Sim 4', score: 70 },
+          { name: 'Sim 5', score: 75 }
+        ],
+        demoTimeSpent: 45000 // 12H 30
+      };
+    }
+
     if (!results || !attempts) return null;
 
     const totalQuestions = attempts.length;
@@ -147,7 +177,6 @@ export default function DashboardPage() {
     const multiFailed = Object.values(questionFails).filter(count => count >= 2).length;
     const recurrenceRate = totalQuestions > 0 ? Math.round((multiFailed / totalQuestions) * 100) : 0;
 
-    // Estimation probability
     const weight = Math.min(1, results.length / 5); 
     const probability = Math.round((avgExamScore * 0.7 + avgPracticeScore * 0.3) * (0.8 + 0.2 * weight));
 
@@ -162,9 +191,9 @@ export default function DashboardPage() {
       probability,
       progressionData: results.map((r, i) => ({ name: `Sim ${i+1}`, score: r.percentage }))
     };
-  }, [results, attempts]);
+  }, [results, attempts, isDemo]);
 
-  if (isUserLoading || isResultsLoading || isAttemptsLoading) {
+  if (isUserLoading || (!isDemo && (isResultsLoading || isAttemptsLoading))) {
     return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
@@ -176,13 +205,15 @@ export default function DashboardPage() {
     return `${m} MIN`;
   };
 
+  const displayTime = isDemo ? (stats?.demoTimeSpent || 0) : (profile?.totalTimeSpent || 0);
+
   return (
     <div className="space-y-10 animate-fade-in max-w-7xl mx-auto pb-24 pt-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 bg-white p-10 rounded-[40px] shadow-xl border-2">
         <div className="space-y-2">
           <h1 className="text-4xl font-black text-primary italic uppercase tracking-tighter">Cockpit de Performance</h1>
           <p className="text-base text-slate-500 font-bold uppercase tracking-widest italic">
-            {isDemo ? "Mode DÉMO" : `Participant : ${profile?.firstName} ${profile?.lastName}`}
+            {isDemo ? "Mode DÉMO (Visualisation des KPIs)" : `Participant : ${profile?.firstName} ${profile?.lastName}`}
           </p>
         </div>
         <div className="flex gap-4">
@@ -213,7 +244,7 @@ export default function DashboardPage() {
         </Card>
         <Card className="rounded-[32px] border-none shadow-lg bg-white overflow-hidden group">
           <CardContent className="p-8 flex flex-col items-center justify-center">
-            <CircularStat value={formatTotalTime(profile?.totalTimeSpent || 0)} sublabel="TEMPS D'ÉTUDE TOTAL" percent={Math.min(100, (profile?.totalTimeSpent || 0) / 180000)} color="#f59e0b" />
+            <CircularStat value={formatTotalTime(displayTime)} sublabel="CUMULÉ TOTAL" percent={Math.min(100, (displayTime) / 180000)} color="#f59e0b" />
           </CardContent>
         </Card>
       </div>

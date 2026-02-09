@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 
 /**
  * DemoGuard surveille les interactions de l'utilisateur en mode Démo.
- * Autorise le premier clic (navigation ou action), puis déclenche une alerte rouge imposante au deuxième clic.
+ * Autorise une exploration plus large (environ 15 clics) pour permettre de tester une question réelle.
  */
 export function DemoGuard({ children }: { children: React.ReactNode }) {
   const { user } = useUser();
@@ -24,17 +24,15 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
-    // S'applique uniquement aux utilisateurs anonymes (démo)
     if (!user?.isAnonymous) return;
 
     const handleGlobalClick = (e: MouseEvent) => {
-      // Ignorer les clics à l'intérieur du modal pour permettre de le fermer
       if ((e.target as HTMLElement).closest('[role="dialog"]')) return;
 
       setClickCount((prev) => {
         const next = prev + 1;
-        // Au 2ème clic significatif, on affiche l'alerte
-        if (next >= 2) {
+        // On laisse plus de marge (15 clics) pour permettre de faire au moins une question complète
+        if (next >= 15) {
           setShowModal(true);
         }
         return next;
@@ -45,7 +43,6 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('mousedown', handleGlobalClick);
   }, [user]);
 
-  // Si l'utilisateur est connecté normalement, rendu standard
   if (!user?.isAnonymous) return <>{children}</>;
 
   return (
@@ -79,7 +76,6 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
             <Button 
               onClick={() => {
                 setShowModal(false);
-                // On réinitialise le compteur pour permettre une nouvelle exploration limitée après fermeture
                 setClickCount(0);
               }}
               className="h-20 w-full rounded-3xl bg-destructive hover:bg-destructive/90 text-white font-black uppercase tracking-widest text-2xl shadow-[0_10px_40px_rgba(220,38,38,0.4)] transition-all active:scale-95 hover:scale-[1.02]"
