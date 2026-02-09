@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 
 /**
  * DemoGuard surveille les interactions de l'utilisateur en mode Démo.
- * Autorise une exploration plus large (environ 15 clics) pour permettre de tester une question réelle.
+ * Affiche un message d'alerte après un certain nombre de clics.
  */
 export function DemoGuard({ children }: { children: React.ReactNode }) {
   const { user } = useUser();
@@ -31,7 +31,7 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
 
       setClickCount((prev) => {
         const next = prev + 1;
-        // On laisse plus de marge (15 clics) pour permettre de faire au moins une question complète
+        // Déclenchement de l'alerte après 15 clics pour permettre une exploration correcte
         if (next >= 15) {
           setShowModal(true);
         }
@@ -49,36 +49,36 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
     <>
       {children}
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="rounded-[40px] p-12 border-[12px] border-destructive shadow-[0_0_100px_rgba(220,38,38,0.5)] bg-white z-[999] max-w-2xl animate-in fade-in zoom-in duration-300">
-          <DialogHeader className="flex flex-col items-center gap-6">
-            <div className="bg-destructive p-6 rounded-full animate-bounce shadow-2xl">
-              <ShieldAlert className="h-20 w-20 text-white" />
+        <DialogContent className="rounded-[32px] p-8 border-8 border-destructive shadow-2xl bg-white z-[999] max-w-lg animate-in fade-in zoom-in duration-300">
+          <DialogHeader className="flex flex-col items-center gap-4">
+            <div className="bg-destructive p-4 rounded-full animate-bounce shadow-xl">
+              <ShieldAlert className="h-12 w-12 text-white" />
             </div>
-            <div className="space-y-2 text-center">
-              <DialogTitle className="text-7xl font-black text-destructive uppercase italic tracking-tighter leading-none">
+            <div className="space-y-1 text-center">
+              <DialogTitle className="text-5xl font-black text-destructive uppercase italic tracking-tighter leading-none">
                 ATTENTION !
               </DialogTitle>
-              <p className="text-xs font-black text-destructive/60 uppercase tracking-[0.5em]">ACCÈS RESTREINT</p>
+              <p className="text-[10px] font-black text-destructive/60 uppercase tracking-[0.4em]">ACCÈS RESTREINT</p>
             </div>
-            <div className="h-2 w-48 bg-destructive rounded-full" />
-            <DialogDescription className="text-2xl font-black text-slate-900 text-center leading-relaxed uppercase tracking-tight pt-4 italic">
-              Vous êtes actuellement en mode <span className="text-destructive underline underline-offset-8">DÉMO</span>.
+            <div className="h-1 w-32 bg-destructive/20 rounded-full" />
+            <DialogDescription className="text-xl font-black text-slate-900 text-center leading-relaxed uppercase tracking-tight pt-2 italic">
+              Vous êtes en mode <span className="text-destructive underline underline-offset-4">DÉMO</span>.
             </DialogDescription>
           </DialogHeader>
           
-          <div className="py-10 bg-slate-50 rounded-[32px] border-2 border-dashed border-slate-200 mt-6">
-            <p className="text-xl font-bold text-center text-slate-600 px-8 leading-relaxed uppercase">
-              Veuillez contacter l'administrateur pour obtenir un <span className="text-primary">accès complet</span> avec vos propres identifiants (Login et Mot de passe).
+          <div className="py-6 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 mt-4">
+            <p className="text-sm font-bold text-center text-slate-600 px-6 leading-relaxed uppercase">
+              Veuillez contacter l'administrateur pour un <span className="text-primary">accès complet</span> (Login et Mot de passe).
             </p>
           </div>
 
-          <DialogFooter className="mt-10 justify-center sm:justify-center">
+          <DialogFooter className="mt-8 justify-center sm:justify-center">
             <Button 
               onClick={() => {
                 setShowModal(false);
                 setClickCount(0);
               }}
-              className="h-20 w-full rounded-3xl bg-destructive hover:bg-destructive/90 text-white font-black uppercase tracking-widest text-2xl shadow-[0_10px_40px_rgba(220,38,38,0.4)] transition-all active:scale-95 hover:scale-[1.02]"
+              className="h-14 w-full rounded-2xl bg-destructive hover:bg-destructive/90 text-white font-black uppercase tracking-widest text-lg shadow-lg transition-all active:scale-95"
             >
               J'AI COMPRIS
             </Button>

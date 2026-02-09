@@ -9,19 +9,30 @@ import { Loader2, History, Trophy, Clock, Calendar, ChevronRight } from 'lucide-
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 
+const MOCK_HISTORY = [
+  { id: 'h5', examId: 'exam2', percentage: 75, score: 135, total: 180, timeSpent: 12600, completedAt: { toDate: () => new Date(Date.now() - 86400000 * 1) } },
+  { id: 'h4', examId: 'exam1', percentage: 70, score: 126, total: 180, timeSpent: 13200, completedAt: { toDate: () => new Date(Date.now() - 86400000 * 2) } },
+  { id: 'h3', examId: 'exam3', percentage: 72, score: 130, total: 180, timeSpent: 12900, completedAt: { toDate: () => new Date(Date.now() - 86400000 * 4) } },
+  { id: 'h2', examId: 'exam2', percentage: 65, score: 117, total: 180, timeSpent: 13800, completedAt: { toDate: () => new Date(Date.now() - 86400000 * 7) } },
+  { id: 'h1', examId: 'exam1', percentage: 60, score: 108, total: 180, timeSpent: 14400, completedAt: { toDate: () => new Date(Date.now() - 86400000 * 10) } },
+];
+
 export default function HistoryPage() {
   const { user } = useUser();
   const db = useFirestore();
+  const isDemo = user?.isAnonymous;
 
   const resultsQuery = useMemoFirebase(() => {
-    if (!user) return null;
+    if (!user || isDemo) return null;
     return query(
       collection(db, 'users', user.uid, 'exam_results'),
       orderBy('completedAt', 'desc')
     );
-  }, [db, user]);
+  }, [db, user, isDemo]);
 
   const { data: results, isLoading } = useCollection(resultsQuery);
+
+  const displayData = isDemo ? MOCK_HISTORY : results;
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
@@ -42,7 +53,7 @@ export default function HistoryPage() {
     });
   };
 
-  if (isLoading) {
+  if (isLoading && !isDemo) {
     return (
       <div className="h-[70vh] flex items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -56,7 +67,7 @@ export default function HistoryPage() {
         <div>
           <h1 className="text-4xl font-black text-primary italic uppercase tracking-tighter flex items-center gap-4">
             <History className="h-12 w-12 text-primary" />
-            Historique
+            Historique {isDemo && <span className="text-amber-500 text-sm">(MODE DÉMO)</span>}
           </h1>
           <p className="text-slate-500 font-bold mt-1 uppercase tracking-widest text-sm italic">Suivez votre progression et vos performances passées.</p>
         </div>
@@ -75,7 +86,7 @@ export default function HistoryPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {results?.length === 0 ? (
+              {!displayData || displayData.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="h-64 text-center">
                     <div className="flex flex-col items-center justify-center text-slate-400 gap-4">
@@ -88,7 +99,7 @@ export default function HistoryPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                results?.map((res) => (
+                displayData.map((res) => (
                   <TableRow key={res.id} className="h-24 hover:bg-slate-50/80 transition-all border-b group">
                     <TableCell className="px-8">
                       <div className="flex items-center gap-4">

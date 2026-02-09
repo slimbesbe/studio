@@ -36,6 +36,7 @@ export default function PracticePage() {
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
+  const isDemo = user?.isAnonymous;
 
   const [step, setStep] = useState<'setup' | 'session' | 'summary' | 'review'>('setup');
   const [mode, setMode] = useState<string>('domain');
@@ -58,7 +59,9 @@ export default function PracticePage() {
   const handleStart = async () => {
     setIsLoading(true);
     try {
-      const data = await startTrainingSession(db, user!.uid, mode, filters, count);
+      // FORCE 2 QUESTIONS IN DEMO MODE
+      const finalCount = isDemo ? 2 : count;
+      const data = await startTrainingSession(db, user!.uid, mode, filters, finalCount);
       setQuestions(data);
       setSessionHistory([]);
       setStep('session');
@@ -142,7 +145,7 @@ export default function PracticePage() {
           </Badge>
           <div className="flex gap-2">
             <Badge className="bg-primary/10 text-primary border-none font-black italic uppercase tracking-widest text-[10px]">
-              {mode.replace('_', ' ')}
+              {mode.replace('_', ' ')} {isDemo && "(DÉMO)"}
             </Badge>
           </div>
         </div>
@@ -241,7 +244,7 @@ export default function PracticePage() {
       <div className="max-w-2xl mx-auto py-16 text-center space-y-10 animate-fade-in">
         <div className="space-y-4">
           <h1 className="text-5xl font-black italic uppercase tracking-tighter text-primary">Session Terminée</h1>
-          <p className="text-slate-500 font-bold uppercase tracking-widest text-sm italic">Analyse de vos performances</p>
+          <p className="text-slate-500 font-bold uppercase tracking-widest text-sm italic">Analyse de vos performances {isDemo && "(DÉMO)"}</p>
         </div>
         
         <Card className="rounded-[40px] shadow-2xl border-none p-12 space-y-8 bg-white relative overflow-hidden">
@@ -355,7 +358,7 @@ export default function PracticePage() {
     <div className="max-w-5xl mx-auto space-y-10 animate-fade-in py-8">
       <div className="space-y-2">
         <h1 className="text-4xl font-black italic uppercase tracking-tighter text-primary flex items-center gap-4">
-          <BookOpen className="h-10 w-10" /> Pratique Libre
+          <BookOpen className="h-10 w-10" /> Pratique Libre {isDemo && <span className="text-amber-500 text-sm">(DÉMO)</span>}
         </h1>
         <p className="text-slate-500 font-bold uppercase tracking-widest text-xs italic">Entraînement ciblé et correction du mindset</p>
       </div>
@@ -389,15 +392,16 @@ export default function PracticePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-3">
                 <Label className="font-black uppercase text-[10px] tracking-[0.2em] text-slate-400 italic">Nombre de questions</Label>
-                <Select value={String(count)} onValueChange={(v) => setCount(Number(v))}>
+                <Select value={String(count)} onValueChange={(v) => setCount(Number(v))} disabled={isDemo}>
                   <SelectTrigger className="h-14 rounded-xl border-2 font-black italic shadow-sm bg-white">
-                    <SelectValue />
+                    <SelectValue placeholder={isDemo ? "2 QUESTIONS (DÉMO)" : ""} />
                   </SelectTrigger>
                   <SelectContent>
                     {[5, 10, 20, 50].map(n => <SelectItem key={n} value={String(n)}>{n} QUESTIONS</SelectItem>)}
                     <SelectItem value="0">TOUT DISPONIBLE</SelectItem>
                   </SelectContent>
                 </Select>
+                {isDemo && <p className="text-[10px] text-amber-600 font-bold italic">Limité à 2 en mode démo.</p>}
               </div>
 
               {mode === 'domain' && (

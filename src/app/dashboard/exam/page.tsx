@@ -155,7 +155,8 @@ export default function ExamPage() {
         setExamPart(savedState.examPart || 1);
       } else {
         const pool = [...questions].sort(() => 0.5 - Math.random());
-        const selected = pool.slice(0, 180);
+        // LIMIT TO 2 QUESTIONS IN DEMO MODE
+        const selected = isDemo ? pool.slice(0, 2) : pool.slice(0, 180);
         setExamQuestions(selected);
         setTimeLeft(TOTAL_PMP_TIME);
         setInitialTime(TOTAL_PMP_TIME);
@@ -184,6 +185,13 @@ export default function ExamPage() {
 
   const confirmSectionSubmission = async () => {
     setIsConfirmSubmitOpen(false);
+    
+    // In demo mode, we only have 2 questions total, so we finish immediately
+    if (isDemo || examPart === 3) {
+      await finishExam();
+      return;
+    }
+
     if (examPart < 3) {
       setIsOnBreak(true);
       setBreakTimeLeft(BREAK_DURATION);
@@ -192,8 +200,6 @@ export default function ExamPage() {
       setCurrentQuestionIndex((nextPart - 1) * QUESTIONS_PER_PART);
       setIsItemReviewMode(false);
       saveProgress((nextPart - 1) * QUESTIONS_PER_PART);
-    } else {
-      await finishExam();
     }
   };
 
@@ -290,8 +296,13 @@ export default function ExamPage() {
       return;
     }
 
+    if (isDemo && currentQuestionIndex === 1) {
+      setIsItemReviewMode(true);
+      return;
+    }
+
     const currentPartMax = examPart * QUESTIONS_PER_PART - 1;
-    if (currentQuestionIndex < currentPartMax) {
+    if (currentQuestionIndex < currentPartMax && currentQuestionIndex < examQuestions.length - 1) {
       const nextIdx = currentQuestionIndex + 1;
       setCurrentQuestionIndex(nextIdx);
       saveProgress(nextIdx);
@@ -365,8 +376,8 @@ export default function ExamPage() {
   }
 
   if (isItemReviewMode) {
-    const startIdx = (examPart - 1) * QUESTIONS_PER_PART;
-    const endIdx = examPart * QUESTIONS_PER_PART;
+    const startIdx = isDemo ? 0 : (examPart - 1) * QUESTIONS_PER_PART;
+    const endIdx = isDemo ? 2 : examPart * QUESTIONS_PER_PART;
     const partQuestions = examQuestions.slice(startIdx, endIdx);
 
     return (
@@ -377,13 +388,13 @@ export default function ExamPage() {
               <ListChecks className="h-8 w-8" /> Item Review Screen
             </h1>
             <p className="text-slate-500 font-bold uppercase tracking-widest text-xs mt-1">
-              Partie {examPart} : Vérifiez vos réponses avant de soumettre cette section.
+              {isDemo ? "MODE DÉMO : Limité à 2 questions." : `Partie ${examPart} : Vérifiez vos réponses avant de soumettre cette section.`}
             </p>
           </div>
           <div className="flex gap-4">
             <Button variant="outline" className="h-12 px-8 font-black uppercase tracking-widest border-2 rounded-xl" onClick={() => setIsItemReviewMode(false)}>RETOUR</Button>
             <Button className="h-12 px-8 font-black uppercase tracking-widest bg-primary text-white rounded-xl shadow-lg" onClick={handleFinishSection}>
-              {examPart === 3 ? "SUBMIT EXAM" : `SUBMIT SECTION ${examPart}`}
+              {isDemo || examPart === 3 ? "SUBMIT EXAM" : `SUBMIT SECTION ${examPart}`}
             </Button>
           </div>
         </div>
@@ -413,16 +424,16 @@ export default function ExamPage() {
         </div>
 
         <AlertDialog open={isConfirmSubmitOpen} onOpenChange={setIsConfirmSubmitOpen}>
-          <AlertDialogContent className="bg-white rounded-[32px] p-10 border-none shadow-2xl max-w-xl">
-            <AlertDialogHeader className="space-y-4">
+          <AlertDialogContent className="bg-white rounded-[32px] p-10 border-none shadow-2xl max-w-xl z-[100]">
+            <AlertDialogHeader className="space-y-4 flex flex-col items-center">
               <div className="mx-auto bg-amber-50 h-16 w-16 rounded-full flex items-center justify-center mb-2">
                 <ShieldAlert className="h-8 w-8 text-amber-500" />
               </div>
               <AlertDialogTitle className="text-2xl font-black text-center uppercase italic tracking-tight text-slate-900">
-                Confirmation Finale
+                CONFIRMATION FINALE
               </AlertDialogTitle>
               <AlertDialogDescription className="text-lg font-bold text-center text-slate-600 leading-relaxed uppercase tracking-tight">
-                Êtes-vous sûr de vouloir soumettre la <span className="text-primary font-black">Partie {examPart}</span> ?
+                Êtes-vous sûr de vouloir soumettre la <span className="text-primary font-black">{isDemo ? "Simulation" : `Partie ${examPart}`}</span> ?
               </AlertDialogDescription>
               <div className="bg-red-50 p-4 rounded-xl border border-red-100 mt-4">
                 <p className="text-xs font-black text-red-600 text-center uppercase tracking-widest leading-relaxed">
@@ -666,7 +677,7 @@ export default function ExamPage() {
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">COMPTE À REBOURS EXAMEN</span>
           </div>
           <Button variant="destructive" size="sm" className="font-black h-10 px-6 uppercase shadow-sm rounded-lg text-sm tracking-widest hover:scale-[1.02] transition-transform italic border-2" onClick={() => setIsItemReviewMode(true)}>
-            REVIEW SECTION {examPart}
+            REVIEW {isDemo ? "SIMULATION" : `SECTION ${examPart}`}
           </Button>
         </div>
         <Progress value={progress} className="h-3 rounded-full bg-slate-100 border-2 shadow-inner" />
@@ -746,12 +757,12 @@ export default function ExamPage() {
             variant="outline" 
             className="flex-1 h-14 font-black text-lg rounded-xl uppercase border-2 hover:bg-slate-50 tracking-widest italic" 
             onClick={() => { 
-              const minIdx = (examPart - 1) * QUESTIONS_PER_PART;
+              const minIdx = isDemo ? 0 : (examPart - 1) * QUESTIONS_PER_PART;
               const i = Math.max(minIdx, currentQuestionIndex - 1); 
               setCurrentQuestionIndex(i); 
               saveProgress(i); 
             }} 
-            disabled={currentQuestionIndex === (examPart - 1) * QUESTIONS_PER_PART}
+            disabled={currentQuestionIndex === (isDemo ? 0 : (examPart - 1) * QUESTIONS_PER_PART)}
           >
             <ChevronLeft className="mr-3 h-6 w-6" /> PREVIOUS
           </Button>
@@ -759,7 +770,7 @@ export default function ExamPage() {
             className="flex-1 h-14 font-black text-lg rounded-xl shadow-lg uppercase bg-primary text-white hover:scale-[1.01] transition-transform tracking-widest italic" 
             onClick={handleNext}
           >
-            {currentQuestionIndex === (examPart * QUESTIONS_PER_PART - 1) ? "REVIEW PART" : "NEXT"} <ChevronRight className="mr-3 h-6 w-6" />
+            {currentQuestionIndex === (isDemo ? 1 : (examPart * QUESTIONS_PER_PART - 1)) ? "REVIEW PART" : "NEXT"} <ChevronRight className="mr-3 h-6 w-6" />
           </Button>
         </div>
       </div>
