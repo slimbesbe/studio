@@ -25,36 +25,49 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
 
+const MOCK_MISTAKES = [
+  { id: 'm1', tags: { domain: 'People', approach: 'Agile' }, status: 'wrong' },
+  { id: 'm2', tags: { domain: 'People', approach: 'Hybrid' }, status: 'wrong' },
+  { id: 'm3', tags: { domain: 'Process', approach: 'Predictive' }, status: 'wrong' },
+  { id: 'm4', tags: { domain: 'Process', approach: 'Predictive' }, status: 'wrong' },
+  { id: 'm5', tags: { domain: 'Process', approach: 'Agile' }, status: 'wrong' },
+  { id: 'm6', tags: { domain: 'Business', approach: 'Hybrid' }, status: 'wrong' },
+  { id: 'm7', tags: { domain: 'Process', approach: 'Agile' }, status: 'wrong' },
+  { id: 'm8', tags: { domain: 'People', approach: 'Predictive' }, status: 'wrong' },
+];
+
 export default function KillMistakeSelectionPage() {
   const { user } = useUser();
   const db = useFirestore();
   const router = useRouter();
+  const isDemo = user?.isAnonymous;
   
   const [filterDomain, setFilterDomain] = useState('all');
   const [filterApproach, setFilterApproach] = useState('all');
 
   const mistakesQuery = useMemoFirebase(() => {
-    if (!user) return null;
+    if (!user || isDemo) return null;
     return query(collection(db, 'users', user.uid, 'killMistakes'), where('status', '==', 'wrong'));
-  }, [db, user]);
+  }, [db, user, isDemo]);
 
   const { data: mistakes, isLoading } = useCollection(mistakesQuery);
 
   const stats = useMemo(() => {
-    if (!mistakes) return { total: 0, byDomain: {}, byApproach: {} };
+    const dataToProcess = isDemo ? MOCK_MISTAKES : mistakes;
+    if (!dataToProcess) return { total: 0, byDomain: {}, byApproach: {} };
     
     const byDomain: Record<string, number> = { 'People': 0, 'Process': 0, 'Business': 0 };
     const byApproach: Record<string, number> = { 'Predictive': 0, 'Agile': 0, 'Hybrid': 0 };
 
-    mistakes.forEach(m => {
+    dataToProcess.forEach(m => {
       const d = m.tags?.domain;
       const a = m.tags?.approach;
       if (d && byDomain[d] !== undefined) byDomain[d]++;
       if (a && byApproach[a] !== undefined) byApproach[a]++;
     });
 
-    return { total: mistakes.length, byDomain, byApproach };
-  }, [mistakes]);
+    return { total: dataToProcess.length, byDomain, byApproach };
+  }, [mistakes, isDemo]);
 
   const handleStartPractice = () => {
     let url = '/dashboard/practice?mode=kill_mistake';
@@ -75,7 +88,9 @@ export default function KillMistakeSelectionPage() {
             <Brain className="h-10 w-10 text-amber-600" />
           </div>
           <div>
-            <h1 className="text-4xl font-black text-primary italic uppercase tracking-tighter">Méthode Kill Mistake</h1>
+            <h1 className="text-4xl font-black text-primary italic uppercase tracking-tighter flex items-center gap-3">
+              Méthode Kill Mistake {isDemo && <span className="text-amber-500 text-sm">(MODE DÉMO)</span>}
+            </h1>
             <p className="text-slate-500 font-bold uppercase tracking-widest text-xs italic">Excellence par la répétition espacée</p>
           </div>
         </div>
@@ -97,7 +112,7 @@ export default function KillMistakeSelectionPage() {
               </p>
             </div>
             
-            {isLoading ? (
+            {isLoading && !isDemo ? (
               <div className="flex items-center gap-2 text-slate-400 font-bold italic animate-pulse">
                 <Loader2 className="h-4 w-4 animate-spin" /> Analyse de votre base d'erreurs...
               </div>
