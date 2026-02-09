@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -95,18 +94,9 @@ export default function UsersListPage() {
     return date.toLocaleString('fr-FR', { 
       day: '2-digit', 
       month: 'short', 
+      year: 'numeric',
       hour: '2-digit', 
       minute: '2-digit' 
-    }).toUpperCase();
-  };
-
-  const formatShortDate = (ts: any) => {
-    if (!ts) return '-';
-    const date = ts?.toDate ? ts.toDate() : new Date(ts);
-    return date.toLocaleDateString('fr-FR', { 
-      day: '2-digit', 
-      month: 'short', 
-      year: 'numeric'
     }).toUpperCase();
   };
 
@@ -150,7 +140,7 @@ export default function UsersListPage() {
                 <TableHead className="text-center font-black uppercase tracking-widest text-xs"><BarChart className="h-4 w-4 inline mr-2" /> Score Moyen</TableHead>
                 <TableHead className="text-center font-black uppercase tracking-widest text-xs"><Target className="h-4 w-4 inline mr-2" /> Simulations</TableHead>
                 <TableHead className="text-center font-black uppercase tracking-widest text-xs"><Clock className="h-4 w-4 inline mr-2" /> Temps Étude</TableHead>
-                <TableHead className="font-black uppercase tracking-widest text-xs"><CalendarDays className="h-4 w-4 inline mr-2" /> Inscrit le</TableHead>
+                <TableHead className="font-black uppercase tracking-widest text-xs"><CalendarDays className="h-4 w-4 inline mr-2" /> Premier Connexion</TableHead>
                 <TableHead className="font-black uppercase tracking-widest text-xs">Dernière Connexion</TableHead>
                 <TableHead className="text-right px-12 font-black uppercase tracking-widest text-xs">Actions</TableHead>
               </TableRow>
@@ -181,7 +171,7 @@ export default function UsersListPage() {
                   </TableCell>
                   <TableCell className="text-center font-black text-slate-600 italic text-lg">{formatTime(u.totalTimeSpent)}</TableCell>
                   <TableCell className="text-xs font-black text-primary italic uppercase tracking-tighter">
-                    {formatShortDate(u.firstLoginAt || u.createdAt)}
+                    {formatDate(u.firstLoginAt || u.createdAt)}
                   </TableCell>
                   <TableCell className="text-xs font-black text-slate-500 italic uppercase tracking-tighter">{formatDate(u.lastLoginAt)}</TableCell>
                   <TableCell className="text-right px-12">
