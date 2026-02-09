@@ -24,27 +24,49 @@ interface CircularStatProps {
 }
 
 const CircularStat = ({ value, label, sublabel, percent, color = "hsl(var(--primary))" }: CircularStatProps) => {
-  const radius = 54;
+  const radius = 65;
   const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (percent / 100) * circumference;
+  // On s'assure que le pourcentage reste entre 0 et 100 pour l'affichage visuel
+  const visualPercent = Math.min(100, Math.max(0, percent));
+  const offset = circumference - (visualPercent / 100) * circumference;
 
   return (
     <div className="flex flex-col items-center text-center animate-fade-in group">
-      <h3 className="text-[12px] font-black text-muted-foreground mb-4 h-8 flex items-center justify-center uppercase tracking-[0.3em] leading-tight group-hover:text-primary transition-colors italic">{label}</h3>
-      <div className="relative h-48 w-48 flex items-center justify-center">
-        <svg className="absolute h-full w-full transform -rotate-90 filter drop-shadow-md">
-          <circle cx="96" cy="96" r={radius} stroke="currentColor" strokeWidth="12" fill="transparent" className="text-muted/10" />
+      <div className="relative h-40 w-40 flex items-center justify-center mb-6">
+        <svg viewBox="0 0 160 160" className="absolute h-full w-full transform -rotate-90">
+          {/* Tracé de fond - Gris fin continu */}
+          <circle 
+            cx="80" 
+            cy="80" 
+            r={radius} 
+            stroke="#f1f5f9" 
+            strokeWidth="6" 
+            fill="transparent" 
+          />
+          {/* Arc de progression - Épais et arrondi */}
           <circle
-            cx="96" cy="96" r={radius} stroke={color} strokeWidth="12" fill="transparent"
+            cx="80" 
+            cy="80" 
+            r={radius} 
+            stroke={color} 
+            strokeWidth="12" 
+            fill="transparent"
             strokeDasharray={circumference}
-            style={{ strokeDashoffset: offset, transition: 'stroke-dashoffset 2.5s cubic-bezier(0.4, 0, 0.2, 1)' }}
+            style={{ 
+              strokeDashoffset: offset, 
+              transition: 'stroke-dashoffset 2s cubic-bezier(0.4, 0, 0.2, 1)' 
+            }}
             strokeLinecap="round"
           />
         </svg>
-        <div className="flex flex-col items-center justify-center z-10 px-6">
-          <span className="text-5xl font-black text-foreground tracking-tighter italic">{value}</span>
-          <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-3 text-center leading-tight italic">{sublabel}</span>
+        <div className="z-10 flex items-center justify-center">
+          <span className="text-5xl font-black text-slate-900 tracking-tighter italic">{value}</span>
         </div>
+      </div>
+      <div className="h-10 flex items-start justify-center">
+        <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] italic leading-tight text-center">
+          {sublabel}
+        </span>
       </div>
     </div>
   );
@@ -121,7 +143,7 @@ export default function DashboardPage() {
                 value={simulationsCount} 
                 sublabel="TESTS TERMINÉS" 
                 percent={Math.min(100, (simulationsCount / 10) * 100)} 
-                color="hsl(var(--primary))" 
+                color="#3b82f6" 
               />
               <CircularStat 
                 label="Score Moyen" 
