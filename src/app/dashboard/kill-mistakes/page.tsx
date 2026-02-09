@@ -1,7 +1,8 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -11,15 +12,14 @@ import {
   XCircle,
   Info,
   Loader2,
-  Play,
   Tags,
   ChevronLeft,
   Target,
   Layers,
   Zap,
-  ChevronRight,
   BookOpen,
-  Search
+  Search,
+  Filter
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, getDoc } from 'firebase/firestore';
@@ -28,6 +28,8 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { submitPracticeAnswer } from '@/lib/services/practice-service';
 import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 // 8 Mock Mistakes for Demo Mode
 const MOCK_MISTAKES = [
@@ -96,8 +98,8 @@ function KillMistakesContent() {
   const isDemo = user?.isAnonymous;
   
   const mode = searchParams.get('mode') || 'analyze';
-  const paramDomain = searchParams.get('domain') || 'all';
-  const paramApproach = searchParams.get('approach') || 'all';
+  const [filterDomain, setFilterDomain] = useState('all');
+  const [filterApproach, setFilterApproach] = useState('all');
 
   const [selectedMistake, setSelectedMistake] = useState<any>(null);
   const [questionDetails, setQuestionDetails] = useState<any>(null);
@@ -116,14 +118,14 @@ function KillMistakesContent() {
   
   const filteredMistakes = useMemo(() => {
     let list = isDemo ? MOCK_MISTAKES : (mistakesData || []);
-    if (paramDomain !== 'all') {
-      list = list.filter(m => m.tags?.domain === paramDomain);
+    if (filterDomain !== 'all') {
+      list = list.filter(m => m.tags?.domain === filterDomain);
     }
-    if (paramApproach !== 'all') {
-      list = list.filter(m => m.tags?.approach === paramApproach);
+    if (filterApproach !== 'all') {
+      list = list.filter(m => m.tags?.approach === filterApproach);
     }
     return list;
-  }, [mistakesData, isDemo, paramDomain, paramApproach]);
+  }, [mistakesData, isDemo, filterDomain, filterApproach]);
 
   const stats = useMemo(() => {
     const byDomain: Record<string, number> = { 'People': 0, 'Process': 0, 'Business': 0 };
@@ -162,6 +164,12 @@ function KillMistakesContent() {
     fetchDetails();
   }, [selectedMistake, db, isDemo]);
 
+  // Reset selected question when filters change
+  useEffect(() => {
+    setSelectedMistake(null);
+    setQuestionDetails(null);
+  }, [filterDomain, filterApproach]);
+
   const handleRedoSubmit = async () => {
     if (!selectedChoice || isSubmitting) return;
     
@@ -190,7 +198,6 @@ function KillMistakesContent() {
     }
   };
 
-  const getDomainLabel = (d: string) => d === 'Process' ? 'Processus' : d;
   const getApproachLabel = (a: string) => {
     if (a === 'Predictive') return 'Waterfall';
     if (a === 'Agile') return 'Agile';
@@ -204,7 +211,6 @@ function KillMistakesContent() {
 
   return (
     <div className="space-y-8 animate-fade-in max-w-7xl mx-auto py-8 px-4">
-      {/* HEADER TITRE DYNAMIQUE */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[40px] shadow-xl border-2">
         <div className="flex items-center gap-6">
           <Button variant="ghost" size="icon" asChild className="h-16 w-16 rounded-3xl hover:bg-slate-50 border-2 shadow-sm">
@@ -226,28 +232,63 @@ function KillMistakesContent() {
         
         <div className="flex gap-3">
           <Badge variant="outline" className="h-12 px-6 rounded-2xl border-2 font-black italic uppercase flex items-center gap-2">
-            <Target className="h-4 w-4" /> {stats.total} TOTAL
+            <Target className="h-4 w-4" /> {stats.total} DISPONIBLES
           </Badge>
-          {(paramDomain !== 'all' || paramApproach !== 'all') && (
-            <Badge className="h-12 px-6 rounded-2xl bg-amber-100 text-amber-700 border-none font-black italic uppercase">
-              Filtres Actifs
-            </Badge>
-          )}
         </div>
       </div>
+
+      <Card className="rounded-[32px] border-none shadow-lg bg-slate-50 p-6">
+        <div className="flex flex-col md:flex-row items-end gap-6">
+          <div className="flex-1 space-y-2">
+            <Label className="font-black uppercase text-[10px] tracking-widest text-slate-400 italic flex items-center gap-2">
+              <Layers className="h-3 w-3" /> Filtrer par Domaine
+            </Label>
+            <Select value={filterDomain} onValueChange={setFilterDomain}>
+              <SelectTrigger className="bg-white h-12 rounded-xl font-bold italic border-2">
+                <SelectValue placeholder="Tous les domaines" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les domaines</SelectItem>
+                <SelectItem value="People">People</SelectItem>
+                <SelectItem value="Process">Processus</SelectItem>
+                <SelectItem value="Business">Business Environment</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex-1 space-y-2">
+            <Label className="font-black uppercase text-[10px] tracking-widest text-slate-400 italic flex items-center gap-2">
+              <Zap className="h-3 w-3" /> Filtrer par Approche
+            </Label>
+            <Select value={filterApproach} onValueChange={setFilterApproach}>
+              <SelectTrigger className="bg-white h-12 rounded-xl font-bold italic border-2">
+                <SelectValue placeholder="Toutes les approches" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes les approches</SelectItem>
+                <SelectItem value="Predictive">Waterfall (Prédictif)</SelectItem>
+                <SelectItem value="Agile">Agile</SelectItem>
+                <SelectItem value="Hybrid">Hybride</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="bg-white p-2 rounded-xl border-2 text-slate-300">
+            <Filter className="h-6 w-6" />
+          </div>
+        </div>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1">
           <Card className="rounded-[32px] shadow-lg border-none overflow-hidden h-full flex flex-col max-h-[700px]">
             <CardHeader className="bg-muted/30 border-b p-6">
               <CardTitle className="text-[10px] font-black uppercase tracking-widest italic text-slate-500">
-                LISTE DES QUESTIONS ({filteredMistakes.length})
+                QUESTIONS FILTRÉES ({filteredMistakes.length})
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 flex-1 overflow-y-auto space-y-3">
               {filteredMistakes.length === 0 ? (
                 <div className="text-center py-20 text-slate-400 italic font-bold uppercase text-xs">
-                  Aucune erreur correspondant à vos filtres.
+                  Aucune erreur correspondant aux filtres.
                 </div>
               ) : filteredMistakes.map((mistake) => (
                 <Card 
@@ -281,7 +322,7 @@ function KillMistakesContent() {
               </div>
               <h3 className="text-2xl font-black text-slate-400 italic uppercase tracking-tighter">Choisissez une question</h3>
               <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic max-w-sm mt-2">
-                Cliquez sur une question à gauche pour {mode === 'analyze' ? 'voir son analyse' : 'tenter de la refaire'}.
+                Cliquez sur une question à gauche pour l'analyser ou la refaire selon le mode choisi.
               </p>
             </div>
           ) : (
