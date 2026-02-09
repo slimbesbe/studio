@@ -64,20 +64,28 @@ export default function Home() {
 
       // Mise à jour ou création forcée des permissions pour le Super Admin dans Firestore
       if (email === ADMIN_EMAIL) {
+        const adminUserRef = doc(db, 'users', user.uid);
+        const adminUserSnap = await getDoc(adminUserRef);
+        const now = serverTimestamp();
+
         await Promise.all([
           setDoc(doc(db, 'roles_admin', user.uid), { 
             createdAt: serverTimestamp(),
             email: ADMIN_EMAIL,
             isSuperAdmin: true
           }, { merge: true }),
-          setDoc(doc(db, 'users', user.uid), {
+          setDoc(adminUserRef, {
             id: user.uid,
             email: email,
             firstName: 'Slim',
             lastName: 'Besbes',
             role: 'super_admin',
             status: 'active',
-            updatedAt: serverTimestamp()
+            updatedAt: now,
+            // S'assurer qu'on garde les dates originales si elles existent
+            createdAt: adminUserSnap.exists() && adminUserSnap.data().createdAt ? adminUserSnap.data().createdAt : now,
+            firstLoginAt: adminUserSnap.exists() && adminUserSnap.data().firstLoginAt ? adminUserSnap.data().firstLoginAt : now,
+            lastLoginAt: now
           }, { merge: true })
         ]);
 
@@ -132,7 +140,7 @@ export default function Home() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
       <div className="flex items-center gap-2 mb-8">
         <div className="bg-primary p-2 rounded-xl shadow-lg">
-          <GraduationCap className="h-8 w-8 text-white" />
+          < GraduationCap className="h-8 w-8 text-white" />
         </div>
         <span className="font-headline font-bold text-2xl tracking-tight text-primary">
           SIMOVEX <span className="text-accent">PMP</span>

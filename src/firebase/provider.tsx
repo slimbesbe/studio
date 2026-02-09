@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
@@ -90,15 +91,26 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               isUserLoading: false 
             }));
 
-            // Initial login stats
-            if (!sessionStorage.getItem(`session_init_${firebaseUser.uid}`)) {
+            // Stats de connexion (une fois par session navigateur)
+            const sessionKey = `session_init_v2_${firebaseUser.uid}`;
+            if (!sessionStorage.getItem(sessionKey)) {
               const now = serverTimestamp();
-              const updateData: any = { lastLoginAt: now };
+              const updateData: any = { 
+                lastLoginAt: now,
+                updatedAt: now
+              };
+              
+              // Ne définir la première connexion que si elle n'existe pas du tout
               if (!profileData.firstLoginAt) {
                 updateData.firstLoginAt = now;
               }
+              // Ne définir createdAt que si manquant
+              if (!profileData.createdAt) {
+                updateData.createdAt = now;
+              }
+
               setDoc(userDocRef, updateData, { merge: true });
-              sessionStorage.setItem(`session_init_${firebaseUser.uid}`, 'true');
+              sessionStorage.setItem(sessionKey, 'true');
             }
 
             // Global access control

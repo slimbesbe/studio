@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -90,7 +91,10 @@ export default function UsersListPage() {
 
   const formatDate = (ts: any) => {
     if (!ts) return '-';
+    // Gérer les Timestamps Firestore, les Dates JS ou les chaînes ISO
     const date = ts?.toDate ? ts.toDate() : new Date(ts);
+    if (isNaN(date.getTime())) return '-';
+    
     return date.toLocaleString('fr-FR', { 
       day: '2-digit', 
       month: 'short', 
@@ -107,6 +111,13 @@ export default function UsersListPage() {
       </div>
     );
   }
+
+  // Trier par dernière connexion par défaut
+  const sortedUsers = users ? [...users].sort((a, b) => {
+    const timeA = a.lastLoginAt?.seconds || 0;
+    const timeB = b.lastLoginAt?.seconds || 0;
+    return timeB - timeA;
+  }) : [];
 
   return (
     <div className="p-10 max-w-[1600px] mx-auto space-y-10 animate-fade-in">
@@ -146,7 +157,7 @@ export default function UsersListPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users?.sort((a,b) => (b.lastLoginAt?.seconds || 0) - (a.lastLoginAt?.seconds || 0)).map((u) => (
+              {sortedUsers.map((u) => (
                 <TableRow key={u.id} className="h-28 hover:bg-slate-50/80 transition-all border-b last:border-0 group">
                   <TableCell className="px-12">
                     <div className="flex items-center gap-5">
