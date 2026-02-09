@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo } from 'react';
@@ -126,8 +125,8 @@ export default function KillMistakeSelectionPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Card 1: Analyser */}
         <Card className="rounded-[60px] border-none shadow-[0_30px_60px_rgba(0,0,0,0.08)] bg-white p-14 space-y-8 group hover:scale-[1.02] transition-all">
-          <div className="bg-slate-50 w-20 h-20 rounded-[32px] flex items-center justify-center">
-            <Search className="h-10 w-10 text-slate-300 group-hover:text-primary transition-colors" />
+          <div className="bg-slate-50 w-14 h-14 rounded-[20px] flex items-center justify-center shadow-inner">
+            <Search className="h-7 w-7 text-slate-300 group-hover:text-primary transition-colors" />
           </div>
           <div className="space-y-4">
             <CardTitle className="text-4xl font-black uppercase italic tracking-tighter text-slate-900 leading-none">
@@ -147,8 +146,8 @@ export default function KillMistakeSelectionPage() {
         {/* Card 2: Refaire */}
         <Card className="rounded-[60px] border-none shadow-[0_30px_60px_rgba(63,81,181,0.2)] bg-primary p-14 space-y-8 group hover:scale-[1.02] transition-all text-white relative overflow-hidden">
           <div className="absolute -top-10 -right-10 bg-white/10 h-40 w-40 rounded-full" />
-          <div className="bg-white/10 w-20 h-20 rounded-[32px] flex items-center justify-center">
-            <Play className="h-10 w-10 fill-white" />
+          <div className="bg-white/10 w-14 h-14 rounded-[20px] flex items-center justify-center shadow-inner relative z-10">
+            <Play className="h-7 w-7 fill-white text-white" />
           </div>
           <div className="space-y-4 relative z-10">
             <CardTitle className="text-4xl font-black uppercase italic tracking-tighter leading-none">
