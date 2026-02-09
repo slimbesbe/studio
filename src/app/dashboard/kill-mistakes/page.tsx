@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
@@ -19,7 +18,8 @@ import {
   Layers,
   Zap,
   ChevronRight,
-  BookOpen
+  BookOpen,
+  Search
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, getDoc } from 'firebase/firestore';
@@ -306,7 +306,7 @@ function KillMistakesContent() {
                     <>
                       <div className="p-6 bg-slate-50 rounded-3xl border-2 border-slate-100 shadow-inner">
                         <h4 className="font-black mb-3 flex items-center gap-2 text-slate-900 uppercase text-xs tracking-widest italic">
-                          <Info className="h-4 w-4 text-primary" /> Énoncé
+                          <Info className="h-4 w-4" /> Énoncé
                         </h4>
                         <p className="text-lg font-bold text-slate-700 italic leading-relaxed">{questionDetails.statement || questionDetails.text}</p>
                       </div>
