@@ -71,7 +71,12 @@ export default function PracticePage() {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    // If a choice is selected but not yet submitted/revealed, do it automatically for history
+    if (selectedChoice && !correction) {
+      await handleRevealCorrection();
+    }
+
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setSelectedChoice(null);
@@ -220,9 +225,9 @@ export default function PracticePage() {
             <Button 
               className="flex-1 h-14 rounded-xl bg-primary font-black uppercase tracking-widest text-xs shadow-xl hover:scale-[1.02] transition-transform" 
               onClick={handleNext}
-              disabled={!selectedChoice && !correction}
+              disabled={(!selectedChoice && !correction) || isSubmitting}
             >
-              {currentIndex < questions.length - 1 ? "Question suivante" : "Voir les résultats"} <ChevronRight className="ml-2 h-4 w-4" />
+              {isSubmitting ? <Loader2 className="animate-spin h-4 w-4" /> : (currentIndex < questions.length - 1 ? "Question suivante" : "Voir les résultats")} <ChevronRight className="ml-2 h-4 w-4" />
             </Button>
           </CardFooter>
         </Card>
@@ -249,7 +254,7 @@ export default function PracticePage() {
           </div>
           <div className="flex flex-col gap-4">
             <Button className="w-full h-16 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl text-lg italic" onClick={() => { setStep('review'); setCurrentIndex(0); }}>
-              <Info className="mr-2 h-6 w-6" /> Revoir les questions
+              <Info className="mr-2 h-6 w-6" /> Revoir les questions ({sessionHistory.length})
             </Button>
             <Button variant="outline" className="w-full h-16 rounded-2xl border-4 font-black uppercase tracking-widest text-lg italic" onClick={() => setStep('setup')}>
               Nouvelle Session
