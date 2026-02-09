@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +17,7 @@ import { useUser, useFirestore } from '@/firebase';
 import { startTrainingSession, submitPracticeAnswer, type PracticeFilters } from '@/lib/services/practice-service';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 const MODES = [
@@ -32,14 +32,16 @@ interface SessionHistoryItem {
   correction: any;
 }
 
-export default function PracticePage() {
+function PracticeContent() {
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const isDemo = user?.isAnonymous;
 
   const [step, setStep] = useState<'setup' | 'session' | 'summary' | 'review'>('setup');
-  const [mode, setMode] = useState<string>('domain');
+  const [mode, setMode] = useState<string>(searchParams.get('mode') || 'domain');
   const [filters, setFilters] = useState<PracticeFilters>({});
   const [count, setCount] = useState<number>(10);
   
@@ -51,10 +53,16 @@ export default function PracticePage() {
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   const [correction, setCorrection] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isKMDialogOpen, setIsKMDialogOpen] = useState(false);
 
   // History for post-session review
   const [sessionHistory, setSessionHistory] = useState<SessionHistoryItem[]>([]);
+
+  useEffect(() => {
+    const urlMode = searchParams.get('mode');
+    if (urlMode && urlMode !== mode) {
+      setMode(urlMode);
+    }
+  }, [searchParams, mode]);
 
   const handleStart = async () => {
     setIsLoading(true);
@@ -371,7 +379,7 @@ export default function PracticePage() {
                 key={m.id} 
                 onClick={() => {
                   if (m.id === 'kill_mistake') {
-                    setIsKMDialogOpen(true);
+                    router.push('/dashboard/kill-mistake-selection');
                   } else {
                     setMode(m.id);
                   }
@@ -467,41 +475,14 @@ export default function PracticePage() {
           </div>
         </div>
       </div>
-
-      <Dialog open={isKMDialogOpen} onOpenChange={setIsKMDialogOpen}>
-        <DialogContent className="rounded-[40px] p-8 max-w-lg border-4">
-          <DialogHeader>
-            <DialogTitle className="text-3xl font-black text-primary italic uppercase tracking-tighter flex items-center gap-3">
-              <Brain className="h-8 w-8 text-amber-500" /> Kill Mistake
-            </DialogTitle>
-            <DialogDescription className="text-sm font-bold uppercase tracking-widest italic text-slate-500 mt-2">
-              Que souhaitez-vous faire avec vos erreurs passées ?
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-6">
-            <Button asChild variant="outline" className="h-20 rounded-3xl border-2 hover:bg-slate-50 flex flex-col items-start px-6 gap-1 group">
-              <Link href="/dashboard/kill-mistakes" className="w-full">
-                <span className="font-black text-slate-900 group-hover:text-primary transition-colors italic uppercase text-sm flex items-center justify-between w-full">
-                  1/ Analyser mes erreurs <ArrowRight className="h-4 w-4" />
-                </span>
-                <span className="text-[10px] font-bold text-slate-400 italic uppercase">Revue détaillée avec correction et mindset PMI</span>
-              </Link>
-            </Button>
-            <Button 
-              onClick={() => { setMode('kill_mistake'); setIsKMDialogOpen(false); }}
-              className="h-20 rounded-3xl bg-primary flex flex-col items-start px-6 gap-1 group shadow-xl hover:scale-[1.02] transition-transform"
-            >
-              <span className="font-black text-white italic uppercase text-sm flex items-center justify-between w-full">
-                2/ Re-répondre aux questions <Play className="h-4 w-4 fill-white" />
-              </span>
-              <span className="text-[10px] font-black text-primary-foreground/60 italic uppercase text-left">Lancer un entraînement uniquement sur les échecs (Pratique & Examens)</span>
-            </Button>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsKMDialogOpen(false)} className="font-black uppercase tracking-widest italic text-xs text-slate-400">Annuler</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
+  );
+}
+
+export default function PracticePage() {
+  return (
+    <Suspense fallback={<div className="h-[70vh] flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>}>
+      <PracticeContent />
+    </Suspense>
   );
 }
