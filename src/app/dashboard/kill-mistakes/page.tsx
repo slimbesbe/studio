@@ -13,7 +13,8 @@ import {
   Info,
   Loader2,
   Play,
-  Tags
+  Tags,
+  ChevronLeft
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, getDoc } from 'firebase/firestore';
@@ -77,22 +78,26 @@ export default function KillMistakesPage() {
     return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
-  const correctedCount = 0; // Tracked in history usually
-
   return (
-    <div className="space-y-8 animate-fade-in max-w-7xl mx-auto py-8">
-      <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-8 rounded-[40px] shadow-xl border-2">
-        <div>
-          <h1 className="text-4xl font-black text-primary italic uppercase tracking-tighter flex items-center gap-4">
-            <Brain className="h-12 w-12 text-amber-500" />
-            Kill Mistakes
-          </h1>
-          <p className="text-slate-500 font-bold mt-1 uppercase tracking-widest text-sm italic">Système de répétition espacée pour éliminer vos lacunes.</p>
-        </div>
-        <div className="flex gap-4">
-          <Badge className="bg-amber-100 text-amber-700 border-2 border-amber-200 px-6 py-2 rounded-2xl font-black italic">
-            <Info className="mr-2 h-4 w-4" /> {mistakes?.length || 0} EN ATTENTE
-          </Badge>
+    <div className="space-y-8 animate-fade-in max-w-7xl mx-auto py-8 px-4">
+      {/* Navigation & Header */}
+      <div className="space-y-4">
+        <Button variant="ghost" asChild className="hover:bg-primary/5 -ml-2 text-muted-foreground font-black uppercase tracking-widest text-xs">
+          <Link href="/dashboard/kill-mistake-selection"><ChevronLeft className="mr-2 h-4 w-4" /> Retour à la sélection</Link>
+        </Button>
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-8 rounded-[40px] shadow-xl border-2">
+          <div>
+            <h1 className="text-4xl font-black text-primary italic uppercase tracking-tighter flex items-center gap-4">
+              <Brain className="h-12 w-12 text-amber-500" />
+              Analyse des échecs
+            </h1>
+            <p className="text-slate-500 font-bold mt-1 uppercase tracking-widest text-sm italic">Comprenez la cause profonde pour ne plus jamais vous tromper.</p>
+          </div>
+          <div className="flex gap-4">
+            <Badge className="bg-amber-100 text-amber-700 border-2 border-amber-200 px-6 py-2 rounded-2xl font-black italic">
+              <Info className="mr-2 h-4 w-4" /> {mistakes?.length || 0} ERREURS À TRAITER
+            </Badge>
+          </div>
         </div>
       </div>
 
@@ -100,7 +105,7 @@ export default function KillMistakesPage() {
         <div className="lg:col-span-1 space-y-4">
           <Card className="rounded-[32px] shadow-lg border-none overflow-hidden h-full flex flex-col">
             <CardHeader className="bg-muted/30 border-b p-6">
-              <CardTitle className="text-xs font-black uppercase tracking-widest italic">Liste des erreurs</CardTitle>
+              <CardTitle className="text-xs font-black uppercase tracking-widest italic text-slate-500">Liste des questions ratées</CardTitle>
             </CardHeader>
             <CardContent className="p-4 flex-1 overflow-y-auto max-h-[600px] space-y-3">
               {mistakes?.length === 0 ? (
@@ -144,9 +149,9 @@ export default function KillMistakesPage() {
                 <CardHeader className="bg-white p-8 pb-4 flex flex-row items-center justify-between">
                   <div>
                     <CardTitle className="text-3xl font-black text-slate-900 italic tracking-tight">Analyse de l'Erreur</CardTitle>
-                    <CardDescription className="text-sm font-bold text-slate-500 uppercase tracking-widest italic mt-1">Comprendre pourquoi vous avez échoué et ancrer le mindset PMI.</CardDescription>
+                    <CardDescription className="text-sm font-bold text-slate-500 uppercase tracking-widest italic mt-1">Ancrer le mindset PMI pour transformer cet échec en réussite.</CardDescription>
                   </div>
-                  <Button variant="ghost" size="icon" className="rounded-full border-2 h-10 w-10" onClick={() => window.location.reload()}>
+                  <Button variant="ghost" size="icon" className="rounded-full border-2 h-10 w-10" onClick={() => setSelectedMistake(null)}>
                     <RotateCcw className="h-5 w-5" />
                   </Button>
                 </CardHeader>
@@ -165,7 +170,7 @@ export default function KillMistakesPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="p-6 rounded-3xl border-l-[12px] border-l-red-500 bg-red-50/50 shadow-sm space-y-2">
                           <h5 className="text-[10px] font-black text-red-600 uppercase tracking-[0.2em] flex items-center gap-2 italic">
-                            <XCircle className="h-4 w-4" /> Votre réponse
+                            <XCircle className="h-4 w-4" /> Votre dernière réponse
                           </h5>
                           <p className="font-bold text-slate-800 italic">
                             {questionDetails.options?.find((o: any) => o.id === selectedMistake.lastSelectedChoiceId)?.text || selectedMistake.lastSelectedChoiceId || "N/A"}
@@ -182,7 +187,6 @@ export default function KillMistakesPage() {
                       </div>
 
                       <div className="space-y-4 pt-6 border-t-2 border-slate-50">
-                        {/* Question Context Tags */}
                         {questionDetails.tags && (
                           <div className="flex flex-wrap gap-2 mb-4">
                             <Badge variant="secondary" className="flex items-center gap-1.5 font-bold uppercase text-[9px] py-0.5 bg-white border">
@@ -198,15 +202,11 @@ export default function KillMistakesPage() {
                         )}
 
                         <h4 className="font-black flex items-center gap-3 text-primary uppercase text-sm tracking-widest italic">
-                          <Brain className="h-6 w-6 text-accent" /> Mindset PMI & Explication
+                          <Brain className="h-6 w-6 text-accent" /> Mindset PMI & Justification
                         </h4>
                         <div className="bg-slate-50 p-8 rounded-[32px] border-2 border-slate-100 shadow-inner">
                           <div className="text-base font-bold italic text-slate-700 leading-relaxed whitespace-pre-wrap">
-                            {questionDetails.explanation?.correctRationale || questionDetails.explanation || "Explication détaillée en attente."}
-                          </div>
-                          <div className="mt-6 p-4 bg-white/50 rounded-2xl border-2 border-dashed border-slate-200">
-                            <p className="text-xs font-black uppercase text-slate-400 mb-1 tracking-widest">Action recommandée :</p>
-                            <p className="text-sm font-bold text-primary italic">Analyser les distracteurs pour comprendre pourquoi l'autre option semblait correcte.</p>
+                            {questionDetails.explanation?.correctRationale || questionDetails.explanation || "Explication détaillée en cours de chargement..."}
                           </div>
                         </div>
                       </div>
@@ -221,7 +221,7 @@ export default function KillMistakesPage() {
                 <Brain className="h-20 w-20 text-amber-500 opacity-40" />
               </div>
               <h3 className="text-2xl font-black text-slate-400 italic uppercase tracking-tighter">Sélectionnez une erreur</h3>
-              <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic max-w-sm mt-2">Cliquez sur une carte à gauche pour analyser la cause profonde de l'échec.</p>
+              <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic max-w-sm mt-2">Cliquez sur une carte à gauche pour ouvrir l'analyse de la question.</p>
             </div>
           )}
         </div>

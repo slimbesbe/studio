@@ -42,7 +42,10 @@ function PracticeContent() {
 
   const [step, setStep] = useState<'setup' | 'session' | 'summary' | 'review'>('setup');
   const [mode, setMode] = useState<string>(searchParams.get('mode') || 'domain');
-  const [filters, setFilters] = useState<PracticeFilters>({});
+  const [filters, setFilters] = useState<PracticeFilters>({
+    domain: searchParams.get('domain') || 'all',
+    approach: searchParams.get('approach') || 'all'
+  });
   const [count, setCount] = useState<number>(10);
   
   const [questions, setQuestions] = useState<any[]>([]);
@@ -67,7 +70,6 @@ function PracticeContent() {
   const handleStart = async () => {
     setIsLoading(true);
     try {
-      // FORCE 2 QUESTIONS IN DEMO MODE
       const finalCount = isDemo ? 2 : count;
       const data = await startTrainingSession(db, user!.uid, mode, filters, finalCount);
       setQuestions(data);
@@ -83,7 +85,6 @@ function PracticeContent() {
   };
 
   const handleNext = async () => {
-    // If a choice is selected but not yet submitted/revealed, do it automatically for history
     if (selectedChoice && !correction) {
       await handleRevealCorrection();
     }
@@ -104,7 +105,6 @@ function PracticeContent() {
       const res = await submitPracticeAnswer(db, user!.uid, questions[currentIndex].id, selectedChoice);
       setCorrection(res);
       
-      // Store in session history for later review
       setSessionHistory(prev => [
         ...prev, 
         { 
@@ -146,7 +146,7 @@ function PracticeContent() {
   if (step === 'session') {
     const q = questions[currentIndex];
     return (
-      <div className="max-w-4xl mx-auto space-y-6 animate-fade-in py-8">
+      <div className="max-w-4xl mx-auto space-y-6 animate-fade-in py-8 px-4">
         <div className="flex justify-between items-center">
           <Badge variant="outline" className="text-sm font-black italic border-2 px-4 py-1 bg-white">
             QUESTION {currentIndex + 1} / {questions.length}
@@ -249,7 +249,7 @@ function PracticeContent() {
   if (step === 'summary') {
     const score = Math.round((sessionResults.correct / sessionResults.total) * 100);
     return (
-      <div className="max-w-2xl mx-auto py-16 text-center space-y-10 animate-fade-in">
+      <div className="max-w-2xl mx-auto py-16 text-center space-y-10 animate-fade-in px-4">
         <div className="space-y-4">
           <h1 className="text-5xl font-black italic uppercase tracking-tighter text-primary">Session Terminée</h1>
           <p className="text-slate-500 font-bold uppercase tracking-widest text-sm italic">Analyse de vos performances {isDemo && "(DÉMO)"}</p>
@@ -283,7 +283,7 @@ function PracticeContent() {
     const isUserCorrect = corr.isCorrect;
 
     return (
-      <div className="max-w-4xl mx-auto space-y-6 animate-fade-in py-8">
+      <div className="max-w-4xl mx-auto space-y-6 animate-fade-in py-8 px-4">
         <div className="flex justify-between items-center bg-white p-6 rounded-3xl shadow-lg border-2">
           <Button variant="ghost" className="font-black italic uppercase tracking-widest" onClick={() => setStep('summary')}>
             <ChevronLeft className="mr-2 h-4 w-4" /> Retour
@@ -363,12 +363,19 @@ function PracticeContent() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-10 animate-fade-in py-8">
-      <div className="space-y-2">
-        <h1 className="text-4xl font-black italic uppercase tracking-tighter text-primary flex items-center gap-4">
-          <BookOpen className="h-10 w-10" /> Pratique Libre {isDemo && <span className="text-amber-500 text-sm">(DÉMO)</span>}
-        </h1>
-        <p className="text-slate-500 font-bold uppercase tracking-widest text-xs italic">Entraînement ciblé et correction du mindset</p>
+    <div className="max-w-5xl mx-auto space-y-10 animate-fade-in py-8 px-4">
+      <div className="space-y-4">
+        {mode === 'kill_mistake' && (
+          <Button variant="ghost" asChild className="hover:bg-primary/5 -ml-2 text-muted-foreground font-black uppercase tracking-widest text-xs">
+            <Link href="/dashboard/kill-mistake-selection"><ChevronLeft className="mr-2 h-4 w-4" /> Retour à la sélection</Link>
+          </Button>
+        )}
+        <div className="space-y-2">
+          <h1 className="text-4xl font-black italic uppercase tracking-tighter text-primary flex items-center gap-4">
+            <BookOpen className="h-10 w-10" /> {mode === 'kill_mistake' ? 'Entraînement Correctif' : 'Pratique Libre'} {isDemo && <span className="text-amber-500 text-sm">(DÉMO)</span>}
+          </h1>
+          <p className="text-slate-500 font-bold uppercase tracking-widest text-xs italic">Ciblez vos faiblesses pour une réussite garantie</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -415,11 +422,12 @@ function PracticeContent() {
               {mode === 'domain' && (
                 <div className="space-y-3">
                   <Label className="font-black uppercase text-[10px] tracking-[0.2em] text-slate-400 italic">Domaine PMP®</Label>
-                  <Select onValueChange={(v) => setFilters({ ...filters, domain: v })}>
+                  <Select value={filters.domain} onValueChange={(v) => setFilters({ ...filters, domain: v })}>
                     <SelectTrigger className="h-14 rounded-xl border-2 font-black italic shadow-sm bg-white">
                       <SelectValue placeholder="TOUS LES DOMAINES" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="all">TOUS LES DOMAINES</SelectItem>
                       <SelectItem value="People">PEOPLE</SelectItem>
                       <SelectItem value="Process">PROCESSUS</SelectItem>
                       <SelectItem value="Business">BUSINESS ENVIRONMENT</SelectItem>
@@ -431,16 +439,31 @@ function PracticeContent() {
               {mode === 'approach' && (
                 <div className="space-y-3">
                   <Label className="font-black uppercase text-[10px] tracking-[0.2em] text-slate-400 italic">Approche Projet</Label>
-                  <Select onValueChange={(v) => setFilters({ ...filters, approach: v })}>
+                  <Select value={filters.approach} onValueChange={(v) => setFilters({ ...filters, approach: v })}>
                     <SelectTrigger className="h-14 rounded-xl border-2 font-black italic shadow-sm bg-white">
                       <SelectValue placeholder="TOUTES LES APPROCHES" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="all">TOUTES LES APPROCHES</SelectItem>
                       <SelectItem value="Predictive">PRÉDICTIVE (WATERFALL)</SelectItem>
                       <SelectItem value="Agile">AGILE</SelectItem>
                       <SelectItem value="Hybrid">HYBRIDE</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              )}
+
+              {mode === 'kill_mistake' && (
+                <div className="md:col-span-2 bg-amber-50 p-4 rounded-xl border border-amber-100 space-y-2">
+                  <p className="text-xs font-black text-amber-700 uppercase italic">Filtres Kill Mistake actifs :</p>
+                  <div className="flex gap-2">
+                    <Badge variant="outline" className="bg-white border-amber-200 text-amber-700 font-black italic uppercase text-[10px]">
+                      Domaine: {filters.domain === 'all' ? 'Tous' : filters.domain}
+                    </Badge>
+                    <Badge variant="outline" className="bg-white border-amber-200 text-amber-700 font-black italic uppercase text-[10px]">
+                      Approche: {filters.approach === 'all' ? 'Toutes' : filters.approach}
+                    </Badge>
+                  </div>
                 </div>
               )}
             </div>
@@ -450,9 +473,9 @@ function PracticeContent() {
         <div className="space-y-6">
           <Card className="rounded-[32px] bg-primary p-8 text-white shadow-2xl space-y-6 border-none">
             <div className="space-y-2">
-              <h3 className="font-black italic uppercase tracking-tighter text-xl">Prêt à pratiquer ?</h3>
+              <h3 className="font-black italic uppercase tracking-tighter text-xl">Lancer la session</h3>
               <p className="text-[10px] font-bold uppercase tracking-widest text-primary-foreground/60 italic leading-relaxed">
-                Mode Apprentissage actif. Les corrections sont affichées à votre demande pour ancrer les concepts.
+                Apprentissage actif. Les corrections instantanées vous aident à corriger votre Mindset en temps réel.
               </p>
             </div>
             <Button 
@@ -460,7 +483,7 @@ function PracticeContent() {
               disabled={isLoading}
               onClick={handleStart}
             >
-              {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : <><Play className="mr-3 h-6 w-6" /> Lancer</>}
+              {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : <><Play className="mr-3 h-6 w-6" /> Démarrer</>}
             </Button>
           </Card>
           
@@ -470,7 +493,7 @@ function PracticeContent() {
               <span className="font-black uppercase text-[10px] tracking-widest italic">Info Session</span>
             </div>
             <p className="text-[10px] font-bold text-slate-500 uppercase leading-relaxed italic">
-              Vos erreurs seront automatiquement ajoutées à votre liste "Kill Mistake" pour une révision ultérieure.
+              Les erreurs de cette session seront ajoutées à votre base Kill Mistake pour une révision future.
             </p>
           </div>
         </div>

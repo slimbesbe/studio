@@ -15,7 +15,9 @@ import {
   Filter,
   Layers,
   Globe,
-  Loader2
+  Loader2,
+  PieChart,
+  Zap
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -53,9 +55,7 @@ export default function KillMistakeSelectionPage() {
   const { data: mistakes, isLoading } = useCollection(mistakesQuery);
 
   const stats = useMemo(() => {
-    const dataToProcess = isDemo ? MOCK_MISTAKES : mistakes;
-    if (!dataToProcess) return { total: 0, byDomain: {}, byApproach: {} };
-    
+    const dataToProcess = isDemo ? MOCK_MISTAKES : (mistakes || []);
     const byDomain: Record<string, number> = { 'People': 0, 'Process': 0, 'Business': 0 };
     const byApproach: Record<string, number> = { 'Predictive': 0, 'Agile': 0, 'Hybrid': 0 };
 
@@ -77,10 +77,10 @@ export default function KillMistakeSelectionPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-10 animate-fade-in py-8 px-4">
+    <div className="max-w-6xl mx-auto space-y-10 animate-fade-in py-8 px-4">
       {/* Header avec bouton retour */}
       <div className="space-y-4">
-        <Button variant="ghost" asChild className="hover:bg-primary/5 -ml-2 text-muted-foreground font-bold uppercase tracking-widest text-xs">
+        <Button variant="ghost" asChild className="hover:bg-primary/5 -ml-2 text-muted-foreground font-black uppercase tracking-widest text-xs">
           <Link href="/dashboard/practice"><ChevronLeft className="mr-2 h-4 w-4" /> Retour à la pratique</Link>
         </Button>
         <div className="flex items-center gap-4">
@@ -89,61 +89,54 @@ export default function KillMistakeSelectionPage() {
           </div>
           <div>
             <h1 className="text-4xl font-black text-primary italic uppercase tracking-tighter flex items-center gap-3">
-              Méthode Kill Mistake {isDemo && <span className="text-amber-500 text-sm">(MODE DÉMO)</span>}
+              Kill Mistake Strategy {isDemo && <span className="text-amber-500 text-sm">(DÉMO)</span>}
             </h1>
-            <p className="text-slate-500 font-bold uppercase tracking-widest text-xs italic">Excellence par la répétition espacée</p>
+            <p className="text-slate-500 font-bold uppercase tracking-widest text-xs italic">Transformez vos erreurs en points de force</p>
           </div>
         </div>
       </div>
 
-      {/* Section "Blabla" de qualité */}
-      <Card className="rounded-[40px] border-none shadow-xl bg-gradient-to-br from-white to-slate-50 overflow-hidden">
-        <CardContent className="p-10 flex flex-col md:flex-row gap-10 items-center">
-          <div className="flex-1 space-y-6">
-            <h2 className="text-2xl font-black text-slate-900 uppercase italic tracking-tight flex items-center gap-2">
-              <Sparkles className="h-6 w-6 text-amber-500" /> Pourquoi le Kill Mistake ?
-            </h2>
-            <div className="space-y-4 text-slate-600 font-medium leading-relaxed italic text-lg">
-              <p>
-                La réussite au PMP® ne dépend pas de la quantité de questions traitées, mais de votre capacité à ne jamais commettre deux fois la même erreur.
-              </p>
-              <p>
-                Le système <span className="text-primary font-black">Kill Mistake</span> isole vos échecs passés pour cibler vos failles de compréhension du <span className="text-primary font-black">Mindset PMI®</span>. 
-              </p>
-            </div>
-            
-            {isLoading && !isDemo ? (
-              <div className="flex items-center gap-2 text-slate-400 font-bold italic animate-pulse">
-                <Loader2 className="h-4 w-4 animate-spin" /> Analyse de votre base d'erreurs...
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-dashed border-slate-200">
-                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center">
-                  <span className="block text-2xl font-black text-primary italic">{stats.total}</span>
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total Erreurs</span>
-                </div>
-                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center">
-                  <span className="block text-2xl font-black text-amber-600 italic">{stats.byDomain['Process'] || 0}</span>
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Faille Process</span>
-                </div>
-                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center">
-                  <span className="block text-2xl font-black text-emerald-600 italic">{stats.byDomain['People'] || 0}</span>
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Faille People</span>
-                </div>
-              </div>
-            )}
+      {/* Analyse exhaustive des erreurs */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="rounded-[32px] border-none shadow-lg bg-white p-8 flex flex-col items-center justify-center text-center group transition-all hover:scale-[1.02]">
+          <div className="h-16 w-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-4 group-hover:rotate-6 transition-transform">
+            <Target className="h-8 w-8 text-primary" />
           </div>
-          <div className="w-full md:w-72 aspect-square bg-primary/5 rounded-[60px] flex items-center justify-center relative overflow-hidden shrink-0">
-             <Brain className="h-32 w-32 text-primary/20 absolute" />
-             <div className="z-10 text-center p-6">
-                <span className="text-5xl font-black text-primary italic">90%</span>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Taux de rétention après correction</p>
-             </div>
-          </div>
-        </CardContent>
-      </Card>
+          <span className="text-5xl font-black text-slate-900 italic tracking-tighter">{stats.total}</span>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2 italic">Total des questions mal répondues</p>
+        </Card>
 
-      {/* Les deux options */}
+        <Card className="rounded-[32px] border-none shadow-lg bg-white p-8 space-y-4 transition-all hover:scale-[1.02]">
+          <div className="flex items-center gap-3 text-emerald-600 mb-2">
+            <Layers className="h-5 w-5" />
+            <h3 className="font-black uppercase italic text-xs tracking-widest">Répartition par Domaine</h3>
+          </div>
+          <div className="space-y-3">
+            {Object.entries(stats.byDomain).map(([domain, count]) => (
+              <div key={domain} className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-500 uppercase">{domain === 'Process' ? 'Processus' : domain}</span>
+                <Badge variant="secondary" className="font-black px-3 py-1 rounded-lg text-emerald-700 bg-emerald-50 border-emerald-100">{count}</Badge>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card className="rounded-[32px] border-none shadow-lg bg-white p-8 space-y-4 transition-all hover:scale-[1.02]">
+          <div className="flex items-center gap-3 text-amber-600 mb-2">
+            <Zap className="h-5 w-5" />
+            <h3 className="font-black uppercase italic text-xs tracking-widest">Répartition par Approche</h3>
+          </div>
+          <div className="space-y-3">
+            {Object.entries(stats.byApproach).map(([approach, count]) => (
+              <div key={approach} className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-500 uppercase">{approach === 'Predictive' ? 'Waterfall' : approach}</span>
+                <Badge variant="secondary" className="font-black px-3 py-1 rounded-lg text-amber-700 bg-amber-50 border-amber-100">{count}</Badge>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Option 1: Analyser */}
         <Card className="group cursor-pointer hover:shadow-2xl transition-all duration-500 border-4 border-slate-100 hover:border-primary/20 rounded-[48px] overflow-hidden bg-white">
@@ -158,7 +151,7 @@ export default function KillMistakeSelectionPage() {
             </CardHeader>
             <CardContent className="p-10 space-y-6 flex-1">
               <p className="text-slate-500 font-bold italic leading-relaxed text-base">
-                Plongez dans l'analyse théorique. Examinez chaque question ratée et imprégnez-vous des justifications du mindset officiel.
+                Comprenez les causes de vos échecs. Examinez chaque justification du Mindset Officiel pour ne plus jamais vous tromper.
               </p>
               <div className="flex items-center text-primary font-black uppercase tracking-widest text-sm pt-4">
                 Démarrer l'analyse <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-2 transition-transform" />
@@ -179,13 +172,13 @@ export default function KillMistakeSelectionPage() {
           </CardHeader>
           <CardContent className="p-10 space-y-8">
             <p className="text-primary-foreground/80 font-bold italic leading-relaxed text-base">
-              Mettez-vous en situation réelle d'examen sur vos erreurs passées. Choisissez vos filtres pour un entraînement ciblé.
+              Mettez-vous en situation réelle sur vos erreurs passées pour valider l'ancrage du Mindset PMP®.
             </p>
 
             <div className="space-y-4 bg-white/5 p-6 rounded-[32px] border border-white/10">
               <div className="flex items-center gap-2 mb-2">
                 <Filter className="h-4 w-4 opacity-60" />
-                <span className="text-[10px] font-black uppercase tracking-widest italic">Configuration de session</span>
+                <span className="text-[10px] font-black uppercase tracking-widest italic">Ciblage de session</span>
               </div>
               
               <div className="grid grid-cols-1 gap-4">
@@ -197,9 +190,9 @@ export default function KillMistakeSelectionPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">TOUS LES DOMAINES ({stats.total})</SelectItem>
-                      <SelectItem value="People">PEOPLE ({stats.byDomain['People'] || 0})</SelectItem>
-                      <SelectItem value="Process">PROCESSUS ({stats.byDomain['Process'] || 0})</SelectItem>
-                      <SelectItem value="Business">BUSINESS ({stats.byDomain['Business'] || 0})</SelectItem>
+                      <SelectItem value="People">PEOPLE ({stats.byDomain['People']})</SelectItem>
+                      <SelectItem value="Process">PROCESSUS ({stats.byDomain['Process']})</SelectItem>
+                      <SelectItem value="Business">BUSINESS ({stats.byDomain['Business']})</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -212,9 +205,9 @@ export default function KillMistakeSelectionPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">TOUTES LES APPROCHES</SelectItem>
-                      <SelectItem value="Predictive">PRÉDICTIF ({stats.byApproach['Predictive'] || 0})</SelectItem>
-                      <SelectItem value="Agile">AGILE ({stats.byApproach['Agile'] || 0})</SelectItem>
-                      <SelectItem value="Hybrid">HYBRIDE ({stats.byApproach['Hybrid'] || 0})</SelectItem>
+                      <SelectItem value="Predictive">WATERFALL ({stats.byApproach['Predictive']})</SelectItem>
+                      <SelectItem value="Agile">AGILE ({stats.byApproach['Agile']})</SelectItem>
+                      <SelectItem value="Hybrid">HYBRIDE ({stats.byApproach['Hybrid']})</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
