@@ -413,27 +413,29 @@ export default function ExamPage() {
         </div>
 
         <AlertDialog open={isConfirmSubmitOpen} onOpenChange={setIsConfirmSubmitOpen}>
-          <AlertDialogContent className="rounded-[40px] p-8 md:p-12 border-4 shadow-3xl !bg-white z-[100] border-primary/20 sm:max-w-2xl w-[95vw]">
-            <AlertDialogHeader className="flex flex-col items-center text-center">
-              <AlertDialogTitle className="text-2xl md:text-3xl font-black uppercase text-primary italic tracking-tighter flex items-center justify-center gap-3 mb-6 w-full">
-                <ShieldAlert className="h-10 w-10 text-amber-500 shrink-0" /> 
-                <span className="text-center">CONFIRMATION FINALE</span>
-              </AlertDialogTitle>
-              <div className="bg-slate-50 p-8 rounded-3xl border-2 border-dashed border-slate-200 w-full mb-6">
-                <AlertDialogDescription className="text-xl font-black text-slate-900 leading-relaxed uppercase tracking-tight">
-                  Êtes-vous sûr de vouloir soumettre la <span className="text-primary underline decoration-4 underline-offset-8">Partie {examPart}</span> ?
-                </AlertDialogDescription>
+          <AlertDialogContent className="bg-white rounded-[32px] p-10 border-none shadow-2xl max-w-xl">
+            <AlertDialogHeader className="space-y-4">
+              <div className="mx-auto bg-amber-50 h-16 w-16 rounded-full flex items-center justify-center mb-2">
+                <ShieldAlert className="h-8 w-8 text-amber-500" />
               </div>
-              <p className="text-sm font-bold text-red-600 uppercase tracking-widest leading-relaxed max-w-md">
-                ATTENTION : UNE FOIS SOUMIS, VOUS NE POURREZ PLUS REVENIR EN ARRIÈRE POUR MODIFIER VOS RÉPONSES DANS CETTE SECTION.
-              </p>
+              <AlertDialogTitle className="text-2xl font-black text-center uppercase italic tracking-tight text-slate-900">
+                Confirmation Finale
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-lg font-bold text-center text-slate-600 leading-relaxed uppercase tracking-tight">
+                Êtes-vous sûr de vouloir soumettre la <span className="text-primary font-black">Partie {examPart}</span> ?
+              </AlertDialogDescription>
+              <div className="bg-red-50 p-4 rounded-xl border border-red-100 mt-4">
+                <p className="text-xs font-black text-red-600 text-center uppercase tracking-widest leading-relaxed">
+                  Attention : Une fois soumis, vous ne pourrez plus revenir en arrière pour modifier vos réponses dans cette section.
+                </p>
+              </div>
             </AlertDialogHeader>
-            <AlertDialogFooter className="mt-10 flex flex-col sm:flex-row gap-4 justify-center w-full">
-              <AlertDialogCancel className="h-16 rounded-2xl font-black uppercase tracking-widest border-4 px-10 hover:bg-slate-50 transition-colors">
-                REVENIR À LA RÉVISION
+            <AlertDialogFooter className="mt-8 flex flex-col sm:flex-row gap-3">
+              <AlertDialogCancel className="h-14 flex-1 rounded-xl font-black uppercase tracking-widest border-2">
+                Revenir à la révision
               </AlertDialogCancel>
-              <AlertDialogAction onClick={confirmSectionSubmission} className="h-16 rounded-2xl font-black bg-primary hover:bg-primary/90 shadow-2xl uppercase tracking-widest px-10 hover:scale-[1.02] transition-transform">
-                OUI, JE CONFIRME LA SOUMISSION
+              <AlertDialogAction onClick={confirmSectionSubmission} className="h-14 flex-1 rounded-xl font-black bg-primary hover:bg-primary/90 shadow-lg uppercase tracking-widest">
+                Oui, je confirme
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
