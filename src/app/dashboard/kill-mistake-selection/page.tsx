@@ -2,24 +2,20 @@
 "use client";
 
 import { useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
   Brain, 
-  Play, 
   Search, 
   ChevronLeft,
   Target,
   ArrowRight,
-  Layers,
   Zap,
-  LayoutGrid,
-  History
+  Play
 } from 'lucide-react';
 import Link from 'next/link';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import { Badge } from '@/components/ui/badge';
 
 const MOCK_MISTAKES = [
   { id: 'm1', tags: { domain: 'People', approach: 'Agile' }, status: 'wrong' },
@@ -53,6 +49,8 @@ export default function KillMistakeSelectionPage() {
       const d = m.tags?.domain;
       const a = m.tags?.approach;
       if (d && byDomain[d] !== undefined) byDomain[d]++;
+      else if (d === 'Processus') byDomain['Process']++;
+      
       if (a && byApproach[a] !== undefined) byApproach[a]++;
     });
 
@@ -60,111 +58,118 @@ export default function KillMistakeSelectionPage() {
   }, [mistakes, isDemo]);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4 animate-fade-in py-2 px-4">
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <Button variant="ghost" asChild className="hover:bg-primary/5 -ml-2 text-muted-foreground font-black uppercase tracking-widest text-[9px] h-7">
-            <Link href="/dashboard/practice"><ChevronLeft className="mr-1 h-3 w-3" /> Dashboard</Link>
-          </Button>
-          <div className="flex items-center gap-3">
-            <div className="bg-amber-100 p-1.5 rounded-lg">
-              <Brain className="h-6 w-6 text-amber-600" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black text-primary italic uppercase tracking-tighter flex items-center gap-2">
-                Kill Mistake Strategy {isDemo && <span className="text-amber-500 text-[10px]">(DÉMO)</span>}
-              </h1>
-              <p className="text-slate-500 font-bold uppercase tracking-widest text-[9px] italic">Éliminez vos faiblesses une par une</p>
-            </div>
-          </div>
+    <div className="max-w-6xl mx-auto space-y-8 animate-fade-in py-6 px-4">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <div className="bg-amber-500 p-2.5 rounded-2xl shadow-lg">
+          <Brain className="h-8 w-8 text-white" />
         </div>
+        <div>
+          <h1 className="text-4xl font-black text-primary italic uppercase tracking-tighter flex items-center gap-3">
+            KILL MISTAKE STRATEGY {isDemo && <span className="text-amber-500 text-sm">(DÉMO)</span>}
+          </h1>
+          <p className="text-slate-400 font-bold uppercase tracking-widest text-xs italic">Éliminez vos faiblesses une par une</p>
+        </div>
+      </div>
 
-        <div className="bg-white px-6 py-2 rounded-2xl border-2 flex items-center gap-4 shadow-sm">
-          <div className="flex flex-col items-center">
-            <span className="text-2xl font-black text-primary italic leading-none">{stats.total}</span>
-            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest italic">Total erreurs</span>
+      {/* Stats Row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Total Card */}
+        <Card className="rounded-[48px] border-none shadow-[0_20px_50px_rgba(0,0,0,0.05)] bg-white p-10 flex flex-col items-center justify-center text-center space-y-4">
+          <div className="bg-indigo-50 p-4 rounded-3xl">
+            <Target className="h-10 w-10 text-primary" />
           </div>
-          <div className="h-8 w-px bg-slate-100" />
-          <div className="flex gap-3">
-            {Object.entries(stats.byDomain).map(([d, c]) => (
-              <div key={d} className="flex flex-col items-center">
-                <span className="text-xs font-black text-slate-700">{c}</span>
-                <span className="text-[7px] font-bold text-slate-400 uppercase">{d.substring(0, 4)}</span>
+          <div className="space-y-1">
+            <span className="text-6xl font-black text-slate-900 italic leading-none">{stats.total}</span>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Questions à corriger</p>
+          </div>
+        </Card>
+
+        {/* Domain Card */}
+        <Card className="rounded-[48px] border-none shadow-[0_20px_50px_rgba(0,0,0,0.05)] bg-white p-10 space-y-6">
+          <div className="flex items-center gap-3 text-emerald-500 font-black uppercase text-[10px] tracking-widest italic">
+            <Zap className="h-4 w-4" /> Par Domaine
+          </div>
+          <div className="space-y-4">
+            {Object.entries(stats.byDomain).map(([domain, count]) => (
+              <div key={domain} className="flex justify-between items-center group">
+                <span className="text-[11px] font-black text-slate-500 uppercase tracking-tight">{domain === 'Process' ? 'Processus' : domain}</span>
+                <span className="bg-emerald-50 text-emerald-600 h-7 w-10 rounded-full flex items-center justify-center font-black text-xs group-hover:scale-110 transition-transform">{count}</span>
               </div>
             ))}
           </div>
-        </div>
+        </Card>
+
+        {/* Approach Card */}
+        <Card className="rounded-[48px] border-none shadow-[0_20px_50px_rgba(0,0,0,0.05)] bg-white p-10 space-y-6">
+          <div className="flex items-center gap-3 text-amber-500 font-black uppercase text-[10px] tracking-widest italic">
+            <Zap className="h-4 w-4" /> Par Approche
+          </div>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center group">
+              <span className="text-[11px] font-black text-slate-500 uppercase tracking-tight">Waterfall</span>
+              <span className="bg-amber-50 text-amber-600 h-7 w-10 rounded-full flex items-center justify-center font-black text-xs group-hover:scale-110 transition-transform">{stats.byApproach.Predictive}</span>
+            </div>
+            <div className="flex justify-between items-center group">
+              <span className="text-[11px] font-black text-slate-500 uppercase tracking-tight">Agile</span>
+              <span className="bg-amber-50 text-amber-600 h-7 w-10 rounded-full flex items-center justify-center font-black text-xs group-hover:scale-110 transition-transform">{stats.byApproach.Agile}</span>
+            </div>
+            <div className="flex justify-between items-center group">
+              <span className="text-[11px] font-black text-slate-500 uppercase tracking-tight">Hybrid</span>
+              <span className="bg-amber-50 text-amber-600 h-7 w-10 rounded-full flex items-center justify-center font-black text-xs group-hover:scale-110 transition-transform">{stats.byApproach.Hybrid}</span>
+            </div>
+          </div>
+        </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+      {/* Main Action Cards Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Card 1: Analyser */}
-        <Card className="group cursor-pointer hover:shadow-lg transition-all border-2 border-slate-100 hover:border-primary/20 rounded-2xl overflow-hidden bg-white">
-          <Link href="/dashboard/kill-mistakes?mode=analyze" className="h-full flex flex-col p-5 space-y-3">
-            <div className="bg-slate-50 w-10 h-10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Search className="h-5 w-5 text-slate-400 group-hover:text-primary transition-colors" />
-            </div>
-            <div className="space-y-1">
-              <CardTitle className="text-lg font-black uppercase italic tracking-tighter text-slate-900 leading-tight">
-                1/ Analyser
-              </CardTitle>
-              <p className="text-slate-500 font-bold italic leading-relaxed text-[10px]">
-                Examinez les questions manquées et apprenez les justifications PMI®.
-              </p>
-            </div>
-            <div className="flex items-center text-primary font-black uppercase tracking-widest text-[8px] pt-1">
-              Voir les analyses <ArrowRight className="ml-1 h-3 w-3 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </Link>
+        <Card className="rounded-[60px] border-none shadow-[0_30px_60px_rgba(0,0,0,0.08)] bg-white p-14 space-y-8 group hover:scale-[1.02] transition-all">
+          <div className="bg-slate-50 w-20 h-20 rounded-[32px] flex items-center justify-center">
+            <Search className="h-10 w-10 text-slate-300 group-hover:text-primary transition-colors" />
+          </div>
+          <div className="space-y-4">
+            <CardTitle className="text-4xl font-black uppercase italic tracking-tighter text-slate-900 leading-none">
+              1/ Analyser mes erreurs
+            </CardTitle>
+            <p className="text-slate-500 font-bold italic leading-relaxed text-base max-w-sm">
+              Examinez les questions manquées et apprenez les justifications du Mindset PMI® pour corriger votre logique.
+            </p>
+          </div>
+          <Button variant="ghost" asChild className="p-0 text-primary hover:bg-transparent font-black uppercase tracking-[0.2em] text-xs h-auto">
+            <Link href="/dashboard/kill-mistakes?mode=analyze" className="flex items-center gap-2">
+              Voir les analyses <ArrowRight className="h-4 w-4 group-hover:translate-x-2 transition-transform" />
+            </Link>
+          </Button>
         </Card>
 
-        {/* Card 2: Refaire (Libre) */}
-        <Card className="group cursor-pointer hover:shadow-lg transition-all border-2 border-slate-100 hover:border-emerald-500/20 rounded-2xl overflow-hidden bg-white">
-          <Link href="/dashboard/kill-mistakes?mode=redo" className="h-full flex flex-col p-5 space-y-3">
-            <div className="bg-emerald-50 w-10 h-10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-              <LayoutGrid className="h-5 w-5 text-emerald-500" />
-            </div>
-            <div className="space-y-1">
-              <CardTitle className="text-lg font-black uppercase italic tracking-tighter text-slate-900 leading-tight">
-                2/ Mode Libre
-              </CardTitle>
-              <p className="text-slate-500 font-bold italic leading-relaxed text-[10px]">
-                Répondez librement aux questions et voyez le résultat immédiat.
-              </p>
-            </div>
-            <div className="flex items-center text-emerald-600 font-black uppercase tracking-widest text-[8px] pt-1">
-              Choisir les questions <ArrowRight className="ml-1 h-3 w-3 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </Link>
-        </Card>
-
-        {/* Card 3: Session (Linéaire) */}
-        <Card className="group cursor-pointer hover:shadow-lg transition-all border-2 border-primary/10 rounded-2xl overflow-hidden bg-primary text-white">
-          <Link href="/dashboard/kill-mistakes?mode=session" className="h-full flex flex-col p-5 space-y-3">
-            <div className="bg-white/10 w-10 h-10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Zap className="h-5 w-5 fill-white" />
-            </div>
-            <div className="space-y-1">
-              <CardTitle className="text-lg font-black uppercase italic tracking-tighter leading-tight">
-                3/ Mode Session
-              </CardTitle>
-              <p className="text-white/70 font-bold italic leading-relaxed text-[10px]">
-                Parcours linéaire sans interruption. Résultats à la fin uniquement.
-              </p>
-            </div>
-            <div className="flex items-center text-white font-black uppercase tracking-widest text-[8px] pt-1">
-              Lancer la session <ArrowRight className="ml-1 h-3 w-3 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </Link>
+        {/* Card 2: Refaire */}
+        <Card className="rounded-[60px] border-none shadow-[0_30px_60px_rgba(63,81,181,0.2)] bg-primary p-14 space-y-8 group hover:scale-[1.02] transition-all text-white relative overflow-hidden">
+          <div className="absolute -top-10 -right-10 bg-white/10 h-40 w-40 rounded-full" />
+          <div className="bg-white/10 w-20 h-20 rounded-[32px] flex items-center justify-center">
+            <Play className="h-10 w-10 fill-white" />
+          </div>
+          <div className="space-y-4 relative z-10">
+            <CardTitle className="text-4xl font-black uppercase italic tracking-tighter leading-none">
+              2/ Refaire les questions
+            </CardTitle>
+            <p className="text-white/70 font-bold italic leading-relaxed text-base max-w-sm">
+              Mettez-vous en situation réelle sur vos erreurs passées pour valider l'ancrage définitif des concepts.
+            </p>
+          </div>
+          <Button variant="ghost" asChild className="p-0 text-white hover:bg-transparent hover:text-white/80 font-black uppercase tracking-[0.2em] text-xs h-auto relative z-10">
+            <Link href="/dashboard/kill-mistake-redo-choice" className="flex items-center gap-2">
+              Lancer l'entraînement <ArrowRight className="h-4 w-4 group-hover:translate-x-2 transition-transform" />
+            </Link>
+          </Button>
         </Card>
       </div>
 
-      <div className="bg-muted/20 rounded-xl p-4 border flex items-center justify-between text-slate-500">
-        <div className="flex items-center gap-3">
-          <History className="h-4 w-4 opacity-50" />
-          <p className="text-[10px] font-bold italic uppercase tracking-wider">
-            La répétition espacée est la clé du succès. Revenez régulièrement sur vos erreurs.
-          </p>
-        </div>
+      <div className="flex justify-center pt-4">
+        <Button variant="ghost" asChild className="text-slate-400 font-black uppercase tracking-widest text-[10px]">
+          <Link href="/dashboard"><ChevronLeft className="mr-2 h-3 w-3" /> Retour au Dashboard</Link>
+        </Button>
       </div>
     </div>
   );
