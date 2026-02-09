@@ -30,9 +30,13 @@ export async function startTrainingSession(
   questionCount: number
 ) {
   if (mode === 'kill_mistake') {
-    const kmSnap = await getDocs(query(collection(db, 'users', userId, 'killMistakes'), where('status', '==', 'wrong'), limit(100)));
+    let constraints = [where('status', '==', 'wrong')];
+    if (filters.domain && filters.domain !== 'all') constraints.push(where('tags.domain', '==', filters.domain));
+    if (filters.approach && filters.approach !== 'all') constraints.push(where('tags.approach', '==', filters.approach));
+
+    const kmSnap = await getDocs(query(collection(db, 'users', userId, 'killMistakes'), ...constraints, limit(100)));
     const kmIds = kmSnap.docs.map(d => d.id);
-    if (kmIds.length === 0) throw new Error("Aucune erreur à corriger !");
+    if (kmIds.length === 0) throw new Error("Aucune erreur correspondant à ces critères !");
     
     const pool = [];
     for(const id of kmIds) {
@@ -43,8 +47,8 @@ export async function startTrainingSession(
   } else {
     let questionsRef = collection(db, 'questions');
     let constraints = [where('isActive', '==', true)];
-    if (filters.domain) constraints.push(where('tags.domain', '==', filters.domain));
-    if (filters.approach) constraints.push(where('tags.approach', '==', filters.approach));
+    if (filters.domain && filters.domain !== 'all') constraints.push(where('tags.domain', '==', filters.domain));
+    if (filters.approach && filters.approach !== 'all') constraints.push(where('tags.approach', '==', filters.approach));
     
     const q = query(questionsRef, ...constraints, limit(200));
     const snap = await getDocs(q);
@@ -85,13 +89,15 @@ export async function submitPracticeAnswer(
       wrongCount: increment(1),
       lastWrongAt: serverTimestamp(),
       questionId,
-      lastSelectedChoiceId: selectedChoiceId
+      lastSelectedChoiceId: selectedChoiceId,
+      tags: qData.tags || {} // Keep tags for easy breakdown
     }, { merge: true });
   } else {
     await setDoc(kmRef, {
       status: 'corrected',
       lastCorrectAt: serverTimestamp(),
-      questionId
+      questionId,
+      tags: qData.tags || {}
     }, { merge: true });
   }
 
@@ -129,13 +135,15 @@ export async function logExamAttempts(
         wrongCount: increment(1),
         lastWrongAt: serverTimestamp(),
         questionId: res.questionId,
-        lastSelectedChoiceId: selectedChoiceId
+        lastSelectedChoiceId: selectedChoiceId,
+        tags: res.tags || {}
       }, { merge: true });
     } else {
       batch.set(kmRef, {
         status: 'corrected',
         lastCorrectAt: serverTimestamp(),
-        questionId: res.questionId
+        questionId: res.questionId,
+        tags: res.tags || {}
       }, { merge: true });
     }
   }

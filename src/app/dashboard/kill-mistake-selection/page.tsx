@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -10,12 +11,58 @@ import {
   ChevronLeft,
   Target,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  Filter,
+  Layers,
+  Globe,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { useRouter } from 'next/navigation';
 
 export default function KillMistakeSelectionPage() {
+  const { user } = useUser();
+  const db = useFirestore();
+  const router = useRouter();
+  
+  const [filterDomain, setFilterDomain] = useState('all');
+  const [filterApproach, setFilterApproach] = useState('all');
+
+  const mistakesQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(db, 'users', user.uid, 'killMistakes'), where('status', '==', 'wrong'));
+  }, [db, user]);
+
+  const { data: mistakes, isLoading } = useCollection(mistakesQuery);
+
+  const stats = useMemo(() => {
+    if (!mistakes) return { total: 0, byDomain: {}, byApproach: {} };
+    
+    const byDomain: Record<string, number> = { 'People': 0, 'Process': 0, 'Business': 0 };
+    const byApproach: Record<string, number> = { 'Predictive': 0, 'Agile': 0, 'Hybrid': 0 };
+
+    mistakes.forEach(m => {
+      const d = m.tags?.domain;
+      const a = m.tags?.approach;
+      if (d && byDomain[d] !== undefined) byDomain[d]++;
+      if (a && byApproach[a] !== undefined) byApproach[a]++;
+    });
+
+    return { total: mistakes.length, byDomain, byApproach };
+  }, [mistakes]);
+
+  const handleStartPractice = () => {
+    let url = '/dashboard/practice?mode=kill_mistake';
+    if (filterDomain !== 'all') url += `&domain=${filterDomain}`;
+    if (filterApproach !== 'all') url += `&approach=${filterApproach}`;
+    router.push(url);
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-10 animate-fade-in py-8 px-4">
       {/* Header avec bouton retour */}
@@ -47,21 +94,31 @@ export default function KillMistakeSelectionPage() {
               </p>
               <p>
                 Le système <span className="text-primary font-black">Kill Mistake</span> isole vos échecs passés pour cibler vos failles de compréhension du <span className="text-primary font-black">Mindset PMI®</span>. 
-                C'est l'outil le plus puissant pour transformer vos points faibles en automatismes de succès avant le jour J.
               </p>
             </div>
-            <div className="flex gap-6 pt-4 border-t border-dashed border-slate-200">
-              <div className="flex items-center gap-2">
-                <Target className="h-5 w-5 text-emerald-500" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Précision chirurgicale</span>
+            
+            {isLoading ? (
+              <div className="flex items-center gap-2 text-slate-400 font-bold italic animate-pulse">
+                <Loader2 className="h-4 w-4 animate-spin" /> Analyse de votre base d'erreurs...
               </div>
-              <div className="flex items-center gap-2">
-                <Target className="h-5 w-5 text-emerald-500" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ancrage mémoriel</span>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-dashed border-slate-200">
+                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center">
+                  <span className="block text-2xl font-black text-primary italic">{stats.total}</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total Erreurs</span>
+                </div>
+                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center">
+                  <span className="block text-2xl font-black text-amber-600 italic">{stats.byDomain['Process'] || 0}</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Faille Process</span>
+                </div>
+                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center">
+                  <span className="block text-2xl font-black text-emerald-600 italic">{stats.byDomain['People'] || 0}</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Faille People</span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
-          <div className="w-full md:w-72 aspect-square bg-primary/5 rounded-[60px] flex items-center justify-center relative overflow-hidden">
+          <div className="w-full md:w-72 aspect-square bg-primary/5 rounded-[60px] flex items-center justify-center relative overflow-hidden shrink-0">
              <Brain className="h-32 w-32 text-primary/20 absolute" />
              <div className="z-10 text-center p-6">
                 <span className="text-5xl font-black text-primary italic">90%</span>
@@ -86,7 +143,7 @@ export default function KillMistakeSelectionPage() {
             </CardHeader>
             <CardContent className="p-10 space-y-6 flex-1">
               <p className="text-slate-500 font-bold italic leading-relaxed text-base">
-                Plongez dans l'analyse théorique. Examinez chaque question ratée, comparez vos choix aux bonnes réponses et imprégnez-vous des justifications détaillées du mindset officiel.
+                Plongez dans l'analyse théorique. Examinez chaque question ratée et imprégnez-vous des justifications du mindset officiel.
               </p>
               <div className="flex items-center text-primary font-black uppercase tracking-widest text-sm pt-4">
                 Démarrer l'analyse <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-2 transition-transform" />
@@ -96,25 +153,67 @@ export default function KillMistakeSelectionPage() {
         </Card>
 
         {/* Option 2: Re-répondre */}
-        <Card className="group cursor-pointer hover:shadow-2xl transition-all duration-500 border-4 border-primary/10 hover:border-primary rounded-[48px] overflow-hidden bg-primary text-white">
-          <Link href="/dashboard/practice?mode=kill_mistake" className="h-full flex flex-col">
-            <CardHeader className="p-10 pb-0">
-              <div className="bg-white/10 w-20 h-20 rounded-[28px] flex items-center justify-center mb-6 group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-500">
-                <Play className="h-10 w-10 fill-white" />
+        <Card className="hover:shadow-2xl transition-all duration-500 border-4 border-primary/10 rounded-[48px] overflow-hidden bg-primary text-white">
+          <CardHeader className="p-10 pb-0">
+            <div className="bg-white/10 w-20 h-20 rounded-[28px] flex items-center justify-center mb-6">
+              <Play className="h-10 w-10 fill-white" />
+            </div>
+            <CardTitle className="text-3xl font-black uppercase italic tracking-tighter">
+              2/ Re-répondre aux questions
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-10 space-y-8">
+            <p className="text-primary-foreground/80 font-bold italic leading-relaxed text-base">
+              Mettez-vous en situation réelle d'examen sur vos erreurs passées. Choisissez vos filtres pour un entraînement ciblé.
+            </p>
+
+            <div className="space-y-4 bg-white/5 p-6 rounded-[32px] border border-white/10">
+              <div className="flex items-center gap-2 mb-2">
+                <Filter className="h-4 w-4 opacity-60" />
+                <span className="text-[10px] font-black uppercase tracking-widest italic">Configuration de session</span>
               </div>
-              <CardTitle className="text-3xl font-black uppercase italic tracking-tighter">
-                2/ Re-répondre aux questions
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-10 space-y-6 flex-1">
-              <p className="text-primary-foreground/80 font-bold italic leading-relaxed text-base">
-                Mettez-vous en situation réelle d'examen sur vos erreurs passées. Testez si vous avez réellement acquis les concepts ou si vos lacunes persistent.
-              </p>
-              <div className="flex items-center text-white font-black uppercase tracking-widest text-sm pt-4">
-                Lancer l'entraînement <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-2 transition-transform" />
+              
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black uppercase tracking-widest opacity-60 ml-1">Cibler par Domaine</label>
+                  <Select value={filterDomain} onValueChange={setFilterDomain}>
+                    <SelectTrigger className="h-12 bg-white/10 border-white/20 text-white font-bold italic rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">TOUS LES DOMAINES ({stats.total})</SelectItem>
+                      <SelectItem value="People">PEOPLE ({stats.byDomain['People'] || 0})</SelectItem>
+                      <SelectItem value="Process">PROCESSUS ({stats.byDomain['Process'] || 0})</SelectItem>
+                      <SelectItem value="Business">BUSINESS ({stats.byDomain['Business'] || 0})</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black uppercase tracking-widest opacity-60 ml-1">Cibler par Approche</label>
+                  <Select value={filterApproach} onValueChange={setFilterApproach}>
+                    <SelectTrigger className="h-12 bg-white/10 border-white/20 text-white font-bold italic rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">TOUTES LES APPROCHES</SelectItem>
+                      <SelectItem value="Predictive">PRÉDICTIF ({stats.byApproach['Predictive'] || 0})</SelectItem>
+                      <SelectItem value="Agile">AGILE ({stats.byApproach['Agile'] || 0})</SelectItem>
+                      <SelectItem value="Hybrid">HYBRIDE ({stats.byApproach['Hybrid'] || 0})</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            </CardContent>
-          </Link>
+            </div>
+
+            <Button 
+              className="w-full h-16 rounded-2xl bg-white text-primary hover:bg-slate-50 font-black uppercase tracking-widest text-lg shadow-xl group"
+              onClick={handleStartPractice}
+              disabled={stats.total === 0}
+            >
+              Lancer l'entraînement <ArrowRight className="ml-2 h-6 w-6 group-hover:translate-x-2 transition-transform" />
+            </Button>
+          </CardContent>
         </Card>
       </div>
     </div>
