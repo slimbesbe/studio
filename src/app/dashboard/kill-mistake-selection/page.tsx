@@ -14,7 +14,8 @@ import {
   Filter,
   Layers,
   Loader2,
-  Zap
+  Zap,
+  Settings2
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -22,7 +23,7 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebas
 import { collection, query, where } from 'firebase/firestore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { useRouter } from 'next/navigation';
+import { Label } from '@/components/ui/label';
 
 const MOCK_MISTAKES = [
   { id: 'm1', tags: { domain: 'People', approach: 'Agile' }, status: 'wrong' },
@@ -38,9 +39,11 @@ const MOCK_MISTAKES = [
 export default function KillMistakeSelectionPage() {
   const { user } = useUser();
   const db = useFirestore();
-  const router = useRouter();
   const isDemo = user?.isAnonymous;
   
+  const [filterDomain, setFilterDomain] = useState('all');
+  const [filterApproach, setFilterApproach] = useState('all');
+
   const mistakesQuery = useMemoFirebase(() => {
     if (!user || isDemo) return null;
     return query(collection(db, 'users', user.uid, 'killMistakes'), where('status', '==', 'wrong'));
@@ -124,9 +127,50 @@ export default function KillMistakeSelectionPage() {
         </Card>
       </div>
 
+      {/* Configuration des filtres */}
+      <Card className="rounded-[32px] border-none shadow-lg bg-slate-50 p-8">
+        <div className="flex flex-col md:flex-row items-end gap-6">
+          <div className="flex-1 space-y-2">
+            <Label className="font-black uppercase text-[10px] tracking-widest text-slate-400 italic flex items-center gap-2">
+              <Layers className="h-3 w-3" /> Filtrer par Domaine
+            </Label>
+            <Select value={filterDomain} onValueChange={setFilterDomain}>
+              <SelectTrigger className="bg-white h-12 rounded-xl font-bold italic">
+                <SelectValue placeholder="Tous les domaines" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les domaines</SelectItem>
+                <SelectItem value="People">People</SelectItem>
+                <SelectItem value="Process">Processus</SelectItem>
+                <SelectItem value="Business">Business Environment</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex-1 space-y-2">
+            <Label className="font-black uppercase text-[10px] tracking-widest text-slate-400 italic flex items-center gap-2">
+              <Zap className="h-3 w-3" /> Filtrer par Approche
+            </Label>
+            <Select value={filterApproach} onValueChange={setFilterApproach}>
+              <SelectTrigger className="bg-white h-12 rounded-xl font-bold italic">
+                <SelectValue placeholder="Toutes les approches" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes les approches</SelectItem>
+                <SelectItem value="Predictive">Waterfall (Prédictif)</SelectItem>
+                <SelectItem value="Agile">Agile</SelectItem>
+                <SelectItem value="Hybrid">Hybride</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="hidden md:flex h-12 items-center text-slate-300">
+            <Settings2 className="h-6 w-6" />
+          </div>
+        </div>
+      </Card>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <Card className="group cursor-pointer hover:shadow-2xl transition-all duration-500 border-4 border-slate-100 hover:border-primary/20 rounded-[48px] overflow-hidden bg-white">
-          <Link href="/dashboard/kill-mistakes?mode=analyze" className="h-full flex flex-col">
+          <Link href={`/dashboard/kill-mistakes?mode=analyze&domain=${filterDomain}&approach=${filterApproach}`} className="h-full flex flex-col">
             <CardHeader className="p-10 pb-0">
               <div className="bg-slate-50 w-20 h-20 rounded-[28px] flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500">
                 <Search className="h-10 w-10 text-slate-400 group-hover:text-primary transition-colors" />
@@ -140,20 +184,20 @@ export default function KillMistakeSelectionPage() {
                 Examinez les questions manquées et apprenez les justifications du Mindset PMI® pour corriger votre logique.
               </p>
               <div className="flex items-center text-primary font-black uppercase tracking-widest text-sm pt-4">
-                Voir les questions <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-2 transition-transform" />
+                Voir les analyses <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-2 transition-transform" />
               </div>
             </CardContent>
           </Link>
         </Card>
 
         <Card className="group cursor-pointer hover:shadow-2xl transition-all duration-500 border-4 border-primary/10 rounded-[48px] overflow-hidden bg-primary text-white">
-          <Link href="/dashboard/kill-mistakes?mode=redo" className="h-full flex flex-col">
+          <Link href={`/dashboard/kill-mistakes?mode=redo&domain=${filterDomain}&approach=${filterApproach}`} className="h-full flex flex-col">
             <CardHeader className="p-10 pb-0">
               <div className="bg-white/10 w-20 h-20 rounded-[28px] flex items-center justify-center mb-6">
                 <Play className="h-10 w-10 fill-white" />
               </div>
               <CardTitle className="text-3xl font-black uppercase italic tracking-tighter">
-                2/ Re-répondre aux questions
+                2/ Refaire les questions
               </CardTitle>
             </CardHeader>
             <CardContent className="p-10 space-y-6 flex-1">

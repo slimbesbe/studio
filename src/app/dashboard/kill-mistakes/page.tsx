@@ -18,7 +18,8 @@ import {
   Target,
   Layers,
   Zap,
-  ChevronRight
+  ChevronRight,
+  BookOpen
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, getDoc } from 'firebase/firestore';
@@ -28,7 +29,7 @@ import { cn } from '@/lib/utils';
 import { submitPracticeAnswer } from '@/lib/services/practice-service';
 import { useToast } from '@/hooks/use-toast';
 
-// 8 Mock Mistakes for Demo Mode to match stats in selection page
+// 8 Mock Mistakes for Demo Mode
 const MOCK_MISTAKES = [
   { id: 'm1', questionId: 'demo-q1', tags: { domain: 'People', approach: 'Agile', difficulty: 'Hard' }, status: 'wrong', wrongCount: 2, lastSelectedChoiceId: 'A' },
   { id: 'm2', questionId: 'demo-q2', tags: { domain: 'People', approach: 'Hybrid', difficulty: 'Medium' }, status: 'wrong', wrongCount: 1, lastSelectedChoiceId: 'C' },
@@ -74,7 +75,6 @@ const MOCK_QUESTION_DETAILS: Record<string, any> = {
     correctOptionIds: ['C'],
     explanation: "La gestion des parties prenantes repose sur l'engagement proactif. Il faut d'abord comprendre leurs attentes avant de modifier les plans.",
   },
-  // Default fallback for other demo IDs
   'default': {
     statement: "Ceci est une question de démonstration PMP®. Analysez la situation et choisissez la réponse conforme au mindset PMI.",
     options: [
@@ -94,7 +94,10 @@ function KillMistakesContent() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const isDemo = user?.isAnonymous;
+  
   const mode = searchParams.get('mode') || 'analyze';
+  const paramDomain = searchParams.get('domain') || 'all';
+  const paramApproach = searchParams.get('approach') || 'all';
 
   const [selectedMistake, setSelectedMistake] = useState<any>(null);
   const [questionDetails, setQuestionDetails] = useState<any>(null);
@@ -110,17 +113,27 @@ function KillMistakesContent() {
   }, [db, user, isDemo]);
 
   const { data: mistakesData, isLoading: isLoadingMistakes } = useCollection(mistakesQuery);
-  const mistakes = isDemo ? MOCK_MISTAKES : (mistakesData || []);
+  
+  const filteredMistakes = useMemo(() => {
+    let list = isDemo ? MOCK_MISTAKES : (mistakesData || []);
+    if (paramDomain !== 'all') {
+      list = list.filter(m => m.tags?.domain === paramDomain);
+    }
+    if (paramApproach !== 'all') {
+      list = list.filter(m => m.tags?.approach === paramApproach);
+    }
+    return list;
+  }, [mistakesData, isDemo, paramDomain, paramApproach]);
 
   const stats = useMemo(() => {
     const byDomain: Record<string, number> = { 'People': 0, 'Process': 0, 'Business': 0 };
     const byApproach: Record<string, number> = { 'Predictive': 0, 'Agile': 0, 'Hybrid': 0 };
-    mistakes.forEach(m => {
+    filteredMistakes.forEach(m => {
       if (m.tags?.domain && byDomain[m.tags.domain] !== undefined) byDomain[m.tags.domain]++;
       if (m.tags?.approach && byApproach[m.tags.approach] !== undefined) byApproach[m.tags.approach]++;
     });
-    return { total: mistakes.length, byDomain, byApproach };
-  }, [mistakes]);
+    return { total: filteredMistakes.length, byDomain, byApproach };
+  }, [filteredMistakes]);
 
   useEffect(() => {
     async function fetchDetails() {
@@ -153,11 +166,13 @@ function KillMistakesContent() {
     if (!selectedChoice || isSubmitting) return;
     
     if (isDemo) {
+      const isCorrect = questionDetails.correctOptionIds.includes(selectedChoice);
       setCorrection({ 
-        isCorrect: questionDetails.correctOptionIds.includes(selectedChoice), 
+        isCorrect, 
         correctOptionIds: questionDetails.correctOptionIds, 
         explanation: questionDetails.explanation 
       });
+      if (isCorrect) toast({ title: "Bravo !", description: "Exemple corrigé avec succès." });
       return;
     }
 
@@ -177,7 +192,7 @@ function KillMistakesContent() {
 
   const getDomainLabel = (d: string) => d === 'Process' ? 'Processus' : d;
   const getApproachLabel = (a: string) => {
-    if (a === 'Predictive') return 'Prédictif';
+    if (a === 'Predictive') return 'Waterfall';
     if (a === 'Agile') return 'Agile';
     if (a === 'Hybrid') return 'Hybride';
     return a;
@@ -189,29 +204,35 @@ function KillMistakesContent() {
 
   return (
     <div className="space-y-8 animate-fade-in max-w-7xl mx-auto py-8 px-4">
-      <div className="space-y-6">
-        <Button variant="ghost" asChild className="hover:bg-primary/5 -ml-2 text-muted-foreground font-black uppercase tracking-widest text-xs">
-          <Link href="/dashboard/kill-mistake-selection"><ChevronLeft className="mr-2 h-4 w-4" /> Retour à la sélection</Link>
-        </Button>
-        
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="rounded-2xl border-none shadow-md bg-white p-4 flex items-center gap-4">
-            <div className="bg-primary/10 h-12 w-12 rounded-xl flex items-center justify-center text-primary">
-              <Target className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase italic">Total Erreurs</p>
-              <p className="text-2xl font-black italic">{stats.total}</p>
-            </div>
-          </Card>
-          <div className="md:col-span-3 grid grid-cols-3 gap-2">
-            {Object.entries(stats.byDomain).map(([d, c]) => (
-              <Card key={d} className="rounded-2xl border-none shadow-md bg-white p-4 flex items-center justify-between">
-                <span className="text-[10px] font-black text-slate-500 uppercase italic">{getDomainLabel(d)}</span>
-                <Badge variant="secondary" className="font-black bg-emerald-50 text-emerald-700">{c}</Badge>
-              </Card>
-            ))}
+      {/* HEADER TITRE DYNAMIQUE */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[40px] shadow-xl border-2">
+        <div className="flex items-center gap-6">
+          <Button variant="ghost" size="icon" asChild className="h-16 w-16 rounded-3xl hover:bg-slate-50 border-2 shadow-sm">
+            <Link href="/dashboard/kill-mistake-selection"><ChevronLeft className="h-8 w-8" /></Link>
+          </Button>
+          <div>
+            <h1 className="text-4xl font-black flex items-center gap-4 text-primary italic uppercase tracking-tighter">
+              {mode === 'analyze' ? (
+                <><Search className="h-12 w-12 text-accent" /> Analyse des erreurs</>
+              ) : (
+                <><BookOpen className="h-12 w-12 text-emerald-500" /> Refaire les questions</>
+              )}
+            </h1>
+            <p className="text-slate-500 font-bold mt-1 uppercase tracking-widest text-sm italic">
+              {mode === 'analyze' ? 'Comprenez vos échecs passés' : 'Transformez vos erreurs en points forts'}
+            </p>
           </div>
+        </div>
+        
+        <div className="flex gap-3">
+          <Badge variant="outline" className="h-12 px-6 rounded-2xl border-2 font-black italic uppercase flex items-center gap-2">
+            <Target className="h-4 w-4" /> {stats.total} TOTAL
+          </Badge>
+          {(paramDomain !== 'all' || paramApproach !== 'all') && (
+            <Badge className="h-12 px-6 rounded-2xl bg-amber-100 text-amber-700 border-none font-black italic uppercase">
+              Filtres Actifs
+            </Badge>
+          )}
         </div>
       </div>
 
@@ -219,14 +240,16 @@ function KillMistakesContent() {
         <div className="lg:col-span-1">
           <Card className="rounded-[32px] shadow-lg border-none overflow-hidden h-full flex flex-col max-h-[700px]">
             <CardHeader className="bg-muted/30 border-b p-6">
-              <CardTitle className="text-xs font-black uppercase tracking-widest italic text-slate-500">
-                {mode === 'analyze' ? 'ANALYSER LES ÉCHECS' : 'RE-RÉPONDRE AUX ÉCHECS'}
+              <CardTitle className="text-[10px] font-black uppercase tracking-widest italic text-slate-500">
+                LISTE DES QUESTIONS ({filteredMistakes.length})
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 flex-1 overflow-y-auto space-y-3">
-              {mistakes.length === 0 ? (
-                <div className="text-center py-20 text-slate-400 italic font-bold uppercase text-xs">Félicitations ! Aucune erreur.</div>
-              ) : mistakes.map((mistake) => (
+              {filteredMistakes.length === 0 ? (
+                <div className="text-center py-20 text-slate-400 italic font-bold uppercase text-xs">
+                  Aucune erreur correspondant à vos filtres.
+                </div>
+              ) : filteredMistakes.map((mistake) => (
                 <Card 
                   key={mistake.id} 
                   className={cn(
@@ -257,7 +280,9 @@ function KillMistakesContent() {
                 <Brain className="h-20 w-20 text-amber-500 opacity-40" />
               </div>
               <h3 className="text-2xl font-black text-slate-400 italic uppercase tracking-tighter">Choisissez une question</h3>
-              <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic max-w-sm mt-2">Cliquez sur une question à gauche pour {mode === 'analyze' ? 'voir son analyse' : 'tenter de la corriger'}.</p>
+              <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic max-w-sm mt-2">
+                Cliquez sur une question à gauche pour {mode === 'analyze' ? 'voir son analyse' : 'tenter de la refaire'}.
+              </p>
             </div>
           ) : (
             <div className="space-y-6 animate-slide-up">
@@ -265,7 +290,7 @@ function KillMistakesContent() {
                 <CardHeader className="bg-white p-8 pb-4 flex flex-row items-center justify-between">
                   <div>
                     <CardTitle className="text-3xl font-black text-slate-900 italic tracking-tight">
-                      {mode === 'analyze' ? "Analyse de l'Erreur" : "Action Corrective"}
+                      {mode === 'analyze' ? "Détails de l'échec" : "Action Corrective"}
                     </CardTitle>
                     <CardDescription className="text-xs font-bold text-slate-500 uppercase tracking-widest italic mt-1">Ancrer le mindset PMI pour transformer cet échec en réussite.</CardDescription>
                   </div>
