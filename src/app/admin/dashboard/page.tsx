@@ -11,7 +11,10 @@ import {
   Loader2,
   ShieldAlert,
   Settings,
-  ArrowRight
+  ArrowRight,
+  LayoutGrid,
+  BarChart3,
+  TrendingUp
 } from 'lucide-react';
 import { useUser, useFirestore } from '@/firebase';
 import { useRouter } from 'next/navigation';
@@ -64,7 +67,30 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
+        {/* Vue d'ensemble */}
+        <Card className="hover:shadow-lg transition-shadow border-t-4 border-t-emerald-500">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="bg-emerald-500/10 p-2 rounded-lg">
+                <LayoutGrid className="h-6 w-6 text-emerald-600" />
+              </div>
+              <CardTitle>Vue d'ensemble</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Analysez les KPIs globaux, les taux de réussite et l'activité en temps réel des participants.
+            </p>
+            <Button asChild variant="outline" className="w-full border-emerald-200 hover:bg-emerald-50">
+              <Link href="/admin/users">
+                <BarChart3 className="mr-2 h-4 w-4 text-emerald-600" /> Voir les statistiques
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Banque de Questions */}
         <Card className="hover:shadow-lg transition-shadow border-t-4 border-t-primary">
           <CardHeader>
             <div className="flex items-center gap-3">
@@ -76,45 +102,46 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Gérez le contenu pédagogique. Créez des questions avec choix variables et explications détaillées.
+              Gérez le contenu pédagogique. Créez des questions avec choix variables et justifications.
             </p>
             <div className="flex gap-3">
               <Button asChild className="flex-1">
                 <Link href="/admin/questions">
-                  <Settings className="mr-2 h-4 w-4" /> Gérer les questions
+                  <Settings className="mr-2 h-4 w-4" /> Gérer
                 </Link>
               </Button>
               <Button asChild variant="outline" className="flex-1">
                 <Link href="/admin/questions/new">
-                  <PlusCircle className="mr-2 h-4 w-4" /> Nouvelle Question
+                  <PlusCircle className="mr-2 h-4 w-4" /> Nouvelle
                 </Link>
               </Button>
             </div>
           </CardContent>
         </Card>
 
+        {/* Gestion des Utilisateurs */}
         <Card className="hover:shadow-lg transition-shadow border-t-4 border-t-accent">
           <CardHeader>
             <div className="flex items-center gap-3">
               <div className="bg-accent/10 p-2 rounded-lg">
                 <Users className="h-6 w-6 text-accent" />
               </div>
-              <CardTitle>Gestion des Utilisateurs</CardTitle>
+              <CardTitle>Gestion Utilisateurs</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Créez et administrez les comptes des participants. Gérez les rôles et les accès.
+              Administrez les comptes participants. Gérez les rôles, les accès et la validité.
             </p>
             <div className="flex gap-3">
               <Button asChild className="flex-1 bg-accent hover:bg-accent/90">
                 <Link href="/admin/users">
-                  <Users className="mr-2 h-4 w-4" /> Gérer les comptes
+                  <Users className="mr-2 h-4 w-4" /> Comptes
                 </Link>
               </Button>
               <Button asChild variant="outline" className="flex-1 border-accent text-accent hover:bg-accent/5">
                 <Link href="/admin/users/new">
-                  <PlusCircle className="mr-2 h-4 w-4" /> Créer utilisateur
+                  <PlusCircle className="mr-2 h-4 w-4" /> Créer
                 </Link>
               </Button>
             </div>
@@ -132,7 +159,7 @@ export default function AdminDashboard() {
             <p className="text-sm text-muted-foreground">Vos actions sont protégées et tracées par les règles de sécurité Firestore.</p>
           </div>
         </div>
-        <Button variant="ghost" className="text-emerald-600" asChild>
+        <Button variant="ghost" className="text-emerald-600 font-bold" asChild>
           <Link href="/dashboard">
             Voir le Dashboard Participant <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
