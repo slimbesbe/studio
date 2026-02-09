@@ -10,13 +10,10 @@ import {
   Search, 
   ChevronLeft,
   Target,
-  Sparkles,
   ArrowRight,
   Filter,
   Layers,
-  Globe,
   Loader2,
-  PieChart,
   Zap
 } from 'lucide-react';
 import Link from 'next/link';
@@ -44,9 +41,6 @@ export default function KillMistakeSelectionPage() {
   const router = useRouter();
   const isDemo = user?.isAnonymous;
   
-  const [filterDomain, setFilterDomain] = useState('all');
-  const [filterApproach, setFilterApproach] = useState('all');
-
   const mistakesQuery = useMemoFirebase(() => {
     if (!user || isDemo) return null;
     return query(collection(db, 'users', user.uid, 'killMistakes'), where('status', '==', 'wrong'));
@@ -69,19 +63,12 @@ export default function KillMistakeSelectionPage() {
     return { total: dataToProcess.length, byDomain, byApproach };
   }, [mistakes, isDemo]);
 
-  const handleStartPractice = () => {
-    let url = '/dashboard/practice?mode=kill_mistake';
-    if (filterDomain !== 'all') url += `&domain=${filterDomain}`;
-    if (filterApproach !== 'all') url += `&approach=${filterApproach}`;
-    router.push(url);
-  };
-
   return (
     <div className="max-w-6xl mx-auto space-y-10 animate-fade-in py-8 px-4">
       {/* Header avec bouton retour */}
       <div className="space-y-4">
         <Button variant="ghost" asChild className="hover:bg-primary/5 -ml-2 text-muted-foreground font-black uppercase tracking-widest text-xs">
-          <Link href="/dashboard/practice"><ChevronLeft className="mr-2 h-4 w-4" /> Retour à la pratique</Link>
+          <Link href="/dashboard/practice"><ChevronLeft className="mr-2 h-4 w-4" /> Retour au Dashboard</Link>
         </Button>
         <div className="flex items-center gap-4">
           <div className="bg-amber-100 p-3 rounded-2xl">
@@ -91,7 +78,7 @@ export default function KillMistakeSelectionPage() {
             <h1 className="text-4xl font-black text-primary italic uppercase tracking-tighter flex items-center gap-3">
               Kill Mistake Strategy {isDemo && <span className="text-amber-500 text-sm">(DÉMO)</span>}
             </h1>
-            <p className="text-slate-500 font-bold uppercase tracking-widest text-xs italic">Transformez vos erreurs en points de force</p>
+            <p className="text-slate-500 font-bold uppercase tracking-widest text-xs italic">Éliminez vos faiblesses une par une</p>
           </div>
         </div>
       </div>
@@ -103,13 +90,13 @@ export default function KillMistakeSelectionPage() {
             <Target className="h-8 w-8 text-primary" />
           </div>
           <span className="text-5xl font-black text-slate-900 italic tracking-tighter">{stats.total}</span>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2 italic">Total des questions mal répondues</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2 italic">Questions à corriger</p>
         </Card>
 
         <Card className="rounded-[32px] border-none shadow-lg bg-white p-8 space-y-4 transition-all hover:scale-[1.02]">
           <div className="flex items-center gap-3 text-emerald-600 mb-2">
             <Layers className="h-5 w-5" />
-            <h3 className="font-black uppercase italic text-xs tracking-widest">Répartition par Domaine</h3>
+            <h3 className="font-black uppercase italic text-xs tracking-widest">Par Domaine</h3>
           </div>
           <div className="space-y-3">
             {Object.entries(stats.byDomain).map(([domain, count]) => (
@@ -124,7 +111,7 @@ export default function KillMistakeSelectionPage() {
         <Card className="rounded-[32px] border-none shadow-lg bg-white p-8 space-y-4 transition-all hover:scale-[1.02]">
           <div className="flex items-center gap-3 text-amber-600 mb-2">
             <Zap className="h-5 w-5" />
-            <h3 className="font-black uppercase italic text-xs tracking-widest">Répartition par Approche</h3>
+            <h3 className="font-black uppercase italic text-xs tracking-widest">Par Approche</h3>
           </div>
           <div className="space-y-3">
             {Object.entries(stats.byApproach).map(([approach, count]) => (
@@ -138,9 +125,8 @@ export default function KillMistakeSelectionPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Option 1: Analyser */}
         <Card className="group cursor-pointer hover:shadow-2xl transition-all duration-500 border-4 border-slate-100 hover:border-primary/20 rounded-[48px] overflow-hidden bg-white">
-          <Link href="/dashboard/kill-mistakes" className="h-full flex flex-col">
+          <Link href="/dashboard/kill-mistakes?mode=analyze" className="h-full flex flex-col">
             <CardHeader className="p-10 pb-0">
               <div className="bg-slate-50 w-20 h-20 rounded-[28px] flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500">
                 <Search className="h-10 w-10 text-slate-400 group-hover:text-primary transition-colors" />
@@ -151,77 +137,34 @@ export default function KillMistakeSelectionPage() {
             </CardHeader>
             <CardContent className="p-10 space-y-6 flex-1">
               <p className="text-slate-500 font-bold italic leading-relaxed text-base">
-                Comprenez les causes de vos échecs. Examinez chaque justification du Mindset Officiel pour ne plus jamais vous tromper.
+                Examinez les questions manquées et apprenez les justifications du Mindset PMI® pour corriger votre logique.
               </p>
               <div className="flex items-center text-primary font-black uppercase tracking-widest text-sm pt-4">
-                Démarrer l'analyse <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-2 transition-transform" />
+                Voir les questions <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-2 transition-transform" />
               </div>
             </CardContent>
           </Link>
         </Card>
 
-        {/* Option 2: Re-répondre */}
-        <Card className="hover:shadow-2xl transition-all duration-500 border-4 border-primary/10 rounded-[48px] overflow-hidden bg-primary text-white">
-          <CardHeader className="p-10 pb-0">
-            <div className="bg-white/10 w-20 h-20 rounded-[28px] flex items-center justify-center mb-6">
-              <Play className="h-10 w-10 fill-white" />
-            </div>
-            <CardTitle className="text-3xl font-black uppercase italic tracking-tighter">
-              2/ Re-répondre aux questions
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-10 space-y-8">
-            <p className="text-primary-foreground/80 font-bold italic leading-relaxed text-base">
-              Mettez-vous en situation réelle sur vos erreurs passées pour valider l'ancrage du Mindset PMP®.
-            </p>
-
-            <div className="space-y-4 bg-white/5 p-6 rounded-[32px] border border-white/10">
-              <div className="flex items-center gap-2 mb-2">
-                <Filter className="h-4 w-4 opacity-60" />
-                <span className="text-[10px] font-black uppercase tracking-widest italic">Ciblage de session</span>
+        <Card className="group cursor-pointer hover:shadow-2xl transition-all duration-500 border-4 border-primary/10 rounded-[48px] overflow-hidden bg-primary text-white">
+          <Link href="/dashboard/kill-mistakes?mode=redo" className="h-full flex flex-col">
+            <CardHeader className="p-10 pb-0">
+              <div className="bg-white/10 w-20 h-20 rounded-[28px] flex items-center justify-center mb-6">
+                <Play className="h-10 w-10 fill-white" />
               </div>
-              
-              <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[9px] font-black uppercase tracking-widest opacity-60 ml-1">Cibler par Domaine</label>
-                  <Select value={filterDomain} onValueChange={setFilterDomain}>
-                    <SelectTrigger className="h-12 bg-white/10 border-white/20 text-white font-bold italic rounded-xl">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">TOUS LES DOMAINES ({stats.total})</SelectItem>
-                      <SelectItem value="People">PEOPLE ({stats.byDomain['People']})</SelectItem>
-                      <SelectItem value="Process">PROCESSUS ({stats.byDomain['Process']})</SelectItem>
-                      <SelectItem value="Business">BUSINESS ({stats.byDomain['Business']})</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[9px] font-black uppercase tracking-widest opacity-60 ml-1">Cibler par Approche</label>
-                  <Select value={filterApproach} onValueChange={setFilterApproach}>
-                    <SelectTrigger className="h-12 bg-white/10 border-white/20 text-white font-bold italic rounded-xl">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">TOUTES LES APPROCHES</SelectItem>
-                      <SelectItem value="Predictive">WATERFALL ({stats.byApproach['Predictive']})</SelectItem>
-                      <SelectItem value="Agile">AGILE ({stats.byApproach['Agile']})</SelectItem>
-                      <SelectItem value="Hybrid">HYBRIDE ({stats.byApproach['Hybrid']})</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <CardTitle className="text-3xl font-black uppercase italic tracking-tighter">
+                2/ Re-répondre aux questions
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-10 space-y-6 flex-1">
+              <p className="text-primary-foreground/80 font-bold italic leading-relaxed text-base">
+                Mettez-vous en situation réelle sur vos erreurs passées pour valider l'ancrage définitif des concepts.
+              </p>
+              <div className="flex items-center text-white font-black uppercase tracking-widest text-sm pt-4">
+                Lancer l'entraînement <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-2 transition-transform" />
               </div>
-            </div>
-
-            <Button 
-              className="w-full h-16 rounded-2xl bg-white text-primary hover:bg-slate-50 font-black uppercase tracking-widest text-lg shadow-xl group"
-              onClick={handleStartPractice}
-              disabled={stats.total === 0}
-            >
-              Lancer l'entraînement <ArrowRight className="ml-2 h-6 w-6 group-hover:translate-x-2 transition-transform" />
-            </Button>
-          </CardContent>
+            </CardContent>
+          </Link>
         </Card>
       </div>
     </div>
