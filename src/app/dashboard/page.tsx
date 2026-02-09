@@ -89,9 +89,13 @@ export default function DashboardPage() {
   
   const formatTotalTime = (seconds: number) => {
     const s = seconds || 0;
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    // Affichage en heures/minutes pour le cumulé total du tableau de bord
+    if (h > 0) {
+      return `${h}H ${m.toString().padStart(2, '0')}`;
+    }
+    return `${m} MIN`;
   };
 
   const formatDate = (ts: any) => {
