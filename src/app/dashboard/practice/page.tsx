@@ -9,7 +9,7 @@ import {
   Play, Layers, Globe, Loader2, 
   Brain, ChevronRight, Info, CheckCircle2,
   BookOpen, Settings2, Trophy, ArrowRight,
-  Tags
+  Tags, ChevronLeft, RotateCcw
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -26,12 +26,18 @@ const MODES = [
   { id: 'kill_mistake', name: 'Kill Mistake', icon: Brain, desc: 'Uniquement vos erreurs passées.', color: 'text-amber-500' },
 ];
 
+interface SessionHistoryItem {
+  question: any;
+  userChoice: string | null;
+  correction: any;
+}
+
 export default function PracticePage() {
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
 
-  const [step, setStep] = useState<'setup' | 'session' | 'summary'>('setup');
+  const [step, setStep] = useState<'setup' | 'session' | 'summary' | 'review'>('setup');
   const [mode, setMode] = useState<string>('domain');
   const [filters, setFilters] = useState<PracticeFilters>({});
   const [count, setCount] = useState<number>(10);
@@ -46,11 +52,15 @@ export default function PracticePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isKMDialogOpen, setIsKMDialogOpen] = useState(false);
 
+  // History for post-session review
+  const [sessionHistory, setSessionHistory] = useState<SessionHistoryItem[]>([]);
+
   const handleStart = async () => {
     setIsLoading(true);
     try {
       const data = await startTrainingSession(db, user!.uid, mode, filters, count);
       setQuestions(data);
+      setSessionHistory([]);
       setStep('session');
       setCurrentIndex(0);
       setSessionResults({ correct: 0, total: data.length });
@@ -77,6 +87,17 @@ export default function PracticePage() {
     try {
       const res = await submitPracticeAnswer(db, user!.uid, questions[currentIndex].id, selectedChoice);
       setCorrection(res);
+      
+      // Store in session history for later review
+      setSessionHistory(prev => [
+        ...prev, 
+        { 
+          question: questions[currentIndex], 
+          userChoice: selectedChoice, 
+          correction: res 
+        }
+      ]);
+
       if (res.isCorrect) setSessionResults(prev => ({ ...prev, correct: prev.correct + 1 }));
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur lors de la correction" });
@@ -85,7 +106,6 @@ export default function PracticePage() {
     }
   };
 
-  // Helper labels for tags
   const getDomainLabel = (d: string) => {
     if (d === 'People') return 'People';
     if (d === 'Process') return 'Processus';
@@ -164,7 +184,6 @@ export default function PracticePage() {
 
             {correction && (
               <div className="mt-8 p-6 bg-slate-50 rounded-[24px] border-l-8 border-l-primary animate-slide-up shadow-inner">
-                {/* PMP Tags display in correction */}
                 {q.tags && (
                   <div className="flex flex-wrap gap-2 mb-4">
                     <Badge variant="secondary" className="flex items-center gap-1.5 font-bold uppercase text-[9px] py-0.5 bg-white border">
@@ -203,7 +222,7 @@ export default function PracticePage() {
               onClick={handleNext}
               disabled={!selectedChoice && !correction}
             >
-              Question suivante <ChevronRight className="ml-2 h-4 w-4" />
+              {currentIndex < questions.length - 1 ? "Question suivante" : "Voir les résultats"} <ChevronRight className="ml-2 h-4 w-4" />
             </Button>
           </CardFooter>
         </Card>
@@ -228,9 +247,100 @@ export default function PracticePage() {
             <span className="text-8xl font-black italic tracking-tighter text-primary">{score}%</span>
             <p className="text-xl font-black text-slate-400 uppercase tracking-widest italic">{sessionResults.correct} / {sessionResults.total} Correctes</p>
           </div>
-          <Button className="w-full h-16 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl text-lg italic" onClick={() => setStep('setup')}>
-            Nouvelle Session
+          <div className="flex flex-col gap-4">
+            <Button className="w-full h-16 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl text-lg italic" onClick={() => { setStep('review'); setCurrentIndex(0); }}>
+              <Info className="mr-2 h-6 w-6" /> Revoir les questions
+            </Button>
+            <Button variant="outline" className="w-full h-16 rounded-2xl border-4 font-black uppercase tracking-widest text-lg italic" onClick={() => setStep('setup')}>
+              Nouvelle Session
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (step === 'review') {
+    const item = sessionHistory[currentIndex];
+    if (!item) return null;
+    const { question: q, userChoice, correction: corr } = item;
+    const isUserCorrect = corr.isCorrect;
+
+    return (
+      <div className="max-w-4xl mx-auto space-y-6 animate-fade-in py-8">
+        <div className="flex justify-between items-center bg-white p-6 rounded-3xl shadow-lg border-2">
+          <Button variant="ghost" className="font-black italic uppercase tracking-widest" onClick={() => setStep('summary')}>
+            <ChevronLeft className="mr-2 h-4 w-4" /> Retour
           </Button>
+          <Badge variant="outline" className="text-sm font-black italic border-2 px-4 py-1">
+            REVUE QUESTION {currentIndex + 1} / {sessionHistory.length}
+          </Badge>
+          <Badge className={isUserCorrect ? "bg-emerald-500" : "bg-red-500"}>
+            {isUserCorrect ? "CORRECT" : "ERREUR"}
+          </Badge>
+        </div>
+
+        <Card className={cn("shadow-2xl border-t-8 rounded-[32px] overflow-hidden bg-white", isUserCorrect ? "border-t-emerald-500" : "border-t-red-500")}>
+          <CardHeader className="p-8 pb-4">
+            <CardTitle className="text-xl leading-relaxed font-black italic text-slate-800">
+              {q.statement || q.text}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-8 space-y-4">
+            <div className="grid gap-3">
+              {(q.options || q.choices || []).map((opt: any, idx: number) => {
+                const optId = opt.id || String.fromCharCode(65 + idx);
+                const isUserSelection = userChoice === optId;
+                const isCorrectOpt = corr.correctOptionIds?.includes(optId);
+                
+                return (
+                  <div 
+                    key={idx} 
+                    className={cn(
+                      "p-5 rounded-2xl border-2 flex items-start gap-4 shadow-sm",
+                      isCorrectOpt ? "border-emerald-500 bg-emerald-50" : isUserSelection ? "border-red-500 bg-red-50" : "border-slate-100"
+                    )}
+                  >
+                    <div className={cn(
+                      "h-8 w-8 rounded-full flex items-center justify-center font-black text-xs shrink-0 border-2",
+                      isCorrectOpt ? "bg-emerald-500 text-white border-emerald-500" : isUserSelection ? "bg-red-500 text-white border-red-500" : "bg-white text-slate-400"
+                    )}>
+                      {String.fromCharCode(65 + idx)}
+                    </div>
+                    <div className={cn("flex-1 text-sm font-bold italic pt-1", isCorrectOpt ? "text-emerald-900" : isUserSelection ? "text-red-900" : "text-slate-600")}>
+                      {opt.text || opt}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-8 p-6 bg-slate-50 rounded-[24px] border-l-8 border-l-primary shadow-inner">
+              <h4 className="font-black text-primary flex items-center gap-2 mb-3 uppercase tracking-widest italic text-xs">
+                <Info className="h-4 w-4" /> Mindset Officiel & Justification
+              </h4>
+              <div className="space-y-4 text-sm font-bold italic text-slate-700 leading-relaxed whitespace-pre-wrap">
+                {corr.explanation?.correctRationale || corr.explanation}
+              </div>
+            </div>
+          </CardContent>
+          <CardFooter className="p-8 bg-slate-50/50 border-t flex justify-between gap-4">
+            <Button 
+              variant="outline" 
+              className="flex-1 h-14 rounded-xl border-2 font-black uppercase tracking-widest text-xs" 
+              onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
+              disabled={currentIndex === 0}
+            >
+              <ChevronLeft className="mr-2 h-4 w-4" /> Précédent
+            </Button>
+            <Button 
+              className="flex-1 h-14 rounded-xl bg-primary font-black uppercase tracking-widest text-xs shadow-xl" 
+              onClick={() => setCurrentIndex(Math.min(sessionHistory.length - 1, currentIndex + 1))}
+              disabled={currentIndex === sessionHistory.length - 1}
+            >
+              Suivant <ChevronRight className="ml-2 h-4 w-4" />
+            </Button>
+          </CardFooter>
         </Card>
       </div>
     );

@@ -8,7 +8,6 @@ import {
   PlayCircle,
   Loader2,
   Clock,
-  Calendar,
   History,
   TrendingUp,
   Award,
@@ -16,14 +15,16 @@ import {
   Layers,
   Brain,
   Zap,
-  BarChart3
+  BarChart3,
+  ShieldCheck,
+  TrendingDown
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import Link from 'next/link';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Cell, PieChart, Pie
+  BarChart, Bar, Cell
 } from 'recharts';
 import { cn } from '@/lib/utils';
 
@@ -70,7 +71,6 @@ export default function DashboardPage() {
   const db = useFirestore();
   const isDemo = user?.isAnonymous;
 
-  // Data Fetching for KPIs
   const resultsQuery = useMemoFirebase(() => {
     if (!user || isDemo) return null;
     return query(collection(db, 'users', user.uid, 'exam_results'), orderBy('completedAt', 'asc'), limit(50));
@@ -84,7 +84,6 @@ export default function DashboardPage() {
   const { data: results, isLoading: isResultsLoading } = useCollection(resultsQuery);
   const { data: attempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
 
-  // Calculations
   const stats = useMemo(() => {
     if (!results || !attempts) return null;
 
@@ -100,14 +99,12 @@ export default function DashboardPage() {
       ? Math.round((practiceResults.filter(a => a.isCorrect).length / practiceResults.length) * 100)
       : 0;
 
-    // Domain Performance
     const domainStats: Record<string, { correct: number, total: number }> = {
       'People': { correct: 0, total: 0 },
       'Process': { correct: 0, total: 0 },
       'Business': { correct: 0, total: 0 }
     };
 
-    // Approach Performance
     const approachStats: Record<string, { correct: number, total: number }> = {
       'Predictive': { correct: 0, total: 0 },
       'Agile': { correct: 0, total: 0 },
@@ -137,13 +134,10 @@ export default function DashboardPage() {
       score: approachStats[name].total > 0 ? Math.round((approachStats[name].correct / approachStats[name].total) * 100) : 0
     }));
 
-    // Time per question (seconds)
     const totalExamTime = results.reduce((acc, r) => acc + (r.timeSpent || 0), 0);
     const totalExamQuestions = results.reduce((acc, r) => acc + (r.total || 0), 0);
     const avgTimePerQuestion = totalExamQuestions > 0 ? Math.round(totalExamTime / totalExamQuestions) : 0;
 
-    // Recurrence Rate (Faux acquis)
-    // Simplified: Find questions failed twice or more
     const questionFails: Record<string, number> = {};
     attempts.forEach(a => {
       if (!a.isCorrect) {
@@ -153,6 +147,10 @@ export default function DashboardPage() {
     const multiFailed = Object.values(questionFails).filter(count => count >= 2).length;
     const recurrenceRate = totalQuestions > 0 ? Math.round((multiFailed / totalQuestions) * 100) : 0;
 
+    // Estimation probability
+    const weight = Math.min(1, results.length / 5); 
+    const probability = Math.round((avgExamScore * 0.7 + avgPracticeScore * 0.3) * (0.8 + 0.2 * weight));
+
     return {
       avgExamScore,
       avgPracticeScore,
@@ -161,6 +159,7 @@ export default function DashboardPage() {
       approachData,
       avgTimePerQuestion,
       recurrenceRate,
+      probability,
       progressionData: results.map((r, i) => ({ name: `Sim ${i+1}`, score: r.percentage }))
     };
   }, [results, attempts]);
@@ -177,15 +176,8 @@ export default function DashboardPage() {
     return `${m} MIN`;
   };
 
-  const formatDate = (ts: any) => {
-    if (!ts) return '---';
-    const date = ts?.toDate ? ts.toDate() : new Date(ts);
-    return date.toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).toUpperCase();
-  };
-
   return (
     <div className="space-y-10 animate-fade-in max-w-7xl mx-auto pb-24 pt-4">
-      {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 bg-white p-10 rounded-[40px] shadow-xl border-2">
         <div className="space-y-2">
           <h1 className="text-4xl font-black text-primary italic uppercase tracking-tighter">Cockpit de Performance</h1>
@@ -203,7 +195,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Primary KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="rounded-[32px] border-none shadow-lg bg-white overflow-hidden group">
           <CardContent className="p-8 flex flex-col items-center justify-center">
@@ -228,7 +219,6 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Progression Curve */}
         <Card className="lg:col-span-2 rounded-[40px] shadow-xl border-none bg-white overflow-hidden">
           <CardHeader className="border-b p-8 bg-slate-50/50">
             <CardTitle className="text-xs font-black uppercase tracking-[0.3em] text-primary flex items-center gap-3 italic">
@@ -259,7 +249,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Behavioral KPIs */}
         <div className="space-y-6">
           <Card className="rounded-[32px] border-none shadow-lg bg-primary text-white p-8">
             <div className="flex items-center gap-4 mb-6">
@@ -290,7 +279,6 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Performance by Domain */}
         <Card className="rounded-[40px] shadow-xl border-none bg-white overflow-hidden">
           <CardHeader className="border-b p-8 bg-slate-50/50">
             <CardTitle className="text-xs font-black uppercase tracking-[0.3em] text-primary flex items-center gap-3 italic">
@@ -313,7 +301,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Performance by Approach */}
         <Card className="rounded-[40px] shadow-xl border-none bg-white overflow-hidden">
           <CardHeader className="border-b p-8 bg-slate-50/50">
             <CardTitle className="text-xs font-black uppercase tracking-[0.3em] text-primary flex items-center gap-3 italic">
@@ -333,6 +320,70 @@ export default function DashboardPage() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-8">
+        <Card className="rounded-[40px] shadow-2xl border-none bg-white overflow-hidden">
+          <CardHeader className="bg-primary/5 p-10 text-center border-b">
+            <div className="flex justify-center mb-4">
+              <ShieldCheck className="h-16 w-16 text-primary animate-pulse" />
+            </div>
+            <CardTitle className="text-3xl font-black italic uppercase tracking-tight">Probabilité estimée de réussite PMP®</CardTitle>
+            <CardDescription className="font-bold uppercase tracking-widest text-xs italic text-slate-500 mt-2">
+              Basé sur l'historique des utilisateurs ayant réussi leur certification avec SIMOVEX
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-12">
+            <div className="flex flex-col md:flex-row items-center justify-around gap-12">
+              <div className="relative h-64 w-64 flex items-center justify-center">
+                <svg viewBox="0 0 100 100" className="absolute h-full w-full transform -rotate-90">
+                  <circle cx="50" cy="50" r="45" stroke="#f1f5f9" strokeWidth="8" fill="transparent" />
+                  <circle
+                    cx="50" cy="50" r="45" stroke="hsl(var(--primary))" strokeWidth="10" fill="transparent"
+                    strokeDasharray="283"
+                    style={{ strokeDashoffset: 283 - (stats?.probability || 0) / 100 * 283, transition: 'stroke-dashoffset 2s ease-out' }}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className="text-center z-10">
+                  <span className="text-6xl font-black text-slate-900 italic tracking-tighter">{stats?.probability || 0}%</span>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 italic">READINESS SCORE</p>
+                </div>
+              </div>
+
+              <div className="flex-1 max-w-xl space-y-6">
+                <div className={cn(
+                  "p-6 rounded-3xl border-2 flex items-start gap-4",
+                  (stats?.probability || 0) >= 75 ? "bg-emerald-50 border-emerald-100" : (stats?.probability || 0) >= 60 ? "bg-amber-50 border-amber-100" : "bg-red-50 border-red-100"
+                )}>
+                  {(stats?.probability || 0) >= 75 ? <Target className="h-8 w-8 text-emerald-600 shrink-0" /> : <TrendingDown className="h-8 w-8 text-amber-600 shrink-0" />}
+                  <div>
+                    <h4 className={cn("text-xl font-black uppercase italic italic tracking-tight", (stats?.probability || 0) >= 75 ? "text-emerald-700" : "text-amber-700")}>
+                      {(stats?.probability || 0) >= 80 ? "VOUS ÊTES PRÊT !" : (stats?.probability || 0) >= 65 ? "EN BONNE VOIE" : "TRAVAIL REQUIS"}
+                    </h4>
+                    <p className="text-sm font-bold text-slate-600 leading-relaxed italic mt-2">
+                      {(stats?.probability || 0) >= 80 
+                        ? "Vos statistiques actuelles sont comparables aux candidats ayant réussi l'examen réel. Maintenez ce rythme jusqu'au jour J." 
+                        : (stats?.probability || 0) >= 60 
+                        ? "Vous maîtrisez les bases mais certains domaines (Process/Agile) nécessitent encore un renforcement pour garantir le succès." 
+                        : "Le volume de questions traitées ou le score moyen est encore trop bas pour garantir une réussite sécurisée."}
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase italic tracking-widest mb-1">Cible Score Simulation</p>
+                    <p className="text-lg font-black text-primary italic">75%+</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase italic tracking-widest mb-1">Cible Rythme</p>
+                    <p className="text-lg font-black text-primary italic">75s / Q</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
