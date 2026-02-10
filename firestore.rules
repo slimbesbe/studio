@@ -3,7 +3,13 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function isSignedIn() { return request.auth != null; }
-    function isAdmin() { return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)); }
+    // On autorise l'accès admin si le doc existe OU si c'est l'email du Super Admin propriétaire
+    function isAdmin() { 
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)) || 
+        request.auth.token.email == "slim.besbes@yahoo.fr"
+      ); 
+    }
     function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
 
     match /roles_admin/{userId} {
@@ -40,7 +46,8 @@ service cloud.firestore {
     }
 
     match /coachingAttempts/{attemptId} {
-      allow list: if isAdmin() || (isSignedIn() && request.query.limit <= 500 && (isAdmin() || request.auth.uid == resource.data.userId));
+      // Autorise le listing si admin ou si le filtre userId correspond à l'utilisateur
+      allow list: if isAdmin() || (isSignedIn() && request.query.limit <= 500 && request.auth.uid == resource.data.userId);
       allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow write: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isAdmin());
     }
