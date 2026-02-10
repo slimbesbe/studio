@@ -1,19 +1,18 @@
 
-"use client";
+'use client';
 
 import { useState, useEffect } from 'react';
-import { useUser, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
-import { collection, query, where, orderBy, doc, getDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useUser, useFirestore } from '@/firebase';
+import { collection, query, where, orderBy, doc, getDoc, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { 
-  GraduationCap, Loader2, Video, ChevronLeft, ChevronRight, 
-  CheckCircle2, Info, ArrowLeft, Trophy, Clock
-} from 'lucide-react';
+import { GraduationCap, Loader2, Video, ChevronLeft, ChevronRight, CheckCircle2, Info, Trophy, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
 
 export default function CoachingSessionDetails() {
   const params = useParams();
@@ -44,7 +43,6 @@ export default function CoachingSessionDetails() {
         if (sDoc.exists()) {
           sessionData = sDoc.data();
         } else {
-          // Fallback static config
           sessionData = {
             id: sessionId,
             index: sessionIndex,
@@ -58,10 +56,7 @@ export default function CoachingSessionDetails() {
         setSession(sessionData);
 
         if (sessionData.type === 'QUIZ') {
-          const qSnap = await getDoc(doc(db, 'questions', 'Q1')); // Just to check schema
-          // We need a way to filter by index. In simulovex, questions might not have index field.
-          // For now, let's pull all and filter or simulate.
-          // BEST PRACTICE: query where index >= start and index <= end
+          // Requête réelle pour les questions indexées
           const qRef = collection(db, 'questions');
           const qQuery = query(
             qRef, 
@@ -69,29 +64,35 @@ export default function CoachingSessionDetails() {
             where('index', '<=', sessionData.questionEnd),
             orderBy('index', 'asc')
           );
-          const qDocs = await getDoc(qQuery as any); // Type cast for simplicity in this MVP
-          // Mocking if no indexed questions yet
-          const mocked = [];
-          for(let i=0; i<35; i++) {
-            mocked.push({
-              id: `MQ${sessionIndex}-${i}`,
-              index: sessionData.questionStart + i,
-              text: `Question de Coaching ${sessionData.questionStart + i}: Scénario PMP spécifique sur le Mindset.`,
-              choices: ["Option A: Action réactive", "Option B: Action proactive (Correct)", "Option C: Escalade", "Option D: Ignorer"],
-              correctChoice: "1", // Index B
-              explanation: "Le Mindset PMI privilégie la proactivité et la résolution de problèmes avant l'escalade."
-            });
+          const qSnap = await getDocs(qQuery);
+          
+          if (!qSnap.empty) {
+            setQuestions(qSnap.docs.map(d => ({ ...d.data(), id: d.id })));
+          } else {
+            // Mock de secours si pas encore de questions indexées en DB
+            const mocked = [];
+            for(let i=0; i<35; i++) {
+              mocked.push({
+                id: `MQ${sessionIndex}-${i}`,
+                index: sessionData.questionStart + i,
+                text: `[DEBUG] Question de Coaching #${sessionData.questionStart + i}: Scénario PMP spécifique sur le Mindset.`,
+                choices: ["Action réactive", "Action proactive (PMI Mindset)", "Escalade immédiate", "Ignorer et documenter"],
+                correctChoice: "1",
+                explanation: "Le Mindset PMI privilégie la proactivité et la résolution de problèmes interne à l'équipe."
+              });
+            }
+            setQuestions(mocked);
           }
-          setQuestions(mocked);
         }
       } catch (e) {
-        console.error(e);
+        console.error("Error loading session:", e);
+        toast({ variant: "destructive", title: "Erreur de chargement" });
       } finally {
         setIsLoading(false);
       }
     }
     loadSession();
-  }, [db, sessionIndex]);
+  }, [db, sessionIndex, toast]);
 
   const handleStartQuiz = () => {
     setIsQuizStarted(true);
@@ -112,7 +113,7 @@ export default function CoachingSessionDetails() {
     try {
       await addDoc(collection(db, 'coachingAttempts'), {
         userId: profile.id,
-        groupId: profile.groupId,
+        groupId: profile.groupId || null,
         sessionId: session.id,
         scorePercent: percent,
         correctCount: correct,
@@ -122,7 +123,7 @@ export default function CoachingSessionDetails() {
       });
       setQuizResult({ score: percent, correct, total: questions.length, duration });
     } catch (e) {
-      toast({ variant: "destructive", title: "Erreur sauvegarde" });
+      toast({ variant: "destructive", title: "Erreur lors de la sauvegarde du score" });
     } finally {
       setIsSubmitting(false);
     }
@@ -167,11 +168,9 @@ export default function CoachingSessionDetails() {
             <div className="flex items-center gap-2"><Clock className="h-5 w-5" /> {Math.floor(quizResult.duration / 60)}m {quizResult.duration % 60}s</div>
             <div className="flex items-center gap-2"><GraduationCap className="h-5 w-5" /> Session {sessionIndex}</div>
           </div>
-          <div className="flex flex-col gap-4">
-            <Button className="w-full h-16 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl text-lg italic" asChild>
-              <Link href="/dashboard/coaching">Retour au Programme</Link>
-            </Button>
-          </div>
+          <Button className="w-full h-16 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl text-lg italic" asChild>
+            <Link href="/dashboard/coaching">Retour au Programme</Link>
+          </Button>
         </Card>
       </div>
     );
@@ -190,9 +189,9 @@ export default function CoachingSessionDetails() {
 
         <Card className="rounded-[40px] shadow-2xl border-t-8 border-t-primary bg-white">
           <CardContent className="p-10 space-y-8">
-            <p className="text-2xl font-black text-slate-800 italic leading-relaxed">{q.text}</p>
+            <p className="text-2xl font-black text-slate-800 italic leading-relaxed">{q?.text}</p>
             <div className="grid gap-4">
-              {q.choices.map((opt: string, idx: number) => (
+              {q?.choices?.map((opt: string, idx: number) => (
                 <div 
                   key={idx} 
                   onClick={() => setAnswers({ ...answers, [q.id]: String(idx) })} 
@@ -213,11 +212,11 @@ export default function CoachingSessionDetails() {
           <CardFooter className="p-8 bg-slate-50/50 border-t flex justify-between gap-4">
             <Button variant="outline" className="h-14 px-8 rounded-xl font-black uppercase italic" onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))} disabled={currentIndex === 0}>Précédent</Button>
             {currentIndex === questions.length - 1 ? (
-              <Button onClick={handleFinish} disabled={isSubmitting || !answers[q.id]} className="h-14 px-12 bg-emerald-600 hover:bg-emerald-700 rounded-xl font-black uppercase tracking-widest shadow-xl">
+              <Button onClick={handleFinish} disabled={isSubmitting || !answers[q?.id]} className="h-14 px-12 bg-emerald-600 hover:bg-emerald-700 rounded-xl font-black uppercase tracking-widest shadow-xl">
                 {isSubmitting ? <Loader2 className="animate-spin h-5 w-5" /> : "Soumettre"}
               </Button>
             ) : (
-              <Button onClick={() => setCurrentIndex(currentIndex + 1)} disabled={!answers[q.id]} className="h-14 px-12 bg-primary rounded-xl font-black uppercase tracking-widest shadow-xl">Suivant</Button>
+              <Button onClick={() => setCurrentIndex(currentIndex + 1)} disabled={!answers[q?.id]} className="h-14 px-12 bg-primary rounded-xl font-black uppercase tracking-widest shadow-xl">Suivant</Button>
             )}
           </CardFooter>
         </Card>

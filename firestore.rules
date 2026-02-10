@@ -9,15 +9,14 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.email == "slim.besbes@yahoo.fr";
     }
 
-    // Vérification Admin via collection roles_admin ou email Super Admin
-    function isAdmin() { 
-      return isSuperAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
-    }
-
-    // ACCÈS TOTAL POUR LE SUPER ADMIN (Email direct)
-    // Cette règle prévaut sur toutes les autres et garantit l'absence d'erreurs de permission
+    // ACCÈS TOTAL POUR LE SUPER ADMIN
     match /{document=**} {
       allow read, write: if isSuperAdmin();
+    }
+
+    // Vérification Admin via collection roles_admin
+    function isAdmin() { 
+      return isSuperAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
     }
 
     function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
@@ -30,7 +29,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
-      allow create: if isAdmin() || isSuperAdmin();
+      allow create: if isAdmin();
       allow update: if isAdmin() || (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'accessType', 'groupId']));
       
       match /sessions/{docId} { allow read, write: if isOwner(userId); }
@@ -46,10 +45,7 @@ service cloud.firestore {
     }
 
     match /coachingSessions/{sessionId} {
-      // Pour les admins : lecture totale
-      allow read: if isAdmin();
-      // Pour les users : lecture si publié
-      allow get, list: if isSignedIn() && resource.data.isPublished == true;
+      allow read: if isAdmin() || (isSignedIn() && resource.data.isPublished == true);
       allow write: if isAdmin();
     }
 
@@ -59,7 +55,7 @@ service cloud.firestore {
     }
 
     match /coachingAttempts/{attemptId} {
-      allow list: if isAdmin() || (isSignedIn() && request.auth.uid == resource.data.userId);
+      allow list: if isAdmin() || (isSignedIn() && request.query.limit <= 100); // Protection list
       allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow write: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isAdmin());
     }
