@@ -58,9 +58,9 @@ service cloud.firestore {
     }
 
     match /coachingSessions/{sessionId} {
-      // Pour list, on autorise si Admin OU si la session est publiée
-      allow list: if isAdmin() || (isSignedIn() && resource.data.isPublished == true);
       allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow list: if isSignedIn() && resource.data.isPublished == true;
       allow write: if isAdmin();
     }
 
@@ -70,9 +70,9 @@ service cloud.firestore {
     }
 
     match /coachingAttempts/{attemptId} {
-      // Pour list, on autorise si Admin OU si l'utilisateur consulte ses propres données
-      allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow list: if isAdmin();
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow write: if isAdmin() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
     }
 
