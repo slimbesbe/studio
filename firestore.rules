@@ -8,7 +8,7 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // Vérification Super Admin par UID (Méthode la plus fiable et rapide)
+    // Vérification Super Admin par UID ou Email (Statique et prioritaire)
     function isSuperAdmin() {
       return isSignedIn() && (
         request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1" ||
@@ -28,11 +28,12 @@ service cloud.firestore {
     // --- RÈGLES DE MATCHING ---
 
     // 1. ACCÈS TOTAL ET PRIORITAIRE POUR LE SUPER ADMIN
+    // Cette règle récursive permet au Super Admin de tout faire sans restriction de listing
     match /{document=**} {
       allow read, write: if isSuperAdmin();
     }
 
-    // 2. RÈGLES SPÉCIFIQUES
+    // 2. RÈGLES SPÉCIFIQUES POUR LES AUTRES UTILISATEURS
     
     match /roles_admin/{userId} {
       allow get: if isSignedIn();
@@ -45,11 +46,10 @@ service cloud.firestore {
       allow create: if isAdmin();
       allow update: if isAdmin() || (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'accessType', 'groupId']));
       
-      match /sessions/{docId} { allow read, write: if isOwner(userId) || isAdmin(); }
-      match /attempts/{docId} { allow read, write: if isOwner(userId) || isAdmin(); }
-      match /killMistakes/{docId} { allow read, write: if isOwner(userId) || isAdmin(); }
-      match /exam_state/{docId} { allow read, write: if isOwner(userId) || isAdmin(); }
-      match /exam_results/{docId} { allow read, write: if isOwner(userId) || isAdmin(); }
+      // Accès aux sous-collections privées (sessions, attempts, results, etc.)
+      match /{allSubcollections=**} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
     }
 
     match /questions/{questionId} {
@@ -58,7 +58,10 @@ service cloud.firestore {
     }
 
     match /coachingSessions/{sessionId} {
-      allow get: if isSignedIn();
+      // Un admin peut tout lister/voir
+      // Un utilisateur peut voir un doc spécifique s'il est publié
+      // Un utilisateur peut lister uniquement s'il filtre par isPublished == true
+      allow get: if isSignedIn() && (isAdmin() || resource.data.isPublished == true);
       allow list: if isAdmin();
       allow list: if isSignedIn() && resource.data.isPublished == true;
       allow write: if isAdmin();
@@ -70,6 +73,8 @@ service cloud.firestore {
     }
 
     match /coachingAttempts/{attemptId} {
+      // Un admin peut tout lister/voir
+      // Un utilisateur peut voir ses propres tentatives
       allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow list: if isAdmin();
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
@@ -79,7 +84,7 @@ service cloud.firestore {
     match /exams/{examId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
-      match /questions/{qId} { allow read: if isSignedIn(); allow write: if isAdmin(); }
+      match /{allSubcollections=**} { allow read: if isSignedIn(); allow write: if isAdmin(); }
     }
 
     match /counters/{counterId} { allow read, write: if isAdmin(); }

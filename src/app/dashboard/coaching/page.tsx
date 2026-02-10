@@ -13,8 +13,11 @@ export default function CoachingSelectionPage() {
   const { profile, user, isUserLoading } = useUser();
   const db = useFirestore();
 
-  // On s'assure que l'utilisateur est admin ou possède l'email super admin pour tout voir
-  const isAdminUser = profile?.role === 'admin' || profile?.role === 'super_admin' || user?.email === 'slim.besbes@yahoo.fr';
+  // On s'assure que l'utilisateur est admin ou possède l'email/UID super admin pour tout voir
+  const isAdminUser = profile?.role === 'admin' || 
+                     profile?.role === 'super_admin' || 
+                     user?.email === 'slim.besbes@yahoo.fr' || 
+                     user?.uid === 'GPgreBe1JzZYbEHQGn3xIdcQGQs1';
 
   const sessionsQuery = useMemoFirebase(() => {
     // Crucial: On attend que le profil soit chargé pour savoir si on fait une requête admin ou filtrée
@@ -22,7 +25,7 @@ export default function CoachingSelectionPage() {
     
     const baseRef = collection(db, 'coachingSessions');
     
-    // Si Admin identifié, on récupère tout par index (sans filtre isPublished)
+    // Si Admin identifié, on récupère tout par index (sans filtre isPublished pour voir les brouillons)
     if (isAdminUser) {
       return query(baseRef, orderBy('index', 'asc'));
     }
@@ -54,7 +57,7 @@ export default function CoachingSelectionPage() {
     <div className="max-w-6xl mx-auto py-8 space-y-10 animate-fade-in">
       <div className="bg-white p-10 rounded-[40px] shadow-xl border-2 border-primary/5 flex items-center gap-8">
         <div className="bg-primary/10 p-5 rounded-3xl">
-          <GraduationCap className="h-12 w-12 text-primary" />
+          < GraduationCap className="h-12 w-12 text-primary" />
         </div>
         <div>
           <h1 className="text-4xl font-black italic uppercase tracking-tighter text-primary">Programme Coaching PMP®</h1>
