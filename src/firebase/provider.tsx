@@ -104,8 +104,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               isUserLoading: false 
             }));
 
-            // Tracking session unique (évite d'écraser firstLoginAt)
-            const sessionKey = `session_v15_${firebaseUser.uid}`;
+            // Tracking session unique
+            const sessionKey = `session_v15_track_${firebaseUser.uid}`;
             if (!sessionStorage.getItem(sessionKey)) {
               const now = serverTimestamp();
               const updateData: any = { lastLoginAt: now, id: firebaseUser.uid };
