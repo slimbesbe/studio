@@ -11,25 +11,28 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
 export default function CoachingSelectionPage() {
-  const { profile } = useUser();
+  const { profile, user } = useUser();
   const db = useFirestore();
 
   const sessionsQuery = useMemoFirebase(() => {
-    if (!profile) return null;
+    if (!profile || !user) return null;
     const baseRef = collection(db, 'coachingSessions');
     
-    // Les admins voient tout, les participants voient uniquement les sessions publiées
-    // pour satisfaire les règles de sécurité Firestore lors d'un listing (list).
-    if (profile.role === 'admin' || profile.role === 'super_admin') {
+    // Sécurité renforcée : On ne tente la requête "Admin" que si on est certain du rôle ou de l'email
+    const isAdminUser = profile.role === 'admin' || profile.role === 'super_admin' || user.email === 'slim.besbes@yahoo.fr';
+    
+    if (isAdminUser) {
       return query(baseRef, orderBy('index', 'asc'));
     }
     
+    // Les participants standards doivent TOUJOURS avoir le filtre isPublished
+    // pour satisfaire les règles Firestore sur les listings.
     return query(
       baseRef, 
       where('isPublished', '==', true),
       orderBy('index', 'asc')
     );
-  }, [db, profile]);
+  }, [db, profile, user]);
 
   const { data: sessions, isLoading: isSessionsLoading } = useCollection(sessionsQuery);
 
@@ -111,14 +114,14 @@ export default function CoachingSelectionPage() {
                 
                 <Button 
                   asChild 
-                  disabled={isLocked && profile?.role !== 'admin' && profile?.role !== 'super_admin'}
+                  disabled={isLocked && profile?.role !== 'admin' && profile?.role !== 'super_admin' && user?.email !== 'slim.besbes@yahoo.fr'}
                   className={cn(
                     "w-full h-14 rounded-2xl mt-8 font-black uppercase tracking-widest text-sm shadow-lg group",
-                    (isLocked && profile?.role !== 'admin' && profile?.role !== 'super_admin') ? "bg-slate-200" : "bg-primary hover:bg-primary/90"
+                    (isLocked && profile?.role !== 'admin' && profile?.role !== 'super_admin' && user?.email !== 'slim.besbes@yahoo.fr') ? "bg-slate-200" : "bg-primary hover:bg-primary/90"
                   )}
                 >
-                  <Link href={(isLocked && profile?.role !== 'admin' && profile?.role !== 'super_admin') ? "#" : `/dashboard/coaching/session/${session.index}`}>
-                    {isLocked && profile?.role !== 'admin' && profile?.role !== 'super_admin' ? "À venir" : attempt ? "Refaire la session" : "Démarrer"} <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  <Link href={(isLocked && profile?.role !== 'admin' && profile?.role !== 'super_admin' && user?.email !== 'slim.besbes@yahoo.fr') ? "#" : `/dashboard/coaching/session/${session.index}`}>
+                    {isLocked && profile?.role !== 'admin' && profile?.role !== 'super_admin' && user?.email !== 'slim.besbes@yahoo.fr' ? "À venir" : attempt ? "Refaire la session" : "Démarrer"} <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </Button>
               </CardContent>

@@ -14,6 +14,12 @@ service cloud.firestore {
       return isSuperAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
     }
 
+    // ACCÈS TOTAL POUR LE SUPER ADMIN (Email direct)
+    // Cette règle prévaut sur toutes les autres et garantit l'absence d'erreurs de permission
+    match /{document=**} {
+      allow read, write: if isSuperAdmin();
+    }
+
     function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
 
     match /roles_admin/{userId} {
@@ -40,10 +46,10 @@ service cloud.firestore {
     }
 
     match /coachingSessions/{sessionId} {
-      // Un utilisateur peut lire un document s'il est admin ou si publié
-      allow get: if isSignedIn() && (isAdmin() || resource.data.isPublished == true);
-      // Pour lister, l'admin peut tout voir, l'user doit filtrer par isPublished
-      allow list: if isSignedIn() && (isAdmin() || resource.data.isPublished == true);
+      // Pour les admins : lecture totale
+      allow read: if isAdmin();
+      // Pour les users : lecture si publié
+      allow get, list: if isSignedIn() && resource.data.isPublished == true;
       allow write: if isAdmin();
     }
 
