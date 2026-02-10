@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, onSnapshot, Timestamp, setDoc, serverTimestamp, increment, getDoc } from 'firebase/firestore';
+import { Firestore, doc, onSnapshot, Timestamp, setDoc, serverTimestamp, increment } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { useRouter, usePathname } from 'next/navigation';
@@ -73,7 +73,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         const isSA = ADMIN_UIDS.includes(firebaseUser.uid) || (firebaseUser.email === ADMIN_EMAIL);
         
         if (isSA) {
-          // Force la présence dans roles_admin pour les règles Firestore secondaires
+          // Force la présence dans roles_admin pour les règles Firestore secondaires (fallback)
           setDoc(doc(firestore, 'roles_admin', firebaseUser.uid), { 
             createdAt: serverTimestamp(),
             email: firebaseUser.email || ADMIN_EMAIL,
@@ -95,7 +95,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
             }
 
             const currentStatus = isExpired ? 'expired' : (profileData.status || 'active');
-            // Priorité absolue à l'UID pour le rôle
+            
+            // Priorité absolue à l'UID pour le rôle dans l'application
             const role = isSA ? 'super_admin' : (profileData.role || 'user');
 
             setUserAuthState(prev => ({ 
@@ -105,7 +106,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               isUserLoading: false 
             }));
 
-            // Tracking session unique (sans await pour ne pas bloquer)
+            // Tracking session unique
             const sessionKey = `session_v15_track_${firebaseUser.uid}`;
             if (!sessionStorage.getItem(sessionKey)) {
               const now = serverTimestamp();
@@ -115,7 +116,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               sessionStorage.setItem(sessionKey, 'true');
             }
 
-            if (!firebaseUser.isAnonymous && currentStatus !== 'active' && pathname.startsWith('/dashboard') && currentStatus !== 'active') {
+            if (!firebaseUser.isAnonymous && currentStatus !== 'active' && pathname.startsWith('/dashboard')) {
                router.push('/access-denied');
             }
           } else if (isSA) {
@@ -139,7 +140,17 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
           }
         }, (err) => {
           console.error("Profile listen error:", err);
-          setUserAuthState(prev => ({ ...prev, isUserLoading: false }));
+          // Si erreur de lecture profil mais UID admin, on force l'accès admin
+          if (isSA) {
+            setUserAuthState(prev => ({ 
+              ...prev, 
+              user: firebaseUser, 
+              profile: { id: firebaseUser.uid, role: 'super_admin', email: firebaseUser.email || ADMIN_EMAIL }, 
+              isUserLoading: false 
+            }));
+          } else {
+            setUserAuthState(prev => ({ ...prev, isUserLoading: false }));
+          }
         });
 
         return () => unsubscribeProfile();
