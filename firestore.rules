@@ -3,24 +3,28 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function isSignedIn() { return request.auth != null; }
-    // On autorise l'accès admin si le doc existe OU si c'est l'email du Super Admin propriétaire
-    function isAdmin() { 
-      return isSignedIn() && (
-        exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)) || 
-        request.auth.token.email == "slim.besbes@yahoo.fr"
-      ); 
+    
+    // Vérification Super Admin par email (priorité absolue)
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.token.email == "slim.besbes@yahoo.fr";
     }
+
+    // Vérification Admin via collection roles_admin ou email Super Admin
+    function isAdmin() { 
+      return isSuperAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
+    }
+
     function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
 
     match /roles_admin/{userId} {
       allow get: if isSignedIn();
-      allow write: if isAdmin() || (isSignedIn() && request.auth.token.email == "slim.besbes@yahoo.fr");
+      allow write: if isSuperAdmin();
     }
 
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
-      allow create: if isAdmin();
+      allow create: if isAdmin() || isSuperAdmin();
       allow update: if isAdmin() || (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'accessType', 'groupId']));
       
       match /sessions/{docId} { allow read, write: if isOwner(userId); }
@@ -36,7 +40,10 @@ service cloud.firestore {
     }
 
     match /coachingSessions/{sessionId} {
-      allow read: if isSignedIn() && (isAdmin() || resource.data.isPublished == true);
+      // Un utilisateur peut lire un document s'il est admin ou si publié
+      allow get: if isSignedIn() && (isAdmin() || resource.data.isPublished == true);
+      // Pour lister, l'admin peut tout voir, l'user doit filtrer par isPublished
+      allow list: if isSignedIn() && (isAdmin() || resource.data.isPublished == true);
       allow write: if isAdmin();
     }
 
@@ -46,8 +53,7 @@ service cloud.firestore {
     }
 
     match /coachingAttempts/{attemptId} {
-      // Autorise le listing si admin ou si le filtre userId correspond à l'utilisateur
-      allow list: if isAdmin() || (isSignedIn() && request.query.limit <= 500 && request.auth.uid == resource.data.userId);
+      allow list: if isAdmin() || (isSignedIn() && request.auth.uid == resource.data.userId);
       allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow write: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isAdmin());
     }

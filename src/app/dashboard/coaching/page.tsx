@@ -8,25 +8,41 @@ import { Button } from '@/components/ui/button';
 import { GraduationCap, ArrowRight, Video, FileQuestion, CheckCircle2, Lock, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 export default function CoachingSelectionPage() {
   const { profile } = useUser();
   const db = useFirestore();
 
   const sessionsQuery = useMemoFirebase(() => {
-    return query(collection(db, 'coachingSessions'), orderBy('index', 'asc'));
-  }, [db]);
+    if (!profile) return null;
+    const baseRef = collection(db, 'coachingSessions');
+    
+    // Les admins voient tout, les participants voient uniquement les sessions publiées
+    // pour satisfaire les règles de sécurité Firestore lors d'un listing (list).
+    if (profile.role === 'admin' || profile.role === 'super_admin') {
+      return query(baseRef, orderBy('index', 'asc'));
+    }
+    
+    return query(
+      baseRef, 
+      where('isPublished', '==', true),
+      orderBy('index', 'asc')
+    );
+  }, [db, profile]);
 
-  const { data: sessions, isLoading } = useCollection(sessionsQuery);
+  const { data: sessions, isLoading: isSessionsLoading } = useCollection(sessionsQuery);
 
   const attemptsQuery = useMemoFirebase(() => {
     if (!profile) return null;
     return query(collection(db, 'coachingAttempts'), where('userId', '==', profile.id));
   }, [db, profile]);
 
-  const { data: attempts } = useCollection(attemptsQuery);
+  const { data: attempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
 
-  if (isLoading) return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
+  if (isSessionsLoading || isAttemptsLoading) {
+    return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
+  }
 
   // Fallback data if no sessions exist yet (initial setup)
   const defaultSessions = [
@@ -95,14 +111,14 @@ export default function CoachingSelectionPage() {
                 
                 <Button 
                   asChild 
-                  disabled={isLocked}
+                  disabled={isLocked && profile?.role !== 'admin' && profile?.role !== 'super_admin'}
                   className={cn(
                     "w-full h-14 rounded-2xl mt-8 font-black uppercase tracking-widest text-sm shadow-lg group",
-                    isLocked ? "bg-slate-200" : "bg-primary hover:bg-primary/90"
+                    (isLocked && profile?.role !== 'admin' && profile?.role !== 'super_admin') ? "bg-slate-200" : "bg-primary hover:bg-primary/90"
                   )}
                 >
-                  <Link href={isLocked ? "#" : `/dashboard/coaching/session/${session.index}`}>
-                    {isLocked ? "À venir" : attempt ? "Refaire la session" : "Démarrer"} <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  <Link href={(isLocked && profile?.role !== 'admin' && profile?.role !== 'super_admin') ? "#" : `/dashboard/coaching/session/${session.index}`}>
+                    {isLocked && profile?.role !== 'admin' && profile?.role !== 'super_admin' ? "À venir" : attempt ? "Refaire la session" : "Démarrer"} <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </Button>
               </CardContent>
