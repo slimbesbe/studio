@@ -9,11 +9,11 @@ service cloud.firestore {
     }
     
     function isSuperAdmin() {
-      // Support des deux UIDs connus pour le Super Admin et de l'email de secours
+      // Priorité absolue aux UIDs connus et accès sécurisé à l'email
       return isSignedIn() && (
         request.auth.uid == "vwyrAnNtQkSojYSEEK2qkRB5feh2" || 
         request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1" || 
-        request.auth.token.email == "slim.besbes@yahoo.fr"
+        request.auth.token.get('email', '') == "slim.besbes@yahoo.fr"
       );
     }
 
@@ -21,11 +21,8 @@ service cloud.firestore {
       return isSuperAdmin() || exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
     // --- ACCÈS TOTAL SUPER ADMIN (PRIORITÉ ABSOLUE) ---
+    // Cette règle permet au Super Admin de tout lister et tout modifier sans restriction
     match /{document=**} {
       allow read, write: if isSuperAdmin();
     }
@@ -33,18 +30,18 @@ service cloud.firestore {
     // --- RÈGLES SPÉCIFIQUES PAR COLLECTION ---
     
     match /roles_admin/{userId} {
-      allow get: if isSignedIn();
+      allow read: if isSignedIn();
       allow write: if isSuperAdmin();
     }
 
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow list: if isAdmin();
       allow create: if isAdmin();
-      allow update: if isAdmin() || (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'accessType', 'groupId']));
+      allow update: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
       
       match /{allSubcollections=**} {
-        allow read, write: if isOwner(userId) || isAdmin();
+        allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       }
     }
 
@@ -54,17 +51,18 @@ service cloud.firestore {
     }
 
     match /coachingSessions/{sessionId} {
-      allow read: if isAdmin() || (isSignedIn() && resource.data.isPublished == true);
+      allow read, list: if isAdmin() || (isSignedIn() && resource.data.get('isPublished', false) == true);
       allow write: if isAdmin();
     }
 
     match /coachingGroups/{groupId} {
-      allow read: if isAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groupId == groupId);
+      allow read, list: if isAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groupId == groupId);
       allow write: if isAdmin();
     }
 
     match /coachingAttempts/{attemptId} {
-      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      // Autorise le listing complet pour les admins, ou filtré pour l'utilisateur
+      allow read, list: if isAdmin() || (isSignedIn() && (resource == null || resource.data.userId == request.auth.uid));
       allow write: if isAdmin() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
     }
 

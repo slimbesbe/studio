@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, onSnapshot, Timestamp, setDoc, serverTimestamp, increment, getDoc } from 'firebase/firestore';
+import { Firestore, doc, onSnapshot, Timestamp, setDoc, serverTimestamp, increment } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { useRouter, usePathname } from 'next/navigation';
@@ -45,7 +45,7 @@ export interface FirebaseServicesAndUser {
 
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
-// Liste des UIDs Super Admin autorisés
+// Liste des UIDs Super Admin autorisés (Mise à jour avec le nouvel UID)
 const ADMIN_UIDS = ['GPgreBe1JzZYbEHQGn3xIdcQGQs1', 'vwyrAnNtQkSojYSEEK2qkRB5feh2'];
 const ADMIN_EMAIL = 'slim.besbes@yahoo.fr';
 
@@ -69,10 +69,12 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Bootstrap pour le Super Admin
+        // Bootstrap immédiat pour le Super Admin
         const isSA = ADMIN_UIDS.includes(firebaseUser.uid) || firebaseUser.email === ADMIN_EMAIL;
+        
         if (isSA) {
-          await setDoc(doc(firestore, 'roles_admin', firebaseUser.uid), { 
+          // Force la présence dans roles_admin pour les règles Firestore
+          setDoc(doc(firestore, 'roles_admin', firebaseUser.uid), { 
             createdAt: serverTimestamp(),
             email: firebaseUser.email || ADMIN_EMAIL,
             isSuperAdmin: true
@@ -101,11 +103,12 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               isUserLoading: false 
             }));
 
-            // Tracking session unique
-            const sessionKey = `session_v11_${firebaseUser.uid}`;
+            // Tracking session unique (Protection des dates historiques)
+            const sessionKey = `session_v12_${firebaseUser.uid}`;
             if (!sessionStorage.getItem(sessionKey)) {
               const now = serverTimestamp();
               const updateData: any = { lastLoginAt: now, id: firebaseUser.uid };
+              // On n'écrase JAMAIS firstLoginAt s'il existe déjà
               if (!profileData.firstLoginAt) updateData.firstLoginAt = now;
               setDoc(userDocRef, updateData, { merge: true }).catch(() => {});
               sessionStorage.setItem(sessionKey, 'true');
@@ -115,7 +118,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
                router.push('/access-denied');
             }
           } else if (isSA) {
-            // Auto-création de profil pour le Super Admin s'il n'existe pas
+            // Création automatique si le document n'existe pas encore
             const now = serverTimestamp();
             const initialData = {
               id: firebaseUser.uid,
@@ -128,11 +131,14 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               firstLoginAt: now,
               lastLoginAt: now
             };
-            setDoc(userDocRef, initialData).catch(() => {});
+            setDoc(userDocRef, initialData, { merge: true }).catch(() => {});
             setUserAuthState(prev => ({ ...prev, user: firebaseUser, profile: initialData, isUserLoading: false }));
           } else {
             setUserAuthState(prev => ({ ...prev, user: firebaseUser, isUserLoading: false }));
           }
+        }, (err) => {
+          console.error("Profile listen error:", err);
+          setUserAuthState(prev => ({ ...prev, isUserLoading: false }));
         });
 
         return () => unsubscribeProfile();
@@ -147,7 +153,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     return () => unsubscribeAuth();
   }, [auth, firestore, pathname, router]);
 
-  // Heartbeat pour le temps passé (activé uniquement pour les utilisateurs réels)
+  // Heartbeat pour le temps passé
   useEffect(() => {
     if (!auth || !firestore || !userAuthState.user || userAuthState.user.isAnonymous) return;
     const interval = setInterval(() => {

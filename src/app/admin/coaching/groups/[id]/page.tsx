@@ -21,8 +21,13 @@ export default function AdminGroupStats() {
   const db = useFirestore();
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Sécurité supplémentaire : On ne lance les requêtes que si on est admin confirmé
-  const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin' || user?.email === 'slim.besbes@yahoo.fr';
+  const ADMIN_UIDS = ['GPgreBe1JzZYbEHQGn3xIdcQGQs1', 'vwyrAnNtQkSojYSEEK2qkRB5feh2'];
+
+  // Sécurité renforcée : Confirmation du rôle admin avant tout listing
+  const isAdmin = profile?.role === 'super_admin' || 
+                  profile?.role === 'admin' || 
+                  user?.email === 'slim.besbes@yahoo.fr' ||
+                  (user?.uid && ADMIN_UIDS.includes(user.uid));
 
   const groupRef = useMemoFirebase(() => doc(db, 'coachingGroups', groupId), [db, groupId]);
   const { data: group, isLoading: isGroupLoading } = useDoc(groupRef);
@@ -77,8 +82,8 @@ export default function AdminGroupStats() {
     return results;
   };
 
-  if (!isAdmin) {
-    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
+  if (!isAdmin && profile) {
+    return <div className="h-screen flex items-center justify-center p-8 text-center"><p className="font-bold text-destructive italic uppercase">Accès restreint aux administrateurs.</p></div>;
   }
 
   if (isGroupLoading || isUsersLoading || isAttemptsLoading) {

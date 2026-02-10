@@ -13,36 +13,39 @@ export default function CoachingSelectionPage() {
   const { profile, user, isUserLoading } = useUser();
   const db = useFirestore();
 
+  // UIDs Admin Centralisés
+  const ADMIN_UIDS = ['GPgreBe1JzZYbEHQGn3xIdcQGQs1', 'vwyrAnNtQkSojYSEEK2qkRB5feh2'];
+
   const isAdminUser = profile?.role === 'admin' || 
                      profile?.role === 'super_admin' || 
                      user?.email === 'slim.besbes@yahoo.fr' || 
-                     user?.uid === 'GPgreBe1JzZYbEHQGn3xIdcQGQs1';
+                     (user?.uid && ADMIN_UIDS.includes(user.uid));
 
   const sessionsQuery = useMemoFirebase(() => {
-    // Sécurité : On attend que l'utilisateur soit chargé pour décider de la requête
-    if (isUserLoading || !user || !db || !profile) return null;
+    // Sécurité : Attendre le chargement complet pour éviter les erreurs de permission list
+    if (isUserLoading || !user || !db) return null;
     
     const baseRef = collection(db, 'coachingSessions');
     
-    // Si Admin identifié, on récupère tout sans filtre pour éviter les erreurs de permissions resource.data
+    // Si Admin identifié, on récupère tout sans filtre
     if (isAdminUser) {
       return query(baseRef, orderBy('index', 'asc'));
     }
     
-    // Si Participant, on filtre par isPublished
+    // Si Participant, on filtre impérativement par isPublished pour respecter les règles
     return query(
       baseRef, 
       where('isPublished', '==', true),
       orderBy('index', 'asc')
     );
-  }, [db, user, isAdminUser, isUserLoading, profile]);
+  }, [db, user, isAdminUser, isUserLoading]);
 
   const { data: sessions, isLoading: isSessionsLoading } = useCollection(sessionsQuery);
 
   const attemptsQuery = useMemoFirebase(() => {
-    if (isUserLoading || !user?.uid || !profile) return null;
+    if (isUserLoading || !user?.uid) return null;
     return query(collection(db, 'coachingAttempts'), where('userId', '==', user.uid));
-  }, [db, user?.uid, isUserLoading, profile]);
+  }, [db, user?.uid, isUserLoading]);
 
   const { data: attempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
 
