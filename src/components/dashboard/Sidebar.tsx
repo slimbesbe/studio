@@ -15,7 +15,8 @@ import {
   BookCopy,
   Users,
   LayoutGrid,
-  ShieldAlert
+  ShieldAlert,
+  GraduationCap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
@@ -23,35 +24,39 @@ import { signOut } from 'firebase/auth';
 import { doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
-const navItems = [
-  { name: 'Tableau de bord', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Pratique Libre', href: '/dashboard/practice', icon: BookOpen },
-  { name: 'Simulations d\'Examen', href: '/dashboard/exam', icon: Trophy },
-  { name: 'Historique', href: '/dashboard/history', icon: History },
-];
-
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, profile } = useUser();
   const auth = useAuth();
   const firestore = useFirestore();
-  const { toast } = useToast();
 
   const isDemo = user?.isAnonymous;
-
-  const userProfileRef = useMemoFirebase(() => {
-    return user && !user.isAnonymous ? doc(firestore, 'users', user.uid) : null;
-  }, [firestore, user]);
 
   const adminDocRef = useMemoFirebase(() => {
     return user && !user.isAnonymous ? doc(firestore, 'roles_admin', user.uid) : null;
   }, [firestore, user]);
 
-  const { data: profile } = useDoc(userProfileRef);
   const { data: adminDoc } = useDoc(adminDocRef);
 
   const isAdmin = !!adminDoc || profile?.role === 'super_admin' || profile?.role === 'admin';
+
+  // Logic pour filtrer les menus selon accessType
+  // accessType="coaching": Dashboard + Coaching
+  // accessType="simulation": Tout sauf Coaching
+  // accessType="coaching_simulation": Tout
+  const accessType = profile?.accessType || 'simulation';
+
+  const showSimulationMenus = isAdmin || accessType === 'simulation' || accessType === 'coaching_simulation';
+  const showCoachingMenu = isAdmin || accessType === 'coaching' || accessType === 'coaching_simulation';
+
+  const navItems = [
+    { name: 'Tableau de bord', href: '/dashboard', icon: LayoutDashboard, show: true },
+    { name: 'Coaching', href: '/dashboard/coaching', icon: GraduationCap, show: showCoachingMenu },
+    { name: 'Pratique Libre', href: '/dashboard/practice', icon: BookOpen, show: showSimulationMenus },
+    { name: 'Simulations d\'Examen', href: '/dashboard/exam', icon: Trophy, show: showSimulationMenus },
+    { name: 'Historique', href: '/dashboard/history', icon: History, show: showSimulationMenus },
+  ];
 
   const handleSignOut = async () => {
     await signOut(auth);
@@ -76,7 +81,7 @@ export function Sidebar() {
       </div>
 
       <div className="flex-1 py-6 px-4 space-y-1 overflow-y-auto">
-        {navItems.map((item) => (
+        {navItems.filter(i => i.show).map((item) => (
           <Link
             key={item.href}
             href={item.href}
@@ -99,6 +104,9 @@ export function Sidebar() {
             <p className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 mt-2">Administration</p>
             <Link href="/admin/dashboard" className={cn("flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors", pathname === '/admin/dashboard' ? "bg-accent text-white" : "text-muted-foreground hover:bg-secondary")}>
               <LayoutGrid className="h-4 w-4" /> Vue d'ensemble
+            </Link>
+            <Link href="/admin/coaching" className={cn("flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors", pathname.startsWith('/admin/coaching') ? "bg-accent text-white" : "text-muted-foreground hover:bg-secondary")}>
+              <GraduationCap className="h-4 w-4" /> Coaching
             </Link>
             <Link href="/admin/questions" className={cn("flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors", pathname.startsWith('/admin/questions') ? "bg-accent text-white" : "text-muted-foreground hover:bg-secondary")}>
               <BookCopy className="h-4 w-4" /> Banque de questions

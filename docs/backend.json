@@ -4,7 +4,7 @@
     "User": {
       "title": "User",
       "type": "object",
-      "description": "Utilisateur SIMOVEX avec statistiques de performance.",
+      "description": "Utilisateur SIMOVEX avec statistiques de performance et accès coaching.",
       "properties": {
         "id": { "type": "string" },
         "email": { "type": "string" },
@@ -12,10 +12,52 @@
         "lastName": { "type": "string" },
         "role": { "type": "string", "enum": ["super_admin", "admin", "user"] },
         "status": { "type": "string", "enum": ["active", "disabled", "expired"] },
+        "accessType": { "type": "string", "enum": ["simulation", "coaching", "coaching_simulation"] },
+        "groupId": { "type": "string" },
         "simulationsCount": { "type": "number" },
         "averageScore": { "type": "number" },
         "totalTimeSpent": { "type": "number" },
-        "allowedExams": { "type": "array", "items": { "type": "string" }, "description": "Liste des IDs d'examens autorisés (ex: exam1, exam2)" }
+        "allowedExams": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "CoachingSession": {
+      "title": "CoachingSession",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "index": { "type": "number" },
+        "title": { "type": "string" },
+        "type": { "type": "string", "enum": ["MEET", "QUIZ"] },
+        "meetLink": { "type": "string" },
+        "questionStart": { "type": "number" },
+        "questionEnd": { "type": "number" },
+        "isPublished": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "CoachingGroup": {
+      "title": "CoachingGroup",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "CoachingAttempt": {
+      "title": "CoachingAttempt",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "groupId": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "scorePercent": { "type": "number" },
+        "correctCount": { "type": "number" },
+        "totalQuestions": { "type": "number" },
+        "durationSec": { "type": "number" },
+        "submittedAt": { "type": "string", "format": "date-time" }
       }
     },
     "Question": {
@@ -23,42 +65,18 @@
       "type": "object",
       "properties": {
         "id": { "type": "string" },
+        "index": { "type": "number", "description": "Global index for coaching sequences (1-180)" },
         "text": { "type": "string" },
         "choices": { "type": "array", "items": { "type": "string" } },
-        "correctChoice": { "type": "string", "description": "Index ou ID du bon choix" },
-        "explanation": {
-          "type": "object",
-          "properties": {
-            "correctRationale": { "type": "string" },
-            "distractorRationales": { "type": "object" }
-          }
-        },
+        "correctChoice": { "type": "string" },
+        "correctChoiceIds": { "type": "array", "items": { "type": "string" } },
+        "explanation": { "type": "string" },
         "tags": {
           "type": "object",
           "properties": {
-            "domain": { "type": "string", "enum": ["People", "Process", "Business"] },
-            "approach": { "type": "string", "enum": ["Predictive", "Agile", "Hybrid"] },
-            "difficulty": { "type": "string", "enum": ["Easy", "Medium", "Hard"] }
-          }
-        },
-        "isActive": { "type": "boolean" }
-      }
-    },
-    "TrainingSession": {
-      "title": "TrainingSession",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "mode": { "type": "string", "enum": ["domain", "approach", "kill_mistake"] },
-        "filters": { "type": "object" },
-        "questionIds": { "type": "array", "items": { "type": "string" } },
-        "status": { "type": "string", "enum": ["active", "finished"] },
-        "summary": {
-          "type": "object",
-          "properties": {
-            "total": { "type": "number" },
-            "correct": { "type": "number" },
-            "wrong": { "type": "number" }
+            "domain": { "type": "string" },
+            "approach": { "type": "string" },
+            "difficulty": { "type": "string" }
           }
         }
       }
@@ -74,16 +92,20 @@
         "definition": { "schema": { "$ref": "#/backend/entities/Question" }, "description": "Banque centrale" }
       },
       {
-        "path": "/users/{userId}/sessions/{sessionId}",
-        "definition": { "schema": { "$ref": "#/backend/entities/TrainingSession" }, "description": "Sessions d'entraînement" }
+        "path": "/coachingSessions/{sessionId}",
+        "definition": { "schema": { "$ref": "#/backend/entities/CoachingSession" }, "description": "Configuration S1..S6" }
       },
       {
-        "path": "/users/{userId}/attempts/{attemptId}",
-        "definition": { "schema": { "type": "object" }, "description": "Réponses individuelles" }
+        "path": "/coachingGroups/{groupId}",
+        "definition": { "schema": { "$ref": "#/backend/entities/CoachingGroup" }, "description": "Groupes de participants" }
       },
       {
-        "path": "/users/{userId}/killMistakes/{questionId}",
-        "definition": { "schema": { "type": "object" }, "description": "Suivi des erreurs à corriger" }
+        "path": "/coachingAttempts/{attemptId}",
+        "definition": { "schema": { "$ref": "#/backend/entities/CoachingAttempt" }, "description": "Scores coaching" }
+      },
+      {
+        "path": "/users/{userId}",
+        "definition": { "schema": { "$ref": "#/backend/entities/User" }, "description": "Profils participants" }
       }
     ]
   }

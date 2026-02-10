@@ -2,8 +2,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useUser, useFirestore } from '@/firebase';
-import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { doc, getDoc, setDoc, Timestamp, collection } from 'firebase/firestore';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { firebaseConfig } from '@/firebase/config';
@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, UserPlus, ArrowLeft, ShieldCheck, Mail, Lock, User, Clock, Calendar, Trophy, Check, CheckCircle2 } from 'lucide-react';
+import { Loader2, UserPlus, ArrowLeft, ShieldCheck, Mail, Lock, User, Clock, Calendar, Trophy, Check, GraduationCap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Link from 'next/link';
@@ -35,7 +35,7 @@ export default function NewUserPage() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validityType, setValidityType] = useState('days');
-  const [selectedExams, setSelectedExams] = useState<string[]>(['exam1']); // Par défaut, accès à l'Examen 1
+  const [selectedExams, setSelectedExams] = useState<string[]>(['exam1']); 
   
   const [formData, setFormData] = useState({
     firstName: '',
@@ -43,9 +43,14 @@ export default function NewUserPage() {
     email: '',
     password: '',
     role: 'user',
+    accessType: 'simulation',
+    groupId: '',
     validityDays: '30',
     fixedDate: ''
   });
+
+  const groupsQuery = useMemoFirebase(() => collection(db, 'coachingGroups'), [db]);
+  const { data: groups } = useCollection(groupsQuery);
 
   useEffect(() => {
     async function checkAdmin() {
@@ -71,8 +76,8 @@ export default function NewUserPage() {
       return;
     }
 
-    if (selectedExams.length === 0 && formData.role === 'user') {
-      toast({ variant: "destructive", title: "Accès requis", description: "Veuillez sélectionner au moins un examen pour le participant." });
+    if ((formData.accessType === 'coaching' || formData.accessType === 'coaching_simulation') && !formData.groupId) {
+      toast({ variant: "destructive", title: "Groupe requis", description: "Veuillez sélectionner un groupe pour le coaching." });
       return;
     }
 
@@ -100,6 +105,8 @@ export default function NewUserPage() {
         firstName: formData.firstName,
         lastName: formData.lastName,
         role: formData.role,
+        accessType: formData.accessType,
+        groupId: formData.groupId || null,
         status: 'active',
         password: formData.password,
         validityType,
@@ -110,7 +117,7 @@ export default function NewUserPage() {
       });
 
       if (formData.role !== 'user') {
-        await setDoc(doc(db, 'roles_admin', newUid), { createdAt: Timestamp.now() });
+        await setDoc(doc(db, 'roles_admin', newUid), { createdAt: Timestamp.now(), email: formData.email });
       }
 
       await signOut(secondaryAuth);
@@ -173,63 +180,83 @@ export default function NewUserPage() {
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input type="text" placeholder="Saisissez un mot de passe" className="pl-10" required value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
                 </div>
-                <p className="text-[10px] text-muted-foreground italic">Ce mot de passe sera visible par l'administrateur dans la liste des utilisateurs.</p>
               </div>
             </div>
 
-            <div className="space-y-4 border-t pt-6">
+            <div className="space-y-6 border-t pt-6">
               <Label className="text-base font-black uppercase tracking-widest flex items-center gap-2">
-                <Trophy className="h-4 w-4 text-primary" /> Accès aux Simulations
+                <ShieldCheck className="h-4 w-4 text-primary" /> Configuration des Accès
               </Label>
-              <p className="text-xs text-muted-foreground mb-4">Cliquez sur les examens pour autoriser l'accès.</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {AVAILABLE_EXAMS.map((exam) => {
-                  const isChecked = selectedExams.includes(exam.id);
-                  return (
-                    <div 
-                      key={exam.id} 
-                      onClick={() => toggleExam(exam.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === ' ' || e.key === 'Enter') {
-                          e.preventDefault();
-                          toggleExam(exam.id);
-                        }
-                      }}
-                      role="checkbox"
-                      aria-checked={isChecked}
-                      tabIndex={0}
-                      className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary ${isChecked ? 'bg-primary/5 border-primary shadow-sm' : 'bg-muted/10 border-transparent hover:border-muted-foreground/20'}`}
-                    >
-                      <div className={`h-5 w-5 rounded-md border-2 flex items-center justify-center transition-colors ${isChecked ? 'bg-primary border-primary' : 'bg-white border-muted-foreground/30'}`}>
-                        {isChecked && <Check className="h-3.5 w-3.5 text-white stroke-[4px]" />}
-                      </div>
-                      <span className={`text-sm font-black italic uppercase ${isChecked ? 'text-primary' : 'text-slate-500'}`}>{exam.title}</span>
-                    </div>
-                  );
-                })}
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase text-muted-foreground">Type d'accès plateforme</Label>
+                  <Select value={formData.accessType} onValueChange={(val) => setFormData({...formData, accessType: val})}>
+                    <SelectTrigger className="font-bold italic h-12"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="simulation">Simulation Uniquement</SelectItem>
+                      <SelectItem value="coaching">Coaching Uniquement</SelectItem>
+                      <SelectItem value="coaching_simulation">Hybride (Coaching + Simulation)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {(formData.accessType === 'coaching' || formData.accessType === 'coaching_simulation') && (
+                  <div className="space-y-2 animate-slide-up">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Groupe de Coaching</Label>
+                    <Select value={formData.groupId} onValueChange={(val) => setFormData({...formData, groupId: val})}>
+                      <SelectTrigger className="font-bold italic h-12"><SelectValue placeholder="Choisir un groupe" /></SelectTrigger>
+                      <SelectContent>
+                        {groups?.map(g => (
+                          <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                        ))}
+                        {(!groups || groups.length === 0) && <SelectItem value="" disabled>Aucun groupe disponible</SelectItem>}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             </div>
+
+            {(formData.accessType === 'simulation' || formData.accessType === 'coaching_simulation') && (
+              <div className="space-y-4 border-t pt-6 animate-fade-in">
+                <Label className="text-base font-black uppercase tracking-widest flex items-center gap-2">
+                  <Trophy className="h-4 w-4 text-primary" /> Examens Autorisés
+                </Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {AVAILABLE_EXAMS.map((exam) => {
+                    const isChecked = selectedExams.includes(exam.id);
+                    return (
+                      <div 
+                        key={exam.id} 
+                        onClick={() => toggleExam(exam.id)}
+                        className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${isChecked ? 'bg-primary/5 border-primary' : 'bg-muted/10 border-transparent'}`}
+                      >
+                        <div className={`h-5 w-5 rounded-md border-2 flex items-center justify-center ${isChecked ? 'bg-primary border-primary' : 'bg-white'}`}>
+                          {isChecked && <Check className="h-3.5 w-3.5 text-white" />}
+                        </div>
+                        <span className="text-xs font-black uppercase italic">{exam.title}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-4 border-t pt-6">
               <Label className="text-base font-black uppercase tracking-widest flex items-center gap-2">
                 <Clock className="h-4 w-4 text-primary" /> Validité du compte
               </Label>
               <Tabs value={validityType} onValueChange={setValidityType} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 h-12 bg-muted/20">
-                  <TabsTrigger value="days" className="font-bold italic uppercase text-xs"><Clock className="mr-2 h-4 w-4" /> Durée (Jours)</TabsTrigger>
-                  <TabsTrigger value="fixedDate" className="font-bold italic uppercase text-xs"><Calendar className="mr-2 h-4 w-4" /> Date Fixe</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-2 h-12">
+                  <TabsTrigger value="days" className="font-bold italic uppercase text-xs">Durée (Jours)</TabsTrigger>
+                  <TabsTrigger value="fixedDate" className="font-bold italic uppercase text-xs">Date Fixe</TabsTrigger>
                 </TabsList>
                 <TabsContent value="days" className="pt-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase text-muted-foreground">Nombre de jours d'accès</Label>
-                    <Input type="number" min="1" value={formData.validityDays} onChange={(e) => setFormData({...formData, validityDays: e.target.value})} className="h-12 text-lg font-black italic" />
-                  </div>
+                  <Input type="number" min="1" value={formData.validityDays} onChange={(e) => setFormData({...formData, validityDays: e.target.value})} className="h-12 font-black italic" />
                 </TabsContent>
                 <TabsContent value="fixedDate" className="pt-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase text-muted-foreground">Expire le</Label>
-                    <Input type="date" value={formData.fixedDate} onChange={(e) => setFormData({...formData, fixedDate: e.target.value})} className="h-12 text-lg font-black italic" />
-                  </div>
+                  <Input type="date" value={formData.fixedDate} onChange={(e) => setFormData({...formData, fixedDate: e.target.value})} className="h-12 font-black italic" />
                 </TabsContent>
               </Tabs>
             </div>
