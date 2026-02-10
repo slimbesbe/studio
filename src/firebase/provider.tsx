@@ -71,18 +71,14 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       if (firebaseUser) {
         const userDocRef = doc(firestore, 'users', firebaseUser.uid);
         
-        // Auto-bootstrap for Super Admin
+        // Bootstrap Admin Direct (Sans await pour ne pas bloquer le rendu)
         if (firebaseUser.email === ADMIN_EMAIL || firebaseUser.uid === ADMIN_UID) {
-          try {
-            const adminDocRef = doc(firestore, 'roles_admin', firebaseUser.uid);
-            await setDoc(adminDocRef, { 
-              createdAt: serverTimestamp(),
-              email: firebaseUser.email || ADMIN_EMAIL,
-              isSuperAdmin: true
-            }, { merge: true });
-          } catch (e) {
-            console.warn("Admin bootstrap failed:", e);
-          }
+          const adminDocRef = doc(firestore, 'roles_admin', firebaseUser.uid);
+          setDoc(adminDocRef, { 
+            createdAt: serverTimestamp(),
+            email: firebaseUser.email || ADMIN_EMAIL,
+            isSuperAdmin: true
+          }, { merge: true }).catch(() => {});
         }
 
         const unsubscribeProfile = onSnapshot(userDocRef, (docSnap) => {
@@ -108,8 +104,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               isUserLoading: false 
             }));
 
-            // Stats de connexion (une fois par session navigateur)
-            const sessionKey = `session_init_v5_${firebaseUser.uid}`;
+            // Stats de connexion (Une fois par session navigateur)
+            const sessionKey = `session_v6_${firebaseUser.uid}`;
             if (!sessionStorage.getItem(sessionKey)) {
               const now = serverTimestamp();
               const updateData: any = { 
@@ -118,10 +114,13 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
                 id: firebaseUser.uid
               };
               
-              if (!profileData.firstLoginAt) updateData.firstLoginAt = now;
-              if (!profileData.createdAt) updateData.createdAt = now;
+              // On ne définit firstLoginAt QUE si aucun champ de date n'existe (Respect de l'ancienneté)
+              if (!profileData.firstLoginAt && !profileData.createdAt) {
+                updateData.firstLoginAt = now;
+                updateData.createdAt = now;
+              }
 
-              setDoc(userDocRef, updateData, { merge: true });
+              setDoc(userDocRef, updateData, { merge: true }).catch(() => {});
               sessionStorage.setItem(sessionKey, 'true');
             }
 
@@ -144,7 +143,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
                 firstLoginAt: now,
                 lastLoginAt: now
               };
-              setDoc(userDocRef, initialData);
+              setDoc(userDocRef, initialData).catch(() => {});
               setUserAuthState(prev => ({ ...prev, user: firebaseUser, profile: initialData, isUserLoading: false }));
             } else {
               setUserAuthState(prev => ({ ...prev, user: firebaseUser, isUserLoading: false }));

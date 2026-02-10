@@ -8,7 +8,7 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // Vérification Super Admin par UID (Méthode la plus fiable)
+    // Vérification Super Admin par UID (Méthode la plus fiable et rapide)
     function isSuperAdmin() {
       return isSignedIn() && (
         request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1" ||
@@ -27,12 +27,12 @@ service cloud.firestore {
 
     // --- RÈGLES DE MATCHING ---
 
-    // 1. ACCÈS TOTAL POUR LE SUPER ADMIN
+    // 1. ACCÈS TOTAL ET PRIORITAIRE POUR LE SUPER ADMIN
     match /{document=**} {
       allow read, write: if isSuperAdmin();
     }
 
-    // 2. RÈGLES SPÉCIFIQUES
+    // 2. RÈGLES SPÉCIFIQUES POUR LES AUTRES UTILISATEURS
     
     match /roles_admin/{userId} {
       allow get: if isSignedIn();
@@ -45,11 +45,11 @@ service cloud.firestore {
       allow create: if isAdmin();
       allow update: if isAdmin() || (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'accessType', 'groupId']));
       
-      match /sessions/{docId} { allow read, write: if isOwner(userId); }
-      match /attempts/{docId} { allow read, write: if isOwner(userId); }
-      match /killMistakes/{docId} { allow read, write: if isOwner(userId); }
-      match /exam_state/{docId} { allow read, write: if isOwner(userId); }
-      match /exam_results/{docId} { allow read, write: if isOwner(userId); }
+      match /sessions/{docId} { allow read, write: if isOwner(userId) || isAdmin(); }
+      match /attempts/{docId} { allow read, write: if isOwner(userId) || isAdmin(); }
+      match /killMistakes/{docId} { allow read, write: if isOwner(userId) || isAdmin(); }
+      match /exam_state/{docId} { allow read, write: if isOwner(userId) || isAdmin(); }
+      match /exam_results/{docId} { allow read, write: if isOwner(userId) || isAdmin(); }
     }
 
     match /questions/{questionId} {
