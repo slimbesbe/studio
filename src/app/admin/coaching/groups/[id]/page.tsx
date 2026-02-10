@@ -2,12 +2,12 @@
 "use client";
 
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, where, doc, orderBy } from 'firebase/firestore';
+import { collection, query, where, doc } from 'firebase/firestore';
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { GraduationCap, Users, Loader2, ChevronLeft, Target, Clock, BarChart3, Search } from 'lucide-react';
+import { Users, Loader2, ChevronLeft, Clock, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useState, useMemo } from 'react';
@@ -17,16 +17,26 @@ import { cn } from '@/lib/utils';
 export default function AdminGroupStats() {
   const params = useParams();
   const groupId = params.id as string;
+  const { profile, user } = useUser();
   const db = useFirestore();
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Sécurité supplémentaire : On ne lance les requêtes que si on est admin confirmé
+  const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin' || user?.email === 'slim.besbes@yahoo.fr';
 
   const groupRef = useMemoFirebase(() => doc(db, 'coachingGroups', groupId), [db, groupId]);
   const { data: group, isLoading: isGroupLoading } = useDoc(groupRef);
 
-  const usersQuery = useMemoFirebase(() => query(collection(db, 'users'), where('groupId', '==', groupId)), [db, groupId]);
+  const usersQuery = useMemoFirebase(() => {
+    if (!isAdmin || !groupId) return null;
+    return query(collection(db, 'users'), where('groupId', '==', groupId));
+  }, [db, groupId, isAdmin]);
   const { data: participants, isLoading: isUsersLoading } = useCollection(usersQuery);
 
-  const attemptsQuery = useMemoFirebase(() => query(collection(db, 'coachingAttempts'), where('groupId', '==', groupId)), [db, groupId]);
+  const attemptsQuery = useMemoFirebase(() => {
+    if (!isAdmin || !groupId) return null;
+    return query(collection(db, 'coachingAttempts'), where('groupId', '==', groupId));
+  }, [db, groupId, isAdmin]);
   const { data: allAttempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
 
   const stats = useMemo(() => {
@@ -40,7 +50,7 @@ export default function AdminGroupStats() {
       const uniqueUsers = new Set(attemptsForSession.map(a => a.userId));
       
       const completion = participants.length > 0 ? Math.round((uniqueUsers.size / participants.length) * 100) : 0;
-      const avgScore = attemptsForSession.length > 0 ? Math.round(attemptsForSession.reduce((acc, a) => acc + a.scorePercent, 0) / attemptsForSession.length) : 0;
+      const avgScore = attemptsForSession.length > 0 ? Math.round(attemptsForSession.reduce((acc, a) => acc + (a.scorePercent || 0), 0) / attemptsForSession.length) : 0;
       const avgTime = attemptsForSession.length > 0 ? Math.round(attemptsForSession.reduce((acc, a) => acc + (a.durationSec || 0), 0) / attemptsForSession.length) : 0;
 
       sessionStats[sId] = { completion, avgScore, avgTime };
@@ -61,13 +71,19 @@ export default function AdminGroupStats() {
     const userAttempts = allAttempts?.filter(a => a.userId === userId) || [];
     const results: Record<string, number | null> = {};
     ['S2', 'S3', 'S4', 'S5', 'S6'].forEach(sId => {
-      const last = [...userAttempts].filter(a => a.sessionId === sId).sort((a, b) => b.submittedAt?.seconds - a.submittedAt?.seconds)[0];
+      const last = [...userAttempts].filter(a => a.sessionId === sId).sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0))[0];
       results[sId] = last ? last.scorePercent : null;
     });
     return results;
   };
 
-  if (isGroupLoading || isUsersLoading || isAttemptsLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
+  if (!isAdmin) {
+    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
+  }
+
+  if (isGroupLoading || isUsersLoading || isAttemptsLoading) {
+    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
+  }
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-10 animate-fade-in">

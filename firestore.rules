@@ -2,16 +2,18 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isSignedIn() { return request.auth != null; }
+    // --- FONCTIONS DE SÉCURITÉ ---
     
-    // Vérification Super Admin par email (priorité absolue)
-    function isSuperAdmin() {
-      return isSignedIn() && request.auth.token.email == "slim.besbes@yahoo.fr";
+    function isSignedIn() {
+      return request.auth != null;
     }
-
-    // ACCÈS TOTAL POUR LE SUPER ADMIN
-    match /{document=**} {
-      allow read, write: if isSuperAdmin();
+    
+    // Vérification Super Admin (Priorité Absolue)
+    function isSuperAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == "slim.besbes@yahoo.fr" || 
+        request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1"
+      );
     }
 
     // Vérification Admin via collection roles_admin
@@ -19,8 +21,19 @@ service cloud.firestore {
       return isSuperAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
     }
 
-    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
 
+    // --- RÈGLES DE MATCHING ---
+
+    // 1. ACCÈS TOTAL POUR LE SUPER ADMIN (Doit être en premier)
+    match /{document=**} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    // 2. RÈGLES SPÉCIFIQUES
+    
     match /roles_admin/{userId} {
       allow get: if isSignedIn();
       allow write: if isSuperAdmin();
@@ -55,7 +68,8 @@ service cloud.firestore {
     }
 
     match /coachingAttempts/{attemptId} {
-      allow list: if isAdmin() || (isSignedIn() && request.query.limit <= 100); // Protection list
+      // Autorise le listing complet pour les admins, et filtré pour les users
+      allow list: if isAdmin() || (isSignedIn() && request.query.limit <= 100);
       allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow write: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isAdmin());
     }
