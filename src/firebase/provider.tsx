@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, onSnapshot, Timestamp, setDoc, serverTimestamp, increment } from 'firebase/firestore';
+import { Firestore, doc, onSnapshot, Timestamp, setDoc, serverTimestamp, increment, getDoc } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { useRouter, usePathname } from 'next/navigation';
@@ -45,6 +45,8 @@ export interface FirebaseServicesAndUser {
 
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
+const ADMIN_EMAIL = 'slim.besbes@yahoo.fr';
+
 export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   children,
   firebaseApp,
@@ -68,6 +70,19 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       if (firebaseUser) {
         const userDocRef = doc(firestore, 'users', firebaseUser.uid);
         
+        // Auto-bootstrap for Super Admin if needed
+        if (firebaseUser.email === ADMIN_EMAIL) {
+          const adminDocRef = doc(firestore, 'roles_admin', firebaseUser.uid);
+          const adminDocSnap = await getDoc(adminDocRef);
+          if (!adminDocSnap.exists()) {
+            await setDoc(adminDocRef, { 
+              createdAt: serverTimestamp(),
+              email: ADMIN_EMAIL,
+              isSuperAdmin: true
+            }, { merge: true });
+          }
+        }
+
         const unsubscribeProfile = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
             const profileData = docSnap.data();
@@ -87,12 +102,12 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
             setUserAuthState(prev => ({ 
               ...prev, 
               user: firebaseUser, 
-              profile: { ...profileData, status: currentStatus }, 
+              profile: { ...profileData, id: firebaseUser.uid, status: currentStatus }, 
               isUserLoading: false 
             }));
 
             // Stats de connexion (une fois par session navigateur)
-            const sessionKey = `session_init_v2_${firebaseUser.uid}`;
+            const sessionKey = `session_init_v3_${firebaseUser.uid}`;
             if (!sessionStorage.getItem(sessionKey)) {
               const now = serverTimestamp();
               const updateData: any = { 
@@ -100,14 +115,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
                 updatedAt: now
               };
               
-              // Ne définir la première connexion que si elle n'existe pas du tout
-              if (!profileData.firstLoginAt) {
-                updateData.firstLoginAt = now;
-              }
-              // Ne définir createdAt que si manquant
-              if (!profileData.createdAt) {
-                updateData.createdAt = now;
-              }
+              if (!profileData.firstLoginAt) updateData.firstLoginAt = now;
+              if (!profileData.createdAt) updateData.createdAt = now;
 
               setDoc(userDocRef, updateData, { merge: true });
               sessionStorage.setItem(sessionKey, 'true');
@@ -140,7 +149,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
     const interval = setInterval(() => {
       const userDocRef = doc(firestore, 'users', userAuthState.user!.uid);
-      // Increment totalTimeSpent by 60 seconds every minute
       setDoc(userDocRef, { 
         totalTimeSpent: increment(60),
         lastLoginAt: serverTimestamp() 

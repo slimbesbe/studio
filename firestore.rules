@@ -40,8 +40,9 @@ service cloud.firestore {
     }
 
     match /coachingAttempts/{attemptId} {
-      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow write: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow list: if isAdmin() || (isSignedIn() && request.query.limit <= 500 && (isAdmin() || request.auth.uid == resource.data.userId));
+      allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow write: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isAdmin());
     }
 
     match /exams/{examId} {
