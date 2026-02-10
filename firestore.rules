@@ -2,38 +2,33 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // --- FONCTIONS DE SÉCURITÉ ---
+    // --- FONCTIONS DE SÉCURITÉ DE BASE ---
     
     function isSignedIn() {
       return request.auth != null;
     }
     
-    // Vérification Super Admin par UID ou Email (Statique et prioritaire)
+    // Vérification Super Admin par UID (Méthode la plus rapide et fiable)
     function isSuperAdmin() {
-      return isSignedIn() && (
-        request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1" ||
-        request.auth.token.email == "slim.besbes@yahoo.fr"
-      );
+      return isSignedIn() && request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1";
     }
 
     // Vérification Admin via collection roles_admin ou check Super Admin
     function isAdmin() { 
-      return isSuperAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
+      return isSuperAdmin() || exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
 
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // --- RÈGLES DE MATCHING ---
-
-    // 1. ACCÈS TOTAL ET PRIORITAIRE POUR LE SUPER ADMIN
-    // Cette règle récursive permet au Super Admin de tout faire sans restriction de listing
+    // --- ACCÈS TOTAL SUPER ADMIN ---
+    // Cette règle en tête de fichier garantit que le Super Admin n'est jamais bloqué
     match /{document=**} {
       allow read, write: if isSuperAdmin();
     }
 
-    // 2. RÈGLES SPÉCIFIQUES POUR LES AUTRES UTILISATEURS
+    // --- RÈGLES SPÉCIFIQUES ---
     
     match /roles_admin/{userId} {
       allow get: if isSignedIn();
@@ -46,7 +41,6 @@ service cloud.firestore {
       allow create: if isAdmin();
       allow update: if isAdmin() || (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'accessType', 'groupId']));
       
-      // Accès aux sous-collections privées (sessions, attempts, results, etc.)
       match /{allSubcollections=**} {
         allow read, write: if isOwner(userId) || isAdmin();
       }
@@ -58,10 +52,8 @@ service cloud.firestore {
     }
 
     match /coachingSessions/{sessionId} {
-      // Un admin peut tout lister/voir
-      // Un utilisateur peut voir un doc spécifique s'il est publié
-      // Un utilisateur peut lister uniquement s'il filtre par isPublished == true
-      allow get: if isSignedIn() && (isAdmin() || resource.data.isPublished == true);
+      allow get: if isSignedIn();
+      // On sépare le listing pour éviter les conflits de filtres resource.data
       allow list: if isAdmin();
       allow list: if isSignedIn() && resource.data.isPublished == true;
       allow write: if isAdmin();
@@ -73,9 +65,8 @@ service cloud.firestore {
     }
 
     match /coachingAttempts/{attemptId} {
-      // Un admin peut tout lister/voir
-      // Un utilisateur peut voir ses propres tentatives
       allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      // On sépare le listing
       allow list: if isAdmin();
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow write: if isAdmin() || (isSignedIn() && request.resource.data.userId == request.auth.uid);

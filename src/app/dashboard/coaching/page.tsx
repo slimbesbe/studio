@@ -13,37 +13,36 @@ export default function CoachingSelectionPage() {
   const { profile, user, isUserLoading } = useUser();
   const db = useFirestore();
 
-  // On s'assure que l'utilisateur est admin ou possède l'email/UID super admin pour tout voir
   const isAdminUser = profile?.role === 'admin' || 
                      profile?.role === 'super_admin' || 
                      user?.email === 'slim.besbes@yahoo.fr' || 
                      user?.uid === 'GPgreBe1JzZYbEHQGn3xIdcQGQs1';
 
   const sessionsQuery = useMemoFirebase(() => {
-    // Crucial: On attend que le profil soit chargé pour savoir si on fait une requête admin ou filtrée
-    if (isUserLoading || !user || !db) return null;
+    // Sécurité : On attend que l'utilisateur soit chargé pour décider de la requête
+    if (isUserLoading || !user || !db || !profile) return null;
     
     const baseRef = collection(db, 'coachingSessions');
     
-    // Si Admin identifié, on récupère tout par index (sans filtre isPublished pour voir les brouillons)
+    // Si Admin identifié, on récupère tout sans filtre pour éviter les erreurs de permissions resource.data
     if (isAdminUser) {
       return query(baseRef, orderBy('index', 'asc'));
     }
     
-    // Si Participant, on filtre impérativement par isPublished pour respecter les rules Firestore
+    // Si Participant, on filtre par isPublished
     return query(
       baseRef, 
       where('isPublished', '==', true),
       orderBy('index', 'asc')
     );
-  }, [db, user, isAdminUser, isUserLoading]);
+  }, [db, user, isAdminUser, isUserLoading, profile]);
 
   const { data: sessions, isLoading: isSessionsLoading } = useCollection(sessionsQuery);
 
   const attemptsQuery = useMemoFirebase(() => {
-    if (isUserLoading || !user?.uid) return null;
+    if (isUserLoading || !user?.uid || !profile) return null;
     return query(collection(db, 'coachingAttempts'), where('userId', '==', user.uid));
-  }, [db, user?.uid, isUserLoading]);
+  }, [db, user?.uid, isUserLoading, profile]);
 
   const { data: attempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
 
@@ -51,7 +50,7 @@ export default function CoachingSelectionPage() {
     return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
   }
 
-  const displaySessions = sessions && sessions.length > 0 ? sessions : [];
+  const displaySessions = sessions || [];
 
   return (
     <div className="max-w-6xl mx-auto py-8 space-y-10 animate-fade-in">
@@ -83,7 +82,7 @@ export default function CoachingSelectionPage() {
             return (
               <Card key={session.id} className={cn(
                 "rounded-[40px] border-4 transition-all relative overflow-hidden group",
-                isLocked ? "bg-slate-50 border-slate-100 opacity-60" : "bg-white border-white shadow-xl hover:shadow-2xl hover:scale-[1.02]"
+                isLocked && !isAdminUser ? "bg-slate-50 border-slate-100 opacity-60" : "bg-white border-white shadow-xl hover:shadow-2xl hover:scale-[1.02]"
               )}>
                 <CardHeader className="p-8 pb-4">
                   <div className="flex justify-between items-start mb-4">
@@ -91,7 +90,7 @@ export default function CoachingSelectionPage() {
                       "h-14 w-14 rounded-2xl flex items-center justify-center shadow-inner",
                       session.type === 'MEET' ? "bg-emerald-50 text-emerald-600" : "bg-indigo-50 text-indigo-600"
                     )}>
-                      {isLocked ? <Lock className="h-6 w-6" /> : session.type === 'MEET' ? <Video className="h-7 w-7" /> : <FileQuestion className="h-7 w-7" />}
+                      {isLocked && !isAdminUser ? <Lock className="h-6 w-6" /> : session.type === 'MEET' ? <Video className="h-7 w-7" /> : <FileQuestion className="h-7 w-7" />}
                     </div>
                     {attempt && (
                       <div className="bg-emerald-500 text-white px-4 py-1.5 rounded-full font-black italic uppercase text-[10px] tracking-widest flex items-center gap-2">
