@@ -45,7 +45,7 @@ export interface FirebaseServicesAndUser {
 
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
-// Liste des UIDs Super Admin autorisés (Mise à jour avec le nouvel UID)
+// Liste des UIDs Super Admin autorisés
 const ADMIN_UIDS = ['GPgreBe1JzZYbEHQGn3xIdcQGQs1', 'vwyrAnNtQkSojYSEEK2qkRB5feh2'];
 const ADMIN_EMAIL = 'slim.besbes@yahoo.fr';
 
@@ -70,7 +70,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         // Bootstrap immédiat pour le Super Admin
-        const isSA = ADMIN_UIDS.includes(firebaseUser.uid) || firebaseUser.email === ADMIN_EMAIL;
+        const isSA = ADMIN_UIDS.includes(firebaseUser.uid) || (firebaseUser.email && firebaseUser.email === ADMIN_EMAIL);
         
         if (isSA) {
           // Force la présence dans roles_admin pour les règles Firestore
@@ -95,16 +95,17 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
             }
 
             const currentStatus = isExpired ? 'expired' : (profileData.status || 'active');
+            const role = isSA ? 'super_admin' : (profileData.role || 'user');
 
             setUserAuthState(prev => ({ 
               ...prev, 
               user: firebaseUser, 
-              profile: { ...profileData, id: firebaseUser.uid, status: currentStatus }, 
+              profile: { ...profileData, id: firebaseUser.uid, status: currentStatus, role }, 
               isUserLoading: false 
             }));
 
             // Tracking session unique (Protection des dates historiques)
-            const sessionKey = `session_v12_${firebaseUser.uid}`;
+            const sessionKey = `session_v13_${firebaseUser.uid}`;
             if (!sessionStorage.getItem(sessionKey)) {
               const now = serverTimestamp();
               const updateData: any = { lastLoginAt: now, id: firebaseUser.uid };

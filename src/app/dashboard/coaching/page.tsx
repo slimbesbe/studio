@@ -16,29 +16,30 @@ export default function CoachingSelectionPage() {
   // UIDs Admin Centralisés
   const ADMIN_UIDS = ['GPgreBe1JzZYbEHQGn3xIdcQGQs1', 'vwyrAnNtQkSojYSEEK2qkRB5feh2'];
 
-  const isAdminUser = profile?.role === 'admin' || 
-                     profile?.role === 'super_admin' || 
-                     user?.email === 'slim.besbes@yahoo.fr' || 
-                     (user?.uid && ADMIN_UIDS.includes(user.uid));
-
   const sessionsQuery = useMemoFirebase(() => {
     // Sécurité : Attendre le chargement complet pour éviter les erreurs de permission list
     if (isUserLoading || !user || !db) return null;
     
+    // Détermination robuste du statut Admin
+    const isAdminUser = profile?.role === 'admin' || 
+                       profile?.role === 'super_admin' || 
+                       user?.email === 'slim.besbes@yahoo.fr' || 
+                       (user?.uid && ADMIN_UIDS.includes(user.uid));
+
     const baseRef = collection(db, 'coachingSessions');
     
-    // Si Admin identifié, on récupère tout sans filtre
+    // Si Admin identifié, on récupère tout sans filtre (autorisé par allow list: if isAdmin())
     if (isAdminUser) {
       return query(baseRef, orderBy('index', 'asc'));
     }
     
-    // Si Participant, on filtre impérativement par isPublished pour respecter les règles
+    // Si Participant, on filtre impérativement par isPublished pour respecter les règles standard
     return query(
       baseRef, 
       where('isPublished', '==', true),
       orderBy('index', 'asc')
     );
-  }, [db, user, isAdminUser, isUserLoading]);
+  }, [db, user, profile?.role, isUserLoading]);
 
   const { data: sessions, isLoading: isSessionsLoading } = useCollection(sessionsQuery);
 
@@ -52,6 +53,11 @@ export default function CoachingSelectionPage() {
   if (isUserLoading || isSessionsLoading || isAttemptsLoading) {
     return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
   }
+
+  const isAdminUser = profile?.role === 'admin' || 
+                     profile?.role === 'super_admin' || 
+                     user?.email === 'slim.besbes@yahoo.fr' || 
+                     (user?.uid && ADMIN_UIDS.includes(user.uid));
 
   const displaySessions = sessions || [];
 
