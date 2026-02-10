@@ -17,10 +17,12 @@ export default function CoachingSelectionPage() {
   const isAdminUser = profile?.role === 'admin' || profile?.role === 'super_admin' || user?.email === 'slim.besbes@yahoo.fr';
 
   const sessionsQuery = useMemoFirebase(() => {
-    if (isUserLoading || !user) return null;
+    // Crucial: On attend que le profil soit chargé pour savoir si on fait une requête admin ou filtrée
+    if (isUserLoading || !user || !db) return null;
+    
     const baseRef = collection(db, 'coachingSessions');
     
-    // Si Admin, on récupère tout par index
+    // Si Admin identifié, on récupère tout par index (sans filtre isPublished)
     if (isAdminUser) {
       return query(baseRef, orderBy('index', 'asc'));
     }
@@ -36,9 +38,9 @@ export default function CoachingSelectionPage() {
   const { data: sessions, isLoading: isSessionsLoading } = useCollection(sessionsQuery);
 
   const attemptsQuery = useMemoFirebase(() => {
-    if (!profile?.id) return null;
-    return query(collection(db, 'coachingAttempts'), where('userId', '==', profile.id));
-  }, [db, profile?.id]);
+    if (isUserLoading || !user?.uid) return null;
+    return query(collection(db, 'coachingAttempts'), where('userId', '==', user.uid));
+  }, [db, user?.uid, isUserLoading]);
 
   const { data: attempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
 
@@ -46,7 +48,6 @@ export default function CoachingSelectionPage() {
     return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
   }
 
-  // Fallback si la collection n'est pas encore initialisée
   const displaySessions = sessions && sessions.length > 0 ? sessions : [];
 
   return (

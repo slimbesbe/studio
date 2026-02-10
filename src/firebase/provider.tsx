@@ -105,7 +105,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
             }));
 
             // Stats de connexion (Une fois par session navigateur)
-            const sessionKey = `session_v6_${firebaseUser.uid}`;
+            const sessionKey = `session_v7_${firebaseUser.uid}`;
             if (!sessionStorage.getItem(sessionKey)) {
               const now = serverTimestamp();
               const updateData: any = { 
