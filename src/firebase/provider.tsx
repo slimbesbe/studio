@@ -45,7 +45,7 @@ export interface FirebaseServicesAndUser {
 
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
-// Liste des UIDs Super Admin autorisés (Priorité absolue)
+// Liste des UIDs Super Admin autorisés (Reconnaissance immédiate)
 const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1'];
 const ADMIN_EMAIL = 'slim.besbes@yahoo.fr';
 
@@ -104,8 +104,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               isUserLoading: false 
             }));
 
-            // Tracking session unique
-            const sessionKey = `session_v14_${firebaseUser.uid}`;
+            // Tracking session unique (évite d'écraser firstLoginAt)
+            const sessionKey = `session_v15_${firebaseUser.uid}`;
             if (!sessionStorage.getItem(sessionKey)) {
               const now = serverTimestamp();
               const updateData: any = { lastLoginAt: now, id: firebaseUser.uid };

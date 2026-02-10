@@ -45,14 +45,13 @@ export default function CoachingSelectionPage() {
   const attemptsQuery = useMemoFirebase(() => {
     if (isUserLoading || !user?.uid || !profile) return null;
     
-    // Pour les statistiques, on ne charge que les tentatives de l'utilisateur courant s'il n'est pas admin
     const isAdminUser = profile.role === 'admin' || 
                        profile.role === 'super_admin' || 
                        user.email === 'slim.besbes@yahoo.fr' || 
                        ADMIN_UIDS.includes(user.uid);
 
     if (isAdminUser) {
-      // Les admins voient tout (mais ici on limite peut-être pour l'UI, gardons tout pour le moment)
+      // Les admins voient tout le flux pour vérification
       return query(collection(db, 'coachingAttempts'), orderBy('submittedAt', 'desc'));
     }
 
@@ -96,7 +95,8 @@ export default function CoachingSelectionPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {displaySessions.map((session) => {
-            const attempt = attempts?.find(a => a.sessionId === session.id);
+            // Filtrer l'historique pour ne garder que la tentative liée à cette session précise
+            const attempt = attempts?.find(a => a.sessionId === session.id && (isAdminUser ? a.userId === user?.uid : true));
             const isLocked = !session.isPublished;
 
             return (
