@@ -8,11 +8,11 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // Vérification Super Admin (Priorité Absolue)
+    // Vérification Super Admin par UID (Méthode la plus fiable)
     function isSuperAdmin() {
       return isSignedIn() && (
-        request.auth.token.email == "slim.besbes@yahoo.fr" || 
-        request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1"
+        request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1" ||
+        request.auth.token.email == "slim.besbes@yahoo.fr"
       );
     }
 
@@ -27,7 +27,7 @@ service cloud.firestore {
 
     // --- RÈGLES DE MATCHING ---
 
-    // 1. ACCÈS TOTAL POUR LE SUPER ADMIN (Doit être en premier)
+    // 1. ACCÈS TOTAL POUR LE SUPER ADMIN
     match /{document=**} {
       allow read, write: if isSuperAdmin();
     }
@@ -68,9 +68,7 @@ service cloud.firestore {
     }
 
     match /coachingAttempts/{attemptId} {
-      // Autorise le listing complet pour les admins, et filtré pour les users
-      allow list: if isAdmin() || (isSignedIn() && request.query.limit <= 100);
-      allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow read, list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow write: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isAdmin());
     }
 

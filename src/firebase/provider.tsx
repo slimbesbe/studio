@@ -46,6 +46,7 @@ export interface FirebaseServicesAndUser {
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
 const ADMIN_EMAIL = 'slim.besbes@yahoo.fr';
+const ADMIN_UID = 'GPgreBe1JzZYbEHQGn3xIdcQGQs1';
 
 export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   children,
@@ -70,20 +71,17 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       if (firebaseUser) {
         const userDocRef = doc(firestore, 'users', firebaseUser.uid);
         
-        // Auto-bootstrap for Super Admin if needed
-        if (firebaseUser.email === ADMIN_EMAIL) {
+        // Auto-bootstrap for Super Admin
+        if (firebaseUser.email === ADMIN_EMAIL || firebaseUser.uid === ADMIN_UID) {
           try {
             const adminDocRef = doc(firestore, 'roles_admin', firebaseUser.uid);
-            const adminDocSnap = await getDoc(adminDocRef);
-            if (!adminDocSnap.exists()) {
-              await setDoc(adminDocRef, { 
-                createdAt: serverTimestamp(),
-                email: ADMIN_EMAIL,
-                isSuperAdmin: true
-              }, { merge: true });
-            }
+            await setDoc(adminDocRef, { 
+              createdAt: serverTimestamp(),
+              email: firebaseUser.email || ADMIN_EMAIL,
+              isSuperAdmin: true
+            }, { merge: true });
           } catch (e) {
-            console.warn("Admin bootstrap check failed, rules will handle it.");
+            console.warn("Admin bootstrap failed:", e);
           }
         }
 
@@ -111,13 +109,13 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
             }));
 
             // Stats de connexion (une fois par session navigateur)
-            const sessionKey = `session_init_v4_${firebaseUser.uid}`;
+            const sessionKey = `session_init_v5_${firebaseUser.uid}`;
             if (!sessionStorage.getItem(sessionKey)) {
               const now = serverTimestamp();
               const updateData: any = { 
                 lastLoginAt: now,
                 updatedAt: now,
-                id: firebaseUser.uid // Assurer l'ID
+                id: firebaseUser.uid
               };
               
               if (!profileData.firstLoginAt) updateData.firstLoginAt = now;
@@ -133,11 +131,11 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
             }
           } else {
             // Création automatique du profil si inexistant pour le Super Admin
-            if (firebaseUser.email === ADMIN_EMAIL) {
+            if (firebaseUser.email === ADMIN_EMAIL || firebaseUser.uid === ADMIN_UID) {
               const now = serverTimestamp();
               const initialData = {
                 id: firebaseUser.uid,
-                email: firebaseUser.email,
+                email: firebaseUser.email || ADMIN_EMAIL,
                 firstName: 'Slim',
                 lastName: 'Besbes',
                 role: 'super_admin',
@@ -179,7 +177,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         totalTimeSpent: increment(60),
         lastLoginAt: serverTimestamp() 
       }, { merge: true }).catch(() => {});
-    }, 60000); // 1 minute
+    }, 60000);
 
     return () => clearInterval(interval);
   }, [auth, firestore, userAuthState.user]);
