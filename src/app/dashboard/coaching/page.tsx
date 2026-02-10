@@ -13,26 +13,26 @@ export default function CoachingSelectionPage() {
   const { profile, user, isUserLoading } = useUser();
   const db = useFirestore();
 
-  // UIDs Admin reconnus immédiatement
+  // UIDs Admin reconnus immédiatement pour gating client
   const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1'];
 
   const sessionsQuery = useMemoFirebase(() => {
-    // Sécurité critique : Ne pas lancer de requête tant que le profil n'est pas résolu
+    // Sécurité critique : Ne pas lancer de requête tant que l'identité n'est pas confirmée
     if (isUserLoading || !user || !profile || !db) return null;
     
-    const isAdminUser = profile.role === 'admin' || 
-                       profile.role === 'super_admin' || 
+    const isAdminUser = profile.role === 'super_admin' || 
+                       profile.role === 'admin' || 
                        user.email === 'slim.besbes@yahoo.fr' || 
                        ADMIN_UIDS.includes(user.uid);
 
     const baseRef = collection(db, 'coachingSessions');
     
-    // Si Admin, on liste TOUT sans filtre (autorisé par isAdmin() dans les règles)
+    // Si Admin, on liste TOUT sans filtre
     if (isAdminUser) {
       return query(baseRef, orderBy('index', 'asc'));
     }
     
-    // Si Participant, on filtre OBLIGATOIREMENT par isPublished pour correspondre aux règles utilisateur
+    // Si Participant, on filtre OBLIGATOIREMENT par isPublished
     return query(
       baseRef, 
       where('isPublished', '==', true),
@@ -43,15 +43,14 @@ export default function CoachingSelectionPage() {
   const { data: sessions, isLoading: isSessionsLoading } = useCollection(sessionsQuery);
 
   const attemptsQuery = useMemoFirebase(() => {
-    if (isUserLoading || !user?.uid || !profile) return null;
+    if (isUserLoading || !user?.uid || !profile || !db) return null;
     
-    const isAdminUser = profile.role === 'admin' || 
-                       profile.role === 'super_admin' || 
+    const isAdminUser = profile.role === 'super_admin' || 
+                       profile.role === 'admin' || 
                        user.email === 'slim.besbes@yahoo.fr' || 
                        ADMIN_UIDS.includes(user.uid);
 
     if (isAdminUser) {
-      // Les admins voient tout le flux pour vérification
       return query(collection(db, 'coachingAttempts'), orderBy('submittedAt', 'desc'));
     }
 
@@ -64,8 +63,8 @@ export default function CoachingSelectionPage() {
     return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
   }
 
-  const isAdminUser = profile?.role === 'admin' || 
-                     profile?.role === 'super_admin' || 
+  const isAdminUser = profile?.role === 'super_admin' || 
+                     profile?.role === 'admin' || 
                      user?.email === 'slim.besbes@yahoo.fr' || 
                      (user?.uid && ADMIN_UIDS.includes(user.uid));
 
@@ -95,7 +94,6 @@ export default function CoachingSelectionPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {displaySessions.map((session) => {
-            // Filtrer l'historique pour ne garder que la tentative liée à cette session précise
             const attempt = attempts?.find(a => a.sessionId === session.id && (isAdminUser ? a.userId === user?.uid : true));
             const isLocked = !session.isPublished;
 
