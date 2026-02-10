@@ -13,40 +13,51 @@ export default function CoachingSelectionPage() {
   const { profile, user, isUserLoading } = useUser();
   const db = useFirestore();
 
-  // UIDs Admin Centralisés
-  const ADMIN_UIDS = ['GPgreBe1JzZYbEHQGn3xIdcQGQs1', 'vwyrAnNtQkSojYSEEK2qkRB5feh2'];
+  // UIDs Admin reconnus immédiatement
+  const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1'];
 
   const sessionsQuery = useMemoFirebase(() => {
-    // Sécurité : Attendre le chargement complet pour éviter les erreurs de permission list
-    if (isUserLoading || !user || !db) return null;
+    // Sécurité critique : Ne pas lancer de requête tant que le profil n'est pas résolu
+    if (isUserLoading || !user || !profile || !db) return null;
     
-    // Détermination robuste du statut Admin
-    const isAdminUser = profile?.role === 'admin' || 
-                       profile?.role === 'super_admin' || 
-                       user?.email === 'slim.besbes@yahoo.fr' || 
-                       (user?.uid && ADMIN_UIDS.includes(user.uid));
+    const isAdminUser = profile.role === 'admin' || 
+                       profile.role === 'super_admin' || 
+                       user.email === 'slim.besbes@yahoo.fr' || 
+                       ADMIN_UIDS.includes(user.uid);
 
     const baseRef = collection(db, 'coachingSessions');
     
-    // Si Admin identifié, on récupère tout sans filtre (autorisé par allow list: if isAdmin())
+    // Si Admin, on liste TOUT sans filtre (autorisé par isAdmin() dans les règles)
     if (isAdminUser) {
       return query(baseRef, orderBy('index', 'asc'));
     }
     
-    // Si Participant, on filtre impérativement par isPublished pour respecter les règles standard
+    // Si Participant, on filtre OBLIGATOIREMENT par isPublished pour correspondre aux règles utilisateur
     return query(
       baseRef, 
       where('isPublished', '==', true),
       orderBy('index', 'asc')
     );
-  }, [db, user, profile?.role, isUserLoading]);
+  }, [db, user, profile, isUserLoading]);
 
   const { data: sessions, isLoading: isSessionsLoading } = useCollection(sessionsQuery);
 
   const attemptsQuery = useMemoFirebase(() => {
-    if (isUserLoading || !user?.uid) return null;
+    if (isUserLoading || !user?.uid || !profile) return null;
+    
+    // Pour les statistiques, on ne charge que les tentatives de l'utilisateur courant s'il n'est pas admin
+    const isAdminUser = profile.role === 'admin' || 
+                       profile.role === 'super_admin' || 
+                       user.email === 'slim.besbes@yahoo.fr' || 
+                       ADMIN_UIDS.includes(user.uid);
+
+    if (isAdminUser) {
+      // Les admins voient tout (mais ici on limite peut-être pour l'UI, gardons tout pour le moment)
+      return query(collection(db, 'coachingAttempts'), orderBy('submittedAt', 'desc'));
+    }
+
     return query(collection(db, 'coachingAttempts'), where('userId', '==', user.uid));
-  }, [db, user?.uid, isUserLoading]);
+  }, [db, user?.uid, profile, isUserLoading]);
 
   const { data: attempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
 

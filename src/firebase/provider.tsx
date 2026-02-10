@@ -45,8 +45,8 @@ export interface FirebaseServicesAndUser {
 
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
-// Liste des UIDs Super Admin autorisés
-const ADMIN_UIDS = ['GPgreBe1JzZYbEHQGn3xIdcQGQs1', 'vwyrAnNtQkSojYSEEK2qkRB5feh2'];
+// Liste des UIDs Super Admin autorisés (Priorité absolue)
+const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1'];
 const ADMIN_EMAIL = 'slim.besbes@yahoo.fr';
 
 export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
@@ -69,11 +69,11 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Bootstrap immédiat pour le Super Admin
-        const isSA = ADMIN_UIDS.includes(firebaseUser.uid) || (firebaseUser.email && firebaseUser.email === ADMIN_EMAIL);
+        // Détection immédiate du statut Super Admin via UID
+        const isSA = ADMIN_UIDS.includes(firebaseUser.uid) || (firebaseUser.email === ADMIN_EMAIL);
         
         if (isSA) {
-          // Force la présence dans roles_admin pour les règles Firestore
+          // Force la présence dans roles_admin pour les règles Firestore secondaires
           setDoc(doc(firestore, 'roles_admin', firebaseUser.uid), { 
             createdAt: serverTimestamp(),
             email: firebaseUser.email || ADMIN_EMAIL,
@@ -104,12 +104,11 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               isUserLoading: false 
             }));
 
-            // Tracking session unique (Protection des dates historiques)
-            const sessionKey = `session_v13_${firebaseUser.uid}`;
+            // Tracking session unique
+            const sessionKey = `session_v14_${firebaseUser.uid}`;
             if (!sessionStorage.getItem(sessionKey)) {
               const now = serverTimestamp();
               const updateData: any = { lastLoginAt: now, id: firebaseUser.uid };
-              // On n'écrase JAMAIS firstLoginAt s'il existe déjà
               if (!profileData.firstLoginAt) updateData.firstLoginAt = now;
               setDoc(userDocRef, updateData, { merge: true }).catch(() => {});
               sessionStorage.setItem(sessionKey, 'true');
@@ -119,7 +118,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
                router.push('/access-denied');
             }
           } else if (isSA) {
-            // Création automatique si le document n'existe pas encore
+            // Création automatique Super Admin si document manquant
             const now = serverTimestamp();
             const initialData = {
               id: firebaseUser.uid,
@@ -154,7 +153,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     return () => unsubscribeAuth();
   }, [auth, firestore, pathname, router]);
 
-  // Heartbeat pour le temps passé
+  // Heartbeat
   useEffect(() => {
     if (!auth || !firestore || !userAuthState.user || userAuthState.user.isAnonymous) return;
     const interval = setInterval(() => {
