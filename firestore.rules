@@ -8,8 +8,7 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // ACCÈS TOTAL SUPER ADMIN (PRIORITÉ ABSOLUE)
-    // On utilise uniquement les UIDs pour une validation instantanée et stable
+    // Définition statique des Super Admins pour une validation instantanée
     function isSuperAdmin() {
       return isSignedIn() && (
         request.auth.uid == "vwyrAnNtQkSojYSEEK2qkRB5feh2" || 
@@ -22,12 +21,7 @@ service cloud.firestore {
       return isSuperAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
     }
 
-    // RÈGLE GLOBALE DE PRIORITÉ : Le Super Admin bypass tout
-    match /{document=**} {
-      allow read, write: if isSuperAdmin();
-    }
-
-    // --- RÈGLES SPÉCIFIQUES PAR COLLECTION ---
+    // --- RÈGLES PAR COLLECTION ---
     
     match /users/{userId} {
       allow list: if isAdmin();
@@ -46,14 +40,14 @@ service cloud.firestore {
     }
 
     match /coachingSessions/{sessionId} {
-      // Listing global pour Admin, filtré pour User
+      // Autorise le listing global pour l'admin, et le listing filtré pour l'utilisateur
       allow list: if isAdmin() || (isSignedIn() && resource.data.isPublished == true);
       allow get: if isAdmin() || (isSignedIn() && resource.data.isPublished == true);
       allow write: if isAdmin();
     }
 
     match /coachingAttempts/{attemptId} {
-      // Listing global pour Admin, restreint à ses propres données pour User
+      // Autorise le listing global pour l'admin, et restreint à ses propres données pour l'utilisateur
       allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow write: if isSignedIn() && (isAdmin() || request.resource.data.userId == request.auth.uid);

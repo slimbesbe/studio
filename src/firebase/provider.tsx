@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, onSnapshot, Timestamp, setDoc, serverTimestamp, increment } from 'firebase/firestore';
+import { Firestore, doc, onSnapshot, Timestamp, setDoc, serverTimestamp, increment, getDoc } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { useRouter, usePathname } from 'next/navigation';
@@ -69,7 +69,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Détection immédiate du statut Super Admin via UID
+        // Détection immédiate du statut Super Admin via UID ou Email
         const isSA = ADMIN_UIDS.includes(firebaseUser.uid) || (firebaseUser.email === ADMIN_EMAIL);
         
         if (isSA) {
@@ -95,6 +95,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
             }
 
             const currentStatus = isExpired ? 'expired' : (profileData.status || 'active');
+            // Priorité absolue à l'UID pour le rôle
             const role = isSA ? 'super_admin' : (profileData.role || 'user');
 
             setUserAuthState(prev => ({ 
@@ -104,7 +105,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               isUserLoading: false 
             }));
 
-            // Tracking session unique
+            // Tracking session unique (sans await pour ne pas bloquer)
             const sessionKey = `session_v15_track_${firebaseUser.uid}`;
             if (!sessionStorage.getItem(sessionKey)) {
               const now = serverTimestamp();
@@ -114,11 +115,11 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               sessionStorage.setItem(sessionKey, 'true');
             }
 
-            if (!firebaseUser.isAnonymous && currentStatus !== 'active' && pathname.startsWith('/dashboard')) {
+            if (!firebaseUser.isAnonymous && currentStatus !== 'active' && pathname.startsWith('/dashboard') && currentStatus !== 'active') {
                router.push('/access-denied');
             }
           } else if (isSA) {
-            // Création automatique Super Admin si document manquant
+            // Création automatique Super Admin si document manquant dans Firestore
             const now = serverTimestamp();
             const initialData = {
               id: firebaseUser.uid,
@@ -153,7 +154,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     return () => unsubscribeAuth();
   }, [auth, firestore, pathname, router]);
 
-  // Heartbeat
+  // Heartbeat pour le temps d'étude
   useEffect(() => {
     if (!auth || !firestore || !userAuthState.user || userAuthState.user.isAnonymous) return;
     const interval = setInterval(() => {

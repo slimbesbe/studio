@@ -20,6 +20,7 @@ export default function CoachingSelectionPage() {
     // Sécurité critique : Ne pas lancer de requête tant que l'identité n'est pas confirmée
     if (isUserLoading || !user || !profile || !db) return null;
     
+    // Détection robuste du rôle admin
     const isAdminUser = profile.role === 'super_admin' || 
                        profile.role === 'admin' || 
                        user.email === 'slim.besbes@yahoo.fr' || 
@@ -27,12 +28,12 @@ export default function CoachingSelectionPage() {
 
     const baseRef = collection(db, 'coachingSessions');
     
-    // Si Admin, on liste TOUT sans filtre
+    // Si Admin, on liste TOUT sans filtre pour éviter les erreurs de permission sur resource.data
     if (isAdminUser) {
       return query(baseRef, orderBy('index', 'asc'));
     }
     
-    // Si Participant, on filtre OBLIGATOIREMENT par isPublished
+    // Si Participant, on filtre OBLIGATOIREMENT par isPublished conformément aux règles Firestore
     return query(
       baseRef, 
       where('isPublished', '==', true),
@@ -50,11 +51,15 @@ export default function CoachingSelectionPage() {
                        user.email === 'slim.besbes@yahoo.fr' || 
                        ADMIN_UIDS.includes(user.uid);
 
+    const baseRef = collection(db, 'coachingAttempts');
+
+    // Si Admin, on liste tout pour l'analyse
     if (isAdminUser) {
-      return query(collection(db, 'coachingAttempts'), orderBy('submittedAt', 'desc'));
+      return query(baseRef, orderBy('submittedAt', 'desc'));
     }
 
-    return query(collection(db, 'coachingAttempts'), where('userId', '==', user.uid));
+    // Si User, on ne liste que ses propres tentatives
+    return query(baseRef, where('userId', '==', user.uid));
   }, [db, user?.uid, profile, isUserLoading]);
 
   const { data: attempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
@@ -94,7 +99,8 @@ export default function CoachingSelectionPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {displaySessions.map((session) => {
-            const attempt = attempts?.find(a => a.sessionId === session.id && (isAdminUser ? a.userId === user?.uid : true));
+            // Pour l'admin, on cherche sa propre tentative s'il en a une
+            const attempt = attempts?.find(a => a.sessionId === session.id && a.userId === user?.uid);
             const isLocked = !session.isPublished;
 
             return (
