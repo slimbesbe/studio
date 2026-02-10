@@ -71,7 +71,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       if (firebaseUser) {
         const userDocRef = doc(firestore, 'users', firebaseUser.uid);
         
-        // Bootstrap Admin Direct (Sans await pour ne pas bloquer le rendu)
+        // Bootstrap Admin Direct (Sécurité renforcée pour Slim Besbes)
         if (firebaseUser.email === ADMIN_EMAIL || firebaseUser.uid === ADMIN_UID) {
           const adminDocRef = doc(firestore, 'roles_admin', firebaseUser.uid);
           setDoc(adminDocRef, { 
@@ -105,7 +105,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
             }));
 
             // Stats de connexion (Une fois par session navigateur)
-            const sessionKey = `session_v7_${firebaseUser.uid}`;
+            const sessionKey = `session_v8_${firebaseUser.uid}`;
             if (!sessionStorage.getItem(sessionKey)) {
               const now = serverTimestamp();
               const updateData: any = { 
@@ -114,7 +114,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
                 id: firebaseUser.uid
               };
               
-              // On ne définit firstLoginAt QUE si aucun champ de date n'existe (Respect de l'ancienneté)
+              // On ne définit firstLoginAt QUE si aucun champ de date n'existe
               if (!profileData.firstLoginAt && !profileData.createdAt) {
                 updateData.firstLoginAt = now;
                 updateData.createdAt = now;
