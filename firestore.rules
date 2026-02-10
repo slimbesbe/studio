@@ -2,18 +2,21 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // --- FONCTIONS DE SÉCURITÉ DE BASE ---
+    // --- FONCTIONS DE SÉCURITÉ ---
     
     function isSignedIn() {
       return request.auth != null;
     }
     
-    // Vérification Super Admin par UID (Méthode la plus rapide et fiable)
     function isSuperAdmin() {
-      return isSignedIn() && request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1";
+      // Support des deux UIDs connus pour le Super Admin et de l'email de secours
+      return isSignedIn() && (
+        request.auth.uid == "vwyrAnNtQkSojYSEEK2qkRB5feh2" || 
+        request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1" || 
+        request.auth.token.email == "slim.besbes@yahoo.fr"
+      );
     }
 
-    // Vérification Admin via collection roles_admin ou check Super Admin
     function isAdmin() { 
       return isSuperAdmin() || exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
@@ -22,13 +25,12 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // --- ACCÈS TOTAL SUPER ADMIN ---
-    // Cette règle en tête de fichier garantit que le Super Admin n'est jamais bloqué
+    // --- ACCÈS TOTAL SUPER ADMIN (PRIORITÉ ABSOLUE) ---
     match /{document=**} {
       allow read, write: if isSuperAdmin();
     }
 
-    // --- RÈGLES SPÉCIFIQUES ---
+    // --- RÈGLES SPÉCIFIQUES PAR COLLECTION ---
     
     match /roles_admin/{userId} {
       allow get: if isSignedIn();
@@ -52,10 +54,7 @@ service cloud.firestore {
     }
 
     match /coachingSessions/{sessionId} {
-      allow get: if isSignedIn();
-      // On sépare le listing pour éviter les conflits de filtres resource.data
-      allow list: if isAdmin();
-      allow list: if isSignedIn() && resource.data.isPublished == true;
+      allow read: if isAdmin() || (isSignedIn() && resource.data.isPublished == true);
       allow write: if isAdmin();
     }
 
@@ -65,10 +64,7 @@ service cloud.firestore {
     }
 
     match /coachingAttempts/{attemptId} {
-      allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      // On sépare le listing
-      allow list: if isAdmin();
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow write: if isAdmin() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
     }
 

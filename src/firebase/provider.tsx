@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, onSnapshot, Timestamp, setDoc, serverTimestamp, increment } from 'firebase/firestore';
+import { Firestore, doc, onSnapshot, Timestamp, setDoc, serverTimestamp, increment, getDoc } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { useRouter, usePathname } from 'next/navigation';
@@ -45,7 +45,8 @@ export interface FirebaseServicesAndUser {
 
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
-const ADMIN_UID = 'GPgreBe1JzZYbEHQGn3xIdcQGQs1';
+// Liste des UIDs Super Admin autorisés
+const ADMIN_UIDS = ['GPgreBe1JzZYbEHQGn3xIdcQGQs1', 'vwyrAnNtQkSojYSEEK2qkRB5feh2'];
 const ADMIN_EMAIL = 'slim.besbes@yahoo.fr';
 
 export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
@@ -68,13 +69,14 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Bootstrap immédiat pour le Super Admin (UID direct)
-        if (firebaseUser.uid === ADMIN_UID || firebaseUser.email === ADMIN_EMAIL) {
+        // Bootstrap pour le Super Admin
+        const isSA = ADMIN_UIDS.includes(firebaseUser.uid) || firebaseUser.email === ADMIN_EMAIL;
+        if (isSA) {
           await setDoc(doc(firestore, 'roles_admin', firebaseUser.uid), { 
             createdAt: serverTimestamp(),
             email: firebaseUser.email || ADMIN_EMAIL,
             isSuperAdmin: true
-          }, { merge: true }).catch(console.error);
+          }, { merge: true }).catch(() => {});
         }
 
         const userDocRef = doc(firestore, 'users', firebaseUser.uid);
@@ -99,15 +101,12 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               isUserLoading: false 
             }));
 
-            // Tracking session
-            const sessionKey = `session_v10_${firebaseUser.uid}`;
+            // Tracking session unique
+            const sessionKey = `session_v11_${firebaseUser.uid}`;
             if (!sessionStorage.getItem(sessionKey)) {
               const now = serverTimestamp();
               const updateData: any = { lastLoginAt: now, id: firebaseUser.uid };
-              if (!profileData.firstLoginAt && !profileData.createdAt) {
-                updateData.firstLoginAt = now;
-                updateData.createdAt = now;
-              }
+              if (!profileData.firstLoginAt) updateData.firstLoginAt = now;
               setDoc(userDocRef, updateData, { merge: true }).catch(() => {});
               sessionStorage.setItem(sessionKey, 'true');
             }
@@ -115,26 +114,24 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
             if (!firebaseUser.isAnonymous && currentStatus !== 'active' && pathname.startsWith('/dashboard')) {
                router.push('/access-denied');
             }
+          } else if (isSA) {
+            // Auto-création de profil pour le Super Admin s'il n'existe pas
+            const now = serverTimestamp();
+            const initialData = {
+              id: firebaseUser.uid,
+              email: firebaseUser.email || ADMIN_EMAIL,
+              firstName: 'Slim',
+              lastName: 'Besbes',
+              role: 'super_admin',
+              status: 'active',
+              createdAt: now,
+              firstLoginAt: now,
+              lastLoginAt: now
+            };
+            setDoc(userDocRef, initialData).catch(() => {});
+            setUserAuthState(prev => ({ ...prev, user: firebaseUser, profile: initialData, isUserLoading: false }));
           } else {
-            // Création profil auto Super Admin
-            if (firebaseUser.uid === ADMIN_UID || firebaseUser.email === ADMIN_EMAIL) {
-              const now = serverTimestamp();
-              const initialData = {
-                id: firebaseUser.uid,
-                email: firebaseUser.email || ADMIN_EMAIL,
-                firstName: 'Slim',
-                lastName: 'Besbes',
-                role: 'super_admin',
-                status: 'active',
-                createdAt: now,
-                firstLoginAt: now,
-                lastLoginAt: now
-              };
-              setDoc(userDocRef, initialData).catch(() => {});
-              setUserAuthState(prev => ({ ...prev, user: firebaseUser, profile: initialData, isUserLoading: false }));
-            } else {
-              setUserAuthState(prev => ({ ...prev, user: firebaseUser, isUserLoading: false }));
-            }
+            setUserAuthState(prev => ({ ...prev, user: firebaseUser, isUserLoading: false }));
           }
         });
 
@@ -150,7 +147,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     return () => unsubscribeAuth();
   }, [auth, firestore, pathname, router]);
 
-  // Heartbeat pour le temps passé
+  // Heartbeat pour le temps passé (activé uniquement pour les utilisateurs réels)
   useEffect(() => {
     if (!auth || !firestore || !userAuthState.user || userAuthState.user.isAnonymous) return;
     const interval = setInterval(() => {

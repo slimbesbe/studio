@@ -3,12 +3,12 @@
 
 import { useEffect, useState } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { collection, doc, getDoc, updateDoc, Timestamp, deleteDoc } from 'firebase/firestore';
+import { collection, doc, updateDoc, Timestamp, deleteDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, UserPlus, ChevronLeft, Users, User, Clock, Key, Trash2, BarChart, TrendingUp, Target, Mail, Pencil, CalendarDays } from 'lucide-react';
+import { Loader2, UserPlus, ChevronLeft, Users, User, Clock, Key, Trash2, BarChart, Target, Mail, Pencil, CalendarDays } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
@@ -19,29 +19,26 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 export default function UsersListPage() {
-  const { user: currentUser, isUserLoading } = useUser();
+  const { user: currentUser, profile, isUserLoading } = useUser();
   const db = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  
   const [userToDelete, setUserToDelete] = useState<any | null>(null);
   const [passwordChangeUser, setPasswordChangeUser] = useState<any | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
-  useEffect(() => {
-    async function checkAdmin() {
-      if (currentUser) {
-        const adminDoc = await getDoc(doc(db, 'roles_admin', currentUser.uid));
-        if (!adminDoc.exists()) router.push('/dashboard');
-        else setIsAdmin(true);
-      } else if (!isUserLoading) router.push('/');
-    }
-    checkAdmin();
-  }, [currentUser, isUserLoading, db, router]);
+  // Sécurité supplémentaire : On vérifie le rôle avant de permettre le rendu
+  const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
 
-  const usersQuery = useMemoFirebase(() => collection(db, 'users'), [db]);
-  const { data: users, isLoading } = useCollection(usersQuery);
+  // On ne lance la requête que si on est confirmé Admin pour éviter les erreurs Firebase Permission
+  const usersQuery = useMemoFirebase(() => {
+    if (!isAdmin) return null;
+    return collection(db, 'users');
+  }, [db, isAdmin]);
+
+  const { data: users, isLoading: isCollectionLoading } = useCollection(usersQuery);
 
   const toggleStatus = async (userId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'active' ? 'disabled' : 'active';
@@ -91,7 +88,6 @@ export default function UsersListPage() {
 
   const formatDate = (ts: any) => {
     if (!ts) return '-';
-    // Gérer les Timestamps Firestore, les Dates JS ou les chaînes ISO
     const date = ts?.toDate ? ts.toDate() : new Date(ts);
     if (isNaN(date.getTime())) return '-';
     
@@ -104,12 +100,16 @@ export default function UsersListPage() {
     }).toUpperCase();
   };
 
-  if (isUserLoading || isAdmin === null || isLoading) {
+  if (isUserLoading || isCollectionLoading) {
     return (
       <div className="h-screen flex items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
+  }
+
+  if (!isAdmin) {
+    return null; // Redirection gérée par le provider
   }
 
   // Trier par dernière connexion par défaut
@@ -182,7 +182,7 @@ export default function UsersListPage() {
                   </TableCell>
                   <TableCell className="text-center font-black text-slate-600 italic text-lg">{formatTime(u.totalTimeSpent)}</TableCell>
                   <TableCell className="text-xs font-black text-primary italic uppercase tracking-tighter">
-                    {formatDate(u.firstLoginAt || u.createdAt)}
+                    {formatDate(u.firstLoginAt)}
                   </TableCell>
                   <TableCell className="text-xs font-black text-slate-500 italic uppercase tracking-tighter">{formatDate(u.lastLoginAt)}</TableCell>
                   <TableCell className="text-right px-12">
