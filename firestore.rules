@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -7,7 +8,7 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // Définition statique des Super Admins (UIDs et Email de bootstrap)
+    // Définition statique des Super Admins pour court-circuiter les erreurs de permissions
     function isSuperAdmin() {
       return isSignedIn() && (
         request.auth.uid == "vwyrAnNtQkSojYSEEK2qkRB5feh2" || 
@@ -16,19 +17,17 @@ service cloud.firestore {
       );
     }
 
-    // Un Admin est soit un Super Admin (via UID/Email), soit un utilisateur ayant un document dans roles_admin
+    // Un Admin est soit un Super Admin, soit un admin délégué
     function isAdmin() { 
       return isSuperAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
     }
 
     // --- RÈGLE PRIORITAIRE SUPER ADMIN (GOD MODE) ---
-    // Cette règle permet aux Super Admins de tout lister et lire sans restrictions
-    // Elle est isolée pour permettre le listing global sans filtres.
     match /{document=**} {
       allow read, write: if isSuperAdmin();
     }
 
-    // --- RÈGLES PAR COLLECTION ---
+    // --- RÈGLES PAR COLLECTION (Fallbacks pour non-Super Admins) ---
     
     match /users/{userId} {
       allow list: if isAdmin();
@@ -47,21 +46,13 @@ service cloud.firestore {
     }
 
     match /coachingSessions/{sessionId} {
-      // Autorise le listing global pour les admins
-      allow list: if isAdmin();
-      // Autorise le listing filtré pour les utilisateurs
-      allow list: if isSignedIn() && resource.data.isPublished == true;
-      
+      allow list: if isAdmin() || (isSignedIn() && resource.data.isPublished == true);
       allow get: if isAdmin() || (isSignedIn() && resource.data.isPublished == true);
       allow write: if isAdmin();
     }
 
     match /coachingAttempts/{attemptId} {
-      // Autorise le listing global pour les admins
-      allow list: if isAdmin();
-      // Autorise le listing filtré pour les utilisateurs (propriétaire uniquement)
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      
+      allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow write: if isSignedIn() && (isAdmin() || request.resource.data.userId == request.auth.uid);
     }

@@ -13,6 +13,7 @@ import { Plus, Users, ArrowRight, Loader2, ChevronLeft, ShieldCheck } from 'luci
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
 export default function AdminCoachingGroups() {
   const db = useFirestore();
