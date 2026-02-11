@@ -118,7 +118,8 @@ export default function ExamPage() {
     let baseAllowed = ALL_EXAMS;
     // Si c'est un utilisateur standard, on filtre par ses accès autorisés
     if (!(isDemo || profile?.role === 'super_admin' || profile?.role === 'admin')) {
-      baseAllowed = ALL_EXAMS.filter(exam => profile?.allowedExams?.includes(exam.id));
+      const userAllowedIds = profile?.allowedExams || [];
+      baseAllowed = ALL_EXAMS.filter(exam => userAllowedIds.includes(exam.id));
     }
 
     // On ne garde que les examens qui ont du contenu dans la banque
