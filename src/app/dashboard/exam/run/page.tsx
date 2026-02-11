@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useUser, useFirestore } from '@/firebase';
-import { collection, query, where, getDocs, doc, addDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -18,8 +18,6 @@ import {
   Pause, 
   Calculator as CalcIcon,
   Trophy,
-  AlertCircle,
-  CheckCircle2,
   X,
   LayoutGrid
 } from 'lucide-react';
@@ -30,7 +28,7 @@ import { Calculator } from '@/components/dashboard/Calculator';
 type ViewMode = 'intro' | 'question' | 'review' | 'break' | 'result';
 
 function ExamRunContent() {
-  const { user, profile } = useUser();
+  const { user } = useUser();
   const db = useFirestore();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -57,14 +55,11 @@ function ExamRunContent() {
   // Constants
   const SECTION_SIZE = 60;
 
-  // Calcul du temps total basé sur le nombre de questions
-  // Standard PMP: 180 questions = 230 minutes
   const calculateTotalTime = (numQuestions: number) => {
     const minutes = (numQuestions * 230) / 180;
-    return Math.floor(minutes * 60); // Retourne en secondes
+    return Math.floor(minutes * 60);
   };
 
-  // Charger les questions
   useEffect(() => {
     async function fetchQuestions() {
       if (!examId || !user) return;
@@ -101,7 +96,6 @@ function ExamRunContent() {
     fetchQuestions();
   }, [db, examId, user, router, toast]);
 
-  // Timers
   useEffect(() => {
     let timer: any;
     if (viewMode === 'question' && !isPaused && timeLeft > 0) {
@@ -140,6 +134,10 @@ function ExamRunContent() {
   const toggleFlag = () => {
     const qId = questions[currentIndex].id;
     setFlagged(prev => ({ ...prev, [qId]: !prev[qId] }));
+  };
+
+  const handleOptionSelect = (qId: string, optId: string) => {
+    setAnswers(prev => ({ ...prev, [qId]: optId }));
   };
 
   const startNextSection = () => {
@@ -197,7 +195,6 @@ function ExamRunContent() {
 
   if (isLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
 
-  // View: Results
   if (viewMode === 'result' && result) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -235,7 +232,7 @@ function ExamRunContent() {
 
           <div className="flex flex-col sm:flex-row gap-4 pt-6">
             <Button variant="outline" className="flex-1 h-16 rounded-2xl border-4 font-black uppercase tracking-widest text-lg italic" asChild>
-              <Link href="/dashboard/history">Historique</Link>
+              <Link href="/dashboard/history">Détails</Link>
             </Button>
             <Button className="flex-1 h-16 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl text-lg italic" asChild>
               <Link href="/dashboard">Tableau de bord</Link>
@@ -246,7 +243,6 @@ function ExamRunContent() {
     );
   }
 
-  // View: Break
   if (viewMode === 'break') {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -269,7 +265,6 @@ function ExamRunContent() {
     );
   }
 
-  // View: Review Section
   if (viewMode === 'review') {
     return (
       <div className="min-h-screen bg-slate-50 p-8 animate-fade-in">
@@ -326,13 +321,11 @@ function ExamRunContent() {
     );
   }
 
-  // View: Standard Question
   const currentQuestion = questions[currentIndex];
   const progressPercent = ((currentIndex + 1) / questions.length) * 100;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Header Bar */}
       <div className="bg-black text-white px-8 py-4 flex items-center justify-between shadow-xl sticky top-0 z-50">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" onClick={() => setIsPaused(true)} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-10 px-4">
@@ -367,7 +360,6 @@ function ExamRunContent() {
         </div>
       </div>
 
-      {/* Main Content */}
       <main className="flex-1 p-8 max-w-5xl mx-auto w-full space-y-8 pb-32">
         <div className="space-y-2">
           <Progress value={progressPercent} className="h-2 rounded-full bg-slate-200" />
@@ -412,7 +404,6 @@ function ExamRunContent() {
         </Card>
       </main>
 
-      {/* Footer Nav */}
       <div className="fixed bottom-0 left-64 right-0 bg-white border-t-2 p-6 flex items-center justify-between shadow-2xl z-40">
         <div className="flex items-center gap-4">
           <Button 
@@ -450,7 +441,6 @@ function ExamRunContent() {
         )}
       </div>
 
-      {/* Navigator Overlay */}
       {showNavigator && (
         <div className="fixed inset-0 z-[60] flex items-end justify-center pb-32 px-4 pointer-events-none">
           <Card className="w-full max-w-4xl p-8 rounded-[40px] shadow-3xl bg-white border-4 border-primary/20 pointer-events-auto animate-slide-up">
@@ -489,7 +479,6 @@ function ExamRunContent() {
         </div>
       )}
 
-      {/* Calculator Overlay */}
       {showCalculator && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
           <div className="pointer-events-auto">
@@ -498,7 +487,6 @@ function ExamRunContent() {
         </div>
       )}
 
-      {/* Pause Overlay */}
       {isPaused && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center pointer-events-auto">
           <div className="text-center space-y-8">
@@ -510,5 +498,13 @@ function ExamRunContent() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ExamRunPage() {
+  return (
+    <Suspense fallback={<div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>}>
+      <ExamRunContent />
+    </Suspense>
   );
 }
