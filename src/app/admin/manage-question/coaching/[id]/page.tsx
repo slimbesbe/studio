@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { useRouter, useParams } from 'next/navigation';
+import { doc, updateDoc, getDoc, serverTimestamp, setDoc, collection } from 'firebase/firestore';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,19 +25,17 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
-interface Option {
-  id: string;
-  text: string;
-}
-
-export default function ManageCoachingQuestionPage() {
-  const { user, profile, isUserLoading } = useUser();
+function ManageCoachingQuestionContent() {
+  const { profile, isUserLoading } = useUser();
   const db = useFirestore();
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const questionId = params.id as string;
+  const isNew = questionId === 'new';
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [text, setText] = useState("");
@@ -45,31 +43,33 @@ export default function ManageCoachingQuestionPage() {
   const [choices, setChoices] = useState<string[]>(["", "", "", ""]);
   const [correctChoice, setCorrectChoice] = useState("1");
   const [isActive, setIsActive] = useState(true);
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(parseInt(searchParams.get('index') || '0'));
+  const [sessionId, setSessionId] = useState(searchParams.get('sessionId') || '');
 
   // PMP Tags
   const [domain, setDomain] = useState("Process");
   const [approach, setApproach] = useState("Predictive");
   const [difficulty, setDifficulty] = useState("Medium");
 
-  const questionRef = useMemoFirebase(() => doc(db, 'questions', questionId), [db, questionId]);
+  const questionRef = useMemoFirebase(() => !isNew ? doc(db, 'questions', questionId) : null, [db, questionId, isNew]);
   const { data: questionData, isLoading: isQuestionLoading } = useDoc(questionRef);
 
   useEffect(() => {
-    if (questionData) {
+    if (questionData && !isNew) {
       setText(questionData.text || "");
       setExplanation(questionData.explanation || "");
       setChoices(questionData.choices || ["", "", "", ""]);
       setCorrectChoice(String(questionData.correctChoice || "1"));
       setIsActive(questionData.isActive !== false);
       setIndex(questionData.index || 0);
+      setSessionId(questionData.sessionId || '');
       if (questionData.tags) {
         setDomain(questionData.tags.domain || "Process");
         setApproach(questionData.tags.approach || "Predictive");
         setDifficulty(questionData.tags.difficulty || "Medium");
       }
     }
-  }, [questionData]);
+  }, [questionData, isNew]);
 
   const handleChoiceChange = (idx: number, val: string) => {
     const newChoices = [...choices];
@@ -80,6 +80,7 @@ export default function ManageCoachingQuestionPage() {
   const validate = () => {
     if (!text.trim()) return "L'énoncé est obligatoire.";
     if (choices.some(c => !c.trim())) return "Toutes les options doivent être remplies.";
+    if (index === 0) return "L'index est requis.";
     return null;
   };
 
@@ -92,7 +93,7 @@ export default function ManageCoachingQuestionPage() {
 
     setIsSubmitting(true);
     try {
-      const updateData = {
+      const finalData = {
         text,
         choices,
         correctChoice,
@@ -100,6 +101,7 @@ export default function ManageCoachingQuestionPage() {
         explanation,
         isActive,
         index,
+        sessionId,
         updatedAt: serverTimestamp(),
         tags: {
           domain,
@@ -108,8 +110,14 @@ export default function ManageCoachingQuestionPage() {
         }
       };
 
-      await updateDoc(doc(db, 'questions', questionId), updateData);
-      toast({ title: "Succès", description: "Question de coaching mise à jour." });
+      if (isNew) {
+        const newRef = doc(db, 'questions', `COACHING_Q_${index}`);
+        await setDoc(newRef, { ...finalData, id: newRef.id }, { merge: true });
+      } else {
+        await updateDoc(doc(db, 'questions', questionId), finalData);
+      }
+      
+      toast({ title: "Succès", description: "Question de coaching enregistrée." });
       router.back();
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur de sauvegarde" });
@@ -118,7 +126,7 @@ export default function ManageCoachingQuestionPage() {
     }
   };
 
-  if (isUserLoading || isQuestionLoading) {
+  if (isUserLoading || (!isNew && isQuestionLoading)) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
   }
 
@@ -127,9 +135,14 @@ export default function ManageCoachingQuestionPage() {
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => router.back()}><ArrowLeft /></Button>
         <div className="flex flex-col">
-          <h1 className="text-3xl font-black italic uppercase tracking-tighter text-primary">Éditer Question Coaching</h1>
-          <div className="flex items-center gap-1 text-primary font-mono text-sm mt-1">
-            <Hash className="h-3 w-3" /> Index Q-{index}
+          <h1 className="text-3xl font-black italic uppercase tracking-tighter text-primary">
+            {isNew ? 'Nouvelle Question Coaching' : 'Éditer Question Coaching'}
+          </h1>
+          <div className="flex items-center gap-4 mt-1">
+            <div className="flex items-center gap-1 text-primary font-mono text-sm">
+              <Hash className="h-3 w-3" /> Index Q-{index}
+            </div>
+            {sessionId && <Badge variant="secondary" className="text-[10px] font-black italic">{sessionId}</Badge>}
           </div>
         </div>
       </div>
@@ -233,10 +246,18 @@ export default function ManageCoachingQuestionPage() {
         </CardContent>
         <CardFooter className="bg-slate-50/50 border-t p-8 flex justify-end">
           <Button onClick={handleSubmit} disabled={isSubmitting} size="lg" className="px-12 rounded-2xl h-16 font-black uppercase tracking-widest shadow-xl bg-primary hover:scale-105 transition-transform">
-            {isSubmitting ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Save className="mr-2 h-6 w-6" />} Enregistrer les modifications
+            {isSubmitting ? <Loader2 className="animate-spin h-6 w-6" /> : <Save className="mr-2 h-6 w-6" />} {isNew ? 'Créer Question' : 'Enregistrer les modifications'}
           </Button>
         </CardFooter>
       </Card>
     </div>
+  );
+}
+
+export default function ManageCoachingQuestionPage() {
+  return (
+    <Suspense fallback={<Loader2 className="animate-spin" />}>
+      <ManageCoachingQuestionContent />
+    </Suspense>
   );
 }

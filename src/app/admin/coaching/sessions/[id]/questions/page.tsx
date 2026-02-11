@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, where, orderBy, doc, deleteDoc } from 'firebase/firestore';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -13,7 +13,8 @@ import {
   Trash2, 
   Pencil, 
   Search, 
-  FileQuestion
+  FileQuestion,
+  Plus
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +25,7 @@ export default function SessionQuestionsList() {
   const params = useParams();
   const sessionId = params.id as string;
   const db = useFirestore();
+  const router = useRouter();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -60,6 +62,19 @@ export default function SessionQuestionsList() {
     }
   };
 
+  const handleAddNew = () => {
+    if (!session) return;
+    const nextIndex = questions && questions.length > 0 
+      ? Math.max(...questions.map(q => q.index)) + 1 
+      : session.questionStart;
+    
+    if (nextIndex > session.questionEnd) {
+      toast({ variant: "destructive", title: "Limite atteinte", description: `Cette séance est limitée à Q${session.questionEnd}.` });
+      return;
+    }
+    router.push(`/admin/manage-question/coaching/new?sessionId=${sessionId}&index=${nextIndex}`);
+  };
+
   if (isSessionLoading || isQuestionsLoading) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
   }
@@ -74,14 +89,19 @@ export default function SessionQuestionsList() {
             <p className="text-muted-foreground mt-1 uppercase tracking-widest text-[10px] font-bold italic">Visualisation des questions Q{session?.questionStart} à Q{session?.questionEnd}.</p>
           </div>
         </div>
-        <div className="relative w-full max-w-sm">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-          <Input 
-            value={searchTerm} 
-            onChange={(e) => setSearchTerm(e.target.value)} 
-            placeholder="Rechercher par index ou texte..." 
-            className="h-14 rounded-2xl pl-12 font-bold italic border-2 shadow-sm bg-white"
-          />
+        <div className="flex items-center gap-4 w-full max-w-xl">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+            <Input 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)} 
+              placeholder="Rechercher..." 
+              className="h-14 rounded-2xl pl-12 font-bold italic border-2 bg-white"
+            />
+          </div>
+          <Button onClick={handleAddNew} className="h-14 px-8 rounded-2xl font-black bg-primary uppercase tracking-widest shadow-xl shrink-0">
+            <Plus className="mr-2 h-5 w-5" /> Ajouter Question
+          </Button>
         </div>
       </div>
 
@@ -111,7 +131,7 @@ export default function SessionQuestionsList() {
                   </TableCell>
                   <TableCell className="text-center">
                     <Badge className="bg-emerald-100 text-emerald-600 border-none font-black italic rounded-lg px-3 py-1">
-                      Choix {q.correctChoice || '1'}
+                      {q.correctChoice || '1'}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right px-10">
@@ -132,7 +152,7 @@ export default function SessionQuestionsList() {
                     <div className="flex flex-col items-center justify-center text-slate-300 gap-4">
                       <FileQuestion className="h-16 w-16 opacity-20" />
                       <p className="font-black uppercase italic tracking-widest">Aucune question trouvée</p>
-                      <p className="text-[10px] font-bold text-slate-400">Importez une simulation dans la configuration session.</p>
+                      <p className="text-[10px] font-bold text-slate-400">Importez ou générez via IA.</p>
                     </div>
                   </TableCell>
                 </TableRow>

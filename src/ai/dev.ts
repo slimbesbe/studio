@@ -6,3 +6,4 @@ import '@/ai/flows/kill-mistakes-review-system.ts';
 import '@/ai/flows/personalized-study-recommendations.ts';
 import '@/ai/flows/explain-answers-pmi-mindset.ts';
 import '@/ai/flows/generate-demo-questions.ts';
+import '@/ai/flows/generate-coaching-simulation.ts';

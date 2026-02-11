@@ -18,12 +18,14 @@ import {
   Upload, 
   Eye, 
   PlusCircle,
-  ShieldCheck 
+  ShieldCheck,
+  Sparkles 
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { CoachingImportModal } from '@/components/admin/CoachingImportModal';
+import { CoachingGenerateModal } from '@/components/admin/CoachingGenerateModal';
 
 export default function AdminCoachingSessions() {
   const db = useFirestore();
@@ -39,6 +41,7 @@ export default function AdminCoachingSessions() {
   const [isSaving, setIsSaving] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
   const [importSession, setImportSession] = useState<any | null>(null);
+  const [generateSession, setGenerateSession] = useState<any | null>(null);
 
   useEffect(() => {
     if (sessions && sessions.length > 0) {
@@ -201,13 +204,16 @@ export default function AdminCoachingSessions() {
                     </div>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <Button onClick={() => setImportSession(s)} variant="outline" className="h-14 flex-1 rounded-2xl border-2 font-black uppercase tracking-widest text-xs italic hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200">
-                      <Upload className="mr-2 h-5 w-5" /> Importer Simulation (Excel)
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <Button onClick={() => setGenerateSession(s)} className="h-14 rounded-2xl bg-amber-500 hover:bg-amber-600 font-black uppercase tracking-widest text-xs italic shadow-lg">
+                      <Sparkles className="mr-2 h-5 w-5" /> Générer via IA
                     </Button>
-                    <Button asChild variant="outline" className="h-14 flex-1 rounded-2xl border-2 font-black uppercase tracking-widest text-xs italic hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200">
+                    <Button onClick={() => setImportSession(s)} variant="outline" className="h-14 rounded-2xl border-2 font-black uppercase tracking-widest text-xs italic hover:bg-emerald-50">
+                      <Upload className="mr-2 h-5 w-5" /> Importer Simulation
+                    </Button>
+                    <Button asChild variant="outline" className="h-14 rounded-2xl border-2 font-black uppercase tracking-widest text-xs italic hover:bg-indigo-50">
                       <Link href={`/admin/coaching/sessions/${s.id}/questions`}>
-                        <Eye className="mr-2 h-5 w-5" /> Visualiser les Questions
+                        <Eye className="mr-2 h-5 w-5" /> Visualiser Questions
                       </Link>
                     </Button>
                   </div>
@@ -222,6 +228,12 @@ export default function AdminCoachingSessions() {
         isOpen={!!importSession} 
         onClose={() => setImportSession(null)} 
         session={importSession}
+      />
+
+      <CoachingGenerateModal 
+        isOpen={!!generateSession} 
+        onClose={() => setGenerateSession(null)} 
+        session={generateSession}
       />
     </div>
   );
