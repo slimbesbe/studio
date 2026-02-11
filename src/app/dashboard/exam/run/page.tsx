@@ -45,7 +45,6 @@ function ExamRunContent() {
   const [showReviewGrid, setShowReviewGrid] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
-  // Récupération des questions réelles liées à cet examen
   useEffect(() => {
     async function fetchQuestions() {
       if (!examId) return;
@@ -56,8 +55,6 @@ function ExamRunContent() {
         const snap = await getDocs(qQuery);
         
         const fetched = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-        
-        // Tri par index ou code pour garder un ordre cohérent
         fetched.sort((a, b) => (a.index || 0) - (b.index || 0));
         
         if (fetched.length === 0) {
@@ -77,7 +74,6 @@ function ExamRunContent() {
     fetchQuestions();
   }, [db, examId, toast, router]);
 
-  // Chronomètre
   useEffect(() => {
     let timer: any;
     if (isStarted && !result && timeLeft > 0) {
@@ -125,7 +121,6 @@ function ExamRunContent() {
     let correctCount = 0;
     const details = questions.map(q => {
       const userAns = answers[q.id] || [];
-      
       let correctAns: string[] = [];
       if (Array.isArray(q.correctOptionIds)) {
         correctAns = q.correctOptionIds;
@@ -138,12 +133,7 @@ function ExamRunContent() {
                         userAns.every(val => correctAns.includes(val));
       
       if (isCorrect) correctCount++;
-      
-      return {
-        id: q.id,
-        isCorrect,
-        userAns
-      };
+      return { id: q.id, isCorrect, userAns };
     });
 
     const scorePercent = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0;
@@ -169,7 +159,6 @@ function ExamRunContent() {
         const userData = userSnap.data();
         const currentSims = userData.simulationsCount || 0;
         const currentAvg = userData.averageScore || 0;
-        
         const newSims = currentSims + 1;
         const newAvg = Math.round(((currentAvg * currentSims) + scorePercent) / newSims);
         
@@ -353,7 +342,7 @@ function ExamRunContent() {
                   key={optId} 
                   onClick={() => handleOptionSelect(currentQuestion.id, optId, isMultiple)}
                   className={cn(
-                    "p-6 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-5 shadow-sm",
+                    "p-4 rounded-xl border-2 transition-all cursor-pointer flex items-start gap-4 shadow-sm",
                     userAnswers.includes(optId) ? "border-primary bg-primary/5 scale-[1.01]" : "border-slate-100 hover:border-slate-300"
                   )}
                 >

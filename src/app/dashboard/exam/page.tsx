@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo, useEffect } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useState, useEffect, useMemo } from 'react';
+import { useUser, useFirestore } from '@/firebase';
+import { collection, query, where, getCountFromServer } from 'firebase/firestore';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -14,6 +14,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
 const ALL_EXAMS = [
   { id: 'exam1', title: 'Simulation Examen 1', description: 'Examen complet de questions couvrant tous les domaines.' },
@@ -30,7 +31,6 @@ export default function ExamPage() {
   const [examCounts, setExamCounts] = useState<Record<string, number>>({});
   const [isCounting, setIsCounting] = useState(true);
 
-  // Récupération dynamique du nombre de questions par examen
   useEffect(() => {
     async function fetchCounts() {
       if (!db) return;
@@ -41,8 +41,8 @@ export default function ExamPage() {
         
         for (const exam of ALL_EXAMS) {
           const q = query(qRef, where('examId', '==', exam.id), where('isActive', '==', true));
-          const snap = await getDocs(q);
-          counts[exam.id] = snap.size;
+          const snapshot = await getCountFromServer(q);
+          counts[exam.id] = snapshot.data().count;
         }
         setExamCounts(counts);
       } catch (e) {
@@ -58,10 +58,8 @@ export default function ExamPage() {
     if (!profile) return [];
     
     return ALL_EXAMS.filter(exam => {
-      // Un examen n'apparaît que s'il a des questions en base
-      const hasQuestions = (examCounts[exam.id] || 0) > 0;
-      
-      // Et si l'utilisateur a les droits
+      const count = examCounts[exam.id] || 0;
+      const hasQuestions = count > 0;
       const hasAccess = profile.role === 'admin' || 
                         profile.role === 'super_admin' || 
                         (profile.allowedExams && profile.allowedExams.includes(exam.id));
@@ -104,7 +102,7 @@ export default function ExamPage() {
             </p>
           </div>
           {(profile?.role === 'admin' || profile?.role === 'super_admin') && (
-            <Button asChild className="bg-primary hover:bg-primary/90 font-black uppercase tracking-widest">
+            <Button asChild className="bg-primary hover:bg-primary/90 font-black uppercase tracking-widest h-14 px-8 rounded-2xl">
               <Link href="/admin/questions">Aller à la Banque de Questions</Link>
             </Button>
           )}
