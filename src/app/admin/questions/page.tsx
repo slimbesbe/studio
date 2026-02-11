@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, Suspense, useEffect } from 'react';
@@ -36,9 +35,7 @@ function QuestionsList() {
   const [counts, setCounts] = useState<Record<string, number>>({});
 
   const questionsQuery = useMemoFirebase(() => {
-    // For admin view, we want to see all questions regardless of isActive status
-    // but we'll order them by updatedAt to see the latest changes
-    return query(collection(db, 'questions'), orderBy('updatedAt', 'desc'), limit(1000));
+    return query(collection(db, 'questions'), orderBy('updatedAt', 'desc'), limit(2000));
   }, [db]);
 
   const { data: questions, isLoading } = useCollection(questionsQuery);
@@ -48,7 +45,7 @@ function QuestionsList() {
     if (questions) {
       const newCounts: Record<string, number> = {};
       questions.forEach(q => {
-        const id = q.examId || q.sessionId || 'other';
+        const id = q.examId || q.sessionId || 'general';
         newCounts[id] = (newCounts[id] || 0) + 1;
       });
       setCounts(newCounts);
@@ -58,8 +55,11 @@ function QuestionsList() {
   const filteredQuestions = useMemo(() => {
     if (!questions) return [];
     return questions.filter(q => {
-      const matchSearch = (q.statement || q.text || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (q.questionCode || '').toLowerCase().includes(searchTerm.toLowerCase());
+      const textMatch = (q.statement || q.text || '').toLowerCase();
+      const codeMatch = (q.questionCode || '').toLowerCase();
+      const search = searchTerm.toLowerCase();
+      
+      const matchSearch = textMatch.includes(search) || codeMatch.includes(search);
       
       const matchExam = filterExam === 'all' || 
                        (filterExam.startsWith('S') ? q.sessionId === filterExam : q.examId === filterExam);
@@ -81,24 +81,24 @@ function QuestionsList() {
   const downloadTemplate = () => {
     const template = [
       {
-        "Domaine ECO": "Process",
-        "Approche": "Agile",
-        "Niveau": "Medium",
         "Énoncé": "Un membre de l'équipe agile ne participe pas aux stand-ups. Que fait le Scrum Master ?",
         "option1": "Il l'ignore car l'équipe est auto-organisée.",
         "option2": "Il lui ordonne de venir immédiatement.",
         "option3": "Il discute avec lui en privé pour comprendre les obstacles.",
         "option4": "Il demande son remplacement au manager.",
         "Justification": "Le Scrum Master est un leader serviteur qui cherche à résoudre les problèmes par la communication.",
-        "correct": "C"
+        "correct": "C",
+        "Domaine": "People",
+        "Approche": "Agile",
+        "Difficulté": "Medium"
       }
     ];
 
     const ws = XLSX.utils.json_to_sheet(template);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Questions");
-    XLSX.writeFile(wb, "modèle_banque_simovex.xlsx");
-    toast({ title: "Modèle téléchargé", description: "Remplissez ce fichier et uploadez-le." });
+    XLSX.writeFile(wb, "modele_import_pmp.xlsx");
+    toast({ title: "Modèle téléchargé", description: "Remplissez ce fichier et uploadez-le via le bouton Importer." });
   };
 
   if (isLoading) return <div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;

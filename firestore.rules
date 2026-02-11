@@ -1,4 +1,3 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -20,15 +19,12 @@ service cloud.firestore {
       return isSuperAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
     }
 
-    // --- RÈGLES PRIORITAIRES ADMIN ---
-    // Les administrateurs ont accès à tout pour la gestion via le panel
+    // --- RÈGLES GLOBALES ---
     match /{document=**} {
       allow read, write: if isAdmin();
     }
 
     // --- RÈGLES UTILISATEURS ---
-    
-    // Autoriser tout utilisateur à vérifier son propre statut admin sans erreur de permission
     match /roles_admin/{uid} {
       allow read: if isSignedIn() && request.auth.uid == uid;
     }
@@ -42,7 +38,6 @@ service cloud.firestore {
       }
     }
 
-    // Permettre la lecture des collections pour les utilisateurs connectés
     match /questions/{questionId} {
       allow read: if isSignedIn();
     }
@@ -57,10 +52,7 @@ service cloud.firestore {
     }
 
     match /coachingGroups/{groupId} {
-      allow get: if isSignedIn() && (
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groupId == groupId
-      );
+      allow get: if isSignedIn();
       allow list: if isSignedIn();
     }
 
@@ -69,7 +61,6 @@ service cloud.firestore {
       match /{allSubcollections=**} { allow read: if isSignedIn(); }
     }
     
-    // Collection group pour les résultats d'examens (si nécessaire)
     match /{path=**}/exam_results/{resultId} {
       allow read: if isSignedIn() && (isAdmin() || request.auth.uid == resource.data.userId);
     }
