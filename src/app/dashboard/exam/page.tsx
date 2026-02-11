@@ -1,9 +1,8 @@
-
-'use client';
+"use client";
 
 import { useState, useEffect, useMemo } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,7 +32,7 @@ export default function ExamPage() {
   const [isCounting, setIsCounting] = useState(true);
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
 
-  // Fetch real counts from DB
+  // Compter les questions réelles par examen
   useEffect(() => {
     async function fetchCounts() {
       if (!db || isUserLoading || !user) return;
@@ -63,7 +62,7 @@ export default function ExamPage() {
     fetchCounts();
   }, [db, user, isUserLoading]);
 
-  // Filter exams that actually have questions and user has permission
+  // Filtrer les examens : seulement ceux qui ont des questions ET dont l'utilisateur a l'accès
   const availableExams = useMemo(() => {
     if (!profile) return [];
     
@@ -121,11 +120,11 @@ export default function ExamPage() {
           {availableExams.map((exam) => (
             <Card 
               key={exam.id} 
-              onClick={() => setSelectedExamId(exam.id)}
               className={cn(
                 "rounded-[40px] border-4 transition-all relative overflow-hidden group cursor-pointer",
                 selectedExamId === exam.id ? "border-primary bg-primary/5 shadow-2xl scale-[1.02]" : "bg-white border-white shadow-xl hover:border-primary/20"
               )}
+              onClick={() => setSelectedExamId(exam.id)}
             >
               <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
                 <Trophy className="h-20 w-20" />
@@ -141,7 +140,7 @@ export default function ExamPage() {
                     {examCounts[exam.id] || 0} QUESTIONS
                   </Badge>
                   <Badge variant="outline" className="font-bold border-2 text-[10px] uppercase">
-                    230 MIN
+                    {Math.floor((examCounts[exam.id] * 230) / 180)} MIN
                   </Badge>
                 </div>
               </CardHeader>
@@ -173,7 +172,7 @@ export default function ExamPage() {
         <div>
           <h4 className="font-black uppercase italic text-amber-800 text-sm">Informations Importantes</h4>
           <p className="text-xs font-bold text-amber-700/80 italic mt-1">
-            Chaque simulation est chronométrée. Vous aurez 10 minutes de pause optionnelles toutes les 60 questions, comme à l'examen réel.
+            Le temps alloué est calculé proportionnellement au nombre de questions (ratio : 230 min pour 180 Q).
           </p>
         </div>
       </div>
