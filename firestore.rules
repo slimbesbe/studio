@@ -8,21 +8,22 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // Définition statique des Super Admins pour une validation instantanée sans dépendance à l'email
+    // Définition statique des Super Admins (UIDs et Email de bootstrap)
     function isSuperAdmin() {
       return isSignedIn() && (
         request.auth.uid == "vwyrAnNtQkSojYSEEK2qkRB5feh2" || 
-        request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1"
+        request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1" ||
+        request.auth.token.email == "slim.besbes@yahoo.fr"
       );
     }
 
-    // Un Admin est soit un Super Admin (via UID), soit un utilisateur ayant un document dans roles_admin
+    // Un Admin est soit un Super Admin (via UID/Email), soit un utilisateur ayant un document dans roles_admin
     function isAdmin() { 
       return isSuperAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
     }
 
     // --- RÈGLE PRIORITAIRE SUPER ADMIN (GOD MODE) ---
-    // Cette règle permet aux Super Admins de tout lister et lire sans restrictions de filtres Firestore
+    // Cette règle permet aux Super Admins de tout lister et lire sans restrictions
     match /{document=**} {
       allow read, write: if isSuperAdmin();
     }
@@ -30,6 +31,7 @@ service cloud.firestore {
     // --- RÈGLES PAR COLLECTION ---
     
     match /users/{userId} {
+      // Séparation des règles de listing pour éviter les conflits de filtrage
       allow list: if isAdmin();
       allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow create: if isAdmin();
@@ -46,13 +48,21 @@ service cloud.firestore {
     }
 
     match /coachingSessions/{sessionId} {
-      allow list: if isAdmin() || (isSignedIn() && resource.data.isPublished == true);
+      // Autorise le listing global pour les admins
+      allow list: if isAdmin();
+      // Autorise le listing filtré pour les utilisateurs
+      allow list: if isSignedIn() && resource.data.isPublished == true;
+      
       allow get: if isAdmin() || (isSignedIn() && resource.data.isPublished == true);
       allow write: if isAdmin();
     }
 
     match /coachingAttempts/{attemptId} {
-      allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      // Autorise le listing global pour les admins
+      allow list: if isAdmin();
+      // Autorise le listing filtré pour les utilisateurs (propriétaire uniquement)
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
       allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow write: if isSignedIn() && (isAdmin() || request.resource.data.userId == request.auth.uid);
     }

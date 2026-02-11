@@ -45,7 +45,7 @@ export interface FirebaseServicesAndUser {
 
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
-// Liste des UIDs Super Admin autorisés (Reconnaissance immédiate)
+// Liste des identifiants Super Admin reconnus immédiatement
 const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1'];
 const ADMIN_EMAIL = 'slim.besbes@yahoo.fr';
 
@@ -69,11 +69,11 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Détection immédiate du statut Super Admin via UID ou Email
+        // Détection immédiate du statut Super Admin
         const isSA = ADMIN_UIDS.includes(firebaseUser.uid) || (firebaseUser.email === ADMIN_EMAIL);
         
         if (isSA) {
-          // Force la présence dans roles_admin pour les règles Firestore secondaires (fallback)
+          // Maintenance silencieuse du rôle admin dans Firestore
           setDoc(doc(firestore, 'roles_admin', firebaseUser.uid), { 
             createdAt: serverTimestamp(),
             email: firebaseUser.email || ADMIN_EMAIL,
@@ -96,7 +96,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
             const currentStatus = isExpired ? 'expired' : (profileData.status || 'active');
             
-            // Priorité absolue à l'UID pour le rôle dans l'application
+            // Priorité à l'UID pour le rôle
             const role = isSA ? 'super_admin' : (profileData.role || 'user');
 
             setUserAuthState(prev => ({ 
@@ -106,8 +106,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               isUserLoading: false 
             }));
 
-            // Tracking session unique
-            const sessionKey = `session_v15_track_${firebaseUser.uid}`;
+            // Tracking session
+            const sessionKey = `session_track_v2_${firebaseUser.uid}`;
             if (!sessionStorage.getItem(sessionKey)) {
               const now = serverTimestamp();
               const updateData: any = { lastLoginAt: now, id: firebaseUser.uid };
@@ -120,7 +120,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
                router.push('/access-denied');
             }
           } else if (isSA) {
-            // Création automatique Super Admin si document manquant dans Firestore
+            // Bootstrap automatique si document manquant
             const now = serverTimestamp();
             const initialData = {
               id: firebaseUser.uid,
@@ -140,12 +140,11 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
           }
         }, (err) => {
           console.error("Profile listen error:", err);
-          // Si erreur de lecture profil mais UID admin, on force l'accès admin
           if (isSA) {
             setUserAuthState(prev => ({ 
               ...prev, 
               user: firebaseUser, 
-              profile: { id: firebaseUser.uid, role: 'super_admin', email: firebaseUser.email || ADMIN_EMAIL }, 
+              profile: { id: firebaseUser.uid, role: 'super_admin', email: firebaseUser.email || ADMIN_EMAIL, status: 'active' }, 
               isUserLoading: false 
             }));
           } else {
@@ -165,7 +164,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     return () => unsubscribeAuth();
   }, [auth, firestore, pathname, router]);
 
-  // Heartbeat pour le temps d'étude
+  // Étude Heartbeat
   useEffect(() => {
     if (!auth || !firestore || !userAuthState.user || userAuthState.user.isAnonymous) return;
     const interval = setInterval(() => {

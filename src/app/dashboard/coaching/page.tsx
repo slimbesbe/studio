@@ -13,14 +13,13 @@ export default function CoachingSelectionPage() {
   const { profile, user, isUserLoading } = useUser();
   const db = useFirestore();
 
-  // UIDs Admin reconnus immédiatement pour gating client
+  // Liste des UIDs Super Admin
   const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1'];
 
   const sessionsQuery = useMemoFirebase(() => {
-    // Sécurité critique : Ne pas lancer de requête tant que l'identité n'est pas confirmée
+    // Gating : Attendre que l'identité et le profil soient chargés
     if (isUserLoading || !user || !profile || !db) return null;
     
-    // Détection robuste du rôle admin
     const isAdminUser = profile.role === 'super_admin' || 
                        profile.role === 'admin' || 
                        user.email === 'slim.besbes@yahoo.fr' || 
@@ -28,12 +27,12 @@ export default function CoachingSelectionPage() {
 
     const baseRef = collection(db, 'coachingSessions');
     
-    // Si Admin, on liste TOUT sans filtre pour éviter les erreurs de permission sur resource.data
+    // Si Admin, on liste TOUT sans aucun filtre pour éviter les erreurs de permission
     if (isAdminUser) {
       return query(baseRef, orderBy('index', 'asc'));
     }
     
-    // Si Participant, on filtre OBLIGATOIREMENT par isPublished conformément aux règles Firestore
+    // Si Participant, filtre obligatoire par isPublished
     return query(
       baseRef, 
       where('isPublished', '==', true),
@@ -53,19 +52,23 @@ export default function CoachingSelectionPage() {
 
     const baseRef = collection(db, 'coachingAttempts');
 
-    // Si Admin, on liste tout pour l'analyse
+    // Si Admin, accès global
     if (isAdminUser) {
       return query(baseRef, orderBy('submittedAt', 'desc'));
     }
 
-    // Si User, on ne liste que ses propres tentatives
+    // Si User, uniquement ses propres tentatives
     return query(baseRef, where('userId', '==', user.uid));
   }, [db, user?.uid, profile, isUserLoading]);
 
   const { data: attempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
 
   if (isUserLoading || isSessionsLoading || isAttemptsLoading) {
-    return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
+    return (
+      <div className="h-[70vh] flex items-center justify-center">
+        <Loader2 className="animate-spin h-12 w-12 text-primary" />
+      </div>
+    );
   }
 
   const isAdminUser = profile?.role === 'super_admin' || 
@@ -79,7 +82,7 @@ export default function CoachingSelectionPage() {
     <div className="max-w-6xl mx-auto py-8 space-y-10 animate-fade-in">
       <div className="bg-white p-10 rounded-[40px] shadow-xl border-2 border-primary/5 flex items-center gap-8">
         <div className="bg-primary/10 p-5 rounded-3xl">
-          < GraduationCap className="h-12 w-12 text-primary" />
+          <GraduationCap className="h-12 w-12 text-primary" />
         </div>
         <div>
           <h1 className="text-4xl font-black italic uppercase tracking-tighter text-primary">Programme Coaching PMP®</h1>
@@ -99,7 +102,6 @@ export default function CoachingSelectionPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {displaySessions.map((session) => {
-            // Pour l'admin, on cherche sa propre tentative s'il en a une
             const attempt = attempts?.find(a => a.sessionId === session.id && a.userId === user?.uid);
             const isLocked = !session.isPublished;
 
