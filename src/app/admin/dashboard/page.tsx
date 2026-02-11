@@ -14,7 +14,7 @@ import {
   ArrowRight,
   LayoutGrid,
   BarChart3,
-  TrendingUp
+  GraduationCap
 } from 'lucide-react';
 import { useUser, useFirestore } from '@/firebase';
 import { useRouter } from 'next/navigation';
@@ -31,10 +31,8 @@ export default function AdminDashboard() {
     async function checkAdmin() {
       if (!isUserLoading) {
         if (user) {
-          // Vérifier dans roles_admin pour être sûr
           const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
           if (!adminDoc.exists()) {
-            console.log("Not an admin, redirecting...");
             router.push('/dashboard');
           } else {
             setIsAdmin(true);
@@ -59,109 +57,117 @@ export default function AdminDashboard() {
     <div className="space-y-8 animate-fade-in p-8 max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-headline font-bold text-primary flex items-center gap-2">
+          <h1 className="text-3xl font-black italic uppercase tracking-tighter text-primary flex items-center gap-2">
             <ShieldAlert className="h-8 w-8" />
             Panneau d'administration SIMOVEX
           </h1>
-          <p className="text-muted-foreground mt-1">Gestion centrale de la plateforme et des contenus.</p>
+          <p className="text-muted-foreground mt-1 uppercase tracking-widest text-[10px] font-bold italic">Gestion centrale de la plateforme et des contenus.</p>
         </div>
       </div>
 
-      <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
-        {/* Vue d'ensemble */}
-        <Card className="hover:shadow-lg transition-shadow border-t-4 border-t-emerald-500">
-          <CardHeader>
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+        {/* 1/ Module Coaching - NOUVEAU */}
+        <Card className="hover:shadow-2xl transition-all border-t-8 border-t-indigo-600 rounded-[32px] overflow-hidden group">
+          <CardHeader className="p-6 pb-2">
             <div className="flex items-center gap-3">
-              <div className="bg-emerald-500/10 p-2 rounded-lg">
-                <LayoutGrid className="h-6 w-6 text-emerald-600" />
+              <div className="bg-indigo-50 p-3 rounded-2xl group-hover:scale-110 transition-transform">
+                <GraduationCap className="h-6 w-6 text-indigo-600" />
               </div>
-              <CardTitle>Vue d'ensemble</CardTitle>
+              <CardTitle className="text-xl font-black italic uppercase tracking-tight">Module Coaching</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Analysez les KPIs globaux, les taux de réussite et l'activité en temps réel des participants.
+          <CardContent className="p-6 space-y-4">
+            <p className="text-xs font-bold text-slate-500 italic leading-relaxed">
+              Pilotez les 6 séances, gérez les liens Meet par groupe et analysez les scores détaillés.
             </p>
-            <Button asChild variant="outline" className="w-full border-emerald-200 hover:bg-emerald-50">
-              <Link href="/admin/users">
-                <BarChart3 className="mr-2 h-4 w-4 text-emerald-600" /> Voir les statistiques
+            <Button asChild className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 rounded-xl font-black uppercase tracking-widest text-[10px]">
+              <Link href="/admin/coaching">
+                Gérer le programme <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
           </CardContent>
         </Card>
 
-        {/* Banque de Questions */}
-        <Card className="hover:shadow-lg transition-shadow border-t-4 border-t-primary">
-          <CardHeader>
+        {/* 2/ Banque de Questions */}
+        <Card className="hover:shadow-2xl transition-all border-t-8 border-t-primary rounded-[32px] overflow-hidden group">
+          <CardHeader className="p-6 pb-2">
             <div className="flex items-center gap-3">
-              <div className="bg-primary/10 p-2 rounded-lg">
+              <div className="bg-primary/10 p-3 rounded-2xl group-hover:scale-110 transition-transform">
                 <BookCopy className="h-6 w-6 text-primary" />
               </div>
-              <CardTitle>Banque de Questions</CardTitle>
+              <CardTitle className="text-xl font-black italic uppercase tracking-tight">Banque Questions</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Gérez le contenu pédagogique. Créez des questions avec choix variables et justifications.
+          <CardContent className="p-6 space-y-4">
+            <p className="text-xs font-bold text-slate-500 italic leading-relaxed">
+              Gérez le contenu pédagogique global. Créez des questions avec choix variables et justifications.
             </p>
-            <div className="flex gap-3">
-              <Button asChild className="flex-1">
-                <Link href="/admin/questions">
-                  <Settings className="mr-2 h-4 w-4" /> Gérer
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="flex-1">
-                <Link href="/admin/questions/new">
-                  <PlusCircle className="mr-2 h-4 w-4" /> Nouvelle
-                </Link>
-              </Button>
-            </div>
+            <Button asChild className="w-full bg-primary hover:bg-primary/90 h-12 rounded-xl font-black uppercase tracking-widest text-[10px]">
+              <Link href="/admin/questions">
+                Modifier la banque <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
           </CardContent>
         </Card>
 
-        {/* Gestion des Utilisateurs */}
-        <Card className="hover:shadow-lg transition-shadow border-t-4 border-t-accent">
-          <CardHeader>
+        {/* 3/ Gestion des Utilisateurs */}
+        <Card className="hover:shadow-2xl transition-all border-t-8 border-t-accent rounded-[32px] overflow-hidden group">
+          <CardHeader className="p-6 pb-2">
             <div className="flex items-center gap-3">
-              <div className="bg-accent/10 p-2 rounded-lg">
+              <div className="bg-accent/10 p-3 rounded-2xl group-hover:scale-110 transition-transform">
                 <Users className="h-6 w-6 text-accent" />
               </div>
-              <CardTitle>Gestion Utilisateurs</CardTitle>
+              <CardTitle className="text-xl font-black italic uppercase tracking-tight">Gestion Comptes</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Administrez les comptes participants. Gérez les rôles, les accès et la validité.
+          <CardContent className="p-6 space-y-4">
+            <p className="text-xs font-bold text-slate-500 italic leading-relaxed">
+              Administrez les comptes participants. Gérez les rôles, les accès et les dates de validité.
             </p>
-            <div className="flex gap-3">
-              <Button asChild className="flex-1 bg-accent hover:bg-accent/90">
-                <Link href="/admin/users">
-                  <Users className="mr-2 h-4 w-4" /> Comptes
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="flex-1 border-accent text-accent hover:bg-accent/5">
-                <Link href="/admin/users/new">
-                  <PlusCircle className="mr-2 h-4 w-4" /> Créer
-                </Link>
-              </Button>
+            <Button asChild className="w-full bg-accent hover:bg-accent/90 h-12 rounded-xl font-black uppercase tracking-widest text-[10px]">
+              <Link href="/admin/users">
+                Voir les comptes <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* 4/ Vue d'ensemble / Stats */}
+        <Card className="hover:shadow-2xl transition-all border-t-8 border-t-emerald-500 rounded-[32px] overflow-hidden group">
+          <CardHeader className="p-6 pb-2">
+            <div className="flex items-center gap-3">
+              <div className="bg-emerald-50 p-3 rounded-2xl group-hover:scale-110 transition-transform">
+                <LayoutGrid className="h-6 w-6 text-emerald-600" />
+              </div>
+              <CardTitle className="text-xl font-black italic uppercase tracking-tight">Vue d'ensemble</CardTitle>
             </div>
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            <p className="text-xs font-bold text-slate-500 italic leading-relaxed">
+              Analysez les KPIs globaux, les taux de réussite et l'activité en temps réel des participants.
+            </p>
+            <Button asChild variant="outline" className="w-full border-2 border-emerald-200 hover:bg-emerald-50 h-12 rounded-xl font-black uppercase tracking-widest text-[10px] text-emerald-600">
+              <Link href="/admin/users">
+                <BarChart3 className="mr-2 h-4 w-4" /> Statistiques globales
+              </Link>
+            </Button>
           </CardContent>
         </Card>
       </div>
 
-      <div className="bg-muted/30 rounded-xl p-6 border flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="bg-emerald-500/10 p-3 rounded-full">
-            <ShieldAlert className="h-6 w-6 text-emerald-600" />
+      <div className="bg-white/50 backdrop-blur-sm rounded-[32px] p-8 border-4 border-dashed border-slate-200 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="flex items-center gap-6">
+          <div className="bg-primary p-4 rounded-3xl shadow-xl">
+            <ShieldCheck className="h-8 w-8 text-white" />
           </div>
           <div>
-            <h3 className="font-bold">Accès Sécurisé</h3>
-            <p className="text-sm text-muted-foreground">Vos actions sont protégées et tracées par les règles de sécurité Firestore.</p>
+            <h3 className="text-xl font-black italic uppercase tracking-tight">Accès Administrateur Sécurisé</h3>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest italic">Toutes vos actions sont tracées et protégées par SIMOVEX v2.1</p>
           </div>
         </div>
-        <Button variant="ghost" className="text-emerald-600 font-bold" asChild>
+        <Button variant="ghost" className="h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs text-primary hover:bg-primary/5 border-2 border-primary/10" asChild>
           <Link href="/dashboard">
-            Voir le Dashboard Participant <ArrowRight className="ml-2 h-4 w-4" />
+            Basculer vers Dashboard Participant <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>
       </div>
