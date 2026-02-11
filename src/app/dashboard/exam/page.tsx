@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
 const ALL_EXAMS = [
-  { id: 'exam1', title: 'Simulation Examen 1', description: 'Examen complet de 180 questions couvrant tous les domaines.' },
+  { id: 'exam1', title: 'Simulation Examen 1', description: 'Examen complet de questions couvrant tous les domaines.' },
   { id: 'exam2', title: 'Simulation Examen 2', description: 'Deuxième examen blanc pour tester votre préparation.' },
   { id: 'exam3', title: 'Simulation Examen 3', description: 'Troisième mise en situation réelle avant l\'examen.' },
   { id: 'exam4', title: 'Simulation Examen 4', description: 'Quatrième test de haut niveau pour affiner vos réflexes.' },
@@ -28,35 +28,42 @@ export default function ExamPage() {
   const { profile, isUserLoading } = useUser();
   const db = useFirestore();
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
+  const [examCounts, setExamCounts] = useState<Record<string, number>>({});
+  const [isCounting, setIsCounting] = useState(true);
 
-  // Récupérer toutes les questions actives pour compter par examen
-  const questionsQuery = useMemoFirebase(() => {
-    return query(collection(db, 'questions'), where('isActive', '==', true));
+  // Fetch real counts for each exam to determine visibility and display correct total
+  useEffect(() => {
+    async function fetchCounts() {
+      if (!db) return;
+      setIsCounting(true);
+      try {
+        const qRef = collection(db, 'questions');
+        const counts: Record<string, number> = {};
+        
+        // Loop through all predefined exams to check their content
+        for (const exam of ALL_EXAMS) {
+          const q = query(qRef, where('examId', '==', exam.id), where('isActive', '==', true));
+          const snap = await getDocs(q);
+          counts[exam.id] = snap.size;
+        }
+        setExamCounts(counts);
+      } catch (e) {
+        console.error("Error counting questions:", e);
+      } finally {
+        setIsCounting(false);
+      }
+    }
+    fetchCounts();
   }, [db]);
 
-  const { data: allQuestions, isLoading: isQuestionsLoading } = useCollection(questionsQuery);
-
-  // Calculer le nombre réel de questions par examen
-  const examCounts = useMemo(() => {
-    if (!allQuestions) return {};
-    const counts: Record<string, number> = {};
-    allQuestions.forEach(q => {
-      if (q.examId) {
-        counts[q.examId] = (counts[q.examId] || 0) + 1;
-      }
-    });
-    return counts;
-  }, [allQuestions]);
-
-  // Filtrer les examens à afficher (doit avoir accès ET avoir des questions)
   const availableExams = useMemo(() => {
     if (!profile) return [];
     
     return ALL_EXAMS.filter(exam => {
-      // Condition 1: L'examen doit contenir des questions dans la banque
+      // Condition 1: Must have at least 1 question
       const hasQuestions = (examCounts[exam.id] || 0) > 0;
       
-      // Condition 2: L'utilisateur doit avoir le droit d'accès
+      // Condition 2: User must have access
       const hasAccess = profile.role === 'admin' || 
                         profile.role === 'super_admin' || 
                         (profile.allowedExams && profile.allowedExams.includes(exam.id));
@@ -65,7 +72,7 @@ export default function ExamPage() {
     });
   }, [profile, examCounts]);
 
-  if (isUserLoading || isQuestionsLoading) {
+  if (isUserLoading || isCounting) {
     return (
       <div className="h-[70vh] flex items-center justify-center">
         <Loader2 className="animate-spin h-12 w-12 text-primary" />
@@ -123,7 +130,7 @@ export default function ExamPage() {
                 <div className="h-14 w-14 rounded-2xl bg-indigo-50 flex items-center justify-center mb-4 text-indigo-600 shadow-inner">
                   <FileQuestion className="h-7 w-7" />
                 </div>
-                <CardTitle className="text-2xl font-black uppercase italic tracking-tight">{exam.title}</CardTitle>
+                <CardTitle className="text-2xl font-black italic uppercase tracking-tight">{exam.title}</CardTitle>
                 <div className="flex items-center gap-2 mt-2">
                   <Badge className="bg-emerald-100 text-emerald-600 border-none font-black italic px-3 py-1">
                     {examCounts[exam.id] || 0} QUESTIONS

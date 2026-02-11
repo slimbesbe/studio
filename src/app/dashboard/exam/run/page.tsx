@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useUser, useFirestore } from '@/firebase';
-import { collection, query, where, getDocs, doc, addDoc, serverTimestamp, increment, setDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, addDoc, serverTimestamp, increment, setDoc, getDoc } from 'firebase/firestore';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import { 
   Loader2, 
   Clock, 
@@ -20,7 +21,6 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 function ExamRunContent() {
@@ -36,7 +36,7 @@ function ExamRunContent() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string[]>>({});
   const [flagged, setFlagged] = useState<Record<string, boolean>>({});
-  const [timeLeft, setTimeLeft] = useState(230 * 60); // 230 minutes in seconds
+  const [timeLeft, setTimeLeft] = useState(230 * 60); 
   const [isStarted, setIsStarted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -53,7 +53,18 @@ function ExamRunContent() {
         const qRef = collection(db, 'questions');
         const qQuery = query(qRef, where('examId', '==', examId), where('isActive', '==', true));
         const snap = await getDocs(qQuery);
-        const fetched = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+        
+        // Use a Map to prevent duplicates in case the DB has them
+        const uniqueQuestionsMap = new Map();
+        snap.docs.forEach(d => {
+          const data = d.data();
+          const key = data.questionCode || d.id;
+          if (!uniqueQuestionsMap.has(key)) {
+            uniqueQuestionsMap.set(key, { ...data, id: d.id });
+          }
+        });
+        
+        const fetched = Array.from(uniqueQuestionsMap.values());
         
         // Sort by code or index if available
         fetched.sort((a, b) => (a.questionCode || '').localeCompare(b.questionCode || ''));
@@ -110,15 +121,28 @@ function ExamRunContent() {
   };
 
   const handleSubmit = async () => {
+    if (!user) return;
     setIsSubmitting(true);
     setIsConfirmOpen(false);
     
     let correctCount = 0;
     const details = questions.map(q => {
       const userAns = answers[q.id] || [];
-      const correctAns = q.correctOptionIds || [];
-      const isCorrect = userAns.length === correctAns.length && userAns.every(val => correctAns.includes(val));
+      
+      // Handle both formats: correctOptionIds (array) or correctChoice (string)
+      let correctAns: string[] = [];
+      if (Array.isArray(q.correctOptionIds)) {
+        correctAns = q.correctOptionIds;
+      } else if (q.correctChoice) {
+        correctAns = [String(q.correctChoice)];
+      }
+
+      const isCorrect = userAns.length > 0 && 
+                        userAns.length === correctAns.length && 
+                        userAns.every(val => correctAns.includes(val));
+      
       if (isCorrect) correctCount++;
+      
       return {
         id: q.id,
         isCorrect,
@@ -126,13 +150,13 @@ function ExamRunContent() {
       };
     });
 
-    const scorePercent = Math.round((correctCount / questions.length) * 100);
+    const scorePercent = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0;
     const timeSpent = (230 * 60) - timeLeft;
 
     try {
       const resultData = {
         examId,
-        userId: user?.uid,
+        userId: user.uid,
         score: correctCount,
         total: questions.length,
         percentage: scorePercent,
@@ -141,27 +165,33 @@ function ExamRunContent() {
         details
       };
 
-      await addDoc(collection(db, 'users', user!.uid, 'exam_results'), resultData);
+      // Save result to user subcollection
+      await addDoc(collection(db, 'users', user.uid, 'exam_results'), resultData);
       
       // Update global user stats
-      const userRef = doc(db, 'users', user!.uid);
+      const userRef = doc(db, 'users', user.uid);
       const userSnap = await getDoc(userRef);
       if (userSnap.exists()) {
         const userData = userSnap.data();
-        const newTotalSims = (userData.simulationsCount || 0) + 1;
-        const newAvg = Math.round(((userData.averageScore || 0) * (newTotalSims - 1) + scorePercent) / newTotalSims);
+        const currentSims = userData.simulationsCount || 0;
+        const currentAvg = userData.averageScore || 0;
         
-        await updateDoc(userRef, {
-          simulationsCount: newTotalSims,
+        const newSims = currentSims + 1;
+        const newAvg = Math.round(((currentAvg * currentSims) + scorePercent) / newSims);
+        
+        await setDoc(userRef, {
+          simulationsCount: newSims,
           averageScore: newAvg,
-          totalTimeSpent: increment(timeSpent)
-        });
+          totalTimeSpent: increment(timeSpent),
+          lastLoginAt: serverTimestamp()
+        }, { merge: true });
       }
 
       setResult(resultData);
+      toast({ title: "Examen terminé !", description: `Votre score : ${scorePercent}%` });
     } catch (e) {
-      console.error(e);
-      toast({ variant: "destructive", title: "Erreur", description: "Impossible d'enregistrer le résultat." });
+      console.error("Error saving result:", e);
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible d'enregistrer le résultat. Vérifiez votre connexion." });
     } finally {
       setIsSubmitting(false);
     }
@@ -323,24 +353,28 @@ function ExamRunContent() {
           </div>
 
           <div className="grid gap-4">
-            {currentQuestion?.options?.map((opt: any, idx: number) => (
-              <div 
-                key={opt.id} 
-                onClick={() => handleOptionSelect(currentQuestion.id, opt.id, isMultiple)}
-                className={cn(
-                  "p-6 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-5 shadow-sm",
-                  userAnswers.includes(opt.id) ? "border-primary bg-primary/5 scale-[1.01]" : "border-slate-100 hover:border-slate-300"
-                )}
-              >
-                <div className={cn(
-                  "h-10 w-10 rounded-full flex items-center justify-center font-black text-sm shrink-0 border-2",
-                  userAnswers.includes(opt.id) ? "bg-primary text-white border-primary" : "bg-white text-slate-400"
-                )}>{String.fromCharCode(65 + idx)}</div>
-                <p className={cn("flex-1 text-lg font-bold italic pt-1", userAnswers.includes(opt.id) ? "text-slate-900" : "text-slate-600")}>
-                  {opt.text}
-                </p>
-              </div>
-            ))}
+            {(currentQuestion?.options || currentQuestion?.choices)?.map((opt: any, idx: number) => {
+              const optId = opt.id || String(idx + 1);
+              const optText = opt.text || opt;
+              return (
+                <div 
+                  key={optId} 
+                  onClick={() => handleOptionSelect(currentQuestion.id, optId, isMultiple)}
+                  className={cn(
+                    "p-6 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-5 shadow-sm",
+                    userAnswers.includes(optId) ? "border-primary bg-primary/5 scale-[1.01]" : "border-slate-100 hover:border-slate-300"
+                  )}
+                >
+                  <div className={cn(
+                    "h-10 w-10 rounded-full flex items-center justify-center font-black text-sm shrink-0 border-2",
+                    userAnswers.includes(optId) ? "bg-primary text-white border-primary" : "bg-white text-slate-400"
+                  )}>{String.fromCharCode(65 + idx)}</div>
+                  <p className={cn("flex-1 text-lg font-bold italic pt-1", userAnswers.includes(optId) ? "text-slate-900" : "text-slate-600")}>
+                    {optText}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </CardContent>
         <CardFooter className="p-8 bg-slate-50/50 border-t flex justify-between gap-4">

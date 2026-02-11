@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef } from 'react';
@@ -15,7 +14,7 @@ import { Progress } from '@/components/ui/progress';
 import { Loader2, CheckCircle2, FileSpreadsheet, XCircle, Upload, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirebase, useUser } from '@/firebase';
-import { collection, doc, writeBatch, serverTimestamp, runTransaction, getDoc } from 'firebase/firestore';
+import { collection, doc, writeBatch, serverTimestamp, runTransaction } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
 
@@ -35,8 +34,6 @@ interface ParsedQuestion {
     domain: string;
     approach: string;
     difficulty: string;
-    topic?: string;
-    competence?: string;
   };
 }
 
@@ -53,27 +50,15 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const mapDomain = (val: string) => {
-    const v = String(val || "").toLowerCase();
-    if (v.includes("humain") || v.includes("people")) return "People";
-    if (v.includes("process") || v.includes("processus")) return "Process";
-    if (v.includes("business") || v.includes("environnement") || v.includes("commercial")) return "Business";
-    return "Process";
-  };
-
-  const mapApproach = (val: string) => {
-    const v = String(val || "").toLowerCase();
-    if (v.includes("prédictif") || v.includes("cascade") || v.includes("predictive")) return "Predictive";
-    if (v.includes("agile")) return "Agile";
-    if (v.includes("hybride") || v.includes("hybrid")) return "Hybrid";
-    return "Predictive";
-  };
-
-  const mapDifficulty = (val: string) => {
-    const v = String(val || "").toLowerCase();
-    if (v.includes("facile") || v.includes("easy")) return "Easy";
-    if (v.includes("dur") || v.includes("difficile") || v.includes("hard")) return "Hard";
-    return "Medium";
+  // Helper function to generate a simple hash for deduplication
+  const generateId = (text: string, exam: string) => {
+    let hash = 0;
+    const str = text + exam;
+    for (let i = 0; i < str.length; i++) {
+      hash = (hash << 5) - hash + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return `q_${exam}_${Math.abs(hash).toString(36)}`;
   };
 
   const parseFile = async (file: File) => {
@@ -138,9 +123,9 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
               isMultipleCorrect: mappedIds.length > 1,
               explanation: justification,
               tags: {
-                domain: mapDomain(row["Domaine ECO"] || row.domain),
-                approach: mapApproach(row["Approche"] || row.approach),
-                difficulty: mapDifficulty(row["Niveau"] || row.difficulty),
+                domain: row["Domaine"] || "Process",
+                approach: row["Approche"] || "Agile",
+                difficulty: row["Difficulté"] || "Medium",
               }
             });
           }
@@ -166,28 +151,19 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
       const total = parsedData.length;
       const batchSize = 50;
       
-      const counterRef = doc(db, 'counters', 'questions_bank');
-      let startCounter = 0;
-      
-      await runTransaction(db, async (transaction) => {
-        const counterDoc = await transaction.get(counterRef);
-        startCounter = counterDoc.exists() ? counterDoc.data().current || 0 : 0;
-        transaction.set(counterRef, { current: startCounter + total }, { merge: true });
-      });
-
       for (let i = 0; i < total; i += batchSize) {
         const batch = writeBatch(db);
         const chunk = parsedData.slice(i, i + batchSize);
         
-        chunk.forEach((q, idx) => {
-          const qRef = doc(collection(db, 'questions'));
-          const currentCodeNum = startCounter + i + idx + 1;
-          const questionCode = `Q-${currentCodeNum.toString().padStart(6, '0')}`;
+        chunk.forEach((q) => {
+          // Use deterministic ID based on content to avoid duplicates
+          const questionId = generateId(q.statement, examId);
+          const qRef = doc(db, 'questions', questionId);
 
           const finalData = {
             ...q,
-            id: qRef.id,
-            questionCode,
+            id: questionId,
+            questionCode: questionId,
             isActive: true,
             createdBy: profile?.id || 'admin',
             createdAt: serverTimestamp(),
@@ -195,17 +171,18 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
             examId: examId
           };
 
-          batch.set(qRef, finalData);
+          batch.set(qRef, finalData, { merge: true });
         });
 
         await batch.commit();
         setProgress(Math.round(((i + chunk.length) / total) * 100));
       }
 
-      toast({ title: "Importation terminée", description: `${total} questions ont été ajoutées à la banque.` });
+      toast({ title: "Importation terminée", description: `${total} questions ont été synchronisées.` });
       onClose();
       setFile(null);
     } catch (e) {
+      console.error(e);
       toast({ variant: "destructive", title: "Erreur lors de l'import" });
     } finally {
       setIsImporting(false);
@@ -244,7 +221,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
                   <div className="bg-emerald-500 p-2 rounded-xl"><CheckCircle2 className="text-white h-6 w-6" /></div>
                   <div>
                     <p className="font-black italic text-emerald-900 text-lg leading-tight">{file.name}</p>
-                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{parsedData.length} questions prêtes à l'import</p>
+                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{parsedData.length} questions prêtes</p>
                   </div>
                 </div>
                 <Button variant="ghost" className="font-black uppercase text-xs text-emerald-700 hover:bg-emerald-100" onClick={() => { setFile(null); setParsedData([]); }}>Changer</Button>
