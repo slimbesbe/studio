@@ -80,7 +80,6 @@ export default function ExamPage() {
   const [breakTimeLeft, setBreakTimeLeft] = useState(BREAK_DURATION);
   const [isConfirmSubmitOpen, setIsConfirmSubmitOpen] = useState(false);
 
-  // État pour les examens qui contiennent réellement des questions
   const [filledExams, setFilledExams] = useState<string[]>([]);
   const [isLoadingFilled, setIsLoadingFilled] = useState(true);
 
@@ -89,7 +88,6 @@ export default function ExamPage() {
       if (!db) return;
       try {
         const results: string[] = [];
-        // On vérifie chaque examen pour voir s'il a au moins une question active
         for (const exam of ALL_EXAMS) {
           const q = query(
             collection(db, 'questions'), 
@@ -116,13 +114,11 @@ export default function ExamPage() {
     if (isUserLoading || isLoadingFilled) return [];
     
     let baseAllowed = ALL_EXAMS;
-    // Si c'est un utilisateur standard, on filtre par ses accès autorisés
     if (!(isDemo || profile?.role === 'super_admin' || profile?.role === 'admin')) {
       const userAllowedIds = profile?.allowedExams || [];
       baseAllowed = ALL_EXAMS.filter(exam => userAllowedIds.includes(exam.id));
     }
 
-    // On ne garde que les examens qui ont du contenu dans la banque
     return baseAllowed.filter(exam => filledExams.includes(exam.id));
   }, [profile, isDemo, isUserLoading, filledExams, isLoadingFilled]);
 
@@ -555,7 +551,7 @@ export default function ExamPage() {
         <Card className="shadow-lg border-t-[8px] border-t-primary bg-white p-6 min-h-[300px] rounded-3xl overflow-hidden relative">
           <CardHeader className="pb-6">
             <CardTitle className="text-xl leading-relaxed font-black text-slate-900 tracking-tight italic">
-              {q?.statement}
+              {q?.statement || q?.text}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
