@@ -14,7 +14,8 @@ import {
   ArrowRight,
   LayoutGrid,
   BarChart3,
-  GraduationCap
+  GraduationCap,
+  ShieldCheck
 } from 'lucide-react';
 import { useUser, useFirestore } from '@/firebase';
 import { useRouter } from 'next/navigation';
@@ -66,7 +67,7 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-        {/* 1/ Module Coaching - NOUVEAU */}
+        {/* 1/ Module Coaching */}
         <Card className="hover:shadow-2xl transition-all border-t-8 border-t-indigo-600 rounded-[32px] overflow-hidden group">
           <CardHeader className="p-6 pb-2">
             <div className="flex items-center gap-3">
