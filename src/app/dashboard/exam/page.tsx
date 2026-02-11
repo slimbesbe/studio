@@ -80,6 +80,7 @@ export default function ExamPage() {
   const [breakTimeLeft, setBreakTimeLeft] = useState(BREAK_DURATION);
   const [isConfirmSubmitOpen, setIsConfirmSubmitOpen] = useState(false);
 
+  // Nouvel état pour les compteurs réels de questions par examen
   const [examCounts, setExamCounts] = useState<Record<string, number>>({});
   const [isLoadingCounts, setIsLoadingCounts] = useState(true);
 
