@@ -2,6 +2,7 @@ import type {Metadata} from 'next';
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Toaster } from '@/components/ui/toaster';
+import { Sidebar } from '@/components/dashboard/Sidebar';
 
 export const metadata: Metadata = {
   title: 'SIMOVEX PMP Exam Simulator',
@@ -22,7 +23,12 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased selection:bg-primary/20">
         <FirebaseClientProvider>
-          {children}
+          <div className="min-h-screen bg-background">
+            <Sidebar />
+            <main className="pl-64 min-h-screen">
+              {children}
+            </main>
+          </div>
           <Toaster />
         </FirebaseClientProvider>
       </body>
