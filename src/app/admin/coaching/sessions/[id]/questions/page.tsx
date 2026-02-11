@@ -1,11 +1,10 @@
-
 "use client";
 
 import { useState, useMemo } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, where, orderBy, doc, deleteDoc } from 'firebase/firestore';
 import { useParams } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { 
@@ -14,9 +13,7 @@ import {
   Trash2, 
   Pencil, 
   Search, 
-  FileQuestion,
-  Info,
-  BadgeCheck
+  FileQuestion
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -54,7 +51,7 @@ export default function SessionQuestionsList() {
   }, [questions, searchTerm]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Supprimer définitivement cette question de la séance ?")) return;
+    if (!confirm("Supprimer définitivement cette question ?")) return;
     try {
       await deleteDoc(doc(db, 'questions', id));
       toast({ title: "Question supprimée" });
@@ -114,7 +111,7 @@ export default function SessionQuestionsList() {
                   </TableCell>
                   <TableCell className="text-center">
                     <Badge className="bg-emerald-100 text-emerald-600 border-none font-black italic rounded-lg px-3 py-1">
-                      Choix {q.correctChoice || (q.correctOptionIds ? q.correctOptionIds[0] : 'A')}
+                      Choix {q.correctChoice || '1'}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right px-10">
@@ -134,8 +131,8 @@ export default function SessionQuestionsList() {
                   <TableCell colSpan={4} className="h-64 text-center">
                     <div className="flex flex-col items-center justify-center text-slate-300 gap-4">
                       <FileQuestion className="h-16 w-16 opacity-20" />
-                      <p className="font-black uppercase italic tracking-widest">Aucune question dans cette plage</p>
-                      <p className="text-[10px] font-bold text-slate-400">Utilisez le bouton d'importation dans la config session.</p>
+                      <p className="font-black uppercase italic tracking-widest">Aucune question trouvée</p>
+                      <p className="text-[10px] font-bold text-slate-400">Importez une simulation dans la configuration session.</p>
                     </div>
                   </TableCell>
                 </TableRow>

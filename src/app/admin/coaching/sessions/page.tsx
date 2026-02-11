@@ -72,7 +72,7 @@ export default function AdminCoachingSessions() {
         batch.set(doc(db, 'coachingSessions', s.id), { ...s, updatedAt: serverTimestamp() });
       });
       await batch.commit();
-      toast({ title: "Programme initialisé", description: "Les 6 séances ont été créées avec succès." });
+      toast({ title: "Programme initialisé", description: "Les 6 séances ont été créées." });
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur d'initialisation" });
     } finally {
@@ -137,7 +137,7 @@ export default function AdminCoachingSessions() {
                 </div>
                 <div>
                   <CardTitle className="text-2xl font-black italic uppercase tracking-tight">{s.title}</CardTitle>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">{s.type === 'MEET' ? 'Visioconférence' : 'Simulation Quiz (35 Questions)'}</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">{s.type === 'MEET' ? 'Visioconférence' : `Simulation Quiz (Questions ${s.questionStart}-${s.questionEnd})`}</p>
                 </div>
               </div>
               <div className="flex items-center gap-6">
