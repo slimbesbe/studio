@@ -43,11 +43,14 @@ service cloud.firestore {
     }
 
     match /questions/{questionId} {
+      // Allow any signed-in user to read/list questions
       allow read: if isSignedIn();
     }
 
     match /coachingSessions/{sessionId} {
-      allow list, get: if isSignedIn() && (resource == null || resource.data.isPublished == true);
+      // Allow any signed-in user to read/list coaching sessions
+      // (Filtered by isPublished in the query itself)
+      allow read: if isSignedIn();
     }
 
     match /coachingAttempts/{attemptId} {

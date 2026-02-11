@@ -3,7 +3,7 @@
 
 import { useState, useMemo, Suspense, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, deleteDoc, doc, limit, where, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, deleteDoc, doc, limit, where } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -36,8 +36,9 @@ function QuestionsList() {
   const [counts, setCounts] = useState<Record<string, number>>({});
 
   const questionsQuery = useMemoFirebase(() => {
-    // ON RÉCUPÈRE LES QUESTIONS ACTIVES UNIQUEMENT POUR CORRESPONDRE AU SIMULATEUR
-    return query(collection(db, 'questions'), where('isActive', '==', true), orderBy('updatedAt', 'desc'), limit(1000));
+    // For admin view, we want to see all questions regardless of isActive status
+    // but we'll order them by updatedAt to see the latest changes
+    return query(collection(db, 'questions'), orderBy('updatedAt', 'desc'), limit(1000));
   }, [db]);
 
   const { data: questions, isLoading } = useCollection(questionsQuery);
@@ -186,6 +187,7 @@ function QuestionsList() {
                     <div className="flex gap-2 mt-1">
                       <Badge variant="secondary" className="text-[8px] font-black uppercase italic py-0 bg-slate-100 border-none">{q.tags?.domain || 'Process'}</Badge>
                       <Badge variant="secondary" className="text-[8px] font-black uppercase italic py-0 bg-slate-100 border-none">{q.tags?.approach || 'Agile'}</Badge>
+                      {q.isActive === false && <Badge variant="destructive" className="text-[8px] font-black uppercase italic py-0 border-none">Inactif</Badge>}
                     </div>
                   </TableCell>
                   <TableCell className="text-center">
