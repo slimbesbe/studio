@@ -1,9 +1,8 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, setDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, query, orderBy, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +17,8 @@ import {
   Users, 
   Upload, 
   Eye, 
-  CheckCircle2 
+  PlusCircle,
+  ShieldCheck 
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -37,6 +37,7 @@ export default function AdminCoachingSessions() {
 
   const [editSessions, setEditSessions] = useState<any[]>([]);
   const [isSaving, setIsSaving] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(false);
   const [importSession, setImportSession] = useState<any | null>(null);
 
   useEffect(() => {
@@ -54,6 +55,30 @@ export default function AdminCoachingSessions() {
       setEditSessions(init);
     }
   }, [sessions]);
+
+  const handleInitializeAll = async () => {
+    setIsInitializing(true);
+    try {
+      const batch = writeBatch(db);
+      const init = [
+        { id: 'S1', index: 1, title: 'Séance 1', type: 'MEET', meetLinks: {}, isPublished: false },
+        { id: 'S2', index: 2, title: 'Séance 2', type: 'QUIZ', questionStart: 1, questionEnd: 35, isPublished: false },
+        { id: 'S3', index: 3, title: 'Séance 3', type: 'QUIZ', questionStart: 36, questionEnd: 70, isPublished: false },
+        { id: 'S4', index: 4, title: 'Séance 4', type: 'QUIZ', questionStart: 71, questionEnd: 105, isPublished: false },
+        { id: 'S5', index: 5, title: 'Séance 5', type: 'QUIZ', questionStart: 106, questionEnd: 140, isPublished: false },
+        { id: 'S6', index: 6, title: 'Séance 6', type: 'QUIZ', questionStart: 141, questionEnd: 175, isPublished: false },
+      ];
+      init.forEach(s => {
+        batch.set(doc(db, 'coachingSessions', s.id), { ...s, updatedAt: serverTimestamp() });
+      });
+      await batch.commit();
+      toast({ title: "Programme initialisé", description: "Les 6 séances ont été créées avec succès." });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Erreur d'initialisation" });
+    } finally {
+      setIsInitializing(false);
+    }
+  };
 
   const handleSave = async (id: string) => {
     const s = editSessions.find(x => x.id === id);
@@ -95,6 +120,11 @@ export default function AdminCoachingSessions() {
             <p className="text-muted-foreground mt-1 uppercase tracking-widest text-[10px] font-bold italic">Gestion des liens Meet et des contenus Quiz S1-S6.</p>
           </div>
         </div>
+        {(!sessions || sessions.length === 0) && (
+          <Button onClick={handleInitializeAll} disabled={isInitializing} className="bg-emerald-600 h-14 px-8 rounded-2xl font-black uppercase tracking-widest shadow-xl scale-105 transition-transform hover:bg-emerald-700">
+            {isInitializing ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : <PlusCircle className="mr-2 h-5 w-5" />} Initialiser S1-S6
+          </Button>
+        )}
       </div>
 
       <div className="grid gap-8">
@@ -143,6 +173,9 @@ export default function AdminCoachingSessions() {
                         </div>
                       </div>
                     ))}
+                    {(!groups || groups.length === 0) && (
+                      <div className="text-center py-4 text-slate-400 font-bold italic text-xs uppercase tracking-widest">Aucun groupe configuré pour le moment.</div>
+                    )}
                   </div>
                 </div>
               ) : (
