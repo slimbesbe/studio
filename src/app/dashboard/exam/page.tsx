@@ -2,18 +2,17 @@
 
 import { useState, useMemo } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, doc } from 'firebase/firestore';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { collection, query, where } from 'firebase/firestore';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { 
-  PlayCircle, 
   Loader2, 
   Trophy, 
   FileQuestion, 
   ChevronRight,
   AlertCircle
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
@@ -26,9 +25,8 @@ const ALL_EXAMS = [
 ];
 
 export default function ExamPage() {
-  const { profile, user, isUserLoading } = useUser();
+  const { profile, isUserLoading } = useUser();
   const db = useFirestore();
-  const { toast } = useToast();
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
 
   // Récupérer toutes les questions actives pour compter par examen
@@ -61,7 +59,7 @@ export default function ExamPage() {
       // Condition 2: L'utilisateur doit avoir le droit d'accès
       const hasAccess = profile.role === 'admin' || 
                         profile.role === 'super_admin' || 
-                        profile.allowedExams?.includes(exam.id);
+                        (profile.allowedExams && profile.allowedExams.includes(exam.id));
       
       return hasQuestions && hasAccess;
     });
@@ -149,7 +147,7 @@ export default function ExamPage() {
                     selectedExamId === exam.id ? "bg-primary hover:bg-primary/90" : "bg-slate-200"
                   )}
                 >
-                  <Link href={`/dashboard/exam/run?id=${exam.id}`}>
+                  <Link href={selectedExamId === exam.id ? `/dashboard/exam/run?id=${exam.id}` : '#'}>
                     Lancer la simulation <ChevronRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
