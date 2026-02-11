@@ -10,9 +10,8 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { 
   Clock, ChevronRight, ChevronLeft, Loader2, PlayCircle, 
-  Info, Pause, Flag, Calculator as CalcIcon, 
-  MessageSquare, CheckCircle2, AlertTriangle, ListChecks,
-  Coffee, ShieldAlert, FileQuestion
+  Pause, Flag, Calculator as CalcIcon, 
+  MessageSquare, Coffee, ShieldAlert, FileQuestion
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -80,25 +79,26 @@ export default function ExamPage() {
   const [breakTimeLeft, setBreakTimeLeft] = useState(BREAK_DURATION);
   const [isConfirmSubmitOpen, setIsConfirmSubmitOpen] = useState(false);
 
-  // Nouvel état pour les compteurs réels de questions par examen
   const [examCounts, setExamCounts] = useState<Record<string, number>>({});
   const [isLoadingCounts, setIsLoadingCounts] = useState(true);
 
+  // FETCH REAL COUNTS FROM DB
   useEffect(() => {
     async function fetchExamMetadata() {
       if (!db) return;
       setIsLoadingCounts(true);
       try {
         const counts: Record<string, number> = {};
-        for (const exam of ALL_EXAMS) {
-          const q = query(
-            collection(db, 'questions'), 
-            where('examId', '==', exam.id), 
-            where('isActive', '==', true)
-          );
-          const snap = await getDocs(q);
-          counts[exam.id] = snap.size;
-        }
+        const q = query(collection(db, 'questions'), where('isActive', '==', true));
+        const snap = await getDocs(q);
+        
+        snap.docs.forEach(doc => {
+          const data = doc.data();
+          if (data.examId) {
+            counts[data.examId] = (counts[data.examId] || 0) + 1;
+          }
+        });
+        
         setExamCounts(counts);
       } catch (e) {
         console.error("Error fetching exam counts:", e);
@@ -113,13 +113,13 @@ export default function ExamPage() {
     if (isUserLoading || isLoadingCounts) return [];
     
     let baseAllowed = ALL_EXAMS;
-    // Si l'utilisateur n'est pas Admin, on filtre par ses permissions profils
+    // FILTRAGE DROITS
     if (!(isDemo || profile?.role === 'super_admin' || profile?.role === 'admin')) {
       const userAllowedIds = profile?.allowedExams || [];
       baseAllowed = ALL_EXAMS.filter(exam => userAllowedIds.includes(exam.id));
     }
 
-    // On ne garde que les examens qui ont AU MOINS une question dans la banque
+    // FILTRAGE DYNAMIQUE : MASQUER SI VIDE DANS LA BANQUE
     return baseAllowed.filter(exam => (examCounts[exam.id] || 0) > 0);
   }, [profile, isDemo, isUserLoading, examCounts, isLoadingCounts]);
 
@@ -178,7 +178,6 @@ export default function ExamPage() {
         return;
       }
 
-      // Normalisation pour supporter les formats Excel, Coaching et Manuel
       questions = questions.map(q => {
         const options = q.options || (q.choices ? q.choices.map((c: string, i: number) => ({ id: (i + 1).toString(), text: c })) : []);
         const correctOptionIds = q.correctOptionIds || (q.correctChoice ? [String(q.correctChoice)] : []);
@@ -198,7 +197,7 @@ export default function ExamPage() {
         setExamPart(savedState.examPart || 1);
       } else {
         const pool = [...questions].sort(() => 0.5 - Math.random());
-        // On limite à 180 seulement si il y en a plus, sinon on prend tout ce qui existe (ex: 10)
+        // ON PREND EXACTEMENT LE NOMBRE DE QUESTIONS DISPONIBLES (MAX 180)
         const selected = isDemo ? pool.slice(0, 2) : pool.slice(0, Math.min(pool.length, 180));
         setExamQuestions(selected);
         setTimeLeft(TOTAL_PMP_TIME);

@@ -1,11 +1,10 @@
 
 "use client";
 
-import { useState, useMemo, Suspense } from 'react';
+import { useState, useMemo, Suspense, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, deleteDoc, doc, limit, where } from 'firebase/firestore';
-import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { collection, query, orderBy, deleteDoc, doc, limit, where, getDocs } from 'firebase/firestore';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { 
@@ -18,8 +17,7 @@ import {
   Loader2, 
   BookCopy, 
   ChevronLeft,
-  Filter,
-  Layers
+  Filter
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -35,13 +33,26 @@ function QuestionsList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterExam, setFilterExam] = useState('all');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [counts, setCounts] = useState<Record<string, number>>({});
 
   const questionsQuery = useMemoFirebase(() => {
-    let q = query(collection(db, 'questions'), orderBy('updatedAt', 'desc'), limit(1000));
-    return q;
+    // ON RÉCUPÈRE LES QUESTIONS ACTIVES UNIQUEMENT POUR CORRESPONDRE AU SIMULATEUR
+    return query(collection(db, 'questions'), where('isActive', '==', true), orderBy('updatedAt', 'desc'), limit(1000));
   }, [db]);
 
   const { data: questions, isLoading } = useCollection(questionsQuery);
+
+  // CALCUL DES COMPTEURS POUR LE FILTRE
+  useEffect(() => {
+    if (questions) {
+      const newCounts: Record<string, number> = {};
+      questions.forEach(q => {
+        const id = q.examId || q.sessionId || 'other';
+        newCounts[id] = (newCounts[id] || 0) + 1;
+      });
+      setCounts(newCounts);
+    }
+  }, [questions]);
 
   const filteredQuestions = useMemo(() => {
     if (!questions) return [];
@@ -135,17 +146,17 @@ function QuestionsList() {
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Toutes les questions</SelectItem>
-              <SelectItem value="exam1">Simulation Examen 1</SelectItem>
-              <SelectItem value="exam2">Simulation Examen 2</SelectItem>
-              <SelectItem value="exam3">Simulation Examen 3</SelectItem>
-              <SelectItem value="exam4">Simulation Examen 4</SelectItem>
-              <SelectItem value="exam5">Simulation Examen 5</SelectItem>
-              <SelectItem value="S2">Coaching S2 (Q1-35)</SelectItem>
-              <SelectItem value="S3">Coaching S3 (Q36-70)</SelectItem>
-              <SelectItem value="S4">Coaching S4 (Q71-105)</SelectItem>
-              <SelectItem value="S5">Coaching S5 (Q106-140)</SelectItem>
-              <SelectItem value="S6">Coaching S6 (Q141-175)</SelectItem>
+              <SelectItem value="all">Toutes ({questions?.length || 0})</SelectItem>
+              <SelectItem value="exam1">Examen 1 ({counts['exam1'] || 0})</SelectItem>
+              <SelectItem value="exam2">Examen 2 ({counts['exam2'] || 0})</SelectItem>
+              <SelectItem value="exam3">Examen 3 ({counts['exam3'] || 0})</SelectItem>
+              <SelectItem value="exam4">Examen 4 ({counts['exam4'] || 0})</SelectItem>
+              <SelectItem value="exam5">Examen 5 ({counts['exam5'] || 0})</SelectItem>
+              <SelectItem value="S2">Coaching S2 ({counts['S2'] || 0})</SelectItem>
+              <SelectItem value="S3">Coaching S3 ({counts['S3'] || 0})</SelectItem>
+              <SelectItem value="S4">Coaching S4 ({counts['S4'] || 0})</SelectItem>
+              <SelectItem value="S5">Coaching S5 ({counts['S5'] || 0})</SelectItem>
+              <SelectItem value="S6">Coaching S6 ({counts['S6'] || 0})</SelectItem>
             </SelectContent>
           </Select>
         </div>
