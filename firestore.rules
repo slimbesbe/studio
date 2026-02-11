@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -39,11 +40,12 @@ service cloud.firestore {
     }
 
     match /questions/{questionId} {
-      allow read: if isSignedIn();
+      // Autoriser tous les utilisateurs connectés à lister les questions pour les compteurs
+      allow read, list: if isSignedIn();
     }
     
     match /coachingSessions/{sessionId} {
-      allow read: if isSignedIn();
+      allow read, list: if isSignedIn();
     }
 
     match /coachingAttempts/{attemptId} {

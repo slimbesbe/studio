@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/exhaustive-deps */
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -31,6 +31,7 @@ export default function ExamPage() {
   
   const [examCounts, setExamCounts] = useState<Record<string, number>>({});
   const [isCounting, setIsCounting] = useState(true);
+  const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
 
   // Fetch real counts from DB
   useEffect(() => {
@@ -41,7 +42,6 @@ export default function ExamPage() {
         const qRef = collection(db, 'questions');
         const counts: Record<string, number> = {};
         
-        // Parallel fetch for efficiency
         const countsPromises = ALL_EXAMS.map(async (exam) => {
           const q = query(qRef, where('examId', '==', exam.id), where('isActive', '==', true));
           const snap = await getDocs(q);
@@ -70,8 +70,6 @@ export default function ExamPage() {
     return ALL_EXAMS.filter(exam => {
       const count = examCounts[exam.id] || 0;
       const hasQuestions = count > 0;
-      
-      // Admin sees everything that isn't empty, users see only allowed ones
       const isPrivileged = profile.role === 'admin' || profile.role === 'super_admin';
       const hasAccess = isPrivileged || (profile.allowedExams && profile.allowedExams.includes(exam.id));
       
@@ -123,7 +121,11 @@ export default function ExamPage() {
           {availableExams.map((exam) => (
             <Card 
               key={exam.id} 
-              className="rounded-[40px] border-4 transition-all relative overflow-hidden group hover:shadow-2xl border-white bg-white hover:border-primary/20"
+              onClick={() => setSelectedExamId(exam.id)}
+              className={cn(
+                "rounded-[40px] border-4 transition-all relative overflow-hidden group cursor-pointer",
+                selectedExamId === exam.id ? "border-primary bg-primary/5 shadow-2xl scale-[1.02]" : "bg-white border-white shadow-xl hover:border-primary/20"
+              )}
             >
               <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
                 <Trophy className="h-20 w-20" />
@@ -151,7 +153,10 @@ export default function ExamPage() {
                 
                 <Button 
                   asChild
-                  className="w-full h-14 rounded-2xl mt-6 font-black uppercase tracking-widest text-sm shadow-lg bg-primary hover:bg-primary/90"
+                  className={cn(
+                    "w-full h-14 rounded-2xl mt-6 font-black uppercase tracking-widest text-sm shadow-lg",
+                    selectedExamId === exam.id ? "bg-primary hover:bg-primary/90" : "bg-slate-200 text-slate-500 pointer-events-none"
+                  )}
                 >
                   <Link href={`/dashboard/exam/run?id=${exam.id}`}>
                     Lancer la simulation <ChevronRight className="ml-2 h-4 w-4" />

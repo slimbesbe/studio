@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/exhaustive-deps */
+
 'use client';
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
@@ -20,11 +20,14 @@ import {
   AlertTriangle,
   Trophy,
   LayoutGrid,
-  Coffee
+  Coffee,
+  Pause,
+  Calculator as CalcIcon
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Calculator } from '@/components/dashboard/Calculator';
 
 function ExamRunContent() {
   const { user, profile } = useUser();
@@ -46,8 +49,10 @@ function ExamRunContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [showReviewGrid, setShowReviewGrid] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [showCalculator, setShowReviewCalculator] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   
-  // Pause management
+  // Pause management (breaks)
   const [isOnBreak, setIsOnBreak] = useState(false);
   const [breakTimeLeft, setBreakTimeLeft] = useState(10 * 60);
 
@@ -61,11 +66,10 @@ function ExamRunContent() {
         const snap = await getDocs(qQuery);
         
         const fetched = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-        // Sort by index if available, otherwise stay as is
         fetched.sort((a, b) => (a.index || 0) - (b.index || 0));
         
         if (fetched.length === 0) {
-          toast({ variant: "destructive", title: "Examen vide", description: "Aucune question n'a été trouvée pour cet examen." });
+          toast({ variant: "destructive", title: "Examen vide", description: "Aucune question n'a été trouvée." });
           router.push('/dashboard/exam');
           return;
         }
@@ -83,7 +87,7 @@ function ExamRunContent() {
 
   useEffect(() => {
     let timer: any;
-    if (isStarted && !result && !isOnBreak && timeLeft > 0) {
+    if (isStarted && !result && !isOnBreak && !isPaused && timeLeft > 0) {
       timer = setInterval(() => {
         setTimeLeft(prev => prev - 1);
       }, 1000);
@@ -91,7 +95,7 @@ function ExamRunContent() {
       handleSubmit();
     }
     return () => clearInterval(timer);
-  }, [isStarted, result, timeLeft, isOnBreak]);
+  }, [isStarted, result, timeLeft, isOnBreak, isPaused]);
 
   useEffect(() => {
     let breakTimer: any;
@@ -133,7 +137,7 @@ function ExamRunContent() {
 
   const nextQuestion = () => {
     const nextIdx = currentIndex + 1;
-    // Check for break points at 60 and 120
+    // Section breaks: at 60 and 120
     if (nextIdx === 60 || nextIdx === 120) {
       setIsOnBreak(true);
       setBreakTimeLeft(10 * 60);
@@ -221,21 +225,20 @@ function ExamRunContent() {
 
   if (!isStarted && !result) {
     return (
-      <div className="max-w-3xl mx-auto py-12 px-4 space-y-8 animate-fade-in">
-        <Card className="rounded-[40px] border-none shadow-2xl p-16 text-center space-y-10 bg-white">
+      <div className="max-w-3xl mx-auto py-12 px-4 space-y-8 animate-fade-in text-center">
+        <div className="bg-white p-16 rounded-[60px] shadow-2xl space-y-10">
           <div className="bg-primary/10 h-24 w-24 rounded-[32px] flex items-center justify-center mx-auto shadow-inner">
             <Trophy className="h-12 w-12 text-primary" />
           </div>
           <div className="space-y-4">
-            <h1 className="text-5xl font-black italic uppercase tracking-tighter text-slate-900">Prêt pour l'examen ?</h1>
+            <h1 className="text-5xl font-black italic uppercase tracking-tighter text-slate-900">Simulation PMP®</h1>
             <p className="text-xl font-bold text-slate-500 italic max-w-xl mx-auto">
-              Simulation pour <strong>{examId?.replace('exam', 'Examen ')}</strong>. 
-              {questions.length} questions basées sur votre banque.
+              Examen blanc de {questions.length} questions. Conditions réelles : 230 minutes, 3 sections, 2 pauses.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-8 bg-slate-50 p-8 rounded-3xl border-2 border-dashed">
             <div className="text-center">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Temps imparti</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Temps total</p>
               <p className="text-3xl font-black italic text-primary">230:00</p>
             </div>
             <div className="text-center">
@@ -244,45 +247,52 @@ function ExamRunContent() {
             </div>
           </div>
           <Button onClick={() => setIsStarted(true)} size="lg" className="h-20 px-16 rounded-[28px] bg-primary hover:bg-primary/90 text-2xl font-black uppercase tracking-widest shadow-xl scale-105 transition-transform">
-            COMMENCER MAINTENANT
+            DÉMARRER L'EXAMEN
           </Button>
-        </Card>
+        </div>
       </div>
     );
   }
 
   if (result) {
+    const perfColor = result.percentage >= 80 ? 'text-emerald-500' : result.percentage >= 70 ? 'text-blue-500' : result.percentage >= 60 ? 'text-amber-500' : 'text-red-500';
+    const perfBg = result.percentage >= 80 ? 'bg-emerald-500' : result.percentage >= 70 ? 'bg-blue-500' : result.percentage >= 60 ? 'bg-amber-500' : 'bg-red-500';
+
     return (
-      <div className="max-w-2xl mx-auto py-16 text-center space-y-10 animate-fade-in px-4">
-        <h1 className="text-5xl font-black italic uppercase tracking-tighter text-primary">Résultat Final</h1>
+      <div className="max-w-4xl mx-auto py-16 text-center space-y-10 animate-fade-in px-4">
+        <h1 className="text-5xl font-black italic uppercase tracking-tighter text-primary">Rapport de Performance</h1>
         <Card className="rounded-[40px] shadow-2xl border-none p-12 space-y-8 bg-white relative overflow-hidden">
           <div className="absolute top-0 right-0 p-8 opacity-5"><Trophy className="h-32 w-32" /></div>
-          <div className="space-y-2">
-            <span className={cn("text-8xl font-black italic tracking-tighter", result.percentage >= 75 ? "text-emerald-500" : "text-red-500")}>
+          
+          <div className="space-y-4">
+            <div className={cn("text-8xl font-black italic tracking-tighter", perfColor)}>
               {result.percentage}%
-            </span>
-            <div className="mt-2">
-               <Badge className={cn(
-                 "text-lg px-6 py-1 font-black uppercase italic rounded-xl",
-                 result.performance === 'Above Target' ? "bg-emerald-500" : 
-                 result.performance === 'Target' ? "bg-blue-500" : 
-                 result.performance === 'Below Target' ? "bg-amber-500" : "bg-red-500"
-               )}>
+            </div>
+            <div className="flex justify-center">
+               <Badge className={cn("text-lg px-8 py-2 font-black uppercase italic rounded-xl shadow-lg", perfBg)}>
                  {result.performance}
                </Badge>
             </div>
-            <p className="text-xl font-black text-slate-400 uppercase tracking-widest italic mt-4">{result.score} / {result.total} Points</p>
+            <p className="text-xl font-black text-slate-400 uppercase tracking-widest italic mt-4">{result.score} / {result.total} RÉPONSES CORRECTES</p>
           </div>
-          <div className="flex items-center justify-center gap-6 text-slate-500 font-bold italic border-y-2 border-dashed py-6">
-            <div className="flex items-center gap-2"><Clock className="h-5 w-5" /> {formatMMSS(result.timeSpent)}</div>
-            <div className="flex items-center gap-2"><Trophy className="h-5 w-5" /> {examId?.replace('exam', 'Exam ')}</div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-8 border-t-2 border-dashed">
+            <div className="bg-slate-50 p-6 rounded-3xl border-2">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">Temps utilisé</p>
+              <p className="text-3xl font-black italic text-slate-800">{formatMMSS(result.timeSpent)}</p>
+            </div>
+            <div className="bg-slate-50 p-6 rounded-3xl border-2">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">Examen complété</p>
+              <p className="text-3xl font-black italic text-slate-800">{examId?.replace('exam', 'N°')}</p>
+            </div>
           </div>
+
           <div className="grid grid-cols-2 gap-4">
             <Button variant="outline" className="h-16 rounded-2xl border-4 font-black uppercase tracking-widest text-lg italic" asChild>
-              <Link href="/dashboard/history">Historique</Link>
+              <Link href="/dashboard/history">Détails</Link>
             </Button>
             <Button className="h-16 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl text-lg italic" asChild>
-              <Link href="/dashboard">Dashboard</Link>
+              <Link href="/dashboard">Tableau de bord</Link>
             </Button>
           </div>
         </Card>
@@ -293,19 +303,19 @@ function ExamRunContent() {
   if (isOnBreak) {
     return (
       <div className="max-w-2xl mx-auto py-24 px-4 text-center animate-fade-in">
-        <Card className="rounded-[40px] shadow-2xl p-16 space-y-8 bg-white border-4 border-indigo-100">
-          <div className="bg-indigo-50 h-20 w-20 rounded-full flex items-center justify-center mx-auto">
-            <Coffee className="h-10 w-10 text-indigo-600" />
+        <Card className="rounded-[40px] shadow-2xl p-16 space-y-8 bg-white border-t-8 border-t-indigo-600">
+          <div className="bg-indigo-50 h-24 w-24 rounded-[32px] flex items-center justify-center mx-auto shadow-inner">
+            <Coffee className="h-12 w-12 text-indigo-600" />
           </div>
           <div className="space-y-4">
-            <h2 className="text-4xl font-black italic uppercase tracking-tighter text-indigo-600">Temps de Pause</h2>
-            <p className="text-slate-500 font-bold italic">Prenez 10 minutes pour souffler. La prochaine partie commencera après.</p>
+            <h2 className="text-4xl font-black italic uppercase tracking-tighter text-indigo-600">Pause Recommandée</h2>
+            <p className="text-xl font-bold text-slate-500 italic">Vous avez terminé un bloc de 60 questions. Prenez 10 minutes pour vous reposer.</p>
           </div>
-          <div className="text-6xl font-black italic tabular-nums text-slate-800">
+          <div className="text-7xl font-black italic tabular-nums text-slate-800 bg-slate-50 py-8 rounded-3xl border-2 border-dashed">
             {formatMMSS(breakTimeLeft)}
           </div>
-          <Button onClick={() => setIsOnBreak(false)} className="h-16 w-full rounded-2xl bg-indigo-600 font-black uppercase tracking-widest shadow-xl">
-            Reprendre l'examen
+          <Button onClick={() => setIsOnBreak(false)} className="h-20 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-xl shadow-xl">
+            REPRENDRE L'EXAMEN
           </Button>
         </Card>
       </div>
@@ -317,109 +327,99 @@ function ExamRunContent() {
   const userAnswers = answers[currentQuestion?.id] || [];
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 py-8 px-4 animate-fade-in pb-24">
-      <div className="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-3xl shadow-lg border-2 gap-4">
+    <div className="max-w-6xl mx-auto space-y-8 py-8 px-4 animate-fade-in pb-24 relative">
+      {/* Header controls matching the screenshot */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-6">
         <div className="flex items-center gap-4">
-          <Badge className="bg-primary/10 text-primary border-none font-black italic px-6 py-2 rounded-xl text-lg">
-            Q {currentIndex + 1} / {questions.length}
-          </Badge>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setShowReviewGrid(!showReviewGrid)}
-            className={cn("h-12 w-12 rounded-2xl border-2", showReviewGrid && "bg-slate-100")}
-          >
-            <LayoutGrid className="h-6 w-6" />
-          </Button>
+          <div className="bg-white px-6 h-14 flex items-center justify-center rounded-full shadow-lg border-2 border-slate-100 min-w-[140px]">
+            <span className="font-black italic text-xl text-slate-800">Q-{currentIndex + 1} / {questions.length}</span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => setIsPaused(!isPaused)}
+              className={cn("h-14 w-14 rounded-2xl border-2 shadow-md bg-white", isPaused && "bg-amber-50 border-amber-200")}
+            >
+              <Pause className={cn("h-6 w-6 text-slate-600", isPaused && "text-amber-600")} />
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => toggleFlag(currentQuestion?.id)}
+              className={cn("h-14 w-14 rounded-2xl border-2 shadow-md bg-white", flagged[currentQuestion?.id] && "bg-amber-50 border-amber-200")}
+            >
+              <Flag className={cn("h-6 w-6 text-slate-600", flagged[currentQuestion?.id] && "text-amber-600 fill-amber-600")} />
+            </Button>
+
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => setShowReviewCalculator(!showCalculator)}
+              className={cn("h-14 w-14 rounded-2xl border-2 shadow-md bg-white", showCalculator && "bg-primary/5 border-primary/20")}
+            >
+              <CalcIcon className="h-6 w-6 text-slate-600" />
+            </Button>
+          </div>
         </div>
         
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2 font-black text-2xl italic tabular-nums text-slate-700 min-w-[100px]">
-            <Clock className="h-6 w-6 text-primary" /> {formatMMSS(timeLeft)}
+        <div className="flex flex-col items-center">
+          <div className={cn(
+            "h-16 min-w-[160px] bg-slate-100 rounded-3xl flex items-center justify-center border-4 border-white shadow-xl px-8",
+            timeLeft < 300 ? "text-red-600" : "text-indigo-800"
+          )}>
+            <span className="text-3xl font-black italic tabular-nums">{formatMMSS(timeLeft)}</span>
           </div>
-          <Button 
-            onClick={() => setIsConfirmOpen(true)}
-            className="bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest h-12 px-8 rounded-2xl shadow-lg"
-          >
-            Terminer
-          </Button>
+          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Compte à rebours examen</span>
         </div>
       </div>
 
-      {showReviewGrid && (
-        <Card className="p-6 rounded-3xl shadow-xl animate-slide-up bg-white border-2">
-          <div className="grid grid-cols-6 sm:grid-cols-10 gap-2 max-h-60 overflow-y-auto p-2">
-            {questions.map((q, idx) => (
-              <button
-                key={q.id}
-                onClick={() => {
-                  setCurrentIndex(idx);
-                  setShowReviewGrid(false);
-                }}
-                className={cn(
-                  "h-10 w-10 rounded-lg font-bold text-xs transition-all flex items-center justify-center relative",
-                  currentIndex === idx ? "ring-2 ring-primary ring-offset-2" : "",
-                  flagged[q.id] ? "bg-amber-100 text-amber-700 border-amber-300 border" : 
-                  answers[q.id]?.length > 0 ? "bg-emerald-100 text-emerald-700 border-emerald-300 border" : "bg-slate-50 text-slate-400 border"
-                )}
-              >
-                {idx + 1}
-                {flagged[q.id] && <div className="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full" />}
-              </button>
-            ))}
-          </div>
-        </Card>
-      )}
+      {/* Progress Bar */}
+      <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden shadow-inner">
+        <div 
+          className="h-full bg-primary transition-all duration-500 shadow-[0_0_10px_rgba(var(--primary),0.5)]" 
+          style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }} 
+        />
+      </div>
 
-      <Card className="rounded-[40px] shadow-2xl border-t-8 border-t-primary bg-white overflow-hidden">
-        <CardContent className="p-10 space-y-10">
-          <div className="flex justify-between items-start gap-4">
-            <div className="space-y-4 flex-1">
-              <div className="flex items-center gap-3">
-                <Badge variant="secondary" className="bg-slate-100 text-slate-500 border-none font-black italic px-3 py-0.5 text-[10px]">
-                  {currentQuestion?.tags?.domain?.toUpperCase() || 'PROCESS'}
-                </Badge>
-                <Badge variant="secondary" className="bg-slate-100 text-slate-500 border-none font-black italic px-3 py-0.5 text-[10px]">
-                  {currentQuestion?.tags?.approach?.toUpperCase() || 'AGILE'}
-                </Badge>
-              </div>
-              <p className="text-2xl font-black text-slate-800 italic leading-relaxed">
-                {currentQuestion?.statement || currentQuestion?.text}
+      {/* Main Question Card with Blue Top Border */}
+      <Card className="rounded-[40px] shadow-2xl border-t-[12px] border-t-primary bg-white min-h-[500px] flex flex-col">
+        <CardContent className="p-12 flex-1 space-y-12">
+          {/* Question Text */}
+          <div className="space-y-6">
+            <p className="text-3xl font-black text-slate-800 italic leading-snug">
+              {currentQuestion?.statement || currentQuestion?.text}
+            </p>
+            {isMultiple && (
+              <p className="text-xs font-bold text-primary uppercase tracking-widest flex items-center gap-2">
+                <Info className="h-4 w-4" /> Choisissez plusieurs options
               </p>
-              {isMultiple && (
-                <p className="text-xs font-bold text-primary uppercase tracking-widest flex items-center gap-2">
-                  <Info className="h-4 w-4" /> Sélectionnez toutes les réponses correctes
-                </p>
-              )}
-            </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => toggleFlag(currentQuestion.id)}
-              className={cn("h-12 w-12 rounded-2xl border-2", flagged[currentQuestion.id] ? "text-amber-500 border-amber-200 bg-amber-50" : "text-slate-300")}
-            >
-              <Flag className={cn("h-6 w-6", flagged[currentQuestion.id] && "fill-current")} />
-            </Button>
+            )}
           </div>
 
-          <div className="grid gap-4">
+          {/* Options List */}
+          <div className="grid gap-6">
             {(currentQuestion?.options || currentQuestion?.choices)?.map((opt: any, idx: number) => {
               const optId = opt.id || String(idx + 1);
               const optText = opt.text || opt;
+              const isSelected = userAnswers.includes(optId);
+              
               return (
                 <div 
                   key={optId} 
-                  onClick={() => handleOptionSelect(currentQuestion.id, optId, isMultiple)}
+                  onClick={() => handleOptionSelect(currentQuestion.id, optId, !!isMultiple)}
                   className={cn(
-                    "p-4 rounded-xl border-2 transition-all cursor-pointer flex items-start gap-4 shadow-sm",
-                    userAnswers.includes(optId) ? "border-primary bg-primary/5 scale-[1.01]" : "border-slate-100 hover:border-slate-300"
+                    "p-6 rounded-[24px] border-2 transition-all cursor-pointer flex items-center gap-6 shadow-sm",
+                    isSelected ? "border-primary bg-primary/5 ring-4 ring-primary/5" : "border-slate-100 hover:border-slate-200 bg-white"
                   )}
                 >
                   <div className={cn(
-                    "h-10 w-10 rounded-full flex items-center justify-center font-black text-sm shrink-0 border-2",
-                    userAnswers.includes(optId) ? "bg-primary text-white border-primary" : "bg-white text-slate-400"
+                    "h-12 w-12 rounded-full flex items-center justify-center font-black text-sm shrink-0 border-2",
+                    isSelected ? "bg-primary text-white border-primary shadow-lg" : "bg-white text-primary border-primary/20"
                   )}>{String.fromCharCode(65 + idx)}</div>
-                  <p className={cn("flex-1 text-lg font-bold italic pt-1", userAnswers.includes(optId) ? "text-slate-900" : "text-slate-600")}>
+                  <p className={cn("flex-1 text-xl font-bold italic", isSelected ? "text-slate-900" : "text-slate-600")}>
                     {optText}
                   </p>
                 </div>
@@ -427,40 +427,104 @@ function ExamRunContent() {
             })}
           </div>
         </CardContent>
-        <CardFooter className="p-8 bg-slate-50/50 border-t flex justify-between gap-4">
+        <CardFooter className="p-10 bg-slate-50/50 border-t flex justify-between gap-6 rounded-b-[40px]">
           <Button 
             variant="outline" 
-            className="h-16 px-10 rounded-2xl border-4 font-black uppercase tracking-widest italic" 
+            className="h-16 px-12 rounded-2xl border-4 font-black uppercase tracking-widest italic hover:bg-white" 
             onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))} 
             disabled={currentIndex === 0}
           >
             Précédent
           </Button>
-          <Button 
-            onClick={() => currentIndex === questions.length - 1 ? setIsConfirmOpen(true) : nextQuestion()} 
-            className="h-16 px-12 bg-primary rounded-2xl font-black uppercase tracking-widest shadow-xl text-lg italic group"
-          >
-            {currentIndex === questions.length - 1 ? "Terminer" : "Suivant"} <ChevronRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-          </Button>
+          <div className="flex gap-4">
+            <Button 
+              variant="ghost" 
+              onClick={() => setShowReviewGrid(!showReviewGrid)}
+              className="h-16 px-6 rounded-2xl font-black uppercase text-[10px] tracking-widest"
+            >
+              <LayoutGrid className="h-5 w-5 mr-2" /> Grille
+            </Button>
+            <Button 
+              onClick={() => currentIndex === questions.length - 1 ? setIsConfirmOpen(true) : nextQuestion()} 
+              className="h-16 px-16 bg-primary rounded-2xl font-black uppercase tracking-widest shadow-2xl text-xl italic group"
+            >
+              {currentIndex === questions.length - 1 ? "Terminer" : "Suivant"} <ChevronRight className="ml-2 h-6 w-6 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          </div>
         </CardFooter>
       </Card>
 
+      {/* Review Grid Overlay */}
+      {showReviewGrid && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-4xl rounded-[40px] p-10 shadow-3xl bg-white border-4">
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="text-2xl font-black italic uppercase tracking-tighter text-primary">Révision des questions</h3>
+              <Button variant="ghost" onClick={() => setShowReviewGrid(false)} className="font-black uppercase text-xs">Fermer</Button>
+            </div>
+            <div className="grid grid-cols-6 sm:grid-cols-10 gap-3 max-h-[60vh] overflow-y-auto p-2">
+              {questions.map((q, idx) => (
+                <button
+                  key={q.id}
+                  onClick={() => {
+                    setCurrentIndex(idx);
+                    setShowReviewGrid(false);
+                  }}
+                  className={cn(
+                    "h-12 w-12 rounded-xl font-black text-sm transition-all flex items-center justify-center relative border-2",
+                    currentIndex === idx ? "ring-4 ring-primary/20 border-primary" : "border-slate-100",
+                    flagged[q.id] ? "bg-amber-100 border-amber-400 text-amber-700" : 
+                    answers[q.id]?.length > 0 ? "bg-primary/10 border-primary/20 text-primary" : "bg-white text-slate-300"
+                  )}
+                >
+                  {idx + 1}
+                  {flagged[q.id] && <div className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full border-2 border-white" />}
+                </button>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Calculator Component */}
+      {showCalculator && (
+        <div className="fixed bottom-24 right-8 z-50">
+          <Calculator onClose={() => setShowReviewCalculator(false)} />
+        </div>
+      )}
+
+      {/* Confirmation Dialog */}
       <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
         <AlertDialogContent className="rounded-[40px] p-12 border-4 shadow-3xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-3xl font-black uppercase italic tracking-tighter text-primary">Soumettre l'examen ?</AlertDialogTitle>
             <AlertDialogDescription className="text-xl font-bold pt-6 text-slate-600 leading-relaxed uppercase tracking-tight">
-              Êtes-vous sûr de vouloir terminer cette session ? Vous ne pourrez plus modifier vos réponses.
+              {Object.keys(answers).length} questions répondues sur {questions.length}. Voulez-vous vraiment valider ?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-10 gap-6">
-            <AlertDialogCancel className="h-16 rounded-2xl font-black uppercase tracking-widest border-4">Continuer l'examen</AlertDialogCancel>
+            <AlertDialogCancel className="h-16 rounded-2xl font-black uppercase tracking-widest border-4">Continuer</AlertDialogCancel>
             <AlertDialogAction onClick={handleSubmit} className="h-16 rounded-2xl font-black bg-primary shadow-2xl uppercase tracking-widest">
               {isSubmitting ? <Loader2 className="animate-spin h-6 w-6" /> : "Oui, terminer"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Pause Message */}
+      {isPaused && (
+        <div className="fixed inset-0 bg-white/80 backdrop-blur-md z-[100] flex items-center justify-center">
+          <Card className="p-16 rounded-[60px] shadow-3xl text-center space-y-8 border-4">
+            <div className="h-24 w-24 bg-amber-100 rounded-[32px] flex items-center justify-center mx-auto">
+              <Pause className="h-12 w-12 text-amber-600" />
+            </div>
+            <h2 className="text-4xl font-black uppercase italic text-amber-600">Examen en pause</h2>
+            <Button onClick={() => setIsPaused(false)} className="h-20 px-16 rounded-[28px] bg-amber-600 hover:bg-amber-700 text-2xl font-black uppercase tracking-widest">
+              REPRENDRE
+            </Button>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
