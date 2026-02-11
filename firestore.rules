@@ -8,7 +8,6 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // Définition statique des Super Admins pour court-circuiter les erreurs de permissions
     function isSuperAdmin() {
       return isSignedIn() && (
         request.auth.uid == "vwyrAnNtQkSojYSEEK2qkRB5feh2" || 
@@ -17,63 +16,48 @@ service cloud.firestore {
       );
     }
 
-    // Un Admin est soit un Super Admin, soit un admin délégué
     function isAdmin() { 
       return isSuperAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
     }
 
-    // --- RÈGLE PRIORITAIRE SUPER ADMIN (GOD MODE) ---
+    // --- RÈGLES PRIORITAIRES ADMIN ---
+    // Les administrateurs peuvent TOUT lister et lire sans restrictions de filtrage.
     match /{document=**} {
-      allow read, write: if isSuperAdmin();
+      allow list, get: if isAdmin();
+      allow write: if isSuperAdmin();
     }
 
-    // --- RÈGLES PAR COLLECTION (Fallbacks pour non-Super Admins) ---
+    // --- RÈGLES UTILISATEURS (Filtrage obligatoire pour les requêtes non-admin) ---
     
     match /users/{userId} {
-      allow list: if isAdmin();
-      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      allow create: if isAdmin();
-      allow update: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
+      allow get: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isSignedIn() && request.auth.uid == userId;
       
       match /{allSubcollections=**} {
-        allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
       }
     }
 
     match /questions/{questionId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
     }
 
     match /coachingSessions/{sessionId} {
-      allow list: if isAdmin() || (isSignedIn() && resource.data.isPublished == true);
-      allow get: if isAdmin() || (isSignedIn() && resource.data.isPublished == true);
-      allow write: if isAdmin();
+      allow list, get: if isSignedIn() && resource.data.isPublished == true;
     }
 
     match /coachingAttempts/{attemptId} {
-      allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow write: if isSignedIn() && (isAdmin() || request.resource.data.userId == request.auth.uid);
+      allow list, get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow write: if isSignedIn() && request.resource.data.userId == request.auth.uid;
     }
 
     match /coachingGroups/{groupId} {
-      allow list: if isAdmin();
-      allow get: if isAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groupId == groupId);
-      allow write: if isAdmin();
-    }
-
-    match /roles_admin/{userId} {
-      allow read: if isSignedIn();
-      allow write: if isSuperAdmin();
+      allow get: if isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groupId == groupId;
     }
 
     match /exams/{examId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
-      match /{allSubcollections=**} { allow read: if isSignedIn(); allow write: if isAdmin(); }
+      match /{allSubcollections=**} { allow read: if isSignedIn(); }
     }
-
-    match /counters/{counterId} { allow read, write: if isAdmin(); }
   }
 }
