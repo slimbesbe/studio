@@ -30,7 +30,7 @@ service cloud.firestore {
     
     // Autoriser tout utilisateur à vérifier son propre statut admin sans erreur de permission
     match /roles_admin/{uid} {
-      allow get: if isSignedIn() && request.auth.uid == uid;
+      allow read: if isSignedIn() && request.auth.uid == uid;
     }
     
     match /users/{userId} {

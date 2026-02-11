@@ -19,27 +19,19 @@ import {
   LogIn
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { doc } from 'firebase/firestore';
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isUserLoading, profile } = useUser();
   const auth = useAuth();
-  const firestore = useFirestore();
 
   const isDemo = user?.isAnonymous;
 
-  const adminDocRef = useMemoFirebase(() => {
-    return user && !user.isAnonymous ? doc(firestore, 'roles_admin', user.uid) : null;
-  }, [firestore, user]);
-
-  const { data: adminDoc } = useDoc(adminDocRef);
-
-  // Détection du rôle admin (Super Admin direct ou via document roles_admin)
-  const isAdmin = !!adminDoc || profile?.role === 'super_admin' || profile?.role === 'admin';
+  // Détection du rôle admin via le profil utilisateur chargé par le Provider
+  const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
 
   // Logic pour filtrer les menus selon accessType
   const accessType = profile?.accessType || 'simulation';
@@ -80,7 +72,7 @@ export function Sidebar() {
         {!user && !isUserLoading && (
           <div className="px-3 py-4 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center leading-relaxed italic">
-              Connectez-vous pour accéder à vos outils.
+              Connectez-vous pour accéder à vos outils de simulation.
             </p>
           </div>
         )}
@@ -133,7 +125,7 @@ export function Sidebar() {
               </div>
               <div className="flex-1 overflow-hidden">
                 <p className="text-sm font-bold truncate">{profile?.firstName ? `${profile.firstName} ${profile.lastName}` : isDemo ? 'Visiteur Démo' : 'Utilisateur'}</p>
-                <p className="text-xs text-muted-foreground truncate italic">{isAdmin ? 'Super Admin' : isDemo ? 'Mode Démo' : 'Participant'}</p>
+                <p className="text-xs text-muted-foreground truncate italic">{profile?.role === 'super_admin' ? 'Super Admin' : profile?.role === 'admin' ? 'Admin' : isDemo ? 'Mode Démo' : 'Participant'}</p>
               </div>
             </div>
             <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-destructive" onClick={handleSignOut}>

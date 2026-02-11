@@ -7,44 +7,32 @@ import { Button } from '@/components/ui/button';
 import { 
   Users, 
   BookCopy, 
-  PlusCircle,
   Loader2,
   ShieldAlert,
-  Settings,
   ArrowRight,
   LayoutGrid,
   BarChart3,
   GraduationCap,
   ShieldCheck
 } from 'lucide-react';
-import { useUser, useFirestore } from '@/firebase';
+import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
 
 export default function AdminDashboard() {
-  const { user, isUserLoading } = useUser();
-  const db = useFirestore();
+  const { profile, isUserLoading } = useUser();
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
   useEffect(() => {
-    async function checkAdmin() {
-      if (!isUserLoading) {
-        if (user) {
-          const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
-          if (!adminDoc.exists()) {
-            router.push('/dashboard');
-          } else {
-            setIsAdmin(true);
-          }
-        } else {
-          router.push('/');
-        }
+    if (!isUserLoading) {
+      if (profile?.role === 'admin' || profile?.role === 'super_admin') {
+        setIsAdmin(true);
+      } else {
+        router.push('/dashboard');
       }
     }
-    checkAdmin();
-  }, [user, isUserLoading, db, router]);
+  }, [profile, isUserLoading, router]);
 
   if (isUserLoading || isAdmin === null) {
     return (
