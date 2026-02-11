@@ -11,18 +11,17 @@ import {
   LogOut, 
   Trophy,
   Loader2,
-  Lock,
   BookCopy,
   Users,
   LayoutGrid,
   ShieldAlert,
-  GraduationCap
+  GraduationCap,
+  LogIn
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { doc } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -39,23 +38,20 @@ export function Sidebar() {
 
   const { data: adminDoc } = useDoc(adminDocRef);
 
+  // Détection du rôle admin (Super Admin direct ou via document roles_admin)
   const isAdmin = !!adminDoc || profile?.role === 'super_admin' || profile?.role === 'admin';
 
   // Logic pour filtrer les menus selon accessType
-  // accessType="coaching": Dashboard + Coaching
-  // accessType="simulation": Tout sauf Coaching
-  // accessType="coaching_simulation": Tout
   const accessType = profile?.accessType || 'simulation';
-
   const showSimulationMenus = isAdmin || accessType === 'simulation' || accessType === 'coaching_simulation';
   const showCoachingMenu = isAdmin || accessType === 'coaching' || accessType === 'coaching_simulation';
 
   const navItems = [
-    { name: 'Tableau de bord', href: '/dashboard', icon: LayoutDashboard, show: true },
-    { name: 'Coaching', href: '/dashboard/coaching', icon: GraduationCap, show: showCoachingMenu },
-    { name: 'Pratique Libre', href: '/dashboard/practice', icon: BookOpen, show: showSimulationMenus },
-    { name: 'Simulations d\'Examen', href: '/dashboard/exam', icon: Trophy, show: showSimulationMenus },
-    { name: 'Historique', href: '/dashboard/history', icon: History, show: showSimulationMenus },
+    { name: 'Tableau de bord', href: '/dashboard', icon: LayoutDashboard, show: !!user },
+    { name: 'Coaching', href: '/dashboard/coaching', icon: GraduationCap, show: !!user && showCoachingMenu },
+    { name: 'Pratique Libre', href: '/dashboard/practice', icon: BookOpen, show: !!user && showSimulationMenus },
+    { name: 'Simulations d\'Examen', href: '/dashboard/exam', icon: Trophy, show: !!user && showSimulationMenus },
+    { name: 'Historique', href: '/dashboard/history', icon: History, show: !!user && showSimulationMenus },
   ];
 
   const handleSignOut = async () => {
@@ -81,6 +77,14 @@ export function Sidebar() {
       </div>
 
       <div className="flex-1 py-6 px-4 space-y-1 overflow-y-auto">
+        {!user && !isUserLoading && (
+          <div className="px-3 py-4 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center leading-relaxed italic">
+              Connectez-vous pour accéder à vos outils.
+            </p>
+          </div>
+        )}
+
         {navItems.filter(i => i.show).map((item) => (
           <Link
             key={item.href}
@@ -99,7 +103,7 @@ export function Sidebar() {
           </Link>
         ))}
         
-        {isAdmin && (
+        {isAdmin && user && (
           <div className="pt-4 mt-4 border-t space-y-1">
             <p className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 mt-2">Administration</p>
             <Link href="/admin/dashboard" className={cn("flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors", pathname === '/admin/dashboard' ? "bg-accent text-white" : "text-muted-foreground hover:bg-secondary")}>
@@ -121,20 +125,26 @@ export function Sidebar() {
       <div className="p-4 border-t space-y-4">
         {isUserLoading ? (
           <div className="flex items-center justify-center py-2"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+        ) : user ? (
+          <>
+            <div className="flex items-center gap-3 px-3">
+              <div className={cn("h-8 w-8 rounded-full flex items-center justify-center text-white font-bold text-xs", isDemo ? "bg-amber-500" : (isAdmin ? "bg-primary" : "bg-accent"))}>
+                {initials}
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <p className="text-sm font-bold truncate">{profile?.firstName ? `${profile.firstName} ${profile.lastName}` : isDemo ? 'Visiteur Démo' : 'Utilisateur'}</p>
+                <p className="text-xs text-muted-foreground truncate italic">{isAdmin ? 'Super Admin' : isDemo ? 'Mode Démo' : 'Participant'}</p>
+              </div>
+            </div>
+            <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-destructive" onClick={handleSignOut}>
+              <LogOut className="mr-2 h-4 w-4" /> Déconnexion
+            </Button>
+          </>
         ) : (
-          <div className="flex items-center gap-3 px-3">
-            <div className={cn("h-8 w-8 rounded-full flex items-center justify-center text-white font-bold text-xs", isDemo ? "bg-amber-500" : (isAdmin ? "bg-primary" : "bg-accent"))}>
-              {initials}
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <p className="text-sm font-bold truncate">{profile?.firstName ? `${profile.firstName} ${profile.lastName}` : isDemo ? 'Visiteur Démo' : 'Utilisateur'}</p>
-              <p className="text-xs text-muted-foreground truncate italic">{isAdmin ? 'Super Admin' : isDemo ? 'Mode Démo' : 'Participant'}</p>
-            </div>
-          </div>
+          <Button variant="outline" className="w-full h-12 rounded-xl font-black uppercase italic tracking-widest text-[10px] border-2" asChild>
+            <Link href="/"><LogIn className="mr-2 h-4 w-4" /> Se connecter</Link>
+          </Button>
         )}
-        <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-destructive" onClick={handleSignOut}>
-          <LogOut className="mr-2 h-4 w-4" /> Déconnexion
-        </Button>
       </div>
     </div>
   );

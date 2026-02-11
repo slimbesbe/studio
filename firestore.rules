@@ -21,11 +21,17 @@ service cloud.firestore {
     }
 
     // --- RÈGLES PRIORITAIRES ADMIN ---
+    // Les administrateurs ont accès à tout pour la gestion via le panel
     match /{document=**} {
       allow read, write: if isAdmin();
     }
 
     // --- RÈGLES UTILISATEURS ---
+    
+    // Autoriser tout utilisateur à vérifier son propre statut admin sans erreur de permission
+    match /roles_admin/{uid} {
+      allow get: if isSignedIn() && request.auth.uid == uid;
+    }
     
     match /users/{userId} {
       allow get: if isSignedIn() && request.auth.uid == userId;
@@ -41,16 +47,19 @@ service cloud.firestore {
     }
 
     match /coachingSessions/{sessionId} {
-      allow list, get: if isSignedIn() && resource.data.isPublished == true;
+      allow list, get: if isSignedIn() && (resource == null || resource.data.isPublished == true);
     }
 
     match /coachingAttempts/{attemptId} {
-      allow list, get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow list, get: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid);
       allow write: if isSignedIn() && request.resource.data.userId == request.auth.uid;
     }
 
     match /coachingGroups/{groupId} {
-      allow get: if isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groupId == groupId;
+      allow get: if isSignedIn() && (
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groupId == groupId
+      );
     }
 
     match /exams/{examId} {
