@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 'use client';
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
@@ -18,7 +19,8 @@ import {
   CheckCircle2, 
   AlertTriangle,
   Trophy,
-  LayoutGrid
+  LayoutGrid,
+  Coffee
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -44,6 +46,10 @@ function ExamRunContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [showReviewGrid, setShowReviewGrid] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  
+  // Pause management
+  const [isOnBreak, setIsOnBreak] = useState(false);
+  const [breakTimeLeft, setBreakTimeLeft] = useState(10 * 60);
 
   useEffect(() => {
     async function fetchQuestions() {
@@ -55,6 +61,7 @@ function ExamRunContent() {
         const snap = await getDocs(qQuery);
         
         const fetched = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+        // Sort by index if available, otherwise stay as is
         fetched.sort((a, b) => (a.index || 0) - (b.index || 0));
         
         if (fetched.length === 0) {
@@ -72,11 +79,11 @@ function ExamRunContent() {
       }
     }
     fetchQuestions();
-  }, [db, examId, toast, router]);
+  }, [db, examId]);
 
   useEffect(() => {
     let timer: any;
-    if (isStarted && !result && timeLeft > 0) {
+    if (isStarted && !result && !isOnBreak && timeLeft > 0) {
       timer = setInterval(() => {
         setTimeLeft(prev => prev - 1);
       }, 1000);
@@ -84,13 +91,24 @@ function ExamRunContent() {
       handleSubmit();
     }
     return () => clearInterval(timer);
-  }, [isStarted, result, timeLeft]);
+  }, [isStarted, result, timeLeft, isOnBreak]);
 
-  const formatTime = (seconds: number) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
+  useEffect(() => {
+    let breakTimer: any;
+    if (isOnBreak && breakTimeLeft > 0) {
+      breakTimer = setInterval(() => {
+        setBreakTimeLeft(prev => prev - 1);
+      }, 1000);
+    } else if (breakTimeLeft === 0 && isOnBreak) {
+      setIsOnBreak(false);
+    }
+    return () => clearInterval(breakTimer);
+  }, [isOnBreak, breakTimeLeft]);
+
+  const formatMMSS = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
     const s = seconds % 60;
-    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
   const handleOptionSelect = (questionId: string, optionId: string, isMultiple: boolean) => {
@@ -111,6 +129,23 @@ function ExamRunContent() {
 
   const toggleFlag = (questionId: string) => {
     setFlagged(prev => ({ ...prev, [questionId]: !prev[questionId] }));
+  };
+
+  const nextQuestion = () => {
+    const nextIdx = currentIndex + 1;
+    // Check for break points at 60 and 120
+    if (nextIdx === 60 || nextIdx === 120) {
+      setIsOnBreak(true);
+      setBreakTimeLeft(10 * 60);
+    }
+    setCurrentIndex(Math.min(questions.length - 1, nextIdx));
+  };
+
+  const getPerformanceLevel = (percent: number) => {
+    if (percent >= 80) return "Above Target";
+    if (percent >= 70) return "Target";
+    if (percent >= 60) return "Below Target";
+    return "Needs Improvement";
   };
 
   const handleSubmit = async () => {
@@ -138,6 +173,7 @@ function ExamRunContent() {
 
     const scorePercent = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0;
     const timeSpent = (230 * 60) - timeLeft;
+    const performance = getPerformanceLevel(scorePercent);
 
     try {
       const resultData = {
@@ -146,6 +182,7 @@ function ExamRunContent() {
         score: correctCount,
         total: questions.length,
         percentage: scorePercent,
+        performance,
         timeSpent,
         completedAt: serverTimestamp(),
         details
@@ -192,14 +229,14 @@ function ExamRunContent() {
           <div className="space-y-4">
             <h1 className="text-5xl font-black italic uppercase tracking-tighter text-slate-900">Prêt pour l'examen ?</h1>
             <p className="text-xl font-bold text-slate-500 italic max-w-xl mx-auto">
-              Vous allez commencer la simulation pour <strong>{examId?.replace('exam', 'Examen ')}</strong>. 
-              Cette épreuve contient {questions.length} questions.
+              Simulation pour <strong>{examId?.replace('exam', 'Examen ')}</strong>. 
+              {questions.length} questions basées sur votre banque.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-8 bg-slate-50 p-8 rounded-3xl border-2 border-dashed">
             <div className="text-center">
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Temps imparti</p>
-              <p className="text-3xl font-black italic text-primary">230 MIN</p>
+              <p className="text-3xl font-black italic text-primary">230:00</p>
             </div>
             <div className="text-center">
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Questions</p>
@@ -224,20 +261,52 @@ function ExamRunContent() {
             <span className={cn("text-8xl font-black italic tracking-tighter", result.percentage >= 75 ? "text-emerald-500" : "text-red-500")}>
               {result.percentage}%
             </span>
-            <p className="text-xl font-black text-slate-400 uppercase tracking-widest italic">{result.score} / {result.total} Points</p>
+            <div className="mt-2">
+               <Badge className={cn(
+                 "text-lg px-6 py-1 font-black uppercase italic rounded-xl",
+                 result.performance === 'Above Target' ? "bg-emerald-500" : 
+                 result.performance === 'Target' ? "bg-blue-500" : 
+                 result.performance === 'Below Target' ? "bg-amber-500" : "bg-red-500"
+               )}>
+                 {result.performance}
+               </Badge>
+            </div>
+            <p className="text-xl font-black text-slate-400 uppercase tracking-widest italic mt-4">{result.score} / {result.total} Points</p>
           </div>
           <div className="flex items-center justify-center gap-6 text-slate-500 font-bold italic border-y-2 border-dashed py-6">
-            <div className="flex items-center gap-2"><Clock className="h-5 w-5" /> {Math.floor(result.timeSpent / 60)} min</div>
+            <div className="flex items-center gap-2"><Clock className="h-5 w-5" /> {formatMMSS(result.timeSpent)}</div>
             <div className="flex items-center gap-2"><Trophy className="h-5 w-5" /> {examId?.replace('exam', 'Exam ')}</div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Button variant="outline" className="h-16 rounded-2xl border-4 font-black uppercase tracking-widest text-lg italic" asChild>
-              <Link href="/dashboard/history">Détails</Link>
+              <Link href="/dashboard/history">Historique</Link>
             </Button>
             <Button className="h-16 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl text-lg italic" asChild>
-              <Link href="/dashboard">Tableau de bord</Link>
+              <Link href="/dashboard">Dashboard</Link>
             </Button>
           </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (isOnBreak) {
+    return (
+      <div className="max-w-2xl mx-auto py-24 px-4 text-center animate-fade-in">
+        <Card className="rounded-[40px] shadow-2xl p-16 space-y-8 bg-white border-4 border-indigo-100">
+          <div className="bg-indigo-50 h-20 w-20 rounded-full flex items-center justify-center mx-auto">
+            <Coffee className="h-10 w-10 text-indigo-600" />
+          </div>
+          <div className="space-y-4">
+            <h2 className="text-4xl font-black italic uppercase tracking-tighter text-indigo-600">Temps de Pause</h2>
+            <p className="text-slate-500 font-bold italic">Prenez 10 minutes pour souffler. La prochaine partie commencera après.</p>
+          </div>
+          <div className="text-6xl font-black italic tabular-nums text-slate-800">
+            {formatMMSS(breakTimeLeft)}
+          </div>
+          <Button onClick={() => setIsOnBreak(false)} className="h-16 w-full rounded-2xl bg-indigo-600 font-black uppercase tracking-widest shadow-xl">
+            Reprendre l'examen
+          </Button>
         </Card>
       </div>
     );
@@ -265,8 +334,8 @@ function ExamRunContent() {
         </div>
         
         <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2 font-black text-2xl italic tabular-nums text-slate-700">
-            <Clock className="h-6 w-6 text-primary" /> {formatTime(timeLeft)}
+          <div className="flex items-center gap-2 font-black text-2xl italic tabular-nums text-slate-700 min-w-[100px]">
+            <Clock className="h-6 w-6 text-primary" /> {formatMMSS(timeLeft)}
           </div>
           <Button 
             onClick={() => setIsConfirmOpen(true)}
@@ -279,7 +348,7 @@ function ExamRunContent() {
 
       {showReviewGrid && (
         <Card className="p-6 rounded-3xl shadow-xl animate-slide-up bg-white border-2">
-          <div className="grid grid-cols-6 sm:grid-cols-10 gap-2">
+          <div className="grid grid-cols-6 sm:grid-cols-10 gap-2 max-h-60 overflow-y-auto p-2">
             {questions.map((q, idx) => (
               <button
                 key={q.id}
@@ -368,7 +437,7 @@ function ExamRunContent() {
             Précédent
           </Button>
           <Button 
-            onClick={() => currentIndex === questions.length - 1 ? setIsConfirmOpen(true) : setCurrentIndex(currentIndex + 1)} 
+            onClick={() => currentIndex === questions.length - 1 ? setIsConfirmOpen(true) : nextQuestion()} 
             className="h-16 px-12 bg-primary rounded-2xl font-black uppercase tracking-widest shadow-xl text-lg italic group"
           >
             {currentIndex === questions.length - 1 ? "Terminer" : "Suivant"} <ChevronRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />

@@ -61,6 +61,10 @@ service cloud.firestore {
       match /{allSubcollections=**} { allow read: if isSignedIn(); }
     }
     
+    match /users/{userId}/exam_results/{resultId} {
+      allow read, write: if isSignedIn() && (isAdmin() || request.auth.uid == userId);
+    }
+    
     match /{path=**}/exam_results/{resultId} {
       allow read: if isSignedIn() && (isAdmin() || request.auth.uid == resource.data.userId);
     }

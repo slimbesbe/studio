@@ -1,4 +1,4 @@
-
+/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
 import { useMemo } from 'react';
@@ -54,7 +54,7 @@ const CircularStat = ({ value, sublabel, percent, color = "hsl(var(--primary))" 
           />
         </svg>
         <div className="z-10 flex items-center justify-center">
-          <span className="text-4xl font-black text-slate-900 tracking-tighter italic">{value}</span>
+          <span className="text-4xl font-black text-slate-900 tracking-tighter italic tabular-nums">{value}</span>
         </div>
       </div>
       <div className="h-10 flex items-start justify-center">
@@ -85,7 +85,6 @@ export default function DashboardPage() {
   const { data: attempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
 
   const stats = useMemo(() => {
-    // Inject Mock Data for Demo Mode
     if (isDemo) {
       return {
         avgExamScore: 72,
@@ -111,7 +110,7 @@ export default function DashboardPage() {
           { name: 'Sim 4', score: 70 },
           { name: 'Sim 5', score: 75 }
         ],
-        demoTimeSpent: 45000 // 12H 30
+        demoTimeSpent: 45000 
       };
     }
 
@@ -191,7 +190,7 @@ export default function DashboardPage() {
       probability,
       progressionData: results.map((r, i) => ({ name: `Sim ${i+1}`, score: r.percentage }))
     };
-  }, [results, attempts, isDemo]);
+  }, [results, attempts]);
 
   if (isUserLoading || (!isDemo && (isResultsLoading || isAttemptsLoading))) {
     return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
@@ -199,10 +198,9 @@ export default function DashboardPage() {
 
   const formatTotalTime = (seconds: number) => {
     const s = seconds || 0;
-    const h = Math.floor(s / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    if (h > 0) return `${h}H ${m.toString().padStart(2, '0')}`;
-    return `${m} MIN`;
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${sec.toString().padStart(2, '0')}`;
   };
 
   const displayTime = isDemo ? (stats?.demoTimeSpent || 0) : (profile?.totalTimeSpent || 0);
@@ -211,7 +209,7 @@ export default function DashboardPage() {
     <div className="space-y-10 animate-fade-in max-w-7xl mx-auto pb-24 pt-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 bg-white p-10 rounded-[40px] shadow-xl border-2">
         <div className="space-y-2">
-          <h1 className="text-4xl font-black text-primary italic uppercase tracking-tighter">Cockpit de Performance</h1>
+          <h1 className="text-4xl font-black text-primary italic uppercase tracking-tighter text-primary">Cockpit de Performance</h1>
           <p className="text-base text-slate-500 font-bold uppercase tracking-widest italic">
             {isDemo ? "Mode DÉMO (Visualisation des KPIs)" : `Participant : ${profile?.firstName} ${profile?.lastName}`}
           </p>
@@ -283,26 +281,26 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <Card className="rounded-[32px] border-none shadow-lg bg-primary text-white p-8">
             <div className="flex items-center gap-4 mb-6">
-              <div className="bg-white/20 p-3 rounded-2xl"><Zap className="h-6 w-6" /></div>
+              <div className="bg-white/20 p-3 rounded-2xl group-hover:scale-110 transition-transform"><Zap className="h-6 w-6 text-white" /></div>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest opacity-70 italic">Rythme moyen</p>
-                <h3 className="text-3xl font-black italic tracking-tighter">{stats?.avgTimePerQuestion || 0}s / Q</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-70 italic text-white">Rythme moyen</p>
+                <h3 className="text-3xl font-black italic tracking-tighter text-white">{stats?.avgTimePerQuestion || 0}s / Q</h3>
               </div>
             </div>
-            <p className="text-[10px] font-bold leading-relaxed opacity-80 uppercase italic">
+            <p className="text-[10px] font-bold leading-relaxed opacity-80 uppercase italic text-white">
               Cible PMP : 75s par question. {stats?.avgTimePerQuestion && stats.avgTimePerQuestion <= 75 ? "Excellent rythme !" : "Attention à la gestion du temps."}
             </p>
           </Card>
 
           <Card className="rounded-[32px] border-none shadow-lg bg-amber-500 text-white p-8">
             <div className="flex items-center gap-4 mb-6">
-              <div className="bg-white/20 p-3 rounded-2xl"><Brain className="h-6 w-6" /></div>
+              <div className="bg-white/20 p-3 rounded-2xl group-hover:scale-110 transition-transform"><Brain className="h-6 w-6 text-white" /></div>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest opacity-70 italic">Taux de récidive</p>
-                <h3 className="text-3xl font-black italic tracking-tighter">{stats?.recurrenceRate || 0}%</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-70 italic text-white">Taux de récidive</p>
+                <h3 className="text-3xl font-black italic tracking-tighter text-white">{stats?.recurrenceRate || 0}%</h3>
               </div>
             </div>
-            <p className="text-[10px] font-bold leading-relaxed opacity-80 uppercase italic">
+            <p className="text-[10px] font-bold leading-relaxed opacity-80 uppercase italic text-white">
               Questions ratées plusieurs fois. Un taux élevé indique des lacunes structurelles (faux acquis).
             </p>
           </Card>
@@ -361,7 +359,7 @@ export default function DashboardPage() {
             <div className="flex justify-center mb-4">
               <ShieldCheck className="h-16 w-16 text-primary animate-pulse" />
             </div>
-            <CardTitle className="text-3xl font-black italic uppercase tracking-tight">Probabilité estimée de réussite PMP®</CardTitle>
+            <CardTitle className="text-3xl font-black italic uppercase tracking-tight text-primary">Probabilité estimée de réussite PMP®</CardTitle>
             <CardDescription className="font-bold uppercase tracking-widest text-xs italic text-slate-500 mt-2">
               Basé sur l'historique des utilisateurs ayant réussi leur certification avec SIMOVEX
             </CardDescription>
@@ -379,7 +377,7 @@ export default function DashboardPage() {
                   />
                 </svg>
                 <div className="text-center z-10">
-                  <span className="text-6xl font-black text-slate-900 italic tracking-tighter">{stats?.probability || 0}%</span>
+                  <span className="text-6xl font-black text-slate-900 italic tracking-tighter tabular-nums">{stats?.probability || 0}%</span>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 italic">READINESS SCORE</p>
                 </div>
               </div>
@@ -391,7 +389,7 @@ export default function DashboardPage() {
                 )}>
                   {(stats?.probability || 0) >= 75 ? <Target className="h-8 w-8 text-emerald-600 shrink-0" /> : <TrendingDown className="h-8 w-8 text-amber-600 shrink-0" />}
                   <div>
-                    <h4 className={cn("text-xl font-black uppercase italic italic tracking-tight", (stats?.probability || 0) >= 75 ? "text-emerald-700" : "text-amber-700")}>
+                    <h4 className={cn("text-xl font-black uppercase italic tracking-tight", (stats?.probability || 0) >= 75 ? "text-emerald-700" : "text-amber-700")}>
                       {(stats?.probability || 0) >= 80 ? "VOUS ÊTES PRÊT !" : (stats?.probability || 0) >= 65 ? "EN BONNE VOIE" : "TRAVAIL REQUIS"}
                     </h4>
                     <p className="text-sm font-bold text-slate-600 leading-relaxed italic mt-2">

@@ -1,9 +1,10 @@
-"use client";
+/* eslint-disable react-hooks/exhaustive-deps */
+'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useUser, useFirestore } from '@/firebase';
-import { collection, query, where, getCountFromServer } from 'firebase/firestore';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -25,25 +26,33 @@ const ALL_EXAMS = [
 ];
 
 export default function ExamPage() {
-  const { profile, isUserLoading } = useUser();
+  const { profile, user, isUserLoading } = useUser();
   const db = useFirestore();
-  const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
+  
   const [examCounts, setExamCounts] = useState<Record<string, number>>({});
   const [isCounting, setIsCounting] = useState(true);
 
+  // Fetch real counts from DB
   useEffect(() => {
     async function fetchCounts() {
-      if (!db) return;
+      if (!db || isUserLoading || !user) return;
       setIsCounting(true);
       try {
         const qRef = collection(db, 'questions');
         const counts: Record<string, number> = {};
         
-        for (const exam of ALL_EXAMS) {
+        // Parallel fetch for efficiency
+        const countsPromises = ALL_EXAMS.map(async (exam) => {
           const q = query(qRef, where('examId', '==', exam.id), where('isActive', '==', true));
-          const snapshot = await getCountFromServer(q);
-          counts[exam.id] = snapshot.data().count;
-        }
+          const snap = await getDocs(q);
+          return { id: exam.id, count: snap.size };
+        });
+
+        const results = await Promise.all(countsPromises);
+        results.forEach(res => {
+          counts[res.id] = res.count;
+        });
+        
         setExamCounts(counts);
       } catch (e) {
         console.error("Error counting questions:", e);
@@ -52,17 +61,19 @@ export default function ExamPage() {
       }
     }
     fetchCounts();
-  }, [db]);
+  }, [db, user, isUserLoading]);
 
+  // Filter exams that actually have questions and user has permission
   const availableExams = useMemo(() => {
     if (!profile) return [];
     
     return ALL_EXAMS.filter(exam => {
       const count = examCounts[exam.id] || 0;
       const hasQuestions = count > 0;
-      const hasAccess = profile.role === 'admin' || 
-                        profile.role === 'super_admin' || 
-                        (profile.allowedExams && profile.allowedExams.includes(exam.id));
+      
+      // Admin sees everything that isn't empty, users see only allowed ones
+      const isPrivileged = profile.role === 'admin' || profile.role === 'super_admin';
+      const hasAccess = isPrivileged || (profile.allowedExams && profile.allowedExams.includes(exam.id));
       
       return hasQuestions && hasAccess;
     });
@@ -96,14 +107,14 @@ export default function ExamPage() {
             <FileQuestion className="h-16 w-16 text-slate-300" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-2xl font-black text-slate-400 italic uppercase tracking-tight">Aucune simulation disponible</h2>
+            <h2 className="text-2xl font-black text-slate-400 italic uppercase tracking-tight">Aucune simulation prête</h2>
             <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic max-w-md mx-auto">
-              Les examens apparaîtront ici dès que des questions seront ajoutées dans la banque.
+              Les examens n'apparaîtront ici que s'ils contiennent des questions dans la banque.
             </p>
           </div>
           {(profile?.role === 'admin' || profile?.role === 'super_admin') && (
-            <Button asChild className="bg-primary hover:bg-primary/90 font-black uppercase tracking-widest h-14 px-8 rounded-2xl">
-              <Link href="/admin/questions">Aller à la Banque de Questions</Link>
+            <Button asChild className="bg-primary hover:bg-primary/90 font-black uppercase tracking-widest h-14 px-8 rounded-2xl shadow-lg">
+              <Link href="/admin/questions">Gérer la banque de questions</Link>
             </Button>
           )}
         </div>
@@ -112,11 +123,7 @@ export default function ExamPage() {
           {availableExams.map((exam) => (
             <Card 
               key={exam.id} 
-              className={cn(
-                "rounded-[40px] border-4 transition-all relative overflow-hidden group cursor-pointer",
-                selectedExamId === exam.id ? "border-primary bg-primary/5 shadow-2xl scale-[1.02]" : "bg-white border-white shadow-xl hover:border-primary/20"
-              )}
-              onClick={() => setSelectedExamId(exam.id)}
+              className="rounded-[40px] border-4 transition-all relative overflow-hidden group hover:shadow-2xl border-white bg-white hover:border-primary/20"
             >
               <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
                 <Trophy className="h-20 w-20" />
@@ -144,13 +151,9 @@ export default function ExamPage() {
                 
                 <Button 
                   asChild
-                  disabled={!selectedExamId || selectedExamId !== exam.id}
-                  className={cn(
-                    "w-full h-14 rounded-2xl mt-6 font-black uppercase tracking-widest text-sm shadow-lg",
-                    selectedExamId === exam.id ? "bg-primary hover:bg-primary/90" : "bg-slate-200"
-                  )}
+                  className="w-full h-14 rounded-2xl mt-6 font-black uppercase tracking-widest text-sm shadow-lg bg-primary hover:bg-primary/90"
                 >
-                  <Link href={selectedExamId === exam.id ? `/dashboard/exam/run?id=${exam.id}` : '#'}>
+                  <Link href={`/dashboard/exam/run?id=${exam.id}`}>
                     Lancer la simulation <ChevronRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
@@ -160,17 +163,15 @@ export default function ExamPage() {
         </div>
       )}
 
-      {selectedExamId && (
-        <div className="bg-amber-50 border-2 border-amber-200 p-6 rounded-[32px] flex items-start gap-4 animate-slide-up">
-          <AlertCircle className="h-6 w-6 text-amber-600 shrink-0" />
-          <div>
-            <h4 className="font-black uppercase italic text-amber-800 text-sm">Informations Importantes</h4>
-            <p className="text-xs font-bold text-amber-700/80 italic mt-1">
-              Cette simulation contient exactement {examCounts[selectedExamId]} questions. Vous disposez de 230 minutes pour terminer l'examen.
-            </p>
-          </div>
+      <div className="bg-amber-50 border-2 border-amber-200 p-6 rounded-[32px] flex items-start gap-4 animate-slide-up">
+        <AlertCircle className="h-6 w-6 text-amber-600 shrink-0" />
+        <div>
+          <h4 className="font-black uppercase italic text-amber-800 text-sm">Informations Importantes</h4>
+          <p className="text-xs font-bold text-amber-700/80 italic mt-1">
+            Chaque simulation est chronométrée. Vous aurez 10 minutes de pause optionnelles toutes les 60 questions, comme à l'examen réel.
+          </p>
         </div>
-      )}
+      </div>
     </div>
   );
 }
