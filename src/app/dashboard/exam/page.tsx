@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useUser, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, where, doc, setDoc, deleteDoc, serverTimestamp, getDocs, addDoc } from 'firebase/firestore';
+import { collection, query, where, doc, setDoc, deleteDoc, serverTimestamp, getDocs, addDoc, limit } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -12,7 +12,7 @@ import {
   Clock, ChevronRight, ChevronLeft, Loader2, PlayCircle, 
   Info, Pause, Flag, Calculator as CalcIcon, 
   MessageSquare, CheckCircle2, AlertTriangle, ListChecks,
-  Coffee, ShieldAlert
+  Coffee, ShieldAlert, FileQuestion
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -80,11 +80,50 @@ export default function ExamPage() {
   const [breakTimeLeft, setBreakTimeLeft] = useState(BREAK_DURATION);
   const [isConfirmSubmitOpen, setIsConfirmSubmitOpen] = useState(false);
 
+  // État pour les examens qui contiennent réellement des questions
+  const [filledExams, setFilledExams] = useState<string[]>([]);
+  const [isLoadingFilled, setIsLoadingFilled] = useState(true);
+
+  useEffect(() => {
+    async function checkFilledExams() {
+      if (!db) return;
+      try {
+        const results: string[] = [];
+        // On vérifie chaque examen pour voir s'il a au moins une question active
+        for (const exam of ALL_EXAMS) {
+          const q = query(
+            collection(db, 'questions'), 
+            where('examId', '==', exam.id), 
+            where('isActive', '==', true), 
+            limit(1)
+          );
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            results.push(exam.id);
+          }
+        }
+        setFilledExams(results);
+      } catch (e) {
+        console.error("Error checking filled exams:", e);
+      } finally {
+        setIsLoadingFilled(false);
+      }
+    }
+    checkFilledExams();
+  }, [db]);
+
   const allowedExams = useMemo(() => {
-    if (isUserLoading) return [];
-    if (isDemo || profile?.role === 'super_admin' || profile?.role === 'admin') return ALL_EXAMS;
-    return ALL_EXAMS.filter(exam => profile?.allowedExams?.includes(exam.id));
-  }, [profile, isDemo, isUserLoading]);
+    if (isUserLoading || isLoadingFilled) return [];
+    
+    let baseAllowed = ALL_EXAMS;
+    // Si c'est un utilisateur standard, on filtre par ses accès autorisés
+    if (!(isDemo || profile?.role === 'super_admin' || profile?.role === 'admin')) {
+      baseAllowed = ALL_EXAMS.filter(exam => profile?.allowedExams?.includes(exam.id));
+    }
+
+    // On ne garde que les examens qui ont du contenu dans la banque
+    return baseAllowed.filter(exam => filledExams.includes(exam.id));
+  }, [profile, isDemo, isUserLoading, filledExams, isLoadingFilled]);
 
   const examStateRef = useMemoFirebase(() => {
     return user && !user.isAnonymous ? doc(db, 'users', user.uid, 'exam_state', 'current') : null;
@@ -427,14 +466,21 @@ export default function ExamPage() {
       <div className="max-w-5xl mx-auto py-8 space-y-8 px-4">
         <div className="text-center space-y-1">
           <h1 className="text-3xl leading-none font-black text-primary uppercase italic tracking-tighter">Simulateur PMP®</h1>
-          <p className="text-lg text-slate-500 font-black uppercase tracking-widest italic">5 Simulations Complètes</p>
+          <p className="text-lg text-slate-500 font-black uppercase tracking-widest italic">Simulations Complètes (Remplies uniquement)</p>
         </div>
         
-        {allowedExams.length === 0 ? (
+        {isLoadingFilled ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="font-black uppercase italic text-slate-400 text-xs tracking-widest">Analyse de la banque de questions...</p>
+          </div>
+        ) : allowedExams.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 bg-white rounded-[40px] shadow-inner border-4 border-dashed border-slate-100">
-            <ShieldAlert className="h-16 w-16 text-slate-300" />
-            <h2 className="text-2xl font-black text-slate-400 italic uppercase">Accès restreint</h2>
-            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic">Contactez votre administrateur pour activer vos accès aux simulations.</p>
+            <FileQuestion className="h-16 w-16 text-slate-300" />
+            <h2 className="text-2xl font-black text-slate-400 italic uppercase">Aucune simulation prête</h2>
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic max-w-md">
+              Les simulations s'afficheront ici dès qu'elles seront alimentées en questions dans la banque d'administration.
+            </p>
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
