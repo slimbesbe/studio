@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useUser, useFirestore } from '@/firebase';
 import { collection, query, where, getDocs, doc, addDoc, serverTimestamp, increment, setDoc, getDoc } from 'firebase/firestore';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -44,7 +45,7 @@ function ExamRunContent() {
   const [showReviewGrid, setShowReviewGrid] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
-  // Fetch questions
+  // Récupération des questions réelles liées à cet examen
   useEffect(() => {
     async function fetchQuestions() {
       if (!examId) return;
@@ -54,21 +55,17 @@ function ExamRunContent() {
         const qQuery = query(qRef, where('examId', '==', examId), where('isActive', '==', true));
         const snap = await getDocs(qQuery);
         
-        // Use a Map to prevent duplicates in case the DB has them
-        const uniqueQuestionsMap = new Map();
-        snap.docs.forEach(d => {
-          const data = d.data();
-          const key = data.questionCode || d.id;
-          if (!uniqueQuestionsMap.has(key)) {
-            uniqueQuestionsMap.set(key, { ...data, id: d.id });
-          }
-        });
+        const fetched = snap.docs.map(d => ({ ...d.data(), id: d.id }));
         
-        const fetched = Array.from(uniqueQuestionsMap.values());
+        // Tri par index ou code pour garder un ordre cohérent
+        fetched.sort((a, b) => (a.index || 0) - (b.index || 0));
         
-        // Sort by code or index if available
-        fetched.sort((a, b) => (a.questionCode || '').localeCompare(b.questionCode || ''));
-        
+        if (fetched.length === 0) {
+          toast({ variant: "destructive", title: "Examen vide", description: "Aucune question n'a été trouvée pour cet examen." });
+          router.push('/dashboard/exam');
+          return;
+        }
+
         setQuestions(fetched);
       } catch (e) {
         console.error(e);
@@ -78,9 +75,9 @@ function ExamRunContent() {
       }
     }
     fetchQuestions();
-  }, [db, examId, toast]);
+  }, [db, examId, toast, router]);
 
-  // Timer logic
+  // Chronomètre
   useEffect(() => {
     let timer: any;
     if (isStarted && !result && timeLeft > 0) {
@@ -129,7 +126,6 @@ function ExamRunContent() {
     const details = questions.map(q => {
       const userAns = answers[q.id] || [];
       
-      // Handle both formats: correctOptionIds (array) or correctChoice (string)
       let correctAns: string[] = [];
       if (Array.isArray(q.correctOptionIds)) {
         correctAns = q.correctOptionIds;
@@ -165,10 +161,8 @@ function ExamRunContent() {
         details
       };
 
-      // Save result to user subcollection
       await addDoc(collection(db, 'users', user.uid, 'exam_results'), resultData);
       
-      // Update global user stats
       const userRef = doc(db, 'users', user.uid);
       const userSnap = await getDoc(userRef);
       if (userSnap.exists()) {
@@ -188,10 +182,10 @@ function ExamRunContent() {
       }
 
       setResult(resultData);
-      toast({ title: "Examen terminé !", description: `Votre score : ${scorePercent}%` });
+      toast({ title: "Examen terminé !" });
     } catch (e) {
       console.error("Error saving result:", e);
-      toast({ variant: "destructive", title: "Erreur", description: "Impossible d'enregistrer le résultat. Vérifiez votre connexion." });
+      toast({ variant: "destructive", title: "Erreur", description: "Échec de l'enregistrement du score." });
     } finally {
       setIsSubmitting(false);
     }
@@ -266,7 +260,6 @@ function ExamRunContent() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 py-8 px-4 animate-fade-in pb-24">
-      {/* Header Info */}
       <div className="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-3xl shadow-lg border-2 gap-4">
         <div className="flex items-center gap-4">
           <Badge className="bg-primary/10 text-primary border-none font-black italic px-6 py-2 rounded-xl text-lg">
@@ -320,7 +313,6 @@ function ExamRunContent() {
         </Card>
       )}
 
-      {/* Main Question Card */}
       <Card className="rounded-[40px] shadow-2xl border-t-8 border-t-primary bg-white overflow-hidden">
         <CardContent className="p-10 space-y-10">
           <div className="flex justify-between items-start gap-4">
@@ -390,7 +382,7 @@ function ExamRunContent() {
             onClick={() => currentIndex === questions.length - 1 ? setIsConfirmOpen(true) : setCurrentIndex(currentIndex + 1)} 
             className="h-16 px-12 bg-primary rounded-2xl font-black uppercase tracking-widest shadow-xl text-lg italic group"
           >
-            {currentIndex === questions.length - 1 ? "Terminer" : "Suivant"} <ChevronRight className="ml-2 h-6 w-6 group-hover:translate-x-1 transition-transform" />
+            {currentIndex === questions.length - 1 ? "Terminer" : "Suivant"} <ChevronRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
           </Button>
         </CardFooter>
       </Card>

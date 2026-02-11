@@ -13,7 +13,6 @@ import {
   ChevronRight,
   AlertCircle
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
 const ALL_EXAMS = [
@@ -31,7 +30,7 @@ export default function ExamPage() {
   const [examCounts, setExamCounts] = useState<Record<string, number>>({});
   const [isCounting, setIsCounting] = useState(true);
 
-  // Fetch real counts for each exam to determine visibility and display correct total
+  // Récupération dynamique du nombre de questions par examen
   useEffect(() => {
     async function fetchCounts() {
       if (!db) return;
@@ -40,7 +39,6 @@ export default function ExamPage() {
         const qRef = collection(db, 'questions');
         const counts: Record<string, number> = {};
         
-        // Loop through all predefined exams to check their content
         for (const exam of ALL_EXAMS) {
           const q = query(qRef, where('examId', '==', exam.id), where('isActive', '==', true));
           const snap = await getDocs(q);
@@ -60,10 +58,10 @@ export default function ExamPage() {
     if (!profile) return [];
     
     return ALL_EXAMS.filter(exam => {
-      // Condition 1: Must have at least 1 question
+      // Un examen n'apparaît que s'il a des questions en base
       const hasQuestions = (examCounts[exam.id] || 0) > 0;
       
-      // Condition 2: User must have access
+      // Et si l'utilisateur a les droits
       const hasAccess = profile.role === 'admin' || 
                         profile.role === 'super_admin' || 
                         (profile.allowedExams && profile.allowedExams.includes(exam.id));
@@ -102,14 +100,14 @@ export default function ExamPage() {
           <div className="space-y-2">
             <h2 className="text-2xl font-black text-slate-400 italic uppercase tracking-tight">Aucune simulation disponible</h2>
             <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic max-w-md mx-auto">
-              Les examens apparaîtront ici dès que l'administrateur aura ajouté des questions dans la banque.
+              Les examens apparaîtront ici dès que des questions seront ajoutées dans la banque.
             </p>
           </div>
-          {profile?.role === 'admin' || profile?.role === 'super_admin' ? (
+          {(profile?.role === 'admin' || profile?.role === 'super_admin') && (
             <Button asChild className="bg-primary hover:bg-primary/90 font-black uppercase tracking-widest">
               <Link href="/admin/questions">Aller à la Banque de Questions</Link>
             </Button>
-          ) : null}
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -130,7 +128,7 @@ export default function ExamPage() {
                 <div className="h-14 w-14 rounded-2xl bg-indigo-50 flex items-center justify-center mb-4 text-indigo-600 shadow-inner">
                   <FileQuestion className="h-7 w-7" />
                 </div>
-                <CardTitle className="text-2xl font-black italic uppercase tracking-tight">{exam.title}</CardTitle>
+                <CardTitle className="text-2xl font-black uppercase italic tracking-tight">{exam.title}</CardTitle>
                 <div className="flex items-center gap-2 mt-2">
                   <Badge className="bg-emerald-100 text-emerald-600 border-none font-black italic px-3 py-1">
                     {examCounts[exam.id] || 0} QUESTIONS
@@ -170,7 +168,7 @@ export default function ExamPage() {
           <div>
             <h4 className="font-black uppercase italic text-amber-800 text-sm">Informations Importantes</h4>
             <p className="text-xs font-bold text-amber-700/80 italic mt-1">
-              Cette simulation contient exactement {examCounts[selectedExamId]} questions. Vous disposez de 230 minutes pour terminer l'examen. Votre progression est sauvegardée automatiquement.
+              Cette simulation contient exactement {examCounts[selectedExamId]} questions. Vous disposez de 230 minutes pour terminer l'examen.
             </p>
           </div>
         </div>
