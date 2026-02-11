@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
@@ -111,7 +110,7 @@ export default function GroupStatsDashboard() {
                       return (
                         <TableCell key={sId} className="text-center">
                           {lastAttempt ? (
-                            <Badge className={cn("font-black italic rounded-lg", lastAttempt.scorePercent >= 75 ? "bg-emerald-100 text-emerald-600" : "bg-indigo-100 text-indigo-600")}>
+                            <Badge className={cn("font-black italic rounded-lg", lastAttempt.scorePercent >= 80 ? "bg-emerald-100 text-emerald-600" : lastAttempt.scorePercent >= 70 ? "bg-blue-100 text-blue-600" : lastAttempt.scorePercent >= 60 ? "bg-amber-100 text-amber-600" : "bg-red-100 text-red-600")}>
                               {lastAttempt.scorePercent}%
                             </Badge>
                           ) : <span className="text-slate-200">-</span>}
@@ -119,7 +118,12 @@ export default function GroupStatsDashboard() {
                       );
                     })}
                     <TableCell className="text-center">
-                      {avg !== null ? <span className="text-xl font-black italic text-primary">{avg}%</span> : <span className="text-slate-200">-</span>}
+                      {avg !== null ? (
+                        <span className={cn(
+                          "text-xl font-black italic",
+                          avg >= 80 ? "text-emerald-600" : avg >= 70 ? "text-blue-600" : avg >= 60 ? "text-amber-600" : "text-red-600"
+                        )}>{avg}%</span>
+                      ) : <span className="text-slate-200">-</span>}
                     </TableCell>
                   </TableRow>
                 );

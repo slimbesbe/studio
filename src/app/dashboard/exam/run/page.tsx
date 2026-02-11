@@ -1,9 +1,8 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
-import { useUser, useFirestore } from '@/firebase';
-import { collection, query, where, getDocs, doc, addDoc, serverTimestamp, increment, setDoc, getDoc } from 'firebase/firestore';
+import { useUser, useFirestore, useFirebase } from '@/firebase';
+import { collection, query, where, getDocs, doc, addDoc, serverTimestamp, getDoc, setDoc } from 'firebase/firestore';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -21,15 +20,14 @@ import {
   Trophy,
   AlertCircle,
   CheckCircle2,
-  HelpCircle,
-  RotateCcw
+  X,
+  LayoutGrid
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Calculator } from '@/components/dashboard/Calculator';
 
-type ViewMode = 'intro' | 'question' | 'sectionReview' | 'break' | 'result';
+type ViewMode = 'intro' | 'question' | 'review' | 'break' | 'result';
 
 function ExamRunContent() {
   const { user, profile } = useUser();
@@ -40,7 +38,7 @@ function ExamRunContent() {
   
   const examId = searchParams.get('id');
   
-  // State de base
+  // State
   const [questions, setQuestions] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -49,41 +47,45 @@ function ExamRunContent() {
   const [timeLeft, setTimeLeft] = useState(230 * 60); 
   const [isPaused, setIsPaused] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
+  const [showNavigator, setShowNavigator] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  // Pause State
   const [breakTimeLeft, setBreakTimeLeft] = useState(10 * 60);
+  const [currentSection, setCurrentSection] = useState(1);
 
-  // Définition des sections (0-59, 60-119, 120+)
-  const currentSection = useMemo(() => {
-    if (currentIndex < 60) return 1;
-    if (currentIndex < 120) return 2;
-    return 3;
-  }, [currentIndex]);
-
+  // Logic pour les sections (60 questions par section)
+  const SECTION_SIZE = 60;
+  
   const sectionRange = useMemo(() => {
-    if (currentSection === 1) return { start: 0, end: Math.min(59, questions.length - 1) };
-    if (currentSection === 2) return { start: 60, end: Math.min(119, questions.length - 1) };
-    return { start: 120, end: questions.length - 1 };
+    const start = (currentSection - 1) * SECTION_SIZE;
+    const end = Math.min(currentSection * SECTION_SIZE - 1, questions.length - 1);
+    return { start, end };
   }, [currentSection, questions.length]);
 
-  const sectionQuestions = useMemo(() => {
+  const currentSectionQuestions = useMemo(() => {
     return questions.slice(sectionRange.start, sectionRange.end + 1);
   }, [questions, sectionRange]);
 
   // Charger les questions
   useEffect(() => {
     async function fetchQuestions() {
-      if (!examId) return;
+      if (!examId || !user) return;
       setIsLoading(true);
       try {
         const qRef = collection(db, 'questions');
         const qQuery = query(qRef, where('examId', '==', examId), where('isActive', '==', true));
         const snap = await getDocs(qQuery);
         
-        const fetched = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+        const fetched = snap.docs.map(d => ({ 
+          ...d.data(), 
+          id: d.id,
+          // Compatibilité avec les différents formats de données
+          text: d.data().text || d.data().statement,
+          choices: d.data().choices || d.data().options?.map((o: any) => o.text)
+        }));
+        
+        // Trier par index si disponible, sinon laisser tel quel
         fetched.sort((a, b) => (a.index || 0) - (b.index || 0));
         
         if (fetched.length === 0) {
@@ -93,21 +95,22 @@ function ExamRunContent() {
         }
         setQuestions(fetched);
       } catch (e) {
-        toast({ variant: "destructive", title: "Erreur", description: "Impossible de charger les questions." });
+        console.error(e);
+        toast({ variant: "destructive", title: "Erreur", description: "Erreur de chargement des questions." });
       } finally {
         setIsLoading(false);
       }
     }
     fetchQuestions();
-  }, [db, examId, router, toast]);
+  }, [db, examId, user, router, toast]);
 
   // Timer Principal
   useEffect(() => {
     let timer: any;
     if (viewMode === 'question' && !isPaused && timeLeft > 0) {
       timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
-    } else if (timeLeft === 0 && !result) {
-      calculateFinalResult();
+    } else if (timeLeft === 0 && !result && viewMode !== 'result') {
+      finishExam();
     }
     return () => clearInterval(timer);
   }, [viewMode, isPaused, timeLeft, result]);
@@ -118,7 +121,7 @@ function ExamRunContent() {
     if (viewMode === 'break' && breakTimeLeft > 0) {
       timer = setInterval(() => setBreakTimeLeft(prev => prev - 1), 1000);
     } else if (breakTimeLeft === 0 && viewMode === 'break') {
-      setViewMode('question');
+      nextSection();
     }
     return () => clearInterval(timer);
   }, [viewMode, breakTimeLeft]);
@@ -133,126 +136,173 @@ function ExamRunContent() {
     setAnswers(prev => ({ ...prev, [questionId]: choiceIdx }));
   };
 
-  const handleNext = () => {
-    if (currentIndex === sectionRange.end) {
-      setViewMode('sectionReview');
-    } else {
+  const toggleFlag = () => {
+    const qId = questions[currentIndex].id;
+    setFlagged(prev => ({ ...prev, [qId]: !prev[qId] }));
+  };
+
+  const goToNext = () => {
+    if (currentIndex < sectionRange.end) {
       setCurrentIndex(prev => prev + 1);
-    }
-  };
-
-  const submitSection = () => {
-    if (currentSection < 3 && questions.length > sectionRange.end + 1) {
-      setBreakTimeLeft(10 * 60);
-      setViewMode('break');
-      setCurrentIndex(sectionRange.end + 1);
     } else {
-      calculateFinalResult();
+      setViewMode('review');
     }
   };
 
-  const calculateFinalResult = async () => {
+  const nextSection = () => {
+    if (currentSection < 3) {
+      setCurrentSection(prev => prev + 1);
+      setCurrentIndex(currentSection * SECTION_SIZE);
+      setViewMode('question');
+      setBreakTimeLeft(10 * 60);
+    } else {
+      finishExam();
+    }
+  };
+
+  const finishExam = async () => {
     setIsSubmitting(true);
     let correct = 0;
     questions.forEach(q => {
-      // Gérer formats correctChoice (string "1") ou (number 1) ou correctOptionIds
       const correctVal = String(q.correctChoice || (q.correctOptionIds ? q.correctOptionIds[0] : "1"));
       if (answers[q.id] === correctVal) correct++;
     });
 
     const percent = Math.round((correct / questions.length) * 100);
+    
     let performance = "Needs Improvement";
-    if (percent >= 80) performance = "Above Target";
-    else if (percent >= 70) performance = "Target";
-    else if (percent >= 60) performance = "Below Target";
+    let color = "text-red-600";
+    if (percent >= 80) {
+      performance = "Above Target";
+      color = "text-emerald-600";
+    } else if (percent >= 70) {
+      performance = "Target";
+      color = "text-blue-600";
+    } else if (percent >= 60) {
+      performance = "Below Target";
+      color = "text-amber-600";
+    }
 
     const finalData = {
       examId,
       userId: user?.uid,
-      score: correct,
-      total: questions.length,
-      percentage: percent,
+      scorePercent: percent,
+      correctCount: correct,
+      totalQuestions: questions.length,
       performance,
-      timeSpent: (230 * 60) - timeLeft,
-      completedAt: serverTimestamp()
+      durationSec: (230 * 60) - timeLeft,
+      submittedAt: serverTimestamp()
     };
 
     try {
       await addDoc(collection(db, 'coachingAttempts'), finalData);
+      
       // Update User Stats
       const userRef = doc(db, 'users', user!.uid);
       const userSnap = await getDoc(userRef);
       if (userSnap.exists()) {
         const u = userSnap.data();
         const count = (u.simulationsCount || 0) + 1;
-        const avg = Math.round(((u.averageScore || 0) * (count - 1) + percent) / count);
-        await setDoc(userRef, { simulationsCount: count, averageScore: avg }, { merge: true });
+        const oldTotal = (u.averageScore || 0) * (u.simulationsCount || 0);
+        const newAvg = Math.round((oldTotal + percent) / count);
+        await setDoc(userRef, { 
+          simulationsCount: count, 
+          averageScore: newAvg 
+        }, { merge: true });
       }
+      
       setResult(finalData);
       setViewMode('result');
     } catch (e) {
-      toast({ variant: "destructive", title: "Erreur", description: "Impossible d'enregistrer le score." });
+      console.error(e);
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible d'enregistrer votre score." });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (isLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
-
-  // RENDER: PAUSE
-  if (isPaused) {
+  if (viewMode === 'result' && result) {
     return (
-      <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-[100] flex items-center justify-center">
-        <Card className="p-12 rounded-[40px] shadow-3xl text-center space-y-8 max-w-lg">
-          <div className="h-24 w-24 bg-amber-100 rounded-[32px] flex items-center justify-center mx-auto">
-            <Pause className="h-12 w-12 text-amber-600" />
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <Card className="max-w-3xl w-full rounded-[40px] shadow-2xl border-none p-12 text-center space-y-10 bg-white border-t-8 border-t-primary">
+          <div className="space-y-4">
+            <Trophy className="h-20 w-20 text-yellow-500 mx-auto" />
+            <h2 className="text-5xl font-black italic uppercase tracking-tighter text-slate-900">Rapport de Performance</h2>
+            <div className="flex justify-center pt-4">
+              <div className={cn(
+                "px-8 py-3 rounded-2xl font-black uppercase italic text-xl tracking-widest shadow-sm",
+                result.performance === "Above Target" ? "bg-emerald-100 text-emerald-600 border-2 border-emerald-200" : 
+                result.performance === "Target" ? "bg-blue-100 text-blue-600 border-2 border-blue-200" : 
+                result.performance === "Below Target" ? "bg-amber-100 text-amber-600 border-2 border-amber-200" : 
+                "bg-red-100 text-red-600 border-2 border-red-200"
+              )}>
+                {result.performance}
+              </div>
+            </div>
           </div>
-          <h2 className="text-4xl font-black uppercase italic text-slate-800">Examen en pause</h2>
-          <p className="text-slate-500 font-bold italic">Le chronomètre est arrêté. Reprenez dès que vous êtes prêt.</p>
-          <Button onClick={() => setIsPaused(false)} className="h-20 px-16 rounded-[28px] bg-primary text-2xl font-black uppercase tracking-widest shadow-xl">
-            REPRENDRE
-          </Button>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-slate-50 p-6 rounded-3xl border-2">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Score Total</p>
+              <p className="text-4xl font-black italic text-primary">{result.scorePercent}%</p>
+            </div>
+            <div className="bg-slate-50 p-6 rounded-3xl border-2">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Correctes</p>
+              <p className="text-4xl font-black italic text-slate-700">{result.correctCount} / {result.totalQuestions}</p>
+            </div>
+            <div className="bg-slate-50 p-6 rounded-3xl border-2">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Temps</p>
+              <p className="text-4xl font-black italic text-slate-700">{Math.floor(result.durationSec / 60)}m</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4 pt-6">
+            <Button variant="outline" className="flex-1 h-16 rounded-2xl border-4 font-black uppercase tracking-widest text-lg italic" asChild>
+              <Link href="/dashboard/history">Détails de l'historique</Link>
+            </Button>
+            <Button className="flex-1 h-16 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl text-lg italic" asChild>
+              <Link href="/dashboard">Tableau de bord</Link>
+            </Button>
+          </div>
         </Card>
       </div>
     );
   }
 
-  // RENDER: BREAK (10 min)
   if (viewMode === 'break') {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <Card className="max-w-2xl w-full rounded-[40px] shadow-2xl p-12 text-center space-y-8 bg-white border-t-8 border-t-indigo-600">
-          <div className="bg-indigo-50 h-24 w-24 rounded-[32px] flex items-center justify-center mx-auto shadow-inner">
-            <Clock className="h-12 w-12 text-indigo-600" />
+        <Card className="max-w-2xl w-full rounded-[40px] shadow-2xl p-12 text-center space-y-8 bg-white border-t-8 border-t-emerald-500">
+          <div className="bg-emerald-50 h-24 w-24 rounded-[32px] flex items-center justify-center mx-auto shadow-inner">
+            <Clock className="h-12 w-12 text-emerald-600" />
           </div>
           <div className="space-y-4">
-            <h2 className="text-4xl font-black italic uppercase tracking-tighter text-indigo-600">Pause Optionnelle</h2>
-            <p className="text-xl font-bold text-slate-500 italic">Prenez 10 minutes pour vous reposer. Vous avez terminé la Section {currentSection - 1}.</p>
+            <h2 className="text-4xl font-black italic uppercase tracking-tighter text-emerald-600">Pause Optionnelle</h2>
+            <p className="text-xl font-bold text-slate-500 italic">Prenez un moment pour souffler. La section suivante débutera automatiquement à la fin du décompte.</p>
           </div>
-          <div className="text-8xl font-black italic tabular-nums text-slate-800 bg-slate-50 py-8 rounded-3xl border-2 border-dashed">
+          <div className="text-8xl font-black italic tabular-nums text-slate-800 bg-slate-50 py-8 rounded-3xl border-2 border-dashed border-emerald-100">
             {formatMMSS(breakTimeLeft)}
           </div>
-          <Button onClick={() => setViewMode('question')} className="h-20 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-xl shadow-xl">
-            REPRENDRE MAINTENANT
+          <Button onClick={nextSection} className="h-20 w-full rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xl shadow-xl scale-105 transition-transform">
+            REPRENDRE L'EXAMEN
           </Button>
         </Card>
       </div>
     );
   }
 
-  // RENDER: SECTION REVIEW
-  if (viewMode === 'sectionReview') {
+  if (viewMode === 'review') {
     return (
-      <div className="min-h-screen bg-slate-50 p-8">
+      <div className="min-h-screen bg-slate-50 p-8 animate-fade-in">
         <div className="max-w-5xl mx-auto space-y-8">
           <div className="text-center">
-            <h1 className="text-4xl font-black italic uppercase tracking-tighter text-primary">Revue de la Section {currentSection}</h1>
-            <p className="text-slate-500 font-bold uppercase tracking-widest text-xs mt-2">Vérifiez vos réponses avant de valider ce bloc.</p>
+            <h1 className="text-4xl font-black italic uppercase tracking-tighter text-primary">Revue Section {currentSection}</h1>
+            <p className="text-slate-500 font-bold uppercase tracking-widest text-xs mt-2">Vérifiez vos réponses avant de clôturer ce bloc de 60 questions.</p>
           </div>
 
           <Card className="rounded-[40px] shadow-2xl border-none bg-white p-10">
             <div className="grid grid-cols-5 sm:grid-cols-10 gap-3 mb-10">
-              {sectionQuestions.map((q, idx) => {
+              {currentSectionQuestions.map((q, idx) => {
                 const globalIdx = sectionRange.start + idx;
                 const isAnswered = !!answers[q.id];
                 const isFlagged = flagged[q.id];
@@ -270,7 +320,7 @@ function ExamRunContent() {
                     )}
                   >
                     {globalIdx + 1}
-                    {isFlagged && <div className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full border-2 border-white" />}
+                    {isFlagged && <Flag className="absolute -top-1 -right-1 w-3 h-3 text-amber-600 fill-current" />}
                   </button>
                 );
               })}
@@ -286,9 +336,9 @@ function ExamRunContent() {
               </Button>
               <Button 
                 className="flex-1 h-16 rounded-2xl bg-red-600 hover:bg-red-700 font-black uppercase tracking-widest shadow-xl text-white"
-                onClick={submitSection}
+                onClick={currentSection < 3 ? () => setViewMode('break') : finishExam}
               >
-                {currentSection === 3 ? "VALIDER L'EXAMEN" : "VALIDER ET PAUSE"}
+                {currentSection < 3 ? "VALIDER ET PAUSE" : "VALIDER ET TERMINER"}
               </Button>
             </div>
           </Card>
@@ -297,97 +347,74 @@ function ExamRunContent() {
     );
   }
 
-  // RENDER: RESULT
-  if (viewMode === 'result' && result) {
-    const isPass = result.percentage >= 70;
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <Card className="max-w-2xl w-full rounded-[40px] shadow-2xl p-12 text-center space-y-8 bg-white border-t-8 border-t-primary">
-          <div className="space-y-4">
-            <div className="flex justify-center mb-4">
-              {isPass ? <Trophy className="h-20 w-20 text-emerald-500" /> : <AlertCircle className="h-20 w-20 text-amber-500" />}
-            </div>
-            <h2 className="text-5xl font-black italic uppercase tracking-tighter text-slate-900">Résultat Final</h2>
-            <div className="flex justify-center">
-              <Badge className={cn(
-                "text-lg px-6 py-2 font-black uppercase italic rounded-xl",
-                result.performance === "Above Target" ? "bg-emerald-500" : 
-                result.performance === "Target" ? "bg-blue-500" : "bg-amber-500"
-              )}>
-                {result.performance}
-              </Badge>
-            </div>
-          </div>
-          <div className="text-8xl font-black italic tracking-tighter text-primary">{result.percentage}%</div>
-          <p className="text-xl font-bold text-slate-400 uppercase italic">{result.score} / {result.total} Points</p>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <Button variant="outline" className="h-16 rounded-2xl border-4 font-black uppercase tracking-widest" asChild>
-              <Link href="/dashboard/history">Détails</Link>
-            </Button>
-            <Button className="h-16 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl" asChild>
-              <Link href="/dashboard">Tableau de bord</Link>
-            </Button>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
-  // RENDER: MAIN QUESTION
+  // --- INTERFACE DE QUESTION NORMALE ---
   const currentQuestion = questions[currentIndex];
+  const progress = ((currentIndex + 1) / questions.length) * 100;
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Top Header */}
-      <div className="bg-white border-b-2 px-8 py-4 flex items-center justify-between shadow-sm sticky top-0 z-50">
+      {/* Top Header - Style PMP Officiel */}
+      <div className="bg-slate-900 text-white px-8 py-4 flex items-center justify-between shadow-lg sticky top-0 z-50">
         <div className="flex items-center gap-6">
-          <div className="bg-slate-100 px-4 py-2 rounded-xl font-black italic text-slate-700">
-            Q {currentIndex + 1} / {questions.length}
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setIsPaused(true)} className="text-white hover:bg-white/10 rounded-xl h-10 border border-white/20">
+              <Pause className="h-4 w-4 mr-2" /> Pause
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setShowCalculator(true)} className="text-white hover:bg-white/10 rounded-xl h-10 border border-white/20">
+              <CalcIcon className="h-4 w-4 mr-2" /> Calculator
+            </Button>
           </div>
-          <div className="flex items-center gap-2 border-l-2 pl-6">
-            <Button variant="ghost" size="icon" onClick={() => setIsPaused(true)} className="h-10 w-10 rounded-full hover:bg-amber-50 text-amber-600">
-              <Pause className="h-5 w-5" />
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => setFlagged(prev => ({...prev, [currentQuestion?.id]: !prev[currentQuestion?.id]}))}
-              className={cn("h-10 w-10 rounded-full", flagged[currentQuestion?.id] ? "bg-amber-100 text-amber-600" : "text-slate-400")}
-            >
-              <Flag className={cn("h-5 w-5", flagged[currentQuestion?.id] && "fill-current")} />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => setShowCalculator(!showCalculator)} className="h-10 w-10 rounded-full hover:bg-indigo-50 text-indigo-600">
-              <CalcIcon className="h-5 w-5" />
-            </Button>
+          <div className="h-8 w-px bg-white/20" />
+          <div className="font-black italic text-lg tracking-tight">
+            Question {currentIndex + 1} of {questions.length}
           </div>
         </div>
 
-        <div className="flex flex-col items-end">
-          <div className="text-3xl font-black italic tabular-nums text-slate-800">
-            {formatMMSS(timeLeft)}
+        <div className="flex items-center gap-8">
+          <Button 
+            variant="ghost" 
+            onClick={toggleFlag}
+            className={cn(
+              "h-10 px-4 rounded-xl border border-white/20 transition-all",
+              flagged[currentQuestion?.id] ? "bg-amber-500 text-white border-amber-400" : "text-white hover:bg-white/10"
+            )}
+          >
+            <Flag className={cn("h-4 w-4 mr-2", flagged[currentQuestion?.id] && "fill-current")} /> Flag
+          </Button>
+          
+          <div className="flex flex-col items-end">
+            <div className="text-3xl font-black italic tabular-nums leading-none">
+              {formatMMSS(timeLeft)}
+            </div>
+            <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest mt-1">TIME REMAINING</span>
           </div>
-          <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest">TEMPS RESTANT</span>
         </div>
       </div>
 
-      <main className="flex-1 p-8 max-w-5xl mx-auto w-full space-y-8">
-        <Progress value={((currentIndex + 1 - sectionRange.start) / (sectionRange.end - sectionRange.start + 1)) * 100} className="h-2 rounded-full" />
+      {/* Main Area */}
+      <main className="flex-1 p-8 max-w-5xl mx-auto w-full space-y-8 pb-32">
+        <div className="space-y-2">
+          <Progress value={progress} className="h-1.5 rounded-full bg-slate-200" />
+          <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest italic">
+            <span>Section {currentSection} / 3</span>
+            <span>Progression: {Math.round(progress)}%</span>
+          </div>
+        </div>
         
-        <Card className="rounded-[40px] shadow-2xl border-none bg-white min-h-[400px]">
+        <Card className="rounded-[40px] shadow-2xl border-none bg-white overflow-hidden min-h-[400px]">
           <CardContent className="p-12 space-y-10">
             <h2 className="text-2xl font-black text-slate-800 italic leading-relaxed">
-              {currentQuestion?.statement || currentQuestion?.text}
+              {currentQuestion?.text}
             </h2>
 
             <div className="grid gap-4">
-              {(currentQuestion?.options || currentQuestion?.choices)?.map((opt: any, idx: number) => {
-                const optId = opt.id || String(idx + 1);
-                const optText = opt.text || opt;
+              {currentQuestion?.choices?.map((opt: string, idx: number) => {
+                const optId = String(idx + 1);
                 const isSelected = answers[currentQuestion.id] === optId;
                 
                 return (
                   <div 
-                    key={optId} 
+                    key={idx} 
                     onClick={() => handleOptionSelect(currentQuestion.id, optId)}
                     className={cn(
                       "p-6 rounded-2xl border-2 transition-all cursor-pointer flex items-center gap-6 shadow-sm",
@@ -399,7 +426,7 @@ function ExamRunContent() {
                       isSelected ? "bg-primary text-white border-primary" : "bg-white text-slate-400"
                     )}>{String.fromCharCode(65 + idx)}</div>
                     <p className={cn("flex-1 text-lg font-bold italic", isSelected ? "text-slate-900" : "text-slate-600")}>
-                      {optText}
+                      {opt}
                     </p>
                   </div>
                 );
@@ -407,52 +434,104 @@ function ExamRunContent() {
             </div>
           </CardContent>
         </Card>
+      </main>
 
-        {/* Footer Navigation */}
-        <div className="flex justify-between items-center gap-6">
+      {/* Footer Navigation - Toujours visible */}
+      <div className="fixed bottom-0 left-64 right-0 bg-white border-t-2 p-6 flex items-center justify-between shadow-[0_-10px_20px_rgba(0,0,0,0.05)] z-40">
+        <div className="flex items-center gap-4">
           <Button 
             variant="outline" 
-            className="h-16 px-10 rounded-2xl border-4 font-black uppercase tracking-widest italic" 
+            onClick={() => setShowNavigator(!showNavigator)}
+            className="h-14 px-6 rounded-2xl border-2 font-black uppercase tracking-widest text-xs italic hover:bg-slate-50"
+          >
+            <LayoutGrid className="mr-2 h-4 w-4" /> Navigator
+          </Button>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="outline" 
+            className="h-14 px-8 rounded-2xl border-2 font-black uppercase tracking-widest italic" 
             onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
             disabled={currentIndex === sectionRange.start}
           >
-            <ChevronLeft className="mr-2 h-5 w-5" /> Précédent
+            <ChevronLeft className="mr-2 h-5 w-5" /> Previous
           </Button>
 
-          <div className="flex-1 grid grid-cols-10 gap-2 px-4 py-2 bg-white/50 rounded-2xl border">
-            {sectionQuestions.map((q, idx) => {
-              const gIdx = sectionRange.start + idx;
-              return (
-                <div 
-                  key={q.id}
-                  className={cn(
-                    "h-6 rounded flex items-center justify-center text-[10px] font-bold",
-                    gIdx === currentIndex ? "bg-primary text-white" : 
-                    answers[q.id] ? "bg-primary/20 text-primary" : "bg-slate-200 text-slate-400"
-                  )}
-                >
-                  {gIdx + 1}
-                </div>
-              );
-            })}
-          </div>
-
-          <Button 
-            onClick={handleNext}
-            className={cn(
-              "h-16 px-10 rounded-2xl font-black uppercase tracking-widest italic shadow-xl",
-              currentIndex === sectionRange.end ? "bg-red-600 hover:bg-red-700" : "bg-primary hover:bg-primary/90"
-            )}
-          >
-            {currentIndex === sectionRange.end ? "REVIEW SECTION" : "Suivant"} <ChevronRight className="ml-2 h-5 w-5" />
-          </Button>
+          {currentIndex === sectionRange.end ? (
+            <Button 
+              onClick={() => setViewMode('review')}
+              className="h-14 px-10 rounded-2xl bg-red-500 hover:bg-red-600 text-white font-black uppercase tracking-widest italic shadow-xl animate-pulse"
+            >
+              REVIEW SECTION {currentSection}
+            </Button>
+          ) : (
+            <Button 
+              onClick={() => setCurrentIndex(currentIndex + 1)}
+              className="h-14 px-10 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest italic shadow-xl"
+            >
+              Next <ChevronRight className="ml-2 h-5 w-5" />
+            </Button>
+          )}
         </div>
-      </main>
+      </div>
 
+      {/* Navigator Overlay */}
+      {showNavigator && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center pb-32 px-4 pointer-events-none">
+          <Card className="w-full max-w-4xl p-6 rounded-[32px] shadow-3xl bg-white border-4 border-primary/20 pointer-events-auto animate-slide-up">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-black italic uppercase tracking-tight text-primary">Navigator - Section {currentSection}</h3>
+              <Button variant="ghost" size="icon" onClick={() => setShowNavigator(false)}><X /></Button>
+            </div>
+            <div className="grid grid-cols-6 sm:grid-cols-10 gap-2 overflow-y-auto max-h-[300px] p-2">
+              {currentSectionQuestions.map((q, idx) => {
+                const globalIdx = sectionRange.start + idx;
+                const isAnswered = !!answers[q.id];
+                const isCurrent = globalIdx === currentIndex;
+                const isFlagged = flagged[q.id];
+                
+                return (
+                  <button
+                    key={q.id}
+                    onClick={() => {
+                      setCurrentIndex(globalIdx);
+                      setShowNavigator(false);
+                    }}
+                    className={cn(
+                      "h-10 w-10 rounded-xl font-black text-xs transition-all relative border-2 flex items-center justify-center",
+                      isCurrent ? "border-primary bg-primary text-white scale-110 z-10" : 
+                      isFlagged ? "bg-amber-100 border-amber-400 text-amber-700" :
+                      isAnswered ? "bg-primary/10 border-primary/20 text-primary" : "bg-slate-50 border-slate-100 text-slate-300"
+                    )}
+                  >
+                    {globalIdx + 1}
+                    {isFlagged && <Flag className="absolute -top-1 -right-1 w-2.5 h-2.5 text-amber-600 fill-current" />}
+                  </button>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Calculator Overlay */}
       {showCalculator && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
           <div className="pointer-events-auto">
             <Calculator onClose={() => setShowCalculator(false)} />
+          </div>
+        </div>
+      )}
+
+      {/* Overlay de Pause */}
+      {isPaused && (
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-[100] flex items-center justify-center pointer-events-auto">
+          <div className="text-center space-y-8">
+            <h2 className="text-5xl font-black uppercase italic text-white tracking-tighter">EXAM PAUSED</h2>
+            <Button onClick={() => setIsPaused(false)} className="h-20 px-16 rounded-[28px] bg-white text-slate-900 text-2xl font-black uppercase tracking-widest shadow-xl scale-110">
+              RESUME EXAM
+            </Button>
           </div>
         </div>
       )}
