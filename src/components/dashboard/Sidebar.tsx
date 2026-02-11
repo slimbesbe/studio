@@ -16,7 +16,8 @@ import {
   LayoutGrid,
   ShieldAlert,
   GraduationCap,
-  LogIn
+  LogIn,
+  Database
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useAuth } from '@/firebase';
@@ -109,6 +110,9 @@ export function Sidebar() {
             </Link>
             <Link href="/admin/users" className={cn("flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors", pathname.startsWith('/admin/users') ? "bg-accent text-white" : "text-muted-foreground hover:bg-secondary")}>
               <Users className="h-4 w-4" /> Utilisateurs
+            </Link>
+            <Link href="/admin/maintenance" className={cn("flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors", pathname.startsWith('/admin/maintenance') ? "bg-destructive text-white" : "text-muted-foreground hover:bg-red-50 text-destructive")}>
+              <Database className="h-4 w-4" /> Maintenance
             </Link>
           </div>
         )}

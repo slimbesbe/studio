@@ -13,7 +13,8 @@ import {
   LayoutGrid,
   BarChart3,
   GraduationCap,
-  ShieldCheck
+  ShieldCheck,
+  Database
 } from 'lucide-react';
 import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
@@ -121,23 +122,23 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* 4/ Vue d'ensemble / Stats */}
-        <Card className="hover:shadow-2xl transition-all border-t-8 border-t-emerald-500 rounded-[32px] overflow-hidden group">
+        {/* 4/ Maintenance */}
+        <Card className="hover:shadow-2xl transition-all border-t-8 border-t-destructive rounded-[32px] overflow-hidden group">
           <CardHeader className="p-6 pb-2">
             <div className="flex items-center gap-3">
-              <div className="bg-emerald-50 p-3 rounded-2xl group-hover:scale-110 transition-transform">
-                <LayoutGrid className="h-6 w-6 text-emerald-600" />
+              <div className="bg-destructive/10 p-3 rounded-2xl group-hover:scale-110 transition-transform">
+                <Database className="h-6 w-6 text-destructive" />
               </div>
-              <CardTitle className="text-xl font-black italic uppercase tracking-tight">Vue d'ensemble</CardTitle>
+              <CardTitle className="text-xl font-black italic uppercase tracking-tight">Maintenance</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="p-6 space-y-4">
             <p className="text-xs font-bold text-slate-500 italic leading-relaxed">
-              Analysez les KPIs globaux, les taux de réussite et l'activité en temps réel des participants.
+              Vider les banques de questions et réinitialiser les scores pour un nouveau départ.
             </p>
-            <Button asChild variant="outline" className="w-full border-2 border-emerald-200 hover:bg-emerald-50 h-12 rounded-xl font-black uppercase tracking-widest text-[10px] text-emerald-600">
-              <Link href="/admin/users">
-                <BarChart3 className="mr-2 h-4 w-4" /> Statistiques globales
+            <Button asChild variant="destructive" className="w-full h-12 rounded-xl font-black uppercase tracking-widest text-[10px]">
+              <Link href="/admin/maintenance">
+                Zone de Danger <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
           </CardContent>
