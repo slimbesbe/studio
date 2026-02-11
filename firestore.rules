@@ -21,13 +21,11 @@ service cloud.firestore {
     }
 
     // --- RÈGLES PRIORITAIRES ADMIN ---
-    // Les administrateurs peuvent TOUT lister et lire sans restrictions de filtrage.
     match /{document=**} {
-      allow list, get: if isAdmin();
-      allow write: if isSuperAdmin();
+      allow read, write: if isAdmin();
     }
 
-    // --- RÈGLES UTILISATEURS (Filtrage obligatoire pour les requêtes non-admin) ---
+    // --- RÈGLES UTILISATEURS ---
     
     match /users/{userId} {
       allow get: if isSignedIn() && request.auth.uid == userId;

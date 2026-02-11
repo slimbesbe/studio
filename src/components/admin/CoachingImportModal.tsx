@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef } from 'react';
@@ -17,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useFirebase } from '@/firebase';
 import { doc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
+import { cn } from '@/lib/utils';
 
 interface CoachingImportModalProps {
   isOpen: boolean;
