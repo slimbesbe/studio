@@ -9,10 +9,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Save, Loader2, Video, FileQuestion, ChevronLeft, Users } from 'lucide-react';
+import { 
+  Save, 
+  Loader2, 
+  Video, 
+  FileQuestion, 
+  ChevronLeft, 
+  Users, 
+  Upload, 
+  Eye, 
+  CheckCircle2 
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { CoachingImportModal } from '@/components/admin/CoachingImportModal';
 
 export default function AdminCoachingSessions() {
   const db = useFirestore();
@@ -26,6 +37,7 @@ export default function AdminCoachingSessions() {
 
   const [editSessions, setEditSessions] = useState<any[]>([]);
   const [isSaving, setIsSaving] = useState<string | null>(null);
+  const [importSession, setImportSession] = useState<any | null>(null);
 
   useEffect(() => {
     if (sessions && sessions.length > 0) {
@@ -75,17 +87,19 @@ export default function AdminCoachingSessions() {
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-8 animate-fade-in">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild><Link href="/admin/coaching"><ChevronLeft /></Link></Button>
-        <div>
-          <h1 className="text-3xl font-black italic uppercase tracking-tighter text-primary">Configuration Sessions</h1>
-          <p className="text-muted-foreground mt-1 uppercase tracking-widest text-[10px] font-bold italic">Liens Meet personnalisés et plages de quiz fixes.</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" asChild><Link href="/admin/coaching"><ChevronLeft /></Link></Button>
+          <div>
+            <h1 className="text-3xl font-black italic uppercase tracking-tighter text-primary">Configuration Sessions</h1>
+            <p className="text-muted-foreground mt-1 uppercase tracking-widest text-[10px] font-bold italic">Gestion des liens Meet et des contenus Quiz S1-S6.</p>
+          </div>
         </div>
       </div>
 
       <div className="grid gap-8">
         {editSessions.map((s) => (
-          <Card key={s.id} className="rounded-[40px] border-none shadow-xl overflow-hidden bg-white">
+          <Card key={s.id} className="rounded-[40px] border-none shadow-xl overflow-hidden bg-white group hover:shadow-2xl transition-all">
             <CardHeader className="bg-slate-50/50 border-b p-8 flex flex-row items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center shadow-inner", s.type === 'MEET' ? "bg-emerald-100 text-emerald-600" : "bg-indigo-100 text-indigo-600")}>
@@ -93,15 +107,20 @@ export default function AdminCoachingSessions() {
                 </div>
                 <div>
                   <CardTitle className="text-2xl font-black italic uppercase tracking-tight">{s.title}</CardTitle>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">{s.type === 'MEET' ? 'Visioconférence' : 'Simulation Quiz'}</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">{s.type === 'MEET' ? 'Visioconférence' : 'Simulation Quiz (35 Questions)'}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Label className="text-[10px] font-black uppercase italic text-slate-400">Publié</Label>
-                <Switch 
-                  checked={s.isPublished} 
-                  onCheckedChange={(val) => setEditSessions(prev => prev.map(x => x.id === s.id ? {...x, isPublished: val} : x))}
-                />
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-3">
+                  <Label className="text-[10px] font-black uppercase italic text-slate-400">Publié</Label>
+                  <Switch 
+                    checked={s.isPublished} 
+                    onCheckedChange={(val) => setEditSessions(prev => prev.map(x => x.id === s.id ? {...x, isPublished: val} : x))}
+                  />
+                </div>
+                <Button onClick={() => handleSave(s.id)} disabled={isSaving === s.id} size="sm" className="bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl h-10 px-6 font-black uppercase text-[10px] tracking-widest">
+                  {isSaving === s.id ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />} Sauver
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="p-8 space-y-8">
@@ -124,42 +143,53 @@ export default function AdminCoachingSessions() {
                         </div>
                       </div>
                     ))}
-                    {(!groups || groups.length === 0) && (
-                      <p className="text-center py-4 text-slate-400 font-bold italic text-xs uppercase">Créez d'abord des groupes dans la section "Config Groupes".</p>
-                    )}
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-2">
-                    <Label className="font-black uppercase text-[10px] tracking-widest text-slate-400 italic">Index Début (Banque Questions)</Label>
-                    <Input 
-                      type="number"
-                      value={s.questionStart || ''} 
-                      onChange={(e) => setEditSessions(prev => prev.map(x => x.id === s.id ? {...x, questionStart: parseInt(e.target.value)} : x))}
-                      className="font-black italic h-14 border-2 rounded-2xl text-xl"
-                    />
+                <div className="space-y-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-slate-50 p-6 rounded-3xl border-2 border-dashed">
+                    <div className="space-y-2">
+                      <Label className="font-black uppercase text-[10px] tracking-widest text-slate-400 italic">Index Début (Q{s.questionStart})</Label>
+                      <Input 
+                        type="number"
+                        value={s.questionStart || ''} 
+                        onChange={(e) => setEditSessions(prev => prev.map(x => x.id === s.id ? {...x, questionStart: parseInt(e.target.value)} : x))}
+                        className="font-black italic h-12 border-2 rounded-xl text-lg bg-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-black uppercase text-[10px] tracking-widest text-slate-400 italic">Index Fin (Q{s.questionEnd})</Label>
+                      <Input 
+                        type="number"
+                        value={s.questionEnd || ''} 
+                        onChange={(e) => setEditSessions(prev => prev.map(x => x.id === s.id ? {...x, questionEnd: parseInt(e.target.value)} : x))}
+                        className="font-black italic h-12 border-2 rounded-xl text-lg bg-white"
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="font-black uppercase text-[10px] tracking-widest text-slate-400 italic">Index Fin (Banque Questions)</Label>
-                    <Input 
-                      type="number"
-                      value={s.questionEnd || ''} 
-                      onChange={(e) => setEditSessions(prev => prev.map(x => x.id === s.id ? {...x, questionEnd: parseInt(e.target.value)} : x))}
-                      className="font-black italic h-14 border-2 rounded-2xl text-xl"
-                    />
+
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <Button onClick={() => setImportSession(s)} variant="outline" className="h-14 flex-1 rounded-2xl border-2 font-black uppercase tracking-widest text-xs italic hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200">
+                      <Upload className="mr-2 h-5 w-5" /> Importer Simulation (Excel)
+                    </Button>
+                    <Button asChild variant="outline" className="h-14 flex-1 rounded-2xl border-2 font-black uppercase tracking-widest text-xs italic hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200">
+                      <Link href={`/admin/coaching/sessions/${s.id}/questions`}>
+                        <Eye className="mr-2 h-5 w-5" /> Visualiser les Questions
+                      </Link>
+                    </Button>
                   </div>
                 </div>
               )}
-              <div className="flex justify-end pt-4">
-                <Button onClick={() => handleSave(s.id)} disabled={isSaving === s.id} className="h-14 px-12 rounded-2xl font-black uppercase tracking-widest bg-primary text-white shadow-xl scale-105 transition-transform">
-                  {isSaving === s.id ? <Loader2 className="animate-spin h-5 w-5" /> : <Save className="mr-2 h-5 w-5" />} Enregistrer S{s.index}
-                </Button>
-              </div>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      <CoachingImportModal 
+        isOpen={!!importSession} 
+        onClose={() => setImportSession(null)} 
+        session={importSession}
+      />
     </div>
   );
 }
