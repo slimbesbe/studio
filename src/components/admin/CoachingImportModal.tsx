@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef } from 'react';
@@ -12,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import { Loader2, CheckCircle2, FileSpreadsheet, XCircle, Upload, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirebase, useUser } from '@/firebase';
@@ -141,8 +141,6 @@ export function CoachingImportModal({ isOpen, onClose, session }: CoachingImport
       const batch = writeBatch(db);
       
       parsedData.forEach((q) => {
-        // On utilise un ID prédictif basé sur l'index pour éviter les doublons 
-        // ou on laisse Firestore générer un ID mais on écrase si l'index existe déjà
         const qRef = doc(db, 'questions', `COACHING_Q_${q.index}`);
         batch.set(qRef, {
           ...q,

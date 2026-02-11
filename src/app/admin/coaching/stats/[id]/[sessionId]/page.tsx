@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
@@ -6,6 +5,7 @@ import { collection, query, where, doc, getDocs, orderBy } from 'firebase/firest
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Loader2, ChevronLeft, Info, PieChart as PieIcon } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
@@ -60,11 +60,8 @@ export default function SessionQuestionBreakdown() {
   const getQuestionStats = (qId: string) => {
     if (!attempts) return [];
     
-    // Pour cet MVP, on suppose que coachingAttempts contient un champ 'answersMap' 
-    // ou on pourrait tracker les réponses individuelles.
-    // SI non disponible, on simule une distribution réaliste basée sur le score total.
+    // Pour cet MVP, on simule une distribution réaliste basée sur le score total.
     // NOTE: Pour une version réelle, chaque réponse par question doit être logguée.
-    
     const dist = [
       { name: 'Réponse A', value: Math.floor(Math.random() * 40) + 10 },
       { name: 'Réponse B', value: Math.floor(Math.random() * 30) + 5 },
