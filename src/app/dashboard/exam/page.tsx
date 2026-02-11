@@ -169,13 +169,20 @@ export default function ExamPage() {
     setIsSubmitting(true);
     try {
       const qSnap = await getDocs(query(collection(db, 'questions'), where('examId', '==', examToLoad), where('isActive', '==', true)));
-      const questions = qSnap.docs.map(d => ({ ...d.data(), id: d.id }));
+      let questions = qSnap.docs.map(d => ({ ...d.data(), id: d.id }));
       
       if (questions.length === 0) {
         toast({ variant: "destructive", title: "Erreur", description: "Pas de questions configurées pour cette simulation." });
         setIsSubmitting(false);
         return;
       }
+
+      // NORMALISATION CRITIQUE : Supporte les formats Manual, Excel et Coaching
+      questions = questions.map(q => {
+        const options = q.options || (q.choices ? q.choices.map((c: string, i: number) => ({ id: (i + 1).toString(), text: c })) : []);
+        const correctOptionIds = q.correctOptionIds || (q.correctChoice ? [String(q.correctChoice)] : []);
+        return { ...q, options, correctOptionIds };
+      });
 
       if (resume && savedState) {
         const filtered = questions.filter(q => savedState.questionIds.includes(q.id));
