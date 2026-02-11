@@ -70,7 +70,7 @@ export default function AdminCoachingSessions() {
         batch.set(doc(db, 'coachingSessions', s.id), { ...s, updatedAt: serverTimestamp() });
       });
       await batch.commit();
-      toast({ title: "Programme initialisé", description: "Les 6 séances ont été créées avec leurs plages par défaut." });
+      toast({ title: "Programme initialisé", description: "Les 6 séances ont été créées avec leurs plages de 35 questions." });
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur d'initialisation" });
     } finally {
@@ -88,7 +88,7 @@ export default function AdminCoachingSessions() {
       }
       return s;
     }));
-    toast({ title: "Plages réinitialisées localement", description: "N'oubliez pas de cliquer sur Sauver pour chaque séance." });
+    toast({ title: "Plages réinitialisées localement", description: "Cliquez sur Sauver pour appliquer." });
   };
 
   const handleSave = async (id: string) => {
@@ -130,7 +130,7 @@ export default function AdminCoachingSessions() {
           <Button variant="ghost" size="icon" asChild className="h-14 w-14 rounded-2xl border-2"><Link href="/admin/coaching"><ChevronLeft className="h-6 w-6" /></Link></Button>
           <div>
             <h1 className="text-3xl font-black italic uppercase tracking-tighter text-primary">Configuration Sessions</h1>
-            <p className="text-muted-foreground mt-1 uppercase tracking-widest text-[10px] font-bold italic">Gestion des liens Meet et des plages de questions S1-S6.</p>
+            <p className="text-muted-foreground mt-1 uppercase tracking-widest text-[10px] font-bold italic">Pilotez vos 5 micro-simulations de 35 questions (S2-S6).</p>
           </div>
         </div>
         <div className="flex gap-4">
@@ -155,7 +155,7 @@ export default function AdminCoachingSessions() {
                 </div>
                 <div>
                   <CardTitle className="text-2xl font-black italic uppercase tracking-tight">{s.title}</CardTitle>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">{s.type === 'MEET' ? 'Visioconférence Directe' : `Simulation Interactive (Plage Q${s.questionStart || '?'}-Q${s.questionEnd || '?'})`}</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">{s.type === 'MEET' ? 'Visioconférence par groupe' : 'Simulation 35 Questions'}</p>
                 </div>
               </div>
               <div className="flex items-center gap-6">
@@ -175,7 +175,7 @@ export default function AdminCoachingSessions() {
               {s.type === 'MEET' ? (
                 <div className="space-y-6">
                   <div className="flex items-center gap-2 text-emerald-600 font-black uppercase text-xs italic">
-                    <Users className="h-4 w-4" /> Configuration des liens par groupe
+                    <Users className="h-4 w-4" /> Liens Google Meet par Groupe
                   </div>
                   <div className="grid gap-4">
                     {groups?.map(g => (
@@ -191,20 +191,17 @@ export default function AdminCoachingSessions() {
                         </div>
                       </div>
                     ))}
-                    {(!groups || groups.length === 0) && (
-                      <div className="text-center py-4 text-slate-400 font-bold italic text-xs uppercase tracking-widest">Aucun groupe configuré pour le moment.</div>
-                    )}
                   </div>
                 </div>
               ) : (
                 <div className="space-y-8">
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 text-indigo-600 font-black uppercase text-xs italic">
-                      <RefreshCw className="h-4 w-4" /> Configuration de la plage de questions
+                      <RefreshCw className="h-4 w-4" /> Plage de la Simulation (35 Q)
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-indigo-50/30 p-8 rounded-[32px] border-4 border-dashed border-indigo-100">
                       <div className="space-y-2">
-                        <Label className="font-black uppercase text-[10px] tracking-widest text-slate-400 italic">Index de Début (Question N°)</Label>
+                        <Label className="font-black uppercase text-[10px] tracking-widest text-slate-400 italic">Index Début (Q#)</Label>
                         <Input 
                           type="number"
                           value={s.questionStart ?? ''} 
@@ -212,12 +209,11 @@ export default function AdminCoachingSessions() {
                             const val = e.target.value === '' ? 0 : parseInt(e.target.value);
                             setEditSessions(prev => prev.map(x => x.id === s.id ? {...x, questionStart: val} : x));
                           }}
-                          className="font-black italic h-16 border-2 rounded-2xl text-2xl bg-white focus:ring-primary focus:border-primary text-center"
-                          placeholder="Ex: 1"
+                          className="font-black italic h-16 border-2 rounded-2xl text-2xl bg-white text-center"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="font-black uppercase text-[10px] tracking-widest text-slate-400 italic">Index de Fin (Question N°)</Label>
+                        <Label className="font-black uppercase text-[10px] tracking-widest text-slate-400 italic">Index Fin (Q#)</Label>
                         <Input 
                           type="number"
                           value={s.questionEnd ?? ''} 
@@ -225,8 +221,7 @@ export default function AdminCoachingSessions() {
                             const val = e.target.value === '' ? 0 : parseInt(e.target.value);
                             setEditSessions(prev => prev.map(x => x.id === s.id ? {...x, questionEnd: val} : x));
                           }}
-                          className="font-black italic h-16 border-2 rounded-2xl text-2xl bg-white focus:ring-primary focus:border-primary text-center"
-                          placeholder="Ex: 35"
+                          className="font-black italic h-16 border-2 rounded-2xl text-2xl bg-white text-center"
                         />
                       </div>
                     </div>
@@ -241,7 +236,7 @@ export default function AdminCoachingSessions() {
                     </Button>
                     <Button asChild variant="outline" className="h-16 rounded-2xl border-4 font-black uppercase tracking-widest text-sm italic hover:bg-indigo-50">
                       <Link href={`/admin/coaching/sessions/${s.id}/questions`}>
-                        <Eye className="mr-2 h-6 w-6" /> Visualiser Contenu
+                        <Eye className="mr-2 h-6 w-6" /> Visualiser Questions
                       </Link>
                     </Button>
                   </div>
