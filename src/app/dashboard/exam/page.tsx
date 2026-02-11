@@ -80,47 +80,47 @@ export default function ExamPage() {
   const [breakTimeLeft, setBreakTimeLeft] = useState(BREAK_DURATION);
   const [isConfirmSubmitOpen, setIsConfirmSubmitOpen] = useState(false);
 
-  const [filledExams, setFilledExams] = useState<string[]>([]);
-  const [isLoadingFilled, setIsLoadingFilled] = useState(true);
+  const [examCounts, setExamCounts] = useState<Record<string, number>>({});
+  const [isLoadingCounts, setIsLoadingCounts] = useState(true);
 
   useEffect(() => {
-    async function checkFilledExams() {
+    async function fetchExamMetadata() {
       if (!db) return;
+      setIsLoadingCounts(true);
       try {
-        const results: string[] = [];
+        const counts: Record<string, number> = {};
         for (const exam of ALL_EXAMS) {
           const q = query(
             collection(db, 'questions'), 
             where('examId', '==', exam.id), 
-            where('isActive', '==', true), 
-            limit(1)
+            where('isActive', '==', true)
           );
           const snap = await getDocs(q);
-          if (!snap.empty) {
-            results.push(exam.id);
-          }
+          counts[exam.id] = snap.size;
         }
-        setFilledExams(results);
+        setExamCounts(counts);
       } catch (e) {
-        console.error("Error checking filled exams:", e);
+        console.error("Error fetching exam counts:", e);
       } finally {
-        setIsLoadingFilled(false);
+        setIsLoadingCounts(false);
       }
     }
-    checkFilledExams();
+    fetchExamMetadata();
   }, [db]);
 
   const allowedExams = useMemo(() => {
-    if (isUserLoading || isLoadingFilled) return [];
+    if (isUserLoading || isLoadingCounts) return [];
     
     let baseAllowed = ALL_EXAMS;
+    // Si l'utilisateur n'est pas Admin, on filtre par ses permissions profils
     if (!(isDemo || profile?.role === 'super_admin' || profile?.role === 'admin')) {
       const userAllowedIds = profile?.allowedExams || [];
       baseAllowed = ALL_EXAMS.filter(exam => userAllowedIds.includes(exam.id));
     }
 
-    return baseAllowed.filter(exam => filledExams.includes(exam.id));
-  }, [profile, isDemo, isUserLoading, filledExams, isLoadingFilled]);
+    // On ne garde que les examens qui ont AU MOINS une question dans la banque
+    return baseAllowed.filter(exam => (examCounts[exam.id] || 0) > 0);
+  }, [profile, isDemo, isUserLoading, examCounts, isLoadingCounts]);
 
   const examStateRef = useMemoFirebase(() => {
     return user && !user.isAnonymous ? doc(db, 'users', user.uid, 'exam_state', 'current') : null;
@@ -177,7 +177,7 @@ export default function ExamPage() {
         return;
       }
 
-      // NORMALISATION CRITIQUE : Supporte les formats Manual, Excel et Coaching
+      // Normalisation pour supporter les formats Excel, Coaching et Manuel
       questions = questions.map(q => {
         const options = q.options || (q.choices ? q.choices.map((c: string, i: number) => ({ id: (i + 1).toString(), text: c })) : []);
         const correctOptionIds = q.correctOptionIds || (q.correctChoice ? [String(q.correctChoice)] : []);
@@ -197,7 +197,8 @@ export default function ExamPage() {
         setExamPart(savedState.examPart || 1);
       } else {
         const pool = [...questions].sort(() => 0.5 - Math.random());
-        const selected = isDemo ? pool.slice(0, 2) : pool.slice(0, 180);
+        // On limite à 180 seulement si il y en a plus, sinon on prend tout ce qui existe (ex: 10)
+        const selected = isDemo ? pool.slice(0, 2) : pool.slice(0, Math.min(pool.length, 180));
         setExamQuestions(selected);
         setTimeLeft(TOTAL_PMP_TIME);
         setInitialTime(TOTAL_PMP_TIME);
@@ -226,7 +227,7 @@ export default function ExamPage() {
 
   const confirmSectionSubmission = async () => {
     setIsConfirmSubmitOpen(false);
-    if (isDemo || examPart === 3) {
+    if (isDemo || examPart === 3 || examQuestions.length <= QUESTIONS_PER_PART) {
       await finishExam();
       return;
     }
@@ -308,7 +309,7 @@ export default function ExamPage() {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  if (isUserLoading || isStateLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
+  if (isUserLoading || isStateLoading || isLoadingCounts) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
 
   if (isOnBreak) {
     return (
@@ -319,7 +320,7 @@ export default function ExamPage() {
               <Coffee className="h-10 w-10 text-primary" />
             </div>
             <h1 className="text-4xl font-black text-slate-900 tracking-wider uppercase italic">PAUSE OPTIONNELLE</h1>
-            <p className="text-sm text-slate-500 mt-2 font-bold uppercase tracking-widest italic">Vous avez terminé la Partie {examPart - 1}</p>
+            <p className="text-sm text-slate-500 mt-2 font-bold uppercase tracking-widest italic">Vous avez terminé une section de la simulation</p>
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-8 p-12 bg-white">
             <div className="text-7xl font-black text-primary tabular-nums italic bg-slate-50 px-12 py-6 rounded-3xl border-4 border-dashed border-primary/20">
@@ -367,13 +368,13 @@ export default function ExamPage() {
               <ListChecks className="h-8 w-8" /> Item Review Screen
             </h1>
             <p className="text-slate-500 font-bold uppercase tracking-widest text-xs mt-1">
-              {isDemo ? "MODE DÉMO" : `Partie ${examPart} : Vérifiez vos réponses.`}
+              {isDemo ? "MODE DÉMO" : `Révision de vos réponses (Section ${examPart})`}
             </p>
           </div>
           <div className="flex gap-4">
             <Button variant="outline" className="h-12 px-8 font-black uppercase tracking-widest border-2 rounded-xl" onClick={() => setIsItemReviewMode(false)}>RETOUR</Button>
             <Button className="h-12 px-8 font-black uppercase tracking-widest bg-primary text-white rounded-xl shadow-lg" onClick={handleFinishSection}>
-              {isDemo || examPart === 3 ? "SOUMETTRE L'EXAMEN" : `TERMINER SECTION ${examPart}`}
+              {isDemo || examPart === 3 || examQuestions.length <= QUESTIONS_PER_PART ? "SOUMETTRE L'EXAMEN" : `TERMINER SECTION ${examPart}`}
             </Button>
           </div>
         </div>
@@ -408,15 +409,15 @@ export default function ExamPage() {
                 <ShieldAlert className="h-8 w-8 text-amber-500" />
               </div>
               <AlertDialogTitle className="text-2xl font-black text-center uppercase italic tracking-tight text-slate-900">
-                CONFIRMATION FINALE
+                CONFIRMATION
               </AlertDialogTitle>
               <AlertDialogDescription className="text-lg font-bold text-center text-slate-600 leading-relaxed uppercase tracking-tight">
-                Êtes-vous sûr de vouloir soumettre la <span className="text-primary font-black">{isDemo ? "Simulation" : `Partie ${examPart}`}</span> ?
+                Soumettre vos réponses pour <span className="text-primary font-black">{isDemo ? "la démo" : `cette section`}</span> ?
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="mt-8 flex flex-col sm:flex-row gap-3">
               <AlertDialogCancel className="h-14 flex-1 rounded-xl font-black uppercase tracking-widest border-2">Annuler</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmSectionSubmission} className="h-14 flex-1 rounded-xl font-black bg-primary hover:bg-primary/90 shadow-lg uppercase tracking-widest">Oui, je confirme</AlertDialogAction>
+              <AlertDialogAction onClick={confirmSectionSubmission} className="h-14 flex-1 rounded-xl font-black bg-primary hover:bg-primary/90 shadow-lg uppercase tracking-widest">Confirmer</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -469,16 +470,11 @@ export default function ExamPage() {
     return (
       <div className="max-w-5xl mx-auto py-8 space-y-8 px-4">
         <div className="text-center space-y-1">
-          <h1 className="text-3xl leading-none font-black text-primary uppercase italic tracking-tighter">Simulateur PMP®</h1>
-          <p className="text-lg text-slate-500 font-black uppercase tracking-widest italic">Simulations Complètes (Remplies uniquement)</p>
+          <h1 className="text-3xl leading-none font-black text-primary uppercase italic tracking-tighter">Simulations d'Examen</h1>
+          <p className="text-lg text-slate-500 font-black uppercase tracking-widest italic">Contenu synchronisé avec la banque de questions</p>
         </div>
         
-        {isLoadingFilled ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="font-black uppercase italic text-slate-400 text-xs tracking-widest">Analyse de la banque de questions...</p>
-          </div>
-        ) : allowedExams.length === 0 ? (
+        {allowedExams.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 bg-white rounded-[40px] shadow-inner border-4 border-dashed border-slate-100">
             <FileQuestion className="h-16 w-16 text-slate-300" />
             <h2 className="text-2xl font-black text-slate-400 italic uppercase">Aucune simulation prête</h2>
@@ -492,7 +488,9 @@ export default function ExamPage() {
               <Card key={exam.id} className={cn("cursor-pointer border-t-4 transition-all hover:scale-[1.01] hover:shadow-md rounded-2xl overflow-hidden", selectedExamId === exam.id ? 'border-t-primary bg-primary/5 ring-2 ring-primary/10 shadow-md' : 'border-t-muted shadow-sm')} onClick={() => setSelectedExamId(exam.id)}>
                 <CardHeader className="p-6">
                   <CardTitle className="text-lg font-black uppercase tracking-tight italic">Examen {exam.num}</CardTitle>
-                  <p className="text-slate-600 font-bold leading-relaxed text-xs uppercase tracking-tight italic">180 Questions • 230 Minutes</p>
+                  <p className="text-slate-600 font-bold leading-relaxed text-xs uppercase tracking-tight italic">
+                    {examCounts[exam.id] || 0} Questions • 230 Minutes
+                  </p>
                 </CardHeader>
                 <CardFooter className="p-6 pt-0">
                   <Button variant={selectedExamId === exam.id ? "default" : "outline"} className="w-full h-10 font-black text-xs rounded-lg uppercase tracking-widest bg-primary text-white">
