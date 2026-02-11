@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -12,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { GraduationCap, Save, Loader2, Video, FileQuestion, ChevronLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
 export default function AdminCoachingSessions() {
   const db = useFirestore();
@@ -21,7 +21,7 @@ export default function AdminCoachingSessions() {
   const { data: sessions, isLoading } = useCollection(sessionsQuery);
 
   const [editSessions, setEditSessions] = useState<any[]>([]);
-  const [isSaving, setIsSubmitting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (sessions && sessions.length > 0) {
@@ -45,7 +45,7 @@ export default function AdminCoachingSessions() {
     const s = editSessions.find(x => x.id === id);
     if (!s) return;
     
-    setIsSubmitting(true);
+    setIsSaving(true);
     try {
       await setDoc(doc(db, 'coachingSessions', id), {
         ...s,
@@ -55,7 +55,7 @@ export default function AdminCoachingSessions() {
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur sauvegarde" });
     } finally {
-      setIsSubmitting(false);
+      setIsSaving(false);
     }
   };
 
@@ -72,7 +72,7 @@ export default function AdminCoachingSessions() {
       </div>
 
       <div className="grid gap-6">
-        {editSessions.map((s, idx) => (
+        {editSessions.map((s) => (
           <Card key={s.id} className="rounded-3xl border-2 border-slate-100 shadow-lg overflow-hidden">
             <CardHeader className="bg-slate-50/50 border-b p-6 flex flex-row items-center justify-between">
               <div className="flex items-center gap-4">
@@ -123,7 +123,7 @@ export default function AdminCoachingSessions() {
                 </>
               )}
               <div className="md:col-span-2 flex justify-end">
-                <Button onClick={() => handleSave(s.id)} disabled={isSaving} className="h-12 px-8 rounded-xl font-black uppercase tracking-widest bg-primary">
+                <Button onClick={() => handleSave(s.id)} disabled={isSaving} className="h-12 px-8 rounded-xl font-black uppercase tracking-widest bg-primary text-white shadow-md">
                   {isSaving ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />} Sauvegarder
                 </Button>
               </div>
