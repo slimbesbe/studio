@@ -21,30 +21,35 @@ import { signOut } from 'firebase/auth';
 
 /**
  * Composant Logo Officiel Simu-lux
- * Reproduit le bouclier bleu, le S blanc et la flèche jaune de l'image fournie.
+ * Fidèle à l'image : bouclier bleu avec dégradé, S blanc épais et flèche jaune ascendante.
  */
 export const SimuLuxLogo = ({ className = "h-8 w-8" }: { className?: string }) => (
-  <svg viewBox="0 0 100 100" className={className} xmlns="http://www.w3.org/2000/svg">
-    {/* Bouclier bleu avec dégradé subtil simulé */}
+  <svg viewBox="0 0 200 200" className={className} xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="shieldGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor="#0061D1" />
+        <stop offset="100%" stopColor="#00357A" />
+      </linearGradient>
+    </defs>
+    {/* Bouclier bleu avec dégradé */}
     <path 
-      d="M50 5 L15 15 V50 C15 75 50 95 50 95 C50 95 85 75 85 50 V15 L50 5 Z" 
-      fill="#004AAD" 
+      d="M100,5 L35,28 L35,95 C35,145 100,190 100,190 C100,190 165,145 165,95 L165,28 Z" 
+      fill="url(#shieldGrad)" 
     />
-    
-    {/* Stylisation du 'S' blanc fluide */}
+    {/* Le 'S' blanc en forme de ruban dynamique */}
     <path 
-      d="M25 72 C35 85 75 80 80 60 C85 45 60 40 40 32 C20 24 40 12 65 15" 
-      stroke="white" 
-      strokeWidth="12" 
+      d="M55,145 C70,170 150,165 155,125 C160,85 100,85 75,70 C50,55 80,25 140,30" 
       fill="none" 
+      stroke="white" 
+      strokeWidth="24" 
       strokeLinecap="round" 
+      strokeLinejoin="round"
     />
-    
-    {/* Flèche jaune/or dynamique */}
-    <path d="M70 25 L95 5 L85 40 L70 25 Z" fill="#FFBD59" />
-    
-    {/* Reflet sur la flèche pour le relief */}
-    <path d="M85 40 L95 5 L65 15 L85 40 Z" fill="white" fillOpacity="0.1" />
+    {/* La flèche jaune/or de réussite */}
+    <path 
+      d="M145,25 L195,5 L175,55 L160,35 Z" 
+      fill="#FFBD59" 
+    />
   </svg>
 );
 

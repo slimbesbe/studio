@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -49,7 +48,7 @@ export default function CoachingSessionDetails() {
             type: sessionIndex === 1 ? 'MEET' : 'QUIZ',
             questionStart: (sessionIndex - 1) * 35 + 1,
             questionEnd: sessionIndex * 35,
-            meetLink: "https://meet.google.com/pmp-coaching-simovex",
+            meetLink: "https://meet.google.com/pmp-coaching-simu-lux",
             isPublished: true
           };
         }
