@@ -19,19 +19,32 @@ import { Button } from '@/components/ui/button';
 import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
 
+/**
+ * Composant Logo Officiel Simu-lux
+ * Reproduit le bouclier bleu, le S blanc et la flèche jaune de l'image fournie.
+ */
 export const SimuLuxLogo = ({ className = "h-8 w-8" }: { className?: string }) => (
   <svg viewBox="0 0 100 100" className={className} xmlns="http://www.w3.org/2000/svg">
-    {/* Bouclier bleu de fond */}
-    <path d="M50 5C30 5 15 15 15 35V55C15 75 50 95 50 95C50 95 85 75 85 55V35C85 15 70 5 50 5Z" fill="#004AAD" />
+    {/* Bouclier bleu avec dégradé subtil simulé */}
+    <path 
+      d="M50 5 L15 15 V50 C15 75 50 95 50 95 C50 95 85 75 85 50 V15 L50 5 Z" 
+      fill="#004AAD" 
+    />
     
-    {/* Le 'S' blanc stylisé et dynamique */}
-    <path d="M22 72C35 85 75 80 80 60C85 45 60 40 40 32C20 24 40 12 65 15" stroke="white" strokeWidth="12" fill="none" strokeLinecap="round" />
+    {/* Stylisation du 'S' blanc fluide */}
+    <path 
+      d="M25 72 C35 85 75 80 80 60 C85 45 60 40 40 32 C20 24 40 12 65 15" 
+      stroke="white" 
+      strokeWidth="12" 
+      fill="none" 
+      strokeLinecap="round" 
+    />
     
-    {/* La flèche de lancement jaune/or */}
-    <path d="M75 20L95 5L85 35L75 20Z" fill="#FFBD59" />
+    {/* Flèche jaune/or dynamique */}
+    <path d="M70 25 L95 5 L85 40 L70 25 Z" fill="#FFBD59" />
     
-    {/* Ombrage léger pour la profondeur de la flèche */}
-    <path d="M85 35L95 5L65 15L85 35Z" fill="white" fillOpacity="0.2" />
+    {/* Reflet sur la flèche pour le relief */}
+    <path d="M85 40 L95 5 L65 15 L85 40 Z" fill="white" fillOpacity="0.1" />
   </svg>
 );
 
@@ -73,8 +86,8 @@ export function Sidebar() {
   return (
     <div className="flex flex-col h-full bg-white border-r w-64 fixed left-0 top-0 z-40 animate-in fade-in slide-in-from-left duration-300">
       <div className="h-16 flex items-center px-6 border-b">
-        <Link className="flex items-center gap-2" href="/">
-          <SimuLuxLogo className="h-7 w-7" />
+        <Link className="flex items-center gap-2 group" href="/">
+          <SimuLuxLogo className="h-7 w-7 group-hover:scale-110 transition-transform" />
           <span className="font-headline font-black text-xl italic tracking-tighter text-primary">Simu-lux</span>
         </Link>
       </div>

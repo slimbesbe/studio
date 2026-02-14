@@ -1,10 +1,9 @@
-
 {
   "entities": {
     "User": {
       "title": "User",
       "type": "object",
-      "description": "Utilisateur SIMOVEX avec statistiques de performance et accès coaching.",
+      "description": "Utilisateur Simu-lux avec statistiques de performance et accès coaching.",
       "properties": {
         "id": { "type": "string" },
         "email": { "type": "string" },
