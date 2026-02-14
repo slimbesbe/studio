@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -8,9 +7,7 @@ import {
   Users, 
   BookCopy, 
   Loader2,
-  ShieldAlert,
   ArrowRight,
-  LayoutGrid,
   BarChart3,
   GraduationCap,
   ShieldCheck,
@@ -19,6 +16,7 @@ import {
 import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { SimuLuxLogo } from '@/components/dashboard/Sidebar';
 
 export default function AdminDashboard() {
   const { profile, isUserLoading } = useUser();
@@ -47,9 +45,9 @@ export default function AdminDashboard() {
     <div className="space-y-8 animate-fade-in p-8 max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black italic uppercase tracking-tighter text-primary flex items-center gap-2">
-            <ShieldAlert className="h-8 w-8" />
-            Panneau d'administration SIMOVEX
+          <h1 className="text-3xl font-black italic uppercase tracking-tighter text-primary flex items-center gap-3">
+            <SimuLuxLogo className="h-10 w-10" />
+            Panneau d'administration Simu-lux
           </h1>
           <p className="text-muted-foreground mt-1 uppercase tracking-widest text-[10px] font-bold italic">Gestion centrale de la plateforme et des contenus.</p>
         </div>
@@ -152,7 +150,7 @@ export default function AdminDashboard() {
           </div>
           <div>
             <h3 className="text-xl font-black italic uppercase tracking-tight">Accès Administrateur Sécurisé</h3>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest italic">Toutes vos actions sont tracées et protégées par SIMOVEX v2.1</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest italic">Toutes vos actions sont tracées et protégées par Simu-lux v2.1</p>
           </div>
         </div>
         <Button variant="ghost" className="h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs text-primary hover:bg-primary/5 border-2 border-primary/10" asChild>

@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
@@ -45,7 +44,6 @@ export interface FirebaseServicesAndUser {
 
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
-// Liste des identifiants Super Admin reconnus immédiatement
 const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1'];
 const ADMIN_EMAIL = 'slim.besbes@yahoo.fr';
 
@@ -69,11 +67,9 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Détection immédiate du statut Super Admin
         const isSA = ADMIN_UIDS.includes(firebaseUser.uid) || (firebaseUser.email === ADMIN_EMAIL);
         
         if (isSA) {
-          // Maintenance silencieuse du rôle admin dans Firestore
           setDoc(doc(firestore, 'roles_admin', firebaseUser.uid), { 
             createdAt: serverTimestamp(),
             email: firebaseUser.email || ADMIN_EMAIL,
@@ -95,8 +91,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
             }
 
             const currentStatus = isExpired ? 'expired' : (profileData.status || 'active');
-            
-            // Priorité à l'UID pour le rôle
             const role = isSA ? 'super_admin' : (profileData.role || 'user');
 
             setUserAuthState(prev => ({ 
@@ -106,7 +100,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               isUserLoading: false 
             }));
 
-            // Tracking session
             const sessionKey = `session_track_v2_${firebaseUser.uid}`;
             if (!sessionStorage.getItem(sessionKey)) {
               const now = serverTimestamp();
@@ -120,7 +113,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
                router.push('/access-denied');
             }
           } else if (isSA) {
-            // Bootstrap automatique si document manquant
             const now = serverTimestamp();
             const initialData = {
               id: firebaseUser.uid,
@@ -164,7 +156,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     return () => unsubscribeAuth();
   }, [auth, firestore, pathname, router]);
 
-  // Étude Heartbeat
   useEffect(() => {
     if (!auth || !firestore || !userAuthState.user || userAuthState.user.isAnonymous) return;
     const interval = setInterval(() => {

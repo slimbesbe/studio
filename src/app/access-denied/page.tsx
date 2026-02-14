@@ -1,10 +1,9 @@
-
 'use client';
 
 import { useUser, useAuth } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { AlertCircle, LogOut, ShieldAlert, Clock } from 'lucide-react';
+import { LogOut, ShieldAlert, Clock } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 
@@ -21,7 +20,6 @@ export default function AccessDeniedPage() {
   };
 
   const isExpired = profile?.status === 'expired';
-  const isDisabled = profile?.status === 'disabled';
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -39,7 +37,7 @@ export default function AccessDeniedPage() {
           </CardTitle>
           <CardDescription>
             {isExpired 
-              ? 'Votre période de validité SIMOVEX est terminée.' 
+              ? 'Votre période de validité Simu-lux est terminée.' 
               : 'Votre compte a été désactivé par l\'administrateur.'}
           </CardDescription>
         </CardHeader>

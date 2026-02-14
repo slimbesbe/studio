@@ -1,4 +1,3 @@
-
 import type {Metadata} from 'next';
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
@@ -6,7 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { SidebarLayout } from '@/components/dashboard/SidebarLayout';
 
 export const metadata: Metadata = {
-  title: 'SIMOVEX PMP Exam Simulator',
+  title: 'Simu-lux PMP Exam Simulator',
   description: 'Plateforme professionnelle de simulation d\'examen PMP',
 };
 

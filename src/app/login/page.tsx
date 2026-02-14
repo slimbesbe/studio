@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -8,12 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { GraduationCap, Loader2, Mail, Lock } from 'lucide-react';
+import { Loader2, Mail, Lock } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { SimuLuxLogo } from '@/components/dashboard/Sidebar';
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -35,10 +35,10 @@ export default function LoginPage() {
       const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
       
       if (adminDoc.exists()) {
-        toast({ title: "Connexion réussie", description: "Bienvenue, Super Admin." });
+        toast({ title: "Connexion réussie", description: "Bienvenue sur Simu-lux Admin." });
         router.push('/admin/dashboard');
       } else {
-        toast({ title: "Connexion réussie", description: "Content de vous revoir." });
+        toast({ title: "Connexion réussie", description: "Content de vous revoir sur Simu-lux." });
         router.push('/dashboard');
       }
     } catch (error: any) {
@@ -55,10 +55,8 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 sm:p-6 lg:p-8">
       <Link className="flex items-center gap-2 mb-8 group" href="/">
-        <div className="bg-primary p-2 rounded-xl group-hover:scale-110 transition-transform">
-          <GraduationCap className="h-8 w-8 text-white" />
-        </div>
-        <span className="font-headline font-bold text-2xl tracking-tight text-primary">INOVEXIO <span className="text-accent">PMP</span></span>
+        <SimuLuxLogo className="h-10 w-10 group-hover:scale-110 transition-transform" />
+        <span className="font-headline font-black text-3xl italic tracking-tighter text-primary">Simu-lux <span className="text-accent">PMP</span></span>
       </Link>
       
       <Card className="w-full max-w-md border-t-4 border-t-primary shadow-xl">

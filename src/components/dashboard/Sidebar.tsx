@@ -9,18 +9,24 @@ import {
   History, 
   LogOut, 
   Trophy,
-  Loader2,
   BookCopy,
   Users,
   LayoutGrid,
-  ShieldAlert,
   GraduationCap,
-  LogIn,
   Database
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
+
+export const SimuLuxLogo = ({ className = "h-8 w-8" }: { className?: string }) => (
+  <svg viewBox="0 0 100 100" className={className} xmlns="http://www.w3.org/2000/svg">
+    <path d="M50 5L15 20V50C15 75 50 95 50 95C50 95 85 75 85 50V20L50 5Z" fill="#004AAD" />
+    <path d="M35 45C35 38 40 35 50 35C60 35 65 38 65 45C65 48 60 50 50 50C40 50 35 52 35 55C35 62 40 65 50 65C60 65 65 62 65 55" stroke="white" strokeWidth="8" fill="none" strokeLinecap="round" />
+    <path d="M65 25L85 15L80 35" fill="#FFBD59" />
+    <path d="M45 55L65 35L85 15" stroke="#FFBD59" strokeWidth="4" strokeLinecap="round" />
+  </svg>
+);
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -28,18 +34,12 @@ export function Sidebar() {
   const { user, isUserLoading, profile } = useUser();
   const auth = useAuth();
 
-  // Ne pas afficher la barre latérale si l'utilisateur n'est pas connecté, 
-  // en cours de chargement ou sur la page d'accueil (/)
   if (isUserLoading || !user || pathname === '/') {
     return null;
   }
 
   const isDemo = user?.isAnonymous;
-
-  // Détection du rôle admin via le profil utilisateur chargé par le Provider
   const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
-
-  // Logic pour filtrer les menus selon accessType
   const accessType = profile?.accessType || 'simulation';
   const showSimulationMenus = isAdmin || accessType === 'simulation' || accessType === 'coaching_simulation';
   const showCoachingMenu = isAdmin || accessType === 'coaching' || accessType === 'coaching_simulation';
@@ -67,10 +67,8 @@ export function Sidebar() {
     <div className="flex flex-col h-full bg-white border-r w-64 fixed left-0 top-0 z-40 animate-in fade-in slide-in-from-left duration-300">
       <div className="h-16 flex items-center px-6 border-b">
         <Link className="flex items-center gap-2" href="/">
-          <div className="bg-primary p-1 rounded-md">
-            <ShieldAlert className="h-5 w-5 text-white" />
-          </div>
-          <span className="font-headline font-bold text-lg text-primary">SIMOVEX</span>
+          <SimuLuxLogo className="h-7 w-7" />
+          <span className="font-headline font-black text-xl italic tracking-tighter text-primary">Simu-lux</span>
         </Link>
       </div>
 

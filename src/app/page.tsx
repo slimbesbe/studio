@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -7,11 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { GraduationCap, Loader2, Mail, Lock, Play, ShieldCheck } from 'lucide-react';
+import { Loader2, Mail, Lock, Play, ShieldCheck } from 'lucide-react';
 import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword, signInAnonymously, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { SimuLuxLogo } from '@/components/dashboard/Sidebar';
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
@@ -34,10 +34,8 @@ export default function Home() {
       let userCredential;
       
       try {
-        // Tenter la connexion normale
         userCredential = await signInWithEmailAndPassword(auth, email, password);
       } catch (signInError: any) {
-        // Gestion du bootstrap pour le Super Admin
         const isAuthAdmin = email === ADMIN_EMAIL && password === ADMIN_PASS;
         const isPotentialNewAdmin = signInError.code === 'auth/user-not-found' || 
                                    signInError.code === 'user-not-found' || 
@@ -45,11 +43,9 @@ export default function Home() {
 
         if (isAuthAdmin && isPotentialNewAdmin) {
           try {
-            // Tenter de créer le compte si login échoué car inexistant
             userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            toast({ title: "Bienvenue", description: "Initialisation de votre compte Super Admin SIMOVEX." });
+            toast({ title: "Bienvenue", description: "Initialisation de votre compte Super Admin Simu-lux." });
           } catch (createError: any) {
-            // Si l'utilisateur existe déjà, c'est que le mot de passe saisi est faux
             if (createError.code === 'auth/email-already-in-use') {
               throw new Error("Identifiants incorrects pour ce compte administrateur.");
             }
@@ -62,7 +58,6 @@ export default function Home() {
 
       const user = userCredential.user;
 
-      // Mise à jour ou création forcée des permissions pour le Super Admin dans Firestore
       if (email === ADMIN_EMAIL) {
         const adminUserRef = doc(db, 'users', user.uid);
         const adminUserSnap = await getDoc(adminUserRef);
@@ -82,17 +77,15 @@ export default function Home() {
             role: 'super_admin',
             status: 'active',
             updatedAt: now,
-            // S'assurer qu'on garde les dates originales si elles existent
             createdAt: adminUserSnap.exists() && adminUserSnap.data().createdAt ? adminUserSnap.data().createdAt : now,
             firstLoginAt: adminUserSnap.exists() && adminUserSnap.data().firstLoginAt ? adminUserSnap.data().firstLoginAt : now,
             lastLoginAt: now
           }, { merge: true })
         ]);
 
-        toast({ title: "Accès Admin", description: "Connexion réussie au panel SIMOVEX." });
+        toast({ title: "Accès Admin", description: "Connexion réussie au panel Simu-lux." });
         router.push('/admin/dashboard');
       } else {
-        // Vérification standard pour les autres
         const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
         if (adminDoc.exists()) {
           router.push('/admin/dashboard');
@@ -138,12 +131,10 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
-      <div className="flex items-center gap-2 mb-8">
-        <div className="bg-primary p-2 rounded-xl shadow-lg">
-          < GraduationCap className="h-8 w-8 text-white" />
-        </div>
-        <span className="font-headline font-bold text-2xl tracking-tight text-primary">
-          SIMOVEX <span className="text-accent">PMP</span>
+      <div className="flex items-center gap-3 mb-8">
+        <SimuLuxLogo className="h-12 w-12" />
+        <span className="font-headline font-black text-3xl italic tracking-tighter text-primary">
+          Simu-lux <span className="text-accent">PMP</span>
         </span>
       </div>
       
@@ -220,7 +211,7 @@ export default function Home() {
         </CardContent>
         <CardFooter className="flex flex-col gap-4 border-t pt-6 bg-secondary/5">
           <p className="flex items-center justify-center gap-1 text-[11px] text-muted-foreground">
-            <ShieldCheck className="h-3 w-3" /> Accès sécurisé SIMOVEX v2.1
+            <ShieldCheck className="h-3 w-3" /> Accès sécurisé Simu-lux v2.1
           </p>
         </CardFooter>
       </Card>
