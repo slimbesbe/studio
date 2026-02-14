@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from 'next/link';
@@ -29,8 +28,9 @@ export function Sidebar() {
   const { user, isUserLoading, profile } = useUser();
   const auth = useAuth();
 
-  // Ne pas afficher la barre latérale si l'utilisateur n'est pas connecté ou en cours de chargement
-  if (isUserLoading || !user) {
+  // Ne pas afficher la barre latérale si l'utilisateur n'est pas connecté, 
+  // en cours de chargement ou sur la page d'accueil (/)
+  if (isUserLoading || !user || pathname === '/') {
     return null;
   }
 
