@@ -21,10 +21,17 @@ import { signOut } from 'firebase/auth';
 
 export const SimuLuxLogo = ({ className = "h-8 w-8" }: { className?: string }) => (
   <svg viewBox="0 0 100 100" className={className} xmlns="http://www.w3.org/2000/svg">
-    <path d="M50 5L15 20V50C15 75 50 95 50 95C50 95 85 75 85 50V20L50 5Z" fill="#004AAD" />
-    <path d="M35 45C35 38 40 35 50 35C60 35 65 38 65 45C65 48 60 50 50 50C40 50 35 52 35 55C35 62 40 65 50 65C60 65 65 62 65 55" stroke="white" strokeWidth="8" fill="none" strokeLinecap="round" />
-    <path d="M65 25L85 15L80 35" fill="#FFBD59" />
-    <path d="M45 55L65 35L85 15" stroke="#FFBD59" strokeWidth="4" strokeLinecap="round" />
+    {/* Bouclier bleu de fond */}
+    <path d="M50 5C30 5 15 15 15 35V55C15 75 50 95 50 95C50 95 85 75 85 55V35C85 15 70 5 50 5Z" fill="#004AAD" />
+    
+    {/* Le 'S' blanc stylisé et dynamique */}
+    <path d="M22 72C35 85 75 80 80 60C85 45 60 40 40 32C20 24 40 12 65 15" stroke="white" strokeWidth="12" fill="none" strokeLinecap="round" />
+    
+    {/* La flèche de lancement jaune/or */}
+    <path d="M75 20L95 5L85 35L75 20Z" fill="#FFBD59" />
+    
+    {/* Ombrage léger pour la profondeur de la flèche */}
+    <path d="M85 35L95 5L65 15L85 35Z" fill="white" fillOpacity="0.2" />
   </svg>
 );
 
