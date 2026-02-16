@@ -25,7 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Calculator } from '@/components/dashboard/Calculator';
 
-type ViewMode = 'intro' | 'question' | 'review' | 'break' | 'result';
+type ViewMode = 'question' | 'review' | 'break' | 'result';
 
 function ExamRunContent() {
   const { user } = useUser();
@@ -56,6 +56,7 @@ function ExamRunContent() {
   const SECTION_SIZE = 60;
 
   const calculateTotalTime = (numQuestions: number) => {
+    // Standard PMP: 230 minutes for 180 questions
     const minutes = (numQuestions * 230) / 180;
     return Math.floor(minutes * 60);
   };

@@ -14,7 +14,7 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   // The sidebar is shown only if the user is authenticated AND not on the home/login page
-  const showSidebar = !!user && !isUserLoading && pathname !== '/';
+  const showSidebar = !!user && !isUserLoading && pathname !== '/' && pathname !== '/login';
 
   return (
     <div className="min-h-screen bg-background">

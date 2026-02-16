@@ -209,7 +209,7 @@ export default function DashboardPage() {
     <div className="space-y-10 animate-fade-in max-w-7xl mx-auto pb-24 pt-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 bg-white p-10 rounded-[40px] shadow-xl border-2">
         <div className="space-y-2">
-          <h1 className="text-4xl font-black text-primary italic uppercase tracking-tighter text-primary">Cockpit de Performance</h1>
+          <h1 className="text-4xl font-black italic uppercase tracking-tighter text-primary">Cockpit de Performance</h1>
           <p className="text-base text-slate-500 font-bold uppercase tracking-widest italic">
             {isDemo ? "Mode DÉMO (Visualisation des KPIs)" : `Participant : ${profile?.firstName} ${profile?.lastName}`}
           </p>
@@ -361,7 +361,7 @@ export default function DashboardPage() {
             </div>
             <CardTitle className="text-3xl font-black italic uppercase tracking-tight text-primary">Probabilité estimée de réussite PMP®</CardTitle>
             <CardDescription className="font-bold uppercase tracking-widest text-xs italic text-slate-500 mt-2">
-              Basé sur l'historique des utilisateurs ayant réussi leur certification avec SIMOVEX
+              Basé sur l'historique des utilisateurs ayant réussi leur certification avec Simu-lux
             </CardDescription>
           </CardHeader>
           <CardContent className="p-12">
