@@ -22,10 +22,15 @@ import {
   Hash,
   Tags,
   Image as ImageIcon,
-  X
+  X,
+  ChevronDown,
+  Check,
+  Layers
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -34,13 +39,26 @@ interface Option {
   text: string;
 }
 
+const ALL_SOURCES = [
+  { id: 'exam1', label: 'Examen 1' },
+  { id: 'exam2', label: 'Examen 2' },
+  { id: 'exam3', label: 'Examen 3' },
+  { id: 'exam4', label: 'Examen 4' },
+  { id: 'exam5', label: 'Examen 5' },
+  { id: 'S2', label: 'Coaching S2' },
+  { id: 'S3', label: 'Coaching S3' },
+  { id: 'S4', label: 'Coaching S4' },
+  { id: 'S5', label: 'Coaching S5' },
+  { id: 'S6', label: 'Coaching S6' },
+];
+
 export default function ManageQuestionPage() {
   const { user, profile, isUserLoading } = useUser();
   const db = useFirestore();
   const router = useRouter();
   const params = useParams();
   const { toast } = useToast();
-  const examId = params.examId as string;
+  const examIdParam = params.examId as string;
   const questionId = params.id as string;
   const isNew = questionId === 'new';
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -57,6 +75,7 @@ export default function ManageQuestionPage() {
   const [correctOptionIds, setCorrectOptionIds] = useState<string[]>([]);
   const [isActive, setIsActive] = useState(true);
   const [questionCode, setQuestionCode] = useState("");
+  const [sourceIds, setSourceIds] = useState<string[]>([]);
 
   // PMP Tags
   const [domain, setDomain] = useState("Process");
@@ -65,6 +84,12 @@ export default function ManageQuestionPage() {
 
   const questionRef = useMemoFirebase(() => !isNew ? doc(db, 'questions', questionId) : null, [db, questionId, isNew]);
   const { data: questionData, isLoading: isQuestionLoading } = useDoc(questionRef);
+
+  useEffect(() => {
+    if (isNew && examIdParam !== 'general' && examIdParam !== 'new') {
+      setSourceIds([examIdParam]);
+    }
+  }, [isNew, examIdParam]);
 
   useEffect(() => {
     if (questionData && !isNew) {
@@ -82,6 +107,15 @@ export default function ManageQuestionPage() {
       setCorrectOptionIds(questionData.correctOptionIds || [String(questionData.correctChoice)]);
       setIsActive(questionData.isActive !== false);
       setQuestionCode(questionData.questionCode || "");
+      
+      // Migration/Loading of sources
+      let loadedSources = questionData.sourceIds || [];
+      if (loadedSources.length === 0) {
+        if (questionData.examId) loadedSources.push(questionData.examId);
+        if (questionData.sessionId) loadedSources.push(questionData.sessionId);
+      }
+      setSourceIds(loadedSources);
+
       if (questionData.tags) {
         setDomain(questionData.tags.domain || "Process");
         setApproach(questionData.tags.approach || "Predictive");
@@ -93,7 +127,7 @@ export default function ManageQuestionPage() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 800000) { // Limite ~800KB pour rester sous la limite de 1MB de Firestore
+      if (file.size > 800000) {
         toast({ variant: "destructive", title: "Image trop lourde", description: "Veuillez choisir une image de moins de 800 Ko." });
         return;
       }
@@ -102,6 +136,20 @@ export default function ManageQuestionPage() {
         setImageUrl(event.target?.result as string);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const toggleSource = (id: string) => {
+    setSourceIds(prev => 
+      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+    );
+  };
+
+  const toggleAllSources = () => {
+    if (sourceIds.length === ALL_SOURCES.length) {
+      setSourceIds([]);
+    } else {
+      setSourceIds(ALL_SOURCES.map(s => s.id));
     }
   };
 
@@ -138,6 +186,7 @@ export default function ManageQuestionPage() {
     if (!statement.trim()) return "L'énoncé est obligatoire.";
     if (options.some(o => !o.text.trim())) return "Toutes les options doivent avoir un texte.";
     if (correctOptionIds.length === 0) return "Au moins une bonne réponse est requise.";
+    if (sourceIds.length === 0) return "Veuillez assigner la question à au moins une source.";
     return null;
   };
 
@@ -150,6 +199,10 @@ export default function ManageQuestionPage() {
 
     setIsSubmitting(true);
     try {
+      // Pour compatibilité avec l'ancien code, on garde examId et sessionId si un seul est sélectionné
+      const firstExam = sourceIds.find(s => s.startsWith('exam'));
+      const firstSession = sourceIds.find(s => s.startsWith('S'));
+
       const finalData = {
         statement,
         text: statement,
@@ -167,7 +220,9 @@ export default function ManageQuestionPage() {
           approach,
           difficulty
         },
-        examId: examId === 'general' ? null : examId,
+        sourceIds,
+        examId: firstExam || null,
+        sessionId: firstSession || null,
         questionCode: questionCode || `Q-${Date.now()}`
       };
 
@@ -192,16 +247,25 @@ export default function ManageQuestionPage() {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
   }
 
+  const selectedCount = sourceIds.length;
+  const sourceLabel = selectedCount === 0 
+    ? "Choisir les sources..." 
+    : selectedCount === ALL_SOURCES.length 
+      ? "Toutes les sources" 
+      : `${selectedCount} source(s) sélectionnée(s)`;
+
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-6 animate-fade-in">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild><Link href="/admin/questions"><ArrowLeft /></Link></Button>
-        <div className="flex flex-col">
-          <h1 className="text-3xl font-black italic uppercase tracking-tighter text-primary">
-            {isNew ? 'Nouvelle Question' : 'Édition Question'}
-          </h1>
-          <div className="flex items-center gap-2 text-primary font-mono text-sm mt-1">
-            <Hash className="h-3 w-3" /> {questionCode || 'Nouveau'}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" asChild><Link href="/admin/questions"><ArrowLeft /></Link></Button>
+          <div className="flex flex-col">
+            <h1 className="text-3xl font-black italic uppercase tracking-tighter text-primary">
+              {isNew ? 'Nouvelle Question' : 'Édition Question'}
+            </h1>
+            <div className="flex items-center gap-2 text-primary font-mono text-sm mt-1">
+              <Hash className="h-3 w-3" /> {questionCode || 'Nouveau'}
+            </div>
           </div>
         </div>
       </div>
@@ -213,6 +277,50 @@ export default function ManageQuestionPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-8 space-y-8">
+          
+          <div className="space-y-4">
+            <Label className="flex items-center gap-2 font-black uppercase text-[10px] text-slate-400 italic">
+              <Layers className="h-3 w-3" /> Sources d'Assignation (Multi-sources)
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full h-14 justify-between border-2 rounded-xl px-4 font-bold italic bg-white text-slate-700">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className={cn("h-5 w-5", selectedCount > 0 ? "text-emerald-500" : "text-slate-300")} />
+                    {sourceLabel}
+                  </div>
+                  <ChevronDown className="h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[400px] p-2 rounded-2xl shadow-2xl border-4" align="start">
+                <div className="space-y-1">
+                  <div 
+                    onClick={toggleAllSources}
+                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-primary/5 cursor-pointer transition-colors border-b mb-1"
+                  >
+                    <Checkbox checked={selectedCount === ALL_SOURCES.length} onCheckedChange={toggleAllSources} />
+                    <span className="font-black italic text-primary uppercase text-xs">Toutes les sources ({ALL_SOURCES.length})</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    {ALL_SOURCES.map((source) => (
+                      <div 
+                        key={source.id} 
+                        onClick={() => toggleSource(source.id)}
+                        className={cn(
+                          "flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors",
+                          sourceIds.includes(source.id) && "bg-emerald-50/50"
+                        )}
+                      >
+                        <Checkbox checked={sourceIds.includes(source.id)} onCheckedChange={() => toggleSource(source.id)} />
+                        <span className="font-bold italic text-xs text-slate-700">{source.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Label className="font-black uppercase text-[10px] text-slate-400 italic">Énoncé de la question (Étude de cas)</Label>
@@ -252,7 +360,7 @@ export default function ManageQuestionPage() {
               <div className="relative aspect-video w-full max-w-2xl mx-auto rounded-2xl overflow-hidden border-4 border-dashed border-primary/20 bg-slate-50 group">
                 <img 
                   src={imageUrl} 
-                  alt="Aperçu de l'illustration" 
+                  alt="Aperçu" 
                   className="object-contain w-full h-full"
                 />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">

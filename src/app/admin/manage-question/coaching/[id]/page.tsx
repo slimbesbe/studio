@@ -22,13 +22,30 @@ import {
   Hash,
   Tags,
   Image as ImageIcon,
-  X
+  X,
+  ChevronDown,
+  Layers
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+
+const ALL_SOURCES = [
+  { id: 'exam1', label: 'Examen 1' },
+  { id: 'exam2', label: 'Examen 2' },
+  { id: 'exam3', label: 'Examen 3' },
+  { id: 'exam4', label: 'Examen 4' },
+  { id: 'exam5', label: 'Examen 5' },
+  { id: 'S2', label: 'Coaching S2' },
+  { id: 'S3', label: 'Coaching S3' },
+  { id: 'S4', label: 'Coaching S4' },
+  { id: 'S5', label: 'Coaching S5' },
+  { id: 'S6', label: 'Coaching S6' },
+];
 
 function ManageCoachingQuestionContent() {
   const { profile, isUserLoading } = useUser();
@@ -49,7 +66,7 @@ function ManageCoachingQuestionContent() {
   const [correctChoice, setCorrectChoice] = useState("1");
   const [isActive, setIsActive] = useState(true);
   const [index, setIndex] = useState(parseInt(searchParams.get('index') || '0'));
-  const [sessionId, setSessionId] = useState(searchParams.get('sessionId') || '');
+  const [sourceIds, setSourceIds] = useState<string[]>([]);
 
   // PMP Tags
   const [domain, setDomain] = useState("Process");
@@ -60,6 +77,13 @@ function ManageCoachingQuestionContent() {
   const { data: questionData, isLoading: isQuestionLoading } = useDoc(questionRef);
 
   useEffect(() => {
+    const sessionUrl = searchParams.get('sessionId');
+    if (isNew && sessionUrl) {
+      setSourceIds([sessionUrl]);
+    }
+  }, [isNew, searchParams]);
+
+  useEffect(() => {
     if (questionData && !isNew) {
       setText(questionData.text || "");
       setImageUrl(questionData.imageUrl || "");
@@ -68,7 +92,15 @@ function ManageCoachingQuestionContent() {
       setCorrectChoice(String(questionData.correctChoice || "1"));
       setIsActive(questionData.isActive !== false);
       setIndex(questionData.index || 0);
-      setSessionId(questionData.sessionId || '');
+      
+      // Load sources
+      let loadedSources = questionData.sourceIds || [];
+      if (loadedSources.length === 0) {
+        if (questionData.sessionId) loadedSources.push(questionData.sessionId);
+        if (questionData.examId) loadedSources.push(questionData.examId);
+      }
+      setSourceIds(loadedSources);
+
       if (questionData.tags) {
         setDomain(questionData.tags.domain || "Process");
         setApproach(questionData.tags.approach || "Predictive");
@@ -92,6 +124,20 @@ function ManageCoachingQuestionContent() {
     }
   };
 
+  const toggleSource = (id: string) => {
+    setSourceIds(prev => 
+      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+    );
+  };
+
+  const toggleAllSources = () => {
+    if (sourceIds.length === ALL_SOURCES.length) {
+      setSourceIds([]);
+    } else {
+      setSourceIds(ALL_SOURCES.map(s => s.id));
+    }
+  };
+
   const handleChoiceChange = (idx: number, val: string) => {
     const newChoices = [...choices];
     newChoices[idx] = val;
@@ -102,6 +148,7 @@ function ManageCoachingQuestionContent() {
     if (!text.trim()) return "L'énoncé est obligatoire.";
     if (choices.some(c => !c.trim())) return "Toutes les options doivent être remplies.";
     if (index === 0) return "L'index est requis.";
+    if (sourceIds.length === 0) return "Veuillez assigner au moins une source.";
     return null;
   };
 
@@ -114,6 +161,9 @@ function ManageCoachingQuestionContent() {
 
     setIsSubmitting(true);
     try {
+      const firstExam = sourceIds.find(s => s.startsWith('exam'));
+      const firstSession = sourceIds.find(s => s.startsWith('S'));
+
       const finalData = {
         text,
         imageUrl,
@@ -123,7 +173,9 @@ function ManageCoachingQuestionContent() {
         explanation,
         isActive,
         index,
-        sessionId,
+        sourceIds,
+        examId: firstExam || null,
+        sessionId: firstSession || null,
         updatedAt: serverTimestamp(),
         tags: {
           domain,
@@ -152,6 +204,13 @@ function ManageCoachingQuestionContent() {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
   }
 
+  const selectedCount = sourceIds.length;
+  const sourceLabel = selectedCount === 0 
+    ? "Assigner à..." 
+    : selectedCount === ALL_SOURCES.length 
+      ? "Toutes les sources" 
+      : `${selectedCount} source(s)`;
+
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-6 animate-fade-in">
       <div className="flex items-center gap-4">
@@ -164,7 +223,6 @@ function ManageCoachingQuestionContent() {
             <div className="flex items-center gap-1 text-primary font-mono text-sm">
               <Hash className="h-3 w-3" /> Index Q-{index}
             </div>
-            {sessionId && <Badge variant="secondary" className="text-[10px] font-black italic">{sessionId}</Badge>}
           </div>
         </div>
       </div>
@@ -172,6 +230,50 @@ function ManageCoachingQuestionContent() {
       <Card className="border-t-8 border-t-primary shadow-2xl rounded-3xl overflow-hidden bg-white">
         <CardHeader className="bg-slate-50/50 border-b p-8"><CardTitle className="text-xl flex items-center gap-2 uppercase tracking-widest"><HelpCircle className="h-5 w-5 text-primary" /> Configuration Question</CardTitle></CardHeader>
         <CardContent className="p-8 space-y-8">
+          
+          <div className="space-y-4">
+            <Label className="flex items-center gap-2 font-black uppercase text-[10px] text-slate-400 italic">
+              <Layers className="h-3 w-3" /> Sources d'Assignation (Multi-sources)
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full h-14 justify-between border-2 rounded-xl px-4 font-bold italic bg-white text-slate-700">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className={cn("h-5 w-5", selectedCount > 0 ? "text-emerald-500" : "text-slate-300")} />
+                    {sourceLabel}
+                  </div>
+                  <ChevronDown className="h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[400px] p-2 rounded-2xl shadow-2xl border-4" align="start">
+                <div className="space-y-1">
+                  <div 
+                    onClick={toggleAllSources}
+                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-primary/5 cursor-pointer transition-colors border-b mb-1"
+                  >
+                    <Checkbox checked={selectedCount === ALL_SOURCES.length} onCheckedChange={toggleAllSources} />
+                    <span className="font-black italic text-primary uppercase text-xs">Toutes les sources ({ALL_SOURCES.length})</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    {ALL_SOURCES.map((source) => (
+                      <div 
+                        key={source.id} 
+                        onClick={() => toggleSource(source.id)}
+                        className={cn(
+                          "flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors",
+                          sourceIds.includes(source.id) && "bg-emerald-50/50"
+                        )}
+                      >
+                        <Checkbox checked={sourceIds.includes(source.id)} onCheckedChange={() => toggleSource(source.id)} />
+                        <span className="font-bold italic text-xs text-slate-700">{source.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Label className="font-black uppercase text-[10px] text-slate-400 italic">Énoncé de la question</Label>
