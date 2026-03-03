@@ -40,7 +40,6 @@ service cloud.firestore {
     }
 
     match /questions/{questionId} {
-      // Autoriser tous les utilisateurs connectés à lister les questions pour les compteurs
       allow read, list: if isSignedIn();
     }
     
@@ -49,8 +48,10 @@ service cloud.firestore {
     }
 
     match /coachingAttempts/{attemptId} {
-      allow list, get: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid);
-      allow write: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      // Séparation get et list pour éviter les ambiguïtés d'analyse de règles
+      allow get: if isSignedIn() && (isAdmin() || resource == null || resource.data.userId == request.auth.uid);
+      allow list: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow write: if isSignedIn() && (isAdmin() || request.resource.data.userId == request.auth.uid);
     }
 
     match /coachingGroups/{groupId} {

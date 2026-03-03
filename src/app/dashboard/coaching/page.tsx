@@ -58,7 +58,12 @@ export default function CoachingSelectionPage() {
     }
 
     // Si User, uniquement ses propres tentatives
-    return query(baseRef, where('userId', '==', user.uid));
+    // Ajout du tri pour cohérence avec les règles et l'indexation
+    return query(
+      baseRef, 
+      where('userId', '==', user.uid),
+      orderBy('submittedAt', 'desc')
+    );
   }, [db, user?.uid, profile, isUserLoading]);
 
   const { data: attempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
@@ -82,7 +87,7 @@ export default function CoachingSelectionPage() {
     <div className="max-w-6xl mx-auto py-8 space-y-10 animate-fade-in">
       <div className="bg-white p-10 rounded-[40px] shadow-xl border-2 border-primary/5 flex items-center gap-8">
         <div className="bg-primary/10 p-5 rounded-3xl">
-          <GraduationCap className="h-12 w-12 text-primary" />
+          < GraduationCap className="h-12 w-12 text-primary" />
         </div>
         <div>
           <h1 className="text-4xl font-black italic uppercase tracking-tighter text-primary">Programme Coaching PMP®</h1>
