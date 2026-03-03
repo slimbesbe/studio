@@ -26,6 +26,7 @@ import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { ImportQuestionsModal } from '@/components/admin/ImportQuestionsModal';
 import * as XLSX from 'xlsx';
+import { cn } from '@/lib/utils';
 
 function QuestionsList() {
   const db = useFirestore();
