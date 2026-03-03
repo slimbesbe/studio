@@ -44,7 +44,7 @@ function ExamRunContent() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [flagged, setFlagged] = useState<Record<string, boolean>>({});
   const [viewMode, setViewMode] = useState<ViewMode>('question');
-  const [timeLeft, setTimeLeft] = useState(0); 
+  const [timeLeft, setTimeLeft] = useState(-1); // -1 means not initialized
   const [isPaused, setIsPaused] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [showNavigator, setShowNavigator] = useState(false);
@@ -58,7 +58,7 @@ function ExamRunContent() {
   const SECTION_SIZE = 60;
 
   const calculateTotalTime = (numQuestions: number) => {
-    // Standard PMP: 230 minutes for 180 questions
+    // Standard PMP: 230 minutes for 180 questions (approx 76.6s per Q)
     const minutes = (numQuestions * 230) / 180;
     return Math.floor(minutes * 60);
   };
@@ -69,20 +69,33 @@ function ExamRunContent() {
       setIsLoading(true);
       try {
         const qRef = collection(db, 'questions');
-        const qQuery = query(qRef, where('examId', '==', examId), where('isActive', '==', true));
+        // On cherche dans sourceIds (nouveau système) OU examId (legacy)
+        const qQuery = query(qRef, where('sourceIds', 'array-contains', examId), where('isActive', '==', true));
         const snap = await getDocs(qQuery);
         
-        const fetched = snap.docs.map(d => ({ 
+        let fetched = snap.docs.map(d => ({ 
           ...d.data(), 
           id: d.id,
           text: d.data().text || d.data().statement,
           choices: d.data().choices || d.data().options?.map((o: any) => o.text)
         }));
+
+        // Fallback legacy si aucune question n'a encore été migrée vers sourceIds
+        if (fetched.length === 0) {
+          const legacyQuery = query(qRef, where('examId', '==', examId), where('isActive', '==', true));
+          const legacySnap = await getDocs(legacyQuery);
+          fetched = legacySnap.docs.map(d => ({ 
+            ...d.data(), 
+            id: d.id,
+            text: d.data().text || d.data().statement,
+            choices: d.data().choices || d.data().options?.map((o: any) => o.text)
+          }));
+        }
         
         fetched.sort((a, b) => (a.index || 0) - (b.index || 0));
         
         if (fetched.length === 0) {
-          toast({ variant: "destructive", title: "Examen vide", description: "Aucune question trouvée pour cet examen." });
+          toast({ variant: "destructive", title: "Examen vide", description: "Aucune question trouvée pour cet examen dans la banque." });
           router.push('/dashboard/exam');
           return;
         }
@@ -103,11 +116,11 @@ function ExamRunContent() {
     let timer: any;
     if (viewMode === 'question' && !isPaused && timeLeft > 0) {
       timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
-    } else if (timeLeft === 0 && !result && viewMode === 'question') {
+    } else if (timeLeft === 0 && !result && viewMode === 'question' && !isLoading && questions.length > 0) {
       finishExam();
     }
     return () => clearInterval(timer);
-  }, [viewMode, isPaused, timeLeft, result]);
+  }, [viewMode, isPaused, timeLeft, result, isLoading, questions.length]);
 
   useEffect(() => {
     let timer: any;
@@ -120,6 +133,7 @@ function ExamRunContent() {
   }, [viewMode, breakTimeLeft]);
 
   const formatMMSS = (seconds: number) => {
+    if (seconds < 0) return "--:--";
     const m = Math.floor(seconds / 60);
     const s = Math.floor(seconds % 60);
     return `${m}:${s.toString().padStart(2, '0')}`;
@@ -160,6 +174,7 @@ function ExamRunContent() {
   };
 
   const finishExam = async () => {
+    if (isSubmitting || questions.length === 0) return;
     setIsSubmitting(true);
     let correct = 0;
     questions.forEach(q => {
@@ -181,7 +196,7 @@ function ExamRunContent() {
       correctCount: correct,
       totalQuestions: questions.length,
       performance,
-      durationSec: calculateTotalTime(questions.length) - timeLeft,
+      durationSec: calculateTotalTime(questions.length) - (timeLeft > 0 ? timeLeft : 0),
       submittedAt: serverTimestamp()
     };
 
@@ -325,7 +340,7 @@ function ExamRunContent() {
   }
 
   const currentQuestion = questions[currentIndex];
-  const progressPercent = ((currentIndex + 1) / questions.length) * 100;
+  const progressPercent = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -419,7 +434,7 @@ function ExamRunContent() {
         </Card>
       </main>
 
-      <div className="fixed bottom-0 left-64 right-0 bg-white border-t-2 p-6 flex items-center justify-between shadow-2xl z-40">
+      <div className="fixed bottom-0 left-0 lg:left-64 right-0 bg-white border-t-2 p-6 flex items-center justify-between shadow-2xl z-40">
         <div className="flex items-center gap-4">
           <Button 
             variant="outline" 

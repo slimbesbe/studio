@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -42,9 +43,18 @@ export default function ExamPage() {
         const counts: Record<string, number> = {};
         
         const countsPromises = ALL_EXAMS.map(async (exam) => {
-          const q = query(qRef, where('examId', '==', exam.id), where('isActive', '==', true));
-          const snap = await getDocs(q);
-          return { id: exam.id, count: snap.size };
+          // On vérifie dans sourceIds (nouveau) ET examId (legacy)
+          const newQ = query(qRef, where('sourceIds', 'array-contains', exam.id), where('isActive', '==', true));
+          const snapNew = await getDocs(newQ);
+          
+          let count = snapNew.size;
+          if (count === 0) {
+            const legacyQ = query(qRef, where('examId', '==', exam.id), where('isActive', '==', true));
+            const snapLegacy = await getDocs(legacyQ);
+            count = snapLegacy.size;
+          }
+
+          return { id: exam.id, count };
         });
 
         const results = await Promise.all(countsPromises);
