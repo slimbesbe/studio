@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, updateDoc, getDoc, serverTimestamp, setDoc, collection } from 'firebase/firestore';
 import { useRouter, useParams } from 'next/navigation';
@@ -21,14 +21,13 @@ import {
   HelpCircle,
   Hash,
   Tags,
-  Image as ImageIcon
+  Image as ImageIcon,
+  X
 } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
 
 interface Option {
   id: string;
@@ -44,6 +43,7 @@ export default function ManageQuestionPage() {
   const examId = params.examId as string;
   const questionId = params.id as string;
   const isNew = questionId === 'new';
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statement, setStatement] = useState("");
@@ -89,6 +89,21 @@ export default function ManageQuestionPage() {
       }
     }
   }, [questionData, isNew]);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 800000) { // Limite ~800KB pour rester sous la limite de 1MB de Firestore
+        toast({ variant: "destructive", title: "Image trop lourde", description: "Veuillez choisir une image de moins de 800 Ko." });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setImageUrl(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleAddOption = () => {
     if (options.length >= 10) return;
@@ -198,8 +213,25 @@ export default function ManageQuestionPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-8 space-y-8">
-          <div className="space-y-2">
-            <Label className="font-black uppercase text-[10px] text-slate-400 italic">Énoncé de la question (Étude de cas)</Label>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="font-black uppercase text-[10px] text-slate-400 italic">Énoncé de la question (Étude de cas)</Label>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-8 rounded-lg font-black uppercase text-[10px] gap-2 border-2"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <ImageIcon className="h-3 w-3" /> Insérer une image
+              </Button>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept="image/*" 
+                onChange={handleImageUpload}
+              />
+            </div>
             <Textarea 
               id="statement" 
               className="min-h-[120px] text-lg font-bold italic border-2 rounded-xl"
@@ -209,27 +241,26 @@ export default function ManageQuestionPage() {
             />
           </div>
 
-          <div className="space-y-4">
-            <Label className="flex items-center gap-2 font-black uppercase text-[10px] text-slate-400 italic">
-              <ImageIcon className="h-3 w-3" /> Image d'illustration (URL)
-            </Label>
-            <Input 
-              value={imageUrl} 
-              onChange={(e) => setImageUrl(e.target.value)} 
-              placeholder="https://exemple.com/image.jpg"
-              className="h-12 border-2 rounded-xl font-bold italic"
-            />
-            {imageUrl && (
-              <div className="relative aspect-video w-full max-w-md mx-auto rounded-2xl overflow-hidden border-4 border-dashed border-slate-200 bg-slate-50 mt-4">
+          {imageUrl && (
+            <div className="space-y-2">
+              <div className="flex justify-between items-center px-2">
+                <Label className="font-black uppercase text-[10px] text-slate-400 italic">Illustration de l'étude de cas</Label>
+                <Button variant="ghost" size="sm" className="h-6 text-destructive font-black uppercase text-[10px]" onClick={() => setImageUrl('')}>
+                  <X className="h-3 w-3 mr-1" /> Supprimer l'image
+                </Button>
+              </div>
+              <div className="relative aspect-video w-full max-w-2xl mx-auto rounded-2xl overflow-hidden border-4 border-dashed border-primary/20 bg-slate-50 group">
                 <img 
                   src={imageUrl} 
                   alt="Aperçu de l'illustration" 
                   className="object-contain w-full h-full"
-                  onError={(e) => (e.currentTarget.style.display = 'none')}
                 />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Button variant="secondary" className="font-black uppercase text-xs" onClick={() => fileInputRef.current?.click()}>Changer l'image</Button>
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 bg-slate-50 rounded-2xl border-2 border-dashed">
             <div className="space-y-2">
