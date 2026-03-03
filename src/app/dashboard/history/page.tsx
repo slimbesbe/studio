@@ -17,11 +17,9 @@ export default function HistoryPage() {
 
   const resultsQuery = useMemoFirebase(() => {
     // Sécurité : Attendre que l'utilisateur et son profil soient chargés
-    // Le profil est nécessaire pour confirmer le rôle et l'existence du compte
     if (isUserLoading || !user?.uid || !profile || !db) return null;
     
     // Le filtre par userId est OBLIGATOIRE pour respecter les règles de sécurité Firestore
-    // Cela garantit que la règle 'allow list' est satisfaite
     return query(
       collection(db, 'coachingAttempts'),
       where('userId', '==', user.uid),
