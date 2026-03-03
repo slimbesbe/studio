@@ -50,9 +50,13 @@ service cloud.firestore {
     }
 
     match /coachingAttempts/{attemptId} {
-      // Un utilisateur peut lire ses propres tentatives
-      // Le listage n'est autorisé que si la requête est filtrée par userId == auth.uid
-      allow read: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      // Un utilisateur peut lire ses propres tentatives individuelles
+      allow get: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      
+      // Le listage est autorisé si et seulement si la requête est filtrée par userId == auth.uid
+      // OU si l'utilisateur est un administrateur.
+      allow list: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
     }
@@ -71,7 +75,7 @@ service cloud.firestore {
     }
     
     match /{path=**}/exam_results/{resultId} {
-      allow read: if isSignedIn() && (isAdmin() || request.auth.uid == resource.data.userId);
+      allow read: if isSignedIn() && (isAdmin() || (resource != null && request.auth.uid == resource.data.userId));
     }
   }
 }
