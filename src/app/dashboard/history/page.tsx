@@ -12,19 +12,22 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export default function HistoryPage() {
-  const { user } = useUser();
+  const { user, profile, isUserLoading } = useUser();
   const db = useFirestore();
 
   const resultsQuery = useMemoFirebase(() => {
-    if (!user) return null;
+    // Gating : s'assurer que l'utilisateur et son profil sont chargés pour éviter des requêtes prématurées
+    // qui pourraient violer les règles de sécurité avant l'identification complète.
+    if (isUserLoading || !user || !db) return null;
+    
     return query(
       collection(db, 'coachingAttempts'),
       where('userId', '==', user.uid),
       orderBy('submittedAt', 'desc')
     );
-  }, [db, user]);
+  }, [db, user, isUserLoading]);
 
-  const { data: results, isLoading } = useCollection(resultsQuery);
+  const { data: results, isLoading: isCollectionLoading } = useCollection(resultsQuery);
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
@@ -52,7 +55,7 @@ export default function HistoryPage() {
     });
   };
 
-  if (isLoading) {
+  if (isUserLoading || isCollectionLoading) {
     return (
       <div className="h-[70vh] flex items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
