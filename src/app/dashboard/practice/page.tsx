@@ -160,9 +160,20 @@ function PracticeContent() {
 
         <Card className="shadow-2xl border-t-8 border-t-primary rounded-[32px] overflow-hidden bg-white">
           <CardHeader className="p-8 pb-4">
-            <CardTitle className="text-xl leading-relaxed font-black italic text-slate-800">
-              {q.statement || q.text}
-            </CardTitle>
+            <div className="space-y-6">
+              <CardTitle className="text-xl leading-relaxed font-black italic text-slate-800">
+                {q.statement || q.text}
+              </CardTitle>
+              {q.imageUrl && (
+                <div className="rounded-[32px] overflow-hidden border-4 border-slate-100 shadow-inner bg-slate-50 p-4">
+                  <img 
+                    src={q.imageUrl} 
+                    alt="Illustration" 
+                    className="max-h-[350px] w-auto mx-auto object-contain rounded-2xl"
+                  />
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="p-8 space-y-4">
             <div className="grid gap-3">
@@ -298,9 +309,20 @@ function PracticeContent() {
 
         <Card className={cn("shadow-2xl border-t-8 rounded-[32px] overflow-hidden bg-white", isUserCorrect ? "border-t-emerald-500" : "border-t-red-500")}>
           <CardHeader className="p-8 pb-4">
-            <CardTitle className="text-xl leading-relaxed font-black italic text-slate-800">
-              {q.statement || q.text}
-            </CardTitle>
+            <div className="space-y-6">
+              <CardTitle className="text-xl leading-relaxed font-black italic text-slate-800">
+                {q.statement || q.text}
+              </CardTitle>
+              {q.imageUrl && (
+                <div className="rounded-[32px] overflow-hidden border-4 border-slate-100 shadow-inner bg-slate-50 p-4">
+                  <img 
+                    src={q.imageUrl} 
+                    alt="Illustration" 
+                    className="max-h-[350px] w-auto mx-auto object-contain rounded-2xl"
+                  />
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="p-8 space-y-4">
             <div className="grid gap-3">
@@ -504,7 +526,7 @@ function PracticeContent() {
 
 export default function PracticePage() {
   return (
-    <Suspense fallback={<div className="h-[70vh] flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>}>
+    <Suspense fallback={<div className="h-[70vh] flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>}>
       <PracticeContent />
     </Suspense>
   );

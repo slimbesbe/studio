@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, Suspense } from 'react';
@@ -19,13 +20,15 @@ import {
   CheckCircle2, 
   HelpCircle,
   Hash,
-  Tags
+  Tags,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 function ManageCoachingQuestionContent() {
   const { profile, isUserLoading } = useUser();
@@ -39,6 +42,7 @@ function ManageCoachingQuestionContent() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [text, setText] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [explanation, setExplanation] = useState("");
   const [choices, setChoices] = useState<string[]>(["", "", "", ""]);
   const [correctChoice, setCorrectChoice] = useState("1");
@@ -57,6 +61,7 @@ function ManageCoachingQuestionContent() {
   useEffect(() => {
     if (questionData && !isNew) {
       setText(questionData.text || "");
+      setImageUrl(questionData.imageUrl || "");
       setExplanation(questionData.explanation || "");
       setChoices(questionData.choices || ["", "", "", ""]);
       setCorrectChoice(String(questionData.correctChoice || "1"));
@@ -95,6 +100,7 @@ function ManageCoachingQuestionContent() {
     try {
       const finalData = {
         text,
+        imageUrl,
         choices,
         correctChoice,
         correctOptionIds: [correctChoice],
@@ -158,6 +164,28 @@ function ManageCoachingQuestionContent() {
               value={text}
               onChange={(e) => setText(e.target.value)}
             />
+          </div>
+
+          <div className="space-y-4">
+            <Label className="flex items-center gap-2 font-black uppercase text-[10px] text-slate-400 italic">
+              <ImageIcon className="h-3 w-3" /> Illustration (URL)
+            </Label>
+            <Input 
+              value={imageUrl} 
+              onChange={(e) => setImageUrl(e.target.value)} 
+              placeholder="https://exemple.com/image.jpg"
+              className="h-12 border-2 rounded-xl font-bold italic"
+            />
+            {imageUrl && (
+              <div className="relative aspect-video w-full max-w-md mx-auto rounded-2xl overflow-hidden border-4 border-dashed border-slate-200 bg-slate-50 mt-4">
+                <img 
+                  src={imageUrl} 
+                  alt="Aperçu" 
+                  className="object-contain w-full h-full"
+                  onError={(e) => (e.currentTarget.style.display = 'none')}
+                />
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 bg-slate-50 rounded-2xl border-2 border-dashed">

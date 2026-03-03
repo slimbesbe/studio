@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
@@ -19,7 +20,8 @@ import {
   Calculator as CalcIcon,
   Trophy,
   X,
-  LayoutGrid
+  LayoutGrid,
+  Info
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -372,9 +374,21 @@ function ExamRunContent() {
         
         <Card className="rounded-[40px] shadow-2xl border-none bg-white overflow-hidden min-h-[450px]">
           <CardContent className="p-12 space-y-10">
-            <h2 className="text-2xl font-black text-slate-800 italic leading-relaxed">
-              {currentQuestion?.text}
-            </h2>
+            <div className="space-y-6">
+              <h2 className="text-2xl font-black text-slate-800 italic leading-relaxed">
+                {currentQuestion?.text}
+              </h2>
+
+              {currentQuestion?.imageUrl && (
+                <div className="rounded-[32px] overflow-hidden border-4 border-slate-100 shadow-inner bg-slate-50 p-4">
+                  <img 
+                    src={currentQuestion.imageUrl} 
+                    alt="Illustration de la question" 
+                    className="max-h-[400px] w-auto mx-auto object-contain rounded-2xl"
+                  />
+                </div>
+              )}
+            </div>
 
             <div className="grid gap-4">
               {currentQuestion?.choices?.map((opt: string, idx: number) => {

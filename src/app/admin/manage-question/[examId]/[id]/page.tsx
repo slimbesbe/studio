@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -19,13 +20,15 @@ import {
   CheckCircle2, 
   HelpCircle,
   Hash,
-  Tags
+  Tags,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 interface Option {
   id: string;
@@ -44,6 +47,7 @@ export default function ManageQuestionPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statement, setStatement] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [explanation, setExplanation] = useState("");
   const [isMultipleCorrect, setIsMultipleCorrect] = useState(false);
   const [options, setOptions] = useState<Option[]>([
@@ -65,6 +69,7 @@ export default function ManageQuestionPage() {
   useEffect(() => {
     if (questionData && !isNew) {
       setStatement(questionData.statement || questionData.text || "");
+      setImageUrl(questionData.imageUrl || "");
       setExplanation(questionData.explanation || "");
       setIsMultipleCorrect(questionData.isMultipleCorrect || false);
       
@@ -133,6 +138,7 @@ export default function ManageQuestionPage() {
       const finalData = {
         statement,
         text: statement,
+        imageUrl,
         options,
         choices: options.map(o => o.text),
         correctOptionIds,
@@ -193,14 +199,36 @@ export default function ManageQuestionPage() {
         </CardHeader>
         <CardContent className="p-8 space-y-8">
           <div className="space-y-2">
-            <Label className="font-black uppercase text-[10px] text-slate-400 italic">Énoncé de la question</Label>
+            <Label className="font-black uppercase text-[10px] text-slate-400 italic">Énoncé de la question (Étude de cas)</Label>
             <Textarea 
               id="statement" 
               className="min-h-[120px] text-lg font-bold italic border-2 rounded-xl"
               value={statement}
               onChange={(e) => setStatement(e.target.value)}
-              placeholder="Saisissez l'énoncé de la question..."
+              placeholder="Saisissez l'énoncé de la question ou l'étude de cas..."
             />
+          </div>
+
+          <div className="space-y-4">
+            <Label className="flex items-center gap-2 font-black uppercase text-[10px] text-slate-400 italic">
+              <ImageIcon className="h-3 w-3" /> Image d'illustration (URL)
+            </Label>
+            <Input 
+              value={imageUrl} 
+              onChange={(e) => setImageUrl(e.target.value)} 
+              placeholder="https://exemple.com/image.jpg"
+              className="h-12 border-2 rounded-xl font-bold italic"
+            />
+            {imageUrl && (
+              <div className="relative aspect-video w-full max-w-md mx-auto rounded-2xl overflow-hidden border-4 border-dashed border-slate-200 bg-slate-50 mt-4">
+                <img 
+                  src={imageUrl} 
+                  alt="Aperçu de l'illustration" 
+                  className="object-contain w-full h-full"
+                  onError={(e) => (e.currentTarget.style.display = 'none')}
+                />
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 bg-slate-50 rounded-2xl border-2 border-dashed">

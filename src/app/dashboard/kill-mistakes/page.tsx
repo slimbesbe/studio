@@ -320,7 +320,14 @@ function KillMistakesContent() {
                 <div className="py-20 flex justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>
               ) : questionDetails && (
                 <>
-                  <p className="text-2xl font-black text-slate-800 italic leading-relaxed">{questionDetails.statement || questionDetails.text}</p>
+                  <div className="space-y-6">
+                    <p className="text-2xl font-black text-slate-800 italic leading-relaxed">{questionDetails.statement || questionDetails.text}</p>
+                    {questionDetails.imageUrl && (
+                      <div className="rounded-3xl overflow-hidden border-4 border-slate-100 p-4 bg-slate-50">
+                        <img src={questionDetails.imageUrl} alt="Case illustration" className="max-h-[350px] w-auto mx-auto object-contain rounded-xl" />
+                      </div>
+                    )}
+                  </div>
                   <div className="grid gap-4">
                     {questionDetails.options?.map((opt: any, idx: number) => (
                       <div key={opt.id} onClick={() => setSessionAnswers({ ...sessionAnswers, [q.questionId]: opt.id })} className={cn("p-6 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-5 shadow-sm", selectedChoice === opt.id ? "border-primary bg-primary/5 scale-[1.01]" : "border-slate-100 hover:border-slate-300")}>
@@ -379,7 +386,14 @@ function KillMistakesContent() {
                 <div className="py-20 flex justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>
               ) : (
                 <>
-                  <p className="text-xl font-black text-slate-800 italic leading-relaxed">{questionDetails?.statement || questionDetails?.text}</p>
+                  <div className="space-y-6">
+                    <p className="text-xl font-black text-slate-800 italic leading-relaxed">{questionDetails?.statement || questionDetails?.text}</p>
+                    {questionDetails?.imageUrl && (
+                      <div className="rounded-3xl overflow-hidden border-4 border-slate-100 p-4 bg-slate-50">
+                        <img src={questionDetails.imageUrl} alt="Illustration" className="max-h-[300px] w-auto mx-auto object-contain rounded-xl" />
+                      </div>
+                    )}
+                  </div>
                   <div className="grid gap-3">
                     {questionDetails?.options?.map((opt: any, idx: number) => {
                       const isSelected = userChoice === opt.id;
@@ -530,11 +544,16 @@ function KillMistakesContent() {
                   <div className="py-20 flex justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>
                 ) : questionDetails && (
                   <>
-                    <div className="p-5 bg-slate-50 rounded-2xl border-2 border-slate-100 shadow-inner space-y-2">
+                    <div className="p-5 bg-slate-50 rounded-2xl border-2 border-slate-100 shadow-inner space-y-4">
                       <h4 className="font-black flex items-center gap-2 text-slate-900 uppercase text-[9px] tracking-widest italic">
                         <Info className="h-3 w-3" /> ÉNONCÉ
                       </h4>
                       <p className="text-lg font-bold text-slate-700 italic leading-relaxed">{questionDetails.statement || questionDetails.text}</p>
+                      {questionDetails.imageUrl && (
+                        <div className="rounded-2xl overflow-hidden border-2 border-slate-200 p-2 bg-white">
+                          <img src={questionDetails.imageUrl} alt="Case illustration" className="max-h-[300px] w-auto mx-auto object-contain rounded-lg" />
+                        </div>
+                      )}
                     </div>
 
                     {mode === 'analyze' ? (
