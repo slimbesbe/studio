@@ -12,20 +12,22 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export default function HistoryPage() {
-  const { user, isUserLoading } = useUser();
+  const { user, profile, isUserLoading } = useUser();
   const db = useFirestore();
 
   const resultsQuery = useMemoFirebase(() => {
-    // On ne lance la requête que si l'utilisateur est authentifié
-    if (isUserLoading || !user || !db) return null;
+    // Sécurité : Attendre que l'utilisateur et son profil soient chargés
+    // Le profil est nécessaire pour confirmer le rôle et l'existence du compte
+    if (isUserLoading || !user?.uid || !profile || !db) return null;
     
     // Le filtre par userId est OBLIGATOIRE pour respecter les règles de sécurité Firestore
+    // Cela garantit que la règle 'allow list' est satisfaite
     return query(
       collection(db, 'coachingAttempts'),
       where('userId', '==', user.uid),
       orderBy('submittedAt', 'desc')
     );
-  }, [db, user, isUserLoading]);
+  }, [db, user?.uid, profile, isUserLoading]);
 
   const { data: results, isLoading: isCollectionLoading } = useCollection(resultsQuery);
 

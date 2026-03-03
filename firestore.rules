@@ -50,13 +50,11 @@ service cloud.firestore {
     }
 
     match /coachingAttempts/{attemptId} {
-      // Un utilisateur peut lire ses propres tentatives individuelles
+      // Un utilisateur peut lire ses propres tentatives
+      // La règle list est validée par la présence obligatoire du filtre userId dans la requête
       allow get: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow list: if isSignedIn() && (isAdmin() || request.query.filters.userId == request.auth.uid);
       
-      // Le listage est autorisé si et seulement si la requête est filtrée par userId == auth.uid
-      // OU si l'utilisateur est un administrateur.
-      allow list: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
-
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
     }
