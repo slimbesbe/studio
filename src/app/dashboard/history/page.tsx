@@ -12,14 +12,14 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export default function HistoryPage() {
-  const { user, profile, isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
   const db = useFirestore();
 
   const resultsQuery = useMemoFirebase(() => {
-    // Gating : s'assurer que l'utilisateur et son profil sont chargés pour éviter des requêtes prématurées
-    // qui pourraient violer les règles de sécurité avant l'identification complète.
+    // On ne lance la requête que si l'utilisateur est authentifié
     if (isUserLoading || !user || !db) return null;
     
+    // Le filtre par userId est OBLIGATOIRE pour respecter les règles de sécurité Firestore
     return query(
       collection(db, 'coachingAttempts'),
       where('userId', '==', user.uid),
@@ -30,6 +30,7 @@ export default function HistoryPage() {
   const { data: results, isLoading: isCollectionLoading } = useCollection(resultsQuery);
 
   const formatTime = (seconds: number) => {
+    if (!seconds) return '0m';
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
@@ -83,7 +84,7 @@ export default function HistoryPage() {
                 <TableHead className="px-8 font-black uppercase tracking-widest text-xs">Examen / Type</TableHead>
                 <TableHead className="text-center font-black uppercase tracking-widest text-xs">Date & Heure</TableHead>
                 <TableHead className="text-center font-black uppercase tracking-widest text-xs">Score</TableHead>
-                <TableHead className="text-center font-black uppercase tracking-widest text-xs">Temp (Durée)</TableHead>
+                <TableHead className="text-center font-black uppercase tracking-widest text-xs">Temps (Durée)</TableHead>
                 <TableHead className="text-right px-8 font-black uppercase tracking-widest text-xs">Statut & Revue</TableHead>
               </TableRow>
             </TableHeader>

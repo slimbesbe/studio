@@ -13,11 +13,10 @@ export default function CoachingSelectionPage() {
   const { profile, user, isUserLoading } = useUser();
   const db = useFirestore();
 
-  // Liste des UIDs Super Admin
+  // Liste des UIDs Super Admin pour cohérence avec les règles
   const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1'];
 
   const sessionsQuery = useMemoFirebase(() => {
-    // Gating : Attendre que l'identité et le profil soient chargés
     if (isUserLoading || !user || !profile || !db) return null;
     
     const isAdminUser = profile.role === 'super_admin' || 
@@ -27,12 +26,10 @@ export default function CoachingSelectionPage() {
 
     const baseRef = collection(db, 'coachingSessions');
     
-    // Si Admin, on liste TOUT sans aucun filtre pour éviter les erreurs de permission
     if (isAdminUser) {
       return query(baseRef, orderBy('index', 'asc'));
     }
     
-    // Si Participant, filtre obligatoire par isPublished
     return query(
       baseRef, 
       where('isPublished', '==', true),
@@ -45,22 +42,11 @@ export default function CoachingSelectionPage() {
   const attemptsQuery = useMemoFirebase(() => {
     if (isUserLoading || !user?.uid || !profile || !db) return null;
     
-    const isAdminUser = profile.role === 'super_admin' || 
-                       profile.role === 'admin' || 
-                       user.email === 'slim.besbes@yahoo.fr' || 
-                       ADMIN_UIDS.includes(user.uid);
-
-    const baseRef = collection(db, 'coachingAttempts');
-
-    // Si Admin, accès global
-    if (isAdminUser) {
-      return query(baseRef, orderBy('submittedAt', 'desc'));
-    }
-
-    // Si User, uniquement ses propres tentatives
-    // Ajout du tri pour cohérence avec les règles et l'indexation
+    // Sur le dashboard participant, on ne montre que les tentatives de l'utilisateur en cours
+    // même s'il est admin, pour éviter les erreurs de permission et garder une vue propre.
+    // Les admins ont leurs outils de monitoring dédiés.
     return query(
-      baseRef, 
+      collection(db, 'coachingAttempts'), 
       where('userId', '==', user.uid),
       orderBy('submittedAt', 'desc')
     );
@@ -107,7 +93,7 @@ export default function CoachingSelectionPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {displaySessions.map((session) => {
-            const attempt = attempts?.find(a => a.sessionId === session.id && a.userId === user?.uid);
+            const attempt = attempts?.find(a => a.sessionId === session.id);
             const isLocked = !session.isPublished;
 
             return (
@@ -129,7 +115,7 @@ export default function CoachingSelectionPage() {
                       </div>
                     )}
                   </div>
-                  <CardTitle className="text-2xl font-black uppercase italic tracking-tight">Session {session.index}</CardTitle>
+                  <CardTitle className="text-2xl font-black uppercase italic tracking-tight">{session.title || `Session ${session.index}`}</CardTitle>
                   <CardDescription className="font-bold text-slate-400 uppercase tracking-widest text-[10px] mt-1">
                     {session.type === 'MEET' ? 'Visioconférence en direct' : 'Validation par simulation (35 Q)'}
                   </CardDescription>

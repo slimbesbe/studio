@@ -32,7 +32,9 @@ service cloud.firestore {
     
     match /users/{userId} {
       allow get: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isSignedIn() && request.auth.uid == userId;
+      // Empêcher l'auto-promotion ou le changement de statut par l'utilisateur lui-même
+      allow update: if isSignedIn() && request.auth.uid == userId 
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'accessType', 'groupId', 'allowedExams']);
       
       match /{allSubcollections=**} {
         allow read, write: if isSignedIn() && request.auth.uid == userId;
@@ -48,15 +50,15 @@ service cloud.firestore {
     }
 
     match /coachingAttempts/{attemptId} {
-      // Un utilisateur peut lire ses propres tentatives ou si c'est un admin
-      // L'utilisation de 'read' (get + list) sans condition resource == null résout les erreurs de permission lors du listage
+      // Un utilisateur peut lire ses propres tentatives
+      // Le listage n'est autorisé que si la requête est filtrée par userId == auth.uid
       allow read: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
-      allow write: if isSignedIn() && (isAdmin() || request.resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
     }
 
     match /coachingGroups/{groupId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
+      allow get, list: if isSignedIn();
     }
 
     match /exams/{examId} {
