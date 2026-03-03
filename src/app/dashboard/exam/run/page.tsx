@@ -44,7 +44,7 @@ function ExamRunContent() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [flagged, setFlagged] = useState<Record<string, boolean>>({});
   const [viewMode, setViewMode] = useState<ViewMode>('question');
-  const [timeLeft, setTimeLeft] = useState(-1); // -1 means not initialized
+  const [timeLeft, setTimeLeft] = useState(-1); 
   const [isPaused, setIsPaused] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [showNavigator, setShowNavigator] = useState(false);
@@ -58,7 +58,6 @@ function ExamRunContent() {
   const SECTION_SIZE = 60;
 
   const calculateTotalTime = (numQuestions: number) => {
-    // Standard PMP: 230 minutes for 180 questions (approx 76.6s per Q)
     const minutes = (numQuestions * 230) / 180;
     return Math.floor(minutes * 60);
   };
@@ -69,7 +68,6 @@ function ExamRunContent() {
       setIsLoading(true);
       try {
         const qRef = collection(db, 'questions');
-        // On cherche dans sourceIds (nouveau système) OU examId (legacy)
         const qQuery = query(qRef, where('sourceIds', 'array-contains', examId), where('isActive', '==', true));
         const snap = await getDocs(qQuery);
         
@@ -80,7 +78,6 @@ function ExamRunContent() {
           choices: d.data().choices || d.data().options?.map((o: any) => o.text)
         }));
 
-        // Fallback legacy si aucune question n'a encore été migrée vers sourceIds
         if (fetched.length === 0) {
           const legacyQuery = query(qRef, where('examId', '==', examId), where('isActive', '==', true));
           const legacySnap = await getDocs(legacyQuery);
@@ -176,10 +173,27 @@ function ExamRunContent() {
   const finishExam = async () => {
     if (isSubmitting || questions.length === 0) return;
     setIsSubmitting(true);
+    
+    const detailedResults: any[] = [];
     let correct = 0;
+
     questions.forEach(q => {
       const correctVal = String(q.correctChoice || (q.correctOptionIds ? q.correctOptionIds[0] : "1"));
-      if (answers[q.id] === correctVal) correct++;
+      const userChoice = answers[q.id] || null;
+      const isUserCorrect = userChoice === correctVal;
+      
+      if (isUserCorrect) correct++;
+
+      detailedResults.push({
+        questionId: q.id,
+        text: q.text,
+        choices: q.choices,
+        correctChoice: correctVal,
+        userChoice: userChoice,
+        isCorrect: isUserCorrect,
+        explanation: q.explanation,
+        tags: q.tags || {}
+      });
     });
 
     const percent = Math.round((correct / questions.length) * 100);
@@ -197,7 +211,8 @@ function ExamRunContent() {
       totalQuestions: questions.length,
       performance,
       durationSec: calculateTotalTime(questions.length) - (timeLeft > 0 ? timeLeft : 0),
-      submittedAt: serverTimestamp()
+      submittedAt: serverTimestamp(),
+      responses: detailedResults
     };
 
     try {
@@ -250,7 +265,7 @@ function ExamRunContent() {
 
           <div className="flex flex-col sm:flex-row gap-4 pt-6">
             <Button variant="outline" className="flex-1 h-16 rounded-2xl border-4 font-black uppercase tracking-widest text-lg italic" asChild>
-              <Link href="/dashboard/history">Détails</Link>
+              <Link href="/dashboard/history">Voir mon Historique</Link>
             </Button>
             <Button className="flex-1 h-16 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl text-lg italic" asChild>
               <Link href="/dashboard">Tableau de bord</Link>
@@ -398,7 +413,7 @@ function ExamRunContent() {
                 <div className="rounded-[32px] overflow-hidden border-4 border-slate-100 shadow-inner bg-slate-50 p-4">
                   <img 
                     src={currentQuestion.imageUrl} 
-                    alt="Illustration de la question" 
+                    alt="Illustration" 
                     className="max-h-[400px] w-auto mx-auto object-contain rounded-2xl"
                   />
                 </div>
