@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense, useCallback } from 'react';
 import { useUser, useFirestore } from '@/firebase';
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -21,11 +21,13 @@ import {
   Trophy,
   X,
   LayoutGrid,
-  Info
+  Info,
+  Save as SaveIcon
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Calculator } from '@/components/dashboard/Calculator';
+import { saveExamState, getExamState, clearExamState } from '@/lib/services/exam-state-service';
 
 type ViewMode = 'question' | 'review' | 'break' | 'result';
 
@@ -37,6 +39,7 @@ function ExamRunContent() {
   const { toast } = useToast();
   
   const examId = searchParams.get('id');
+  const isResumeMode = searchParams.get('resume') === 'true';
   
   // State
   const [questions, setQuestions] = useState<any[]>([]);
@@ -53,6 +56,7 @@ function ExamRunContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [breakTimeLeft, setBreakTimeLeft] = useState(10 * 60);
   const [currentSection, setCurrentSection] = useState(1);
+  const [isSavingState, setIsSavingState] = useState(false);
 
   // Constants
   const SECTION_SIZE = 60;
@@ -62,11 +66,33 @@ function ExamRunContent() {
     return Math.floor(minutes * 60);
   };
 
+  // Sauvegarde persistante
+  const triggerSave = useCallback(async (forcedTimeLeft?: number) => {
+    if (!db || !user?.uid || !examId || viewMode === 'result') return;
+    try {
+      setIsSavingState(true);
+      await saveExamState(db, user.uid, {
+        examId,
+        currentIndex,
+        answers,
+        flagged,
+        timeLeft: forcedTimeLeft ?? timeLeft,
+        currentSection
+      });
+    } catch (e) {
+      console.error("Auto-save error", e);
+    } finally {
+      setIsSavingState(false);
+    }
+  }, [db, user?.uid, examId, currentIndex, answers, flagged, timeLeft, currentSection, viewMode]);
+
+  // Chargement des questions et restauration de l'état
   useEffect(() => {
-    async function fetchQuestions() {
+    async function fetchQuestionsAndState() {
       if (!examId || !user) return;
       setIsLoading(true);
       try {
+        // 1. Charger les questions
         const qRef = collection(db, 'questions');
         const qQuery = query(qRef, where('sourceIds', 'array-contains', examId), where('isActive', '==', true));
         const snap = await getDocs(qQuery);
@@ -92,13 +118,29 @@ function ExamRunContent() {
         fetched.sort((a, b) => (a.index || 0) - (b.index || 0));
         
         if (fetched.length === 0) {
-          toast({ variant: "destructive", title: "Examen vide", description: "Aucune question trouvée pour cet examen dans la banque." });
+          toast({ variant: "destructive", title: "Examen vide", description: "Aucune question trouvée." });
           router.push('/dashboard/exam');
           return;
         }
 
         setQuestions(fetched);
-        setTimeLeft(calculateTotalTime(fetched.length));
+
+        // 2. Tenter de restaurer l'état si demandé
+        if (isResumeMode) {
+          const saved = await getExamState(db, user.uid);
+          if (saved && saved.examId === examId) {
+            setCurrentIndex(saved.currentIndex);
+            setAnswers(saved.answers || {});
+            setFlagged(saved.flagged || {});
+            setTimeLeft(saved.timeLeft);
+            setCurrentSection(saved.currentSection || 1);
+            toast({ title: "Simulation reprise", description: `Reprise à la question ${saved.currentIndex + 1}.` });
+          } else {
+            setTimeLeft(calculateTotalTime(fetched.length));
+          }
+        } else {
+          setTimeLeft(calculateTotalTime(fetched.length));
+        }
       } catch (e) {
         console.error(e);
         toast({ variant: "destructive", title: "Erreur de chargement" });
@@ -106,9 +148,19 @@ function ExamRunContent() {
         setIsLoading(false);
       }
     }
-    fetchQuestions();
-  }, [db, examId, user, router, toast]);
+    fetchQuestionsAndState();
+  }, [db, examId, user, router, toast, isResumeMode]);
 
+  // Sauvegarde automatique toutes les 30 secondes
+  useEffect(() => {
+    if (viewMode !== 'question' || isPaused || isLoading) return;
+    const interval = setInterval(() => {
+      triggerSave();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [triggerSave, viewMode, isPaused, isLoading]);
+
+  // Timer simulation
   useEffect(() => {
     let timer: any;
     if (viewMode === 'question' && !isPaused && timeLeft > 0) {
@@ -119,6 +171,7 @@ function ExamRunContent() {
     return () => clearInterval(timer);
   }, [viewMode, isPaused, timeLeft, result, isLoading, questions.length]);
 
+  // Timer pause
   useEffect(() => {
     let timer: any;
     if (viewMode === 'break' && breakTimeLeft > 0) {
@@ -228,6 +281,7 @@ function ExamRunContent() {
 
     try {
       await addDoc(collection(db, 'coachingAttempts'), finalData);
+      if (user?.uid) await clearExamState(db, user.uid); // Effacer l'état temporaire
       setResult(finalData);
       setViewMode('result');
     } catch (e) {
@@ -235,6 +289,11 @@ function ExamRunContent() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handlePause = () => {
+    triggerSave();
+    setIsPaused(true);
   };
 
   if (isLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
@@ -373,12 +432,17 @@ function ExamRunContent() {
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <div className="bg-black text-white px-8 py-4 flex items-center justify-between shadow-xl sticky top-0 z-50">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => setIsPaused(true)} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-10 px-4">
+          <Button variant="ghost" size="sm" onClick={handlePause} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-10 px-4">
             <Pause className="h-4 w-4 mr-2" /> Pause
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setShowCalculator(true)} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-10 px-4">
             <CalcIcon className="h-4 w-4 mr-2" /> Calculator
           </Button>
+          {isSavingState && (
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase italic text-slate-400 animate-pulse">
+              <SaveIcon className="h-3 w-3" /> Sync...
+            </div>
+          )}
         </div>
 
         <div className="text-center">
@@ -554,9 +618,14 @@ function ExamRunContent() {
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center pointer-events-auto">
           <div className="text-center space-y-8">
             <h2 className="text-6xl font-black uppercase italic text-white tracking-tighter">EXAMEN EN PAUSE</h2>
-            <Button onClick={() => setIsPaused(false)} className="h-20 px-16 rounded-[28px] bg-white text-black text-2xl font-black uppercase tracking-widest shadow-2xl scale-110 hover:scale-115 transition-transform">
-              REPRENDRE
-            </Button>
+            <div className="flex flex-col gap-4 items-center">
+              <Button onClick={() => setIsPaused(false)} className="h-20 px-16 rounded-[28px] bg-white text-black text-2xl font-black uppercase tracking-widest shadow-2xl scale-110 hover:scale-115 transition-transform">
+                REPRENDRE
+              </Button>
+              <Button asChild variant="ghost" className="text-white font-bold uppercase tracking-widest hover:bg-white/10 mt-4">
+                <Link href="/dashboard/exam">Quitter et reprendre plus tard</Link>
+              </Button>
+            </div>
           </div>
         </div>
       )}
