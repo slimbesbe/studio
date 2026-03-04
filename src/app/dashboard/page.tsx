@@ -72,28 +72,28 @@ export default function DashboardPage() {
   const db = useFirestore();
   const isDemo = user?.isAnonymous;
 
-  // Sécurité : Vérifier si l'utilisateur est admin (pour savoir si on doit filtrer ou pas)
-  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
-
-  // 1. Correction de la requête Exam Results
+  // 1. Requête Exam Results (Subcollection utilisateur)
   const resultsQuery = useMemoFirebase(() => {
-    if (!user || isDemo) return null;
-    // On cherche dans la collection de l'utilisateur pour ses propres résultats
-    return query(collection(db, 'users', user.uid, 'exam_results'), orderBy('completedAt', 'asc'), limit(50));
-  }, [db, user, isDemo]);
-
-  // 2. Requête Coaching Attempts : Toujours filtrer par userId pour les stats personnelles
-  const attemptsQuery = useMemoFirebase(() => {
-    if (!user || isDemo) return null;
-    
-    // Pour le Cockpit de Performance personnel, on filtre TOUJOURS par userId
-    // Même si l'utilisateur est admin, ici il regarde ses PROPRES scores
+    if (isUserLoading || !user?.uid || isDemo) return null;
     return query(
-        collection(db, 'coachingAttempts'), 
-        where('userId', '==', user.uid),
-        limit(500)
+      collection(db, 'users', user.uid, 'exam_results'), 
+      orderBy('completedAt', 'asc'), 
+      limit(50)
     );
-  }, [db, user, isDemo]);
+  }, [db, user?.uid, isDemo, isUserLoading]);
+
+  // 2. Requête Coaching Attempts (Collection racine avec filtre userId pour satisfaire les règles)
+  const attemptsQuery = useMemoFirebase(() => {
+    if (isUserLoading || !user?.uid || isDemo) return null;
+    
+    // On force TOUJOURS le filtre par userId pour que Firestore valide la permission.
+    // Même un admin, sur son cockpit personnel, ne doit voir que ses données.
+    return query(
+      collection(db, 'coachingAttempts'), 
+      where('userId', '==', user.uid),
+      limit(500)
+    );
+  }, [db, user?.uid, isDemo, isUserLoading]);
 
   const { data: results, isLoading: isResultsLoading } = useCollection(resultsQuery);
   const { data: attempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
@@ -131,15 +131,15 @@ export default function DashboardPage() {
     if (!results || !attempts) return null;
 
     const totalQuestions = attempts.length;
-    const examResults = results.filter(r => r.examId);
-    const practiceResults = attempts.filter(a => a.context === 'training');
+    const examResults = results || [];
     
     const avgExamScore = examResults.length > 0 
-      ? Math.round(examResults.reduce((acc, r) => acc + r.percentage, 0) / examResults.length) 
+      ? Math.round(examResults.reduce((acc, r) => acc + (r.percentage || 0), 0) / examResults.length) 
       : 0;
     
-    const avgPracticeScore = practiceResults.length > 0
-      ? Math.round((practiceResults.filter(a => a.isCorrect).length / practiceResults.length) * 100)
+    // Pour simplifier, le score pratique est calculé sur l'ensemble des tentatives de coaching
+    const avgPracticeScore = attempts.length > 0
+      ? Math.round(attempts.reduce((acc, a) => acc + (a.scorePercent || 0), 0) / attempts.length)
       : 0;
 
     const domainStats: Record<string, { correct: number, total: number }> = {
@@ -148,22 +148,15 @@ export default function DashboardPage() {
       'Business': { correct: 0, total: 0 }
     };
 
-    const approachStats: Record<string, { correct: number, total: number }> = {
-      'Predictive': { correct: 0, total: 0 },
-      'Agile': { correct: 0, total: 0 },
-      'Hybrid': { correct: 0, total: 0 }
-    };
-
     attempts.forEach(a => {
-      const d = a.tags?.domain;
-      const app = a.tags?.approach;
-      if (d && domainStats[d]) {
-        domainStats[d].total++;
-        if (a.isCorrect) domainStats[d].correct++;
-      }
-      if (app && approachStats[app]) {
-        approachStats[app].total++;
-        if (a.isCorrect) approachStats[app].correct++;
+      // Si la tentative contient déjà un breakdown par domaine
+      if (a.domainBreakdown) {
+        Object.keys(a.domainBreakdown).forEach(d => {
+          if (domainStats[d]) {
+            domainStats[d].total++;
+            if (a.domainBreakdown[d] >= 75) domainStats[d].correct++;
+          }
+        });
       }
     });
 
@@ -172,37 +165,18 @@ export default function DashboardPage() {
       score: domainStats[name].total > 0 ? Math.round((domainStats[name].correct / domainStats[name].total) * 100) : 0
     }));
 
-    const approachData = Object.keys(approachStats).map(name => ({
-      name,
-      score: approachStats[name].total > 0 ? Math.round((approachStats[name].correct / approachStats[name].total) * 100) : 0
-    }));
-
-    const totalExamTime = results.reduce((acc, r) => acc + (r.timeSpent || 0), 0);
-    const totalExamQuestions = results.reduce((acc, r) => acc + (r.total || 0), 0);
-    const avgTimePerQuestion = totalExamQuestions > 0 ? Math.round(totalExamTime / totalExamQuestions) : 0;
-
-    const questionFails: Record<string, number> = {};
-    attempts.forEach(a => {
-      if (!a.isCorrect) {
-        questionFails[a.questionId] = (questionFails[a.questionId] || 0) + 1;
-      }
-    });
-    const multiFailed = Object.values(questionFails).filter(count => count >= 2).length;
-    const recurrenceRate = totalQuestions > 0 ? Math.round((multiFailed / totalQuestions) * 100) : 0;
-
-    const weight = Math.min(1, results.length / 5); 
-    const probability = Math.round((avgExamScore * 0.7 + avgPracticeScore * 0.3) * (0.8 + 0.2 * weight));
+    const totalTime = attempts.reduce((acc, a) => acc + (a.durationSec || 0), 0);
+    const avgTimePerQuestion = attempts.length > 0 ? Math.round(totalTime / (attempts.length * 35)) : 0;
 
     return {
       avgExamScore,
       avgPracticeScore,
-      totalQuestions,
+      totalQuestions: attempts.length * 35, // Estimation basée sur le format 35Q par session
       domainData,
-      approachData,
       avgTimePerQuestion,
-      recurrenceRate,
-      probability,
-      progressionData: results.map((r, i) => ({ name: `Sim ${i+1}`, score: r.percentage }))
+      recurrenceRate: 0,
+      probability: Math.round(avgExamScore > 0 ? avgExamScore : avgPracticeScore),
+      progressionData: examResults.map((r, i) => ({ name: `Sim ${i+1}`, score: r.percentage }))
     };
   }, [results, attempts, isDemo]);
 
@@ -212,9 +186,9 @@ export default function DashboardPage() {
 
   const formatTotalTime = (seconds: number) => {
     const s = seconds || 0;
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${m}:${sec.toString().padStart(2, '0')}`;
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return `${h}h ${m}m`;
   };
 
   const displayTime = isDemo ? (stats?.demoTimeSpent || 0) : (profile?.totalTimeSpent || 0);
@@ -246,7 +220,7 @@ export default function DashboardPage() {
         </Card>
         <Card className="rounded-[32px] border-none shadow-lg bg-white overflow-hidden group">
           <CardContent className="p-8 flex flex-col items-center justify-center">
-            <CircularStat value={`${stats?.avgPracticeScore || 0}%`} sublabel="SCORE PRATIQUE" percent={stats?.avgPracticeScore || 0} color="#7E57C2" />
+            <CircularStat value={`${stats?.avgPracticeScore || 0}%`} sublabel="SCORE COACHING" percent={stats?.avgPracticeScore || 0} color="#7E57C2" />
           </CardContent>
         </Card>
         <Card className="rounded-[32px] border-none shadow-lg bg-white overflow-hidden group">
@@ -256,7 +230,7 @@ export default function DashboardPage() {
         </Card>
         <Card className="rounded-[32px] border-none shadow-lg bg-white overflow-hidden group">
           <CardContent className="p-8 flex flex-col items-center justify-center">
-            <CircularStat value={formatTotalTime(displayTime)} sublabel="CUMULÉ TOTAL" percent={Math.min(100, (displayTime) / 180000)} color="#f59e0b" />
+            <CircularStat value={formatTotalTime(displayTime)} sublabel="TEMPS ÉTUDE CUMULÉ" percent={Math.min(100, (displayTime) / 180000)} color="#f59e0b" />
           </CardContent>
         </Card>
       </div>
@@ -270,7 +244,7 @@ export default function DashboardPage() {
             <CardDescription className="uppercase text-[10px] font-bold italic">Evolution des scores sur les dernières simulations</CardDescription>
           </CardHeader>
           <CardContent className="p-8 h-[350px]">
-            {stats?.progressionData.length ? (
+            {stats?.progressionData && stats.progressionData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={stats.progressionData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -310,12 +284,12 @@ export default function DashboardPage() {
             <div className="flex items-center gap-4 mb-6">
               <div className="bg-white/20 p-3 rounded-2xl group-hover:scale-110 transition-transform"><Brain className="h-6 w-6 text-white" /></div>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest opacity-70 italic text-white">Taux de récidive</p>
-                <h3 className="text-3xl font-black italic tracking-tighter text-white">{stats?.recurrenceRate || 0}%</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-70 italic text-white">Focus Mindset</p>
+                <h3 className="text-3xl font-black italic tracking-tighter text-white">ANALYSE</h3>
               </div>
             </div>
             <p className="text-[10px] font-bold leading-relaxed opacity-80 uppercase italic text-white">
-              Questions ratées plusieurs fois. Un taux élevé indique des lacunes structurelles (faux acquis).
+              Identifiez vos lacunes structurelles en consultant les justifications détaillées dans votre historique.
             </p>
           </Card>
         </div>

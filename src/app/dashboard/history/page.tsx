@@ -12,20 +12,20 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export default function HistoryPage() {
-  const { user, profile, isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
   const db = useFirestore();
 
   const resultsQuery = useMemoFirebase(() => {
-    // Sécurité : Attendre que l'utilisateur et son profil soient chargés
-    if (isUserLoading || !user?.uid || !profile || !db) return null;
+    // Sécurité : Attendre que l'utilisateur soit chargé
+    if (isUserLoading || !user?.uid || !db) return null;
     
-    // Toujours filtrer par userId pour l'historique personnel
+    // Toujours filtrer par userId pour l'historique personnel afin de satisfaire les règles Firestore
     return query(
       collection(db, 'coachingAttempts'),
       where('userId', '==', user.uid),
       orderBy('submittedAt', 'desc')
     );
-  }, [db, user?.uid, profile, isUserLoading]);
+  }, [db, user?.uid, isUserLoading]);
 
   const { data: results, isLoading: isCollectionLoading } = useCollection(resultsQuery);
 

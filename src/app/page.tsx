@@ -141,8 +141,8 @@ export default function Home() {
       
       <Card className="w-full max-w-md border-t-4 border-t-primary shadow-2xl animate-slide-up">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-headline font-bold text-center text-primary">Identification</CardTitle>
-          <CardDescription className="text-center">
+          <CardTitle suppressHydrationWarning className="text-2xl font-headline font-bold text-center text-primary">Identification</CardTitle>
+          <CardDescription suppressHydrationWarning className="text-center">
             Accédez à votre espace de simulation professionnel
           </CardDescription>
         </CardHeader>

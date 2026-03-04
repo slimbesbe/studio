@@ -53,10 +53,6 @@ service cloud.firestore {
       // Un utilisateur peut lire ses propres tentatives. 
       // Firestore utilise resource.data pour filtrer les requêtes de liste.
       allow read: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid));
-      
-      // Autoriser le listing filtré
-      allow list: if isSignedIn() && (isAdmin() || request.query.limit <= 1000);
-
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
     }
