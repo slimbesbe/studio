@@ -131,6 +131,9 @@ export default function SimulationReviewPage() {
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="secondary" className="bg-primary/5 text-primary border-none font-black italic uppercase text-[8px]">{currentQ.tags?.domain || 'People'}</Badge>
                   <Badge variant="secondary" className="bg-primary/5 text-primary border-none font-black italic uppercase text-[8px]">{currentQ.tags?.approach || 'Agile'}</Badge>
+                  {currentQ.correctOptionIds && currentQ.correctOptionIds.length > 1 && (
+                    <Badge variant="outline" className="bg-indigo-50 text-indigo-600 border-indigo-200 font-black italic uppercase text-[8px]">Multi-réponses</Badge>
+                  )}
                 </div>
                 <p className="text-2xl font-black text-slate-800 italic leading-relaxed">{currentQ.text}</p>
               </div>
@@ -138,8 +141,11 @@ export default function SimulationReviewPage() {
               <div className="grid gap-4">
                 {currentQ.choices?.map((opt: string, idx: number) => {
                   const optId = String(idx + 1);
-                  const isUserSelection = currentQ.userChoice === optId;
-                  const isCorrectOpt = currentQ.correctChoice === optId;
+                  const userChoices = currentQ.userChoices || (currentQ.userChoice ? [currentQ.userChoice] : []);
+                  const correctOptionIds = currentQ.correctOptionIds || (currentQ.correctChoice ? [currentQ.correctChoice] : []);
+                  
+                  const isUserSelection = userChoices.includes(optId);
+                  const isCorrectOpt = correctOptionIds.includes(optId);
                   
                   return (
                     <div 
@@ -151,7 +157,8 @@ export default function SimulationReviewPage() {
                       )}
                     >
                       <div className={cn(
-                        "h-10 w-10 rounded-full flex items-center justify-center font-black text-sm shrink-0 border-2",
+                        "h-10 w-10 flex items-center justify-center font-black text-sm shrink-0 border-2",
+                        correctOptionIds.length > 1 ? "rounded-xl" : "rounded-full",
                         isCorrectOpt ? "bg-emerald-500 text-white border-emerald-500" : 
                         isUserSelection ? "bg-red-500 text-white border-red-500" : "bg-white text-slate-400"
                       )}>{String.fromCharCode(65 + idx)}</div>

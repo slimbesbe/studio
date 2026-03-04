@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -24,7 +25,7 @@ export default function CoachingSessionDetails() {
   const [session, setSession] = useState<any>(null);
   const [questions, setQuestions] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, string[]>>({});
   const [isQuizStarted, setIsQuizStarted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [quizResult, setQuizResult] = useState<any>(null);
@@ -55,7 +56,6 @@ export default function CoachingSessionDetails() {
         setSession(sessionData);
 
         if (sessionData.type === 'QUIZ') {
-          // Requête réelle pour les questions indexées
           const qRef = collection(db, 'questions');
           const qQuery = query(
             qRef, 
@@ -68,7 +68,6 @@ export default function CoachingSessionDetails() {
           if (!qSnap.empty) {
             setQuestions(qSnap.docs.map(d => ({ ...d.data(), id: d.id })));
           } else {
-            // Mock de secours si pas encore de questions indexées en DB
             const mocked = [];
             for(let i=0; i<35; i++) {
               mocked.push({
@@ -77,6 +76,8 @@ export default function CoachingSessionDetails() {
                 text: `[DEBUG] Question de Coaching #${sessionData.questionStart + i}: Scénario PMP spécifique sur le Mindset.`,
                 choices: ["Action réactive", "Action proactive (PMI Mindset)", "Escalade immédiate", "Ignorer et documenter"],
                 correctChoice: "1",
+                correctOptionIds: ["1"],
+                isMultipleCorrect: false,
                 explanation: "Le Mindset PMI privilégie la proactivité et la résolution de problèmes interne à l'équipe."
               });
             }
@@ -98,13 +99,32 @@ export default function CoachingSessionDetails() {
     setStartTime(Date.now());
   };
 
+  const toggleAnswer = (qId: string, choiceId: string, isMultiple: boolean) => {
+    const current = answers[qId] || [];
+    if (isMultiple) {
+      if (current.includes(choiceId)) {
+        setAnswers({ ...answers, [qId]: current.filter(id => id !== choiceId) });
+      } else {
+        setAnswers({ ...answers, [qId]: [...current, choiceId] });
+      }
+    } else {
+      setAnswers({ ...answers, [qId]: [choiceId] });
+    }
+  };
+
   const handleFinish = async () => {
     setIsSubmitting(true);
     const duration = Math.floor((Date.now() - startTime) / 1000);
     
     let correct = 0;
     questions.forEach(q => {
-      if (answers[q.id] === q.correctChoice) correct++;
+      const userSelection = answers[q.id] || [];
+      const correctOptionIds = q.correctOptionIds || [String(q.correctChoice)];
+      
+      const isCorrect = userSelection.length === correctOptionIds.length && 
+                        userSelection.every(id => correctOptionIds.includes(id));
+      
+      if (isCorrect) correct++;
     });
 
     const percent = Math.round((correct / questions.length) * 100);
@@ -178,6 +198,7 @@ export default function CoachingSessionDetails() {
   if (isQuizStarted) {
     const q = questions[currentIndex];
     const progress = ((currentIndex + 1) / questions.length) * 100;
+    const isSelected = (choiceId: string) => (answers[q.id] || []).includes(choiceId);
 
     return (
       <div className="max-w-4xl mx-auto space-y-8 animate-fade-in py-8 px-4">
@@ -188,34 +209,47 @@ export default function CoachingSessionDetails() {
 
         <Card className="rounded-[40px] shadow-2xl border-t-8 border-t-primary bg-white">
           <CardContent className="p-10 space-y-8">
-            <p className="text-2xl font-black text-slate-800 italic leading-relaxed">{q?.text}</p>
+            <div className="space-y-4">
+              {q.isMultipleCorrect && (
+                <Badge variant="outline" className="bg-indigo-50 text-indigo-600 border-indigo-200 font-black italic uppercase text-[10px] tracking-widest py-1 px-4">
+                  Plusieurs réponses possibles
+                </Badge>
+              )}
+              <p className="text-2xl font-black text-slate-800 italic leading-relaxed">{q?.text}</p>
+            </div>
             <div className="grid gap-4">
-              {q?.choices?.map((opt: string, idx: number) => (
-                <div 
-                  key={idx} 
-                  onClick={() => setAnswers({ ...answers, [q.id]: String(idx) })} 
-                  className={cn(
-                    "p-6 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-5 shadow-sm",
-                    answers[q.id] === String(idx) ? "border-primary bg-primary/5 scale-[1.01]" : "border-slate-100 hover:border-slate-300"
-                  )}
-                >
-                  <div className={cn(
-                    "h-10 w-10 rounded-full flex items-center justify-center font-black text-sm shrink-0 border-2",
-                    answers[q.id] === String(idx) ? "bg-primary text-white border-primary" : "bg-white text-slate-400"
-                  )}>{String.fromCharCode(65 + idx)}</div>
-                  <p className={cn("flex-1 text-lg font-bold italic pt-1", answers[q.id] === String(idx) ? "text-slate-900" : "text-slate-600")}>{opt}</p>
-                </div>
-              ))}
+              {q?.choices?.map((opt: string, idx: number) => {
+                const choiceId = String(idx + 1);
+                const selected = isSelected(choiceId);
+                
+                return (
+                  <div 
+                    key={idx} 
+                    onClick={() => toggleAnswer(q.id, choiceId, q.isMultipleCorrect)} 
+                    className={cn(
+                      "p-6 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-5 shadow-sm",
+                      selected ? "border-primary bg-primary/5 scale-[1.01]" : "border-slate-100 hover:border-slate-300"
+                    )}
+                  >
+                    <div className={cn(
+                      "h-10 w-10 flex items-center justify-center font-black text-sm shrink-0 border-2",
+                      q.isMultipleCorrect ? "rounded-xl" : "rounded-full",
+                      selected ? "bg-primary text-white border-primary" : "bg-white text-slate-400"
+                    )}>{String.fromCharCode(65 + idx)}</div>
+                    <p className={cn("flex-1 text-lg font-bold italic pt-1", selected ? "text-slate-900" : "text-slate-600")}>{opt}</p>
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
           <CardFooter className="p-8 bg-slate-50/50 border-t flex justify-between gap-4">
             <Button variant="outline" className="h-14 px-8 rounded-xl font-black uppercase italic" onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))} disabled={currentIndex === 0}>Précédent</Button>
             {currentIndex === questions.length - 1 ? (
-              <Button onClick={handleFinish} disabled={isSubmitting || !answers[q?.id]} className="h-14 px-12 bg-emerald-600 hover:bg-emerald-700 rounded-xl font-black uppercase tracking-widest shadow-xl">
+              <Button onClick={handleFinish} disabled={isSubmitting || (answers[q?.id]?.length || 0) === 0} className="h-14 px-12 bg-emerald-600 hover:bg-emerald-700 rounded-xl font-black uppercase tracking-widest shadow-xl">
                 {isSubmitting ? <Loader2 className="animate-spin h-5 w-5" /> : "Soumettre"}
               </Button>
             ) : (
-              <Button onClick={() => setCurrentIndex(currentIndex + 1)} disabled={!answers[q?.id]} className="h-14 px-12 bg-primary rounded-xl font-black uppercase tracking-widest shadow-xl">Suivant</Button>
+              <Button onClick={() => setCurrentIndex(currentIndex + 1)} disabled={(answers[q?.id]?.length || 0) === 0} className="h-14 px-12 bg-primary rounded-xl font-black uppercase tracking-widest shadow-xl">Suivant</Button>
             )}
           </CardFooter>
         </Card>

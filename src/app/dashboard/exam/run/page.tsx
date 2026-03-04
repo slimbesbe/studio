@@ -41,7 +41,7 @@ function ExamRunContent() {
   // State
   const [questions, setQuestions] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, string[]>>({});
   const [flagged, setFlagged] = useState<Record<string, boolean>>({});
   const [viewMode, setViewMode] = useState<ViewMode>('question');
   const [timeLeft, setTimeLeft] = useState(-1); 
@@ -150,8 +150,17 @@ function ExamRunContent() {
     setFlagged(prev => ({ ...prev, [qId]: !prev[qId] }));
   };
 
-  const handleOptionSelect = (qId: string, optId: string) => {
-    setAnswers(prev => ({ ...prev, [qId]: optId }));
+  const toggleAnswer = (qId: string, optId: string, isMultiple: boolean) => {
+    const current = answers[qId] || [];
+    if (isMultiple) {
+      if (current.includes(optId)) {
+        setAnswers({ ...answers, [qId]: current.filter(id => id !== optId) });
+      } else {
+        setAnswers({ ...answers, [qId]: [...current, optId] });
+      }
+    } else {
+      setAnswers({ ...answers, [qId]: [optId] });
+    }
   };
 
   const startNextSection = () => {
@@ -178,9 +187,11 @@ function ExamRunContent() {
     let correct = 0;
 
     questions.forEach(q => {
-      const correctVal = String(q.correctChoice || (q.correctOptionIds ? q.correctOptionIds[0] : "1"));
-      const userChoice = answers[q.id] || null;
-      const isUserCorrect = userChoice === correctVal;
+      const correctOptionIds = q.correctOptionIds || [String(q.correctChoice || "1")];
+      const userChoices = answers[q.id] || [];
+      
+      const isUserCorrect = userChoices.length === correctOptionIds.length && 
+                            userChoices.every(id => correctOptionIds.includes(id));
       
       if (isUserCorrect) correct++;
 
@@ -188,8 +199,8 @@ function ExamRunContent() {
         questionId: q.id,
         text: q.text,
         choices: q.choices,
-        correctChoice: correctVal,
-        userChoice: userChoice,
+        correctOptionIds: correctOptionIds,
+        userChoices: userChoices,
         isCorrect: isUserCorrect,
         explanation: q.explanation,
         tags: q.tags || {}
@@ -311,7 +322,7 @@ function ExamRunContent() {
             <div className="grid grid-cols-5 sm:grid-cols-10 gap-3 mb-10">
               {currentSectionQuestions.map((q, idx) => {
                 const globalIdx = sectionStart + idx;
-                const isAnswered = !!answers[q.id];
+                const isAnswered = (answers[q.id]?.length || 0) > 0;
                 const isFlagged = flagged[q.id];
                 return (
                   <button
@@ -356,6 +367,7 @@ function ExamRunContent() {
 
   const currentQuestion = questions[currentIndex];
   const progressPercent = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
+  const currentAnswers = answers[currentQuestion?.id] || [];
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -405,6 +417,11 @@ function ExamRunContent() {
         <Card className="rounded-[40px] shadow-2xl border-none bg-white overflow-hidden min-h-[450px]">
           <CardContent className="p-12 space-y-10">
             <div className="space-y-6">
+              {currentQuestion?.isMultipleCorrect && (
+                <Badge className="bg-indigo-100 text-indigo-600 border-none font-black italic uppercase text-[10px] py-1 px-4">
+                  Plusieurs réponses à sélectionner
+                </Badge>
+              )}
               <h2 className="text-2xl font-black text-slate-800 italic leading-relaxed">
                 {currentQuestion?.text}
               </h2>
@@ -423,19 +440,20 @@ function ExamRunContent() {
             <div className="grid gap-4">
               {currentQuestion?.choices?.map((opt: string, idx: number) => {
                 const optId = String(idx + 1);
-                const isSelected = answers[currentQuestion.id] === optId;
+                const isSelected = currentAnswers.includes(optId);
                 
                 return (
                   <div 
                     key={idx} 
-                    onClick={() => handleOptionSelect(currentQuestion.id, optId)}
+                    onClick={() => toggleAnswer(currentQuestion.id, optId, currentQuestion.isMultipleCorrect)}
                     className={cn(
                       "p-6 rounded-2xl border-2 transition-all cursor-pointer flex items-center gap-6 shadow-sm",
                       isSelected ? "border-primary bg-primary/5 scale-[1.01]" : "border-slate-100 hover:border-slate-300"
                     )}
                   >
                     <div className={cn(
-                      "h-10 w-10 rounded-full flex items-center justify-center font-black text-sm shrink-0 border-2",
+                      "h-10 w-10 flex items-center justify-center font-black text-sm shrink-0 border-2",
+                      currentQuestion.isMultipleCorrect ? "rounded-xl" : "rounded-full",
                       isSelected ? "bg-primary text-white border-primary" : "bg-white text-slate-400"
                     )}>{String.fromCharCode(65 + idx)}</div>
                     <p className={cn("flex-1 text-lg font-bold italic", isSelected ? "text-slate-900" : "text-slate-600")}>
@@ -496,7 +514,7 @@ function ExamRunContent() {
             <div className="grid grid-cols-6 sm:grid-cols-10 gap-3 overflow-y-auto max-h-[350px] p-2">
               {currentSectionQuestions.map((q, idx) => {
                 const globalIdx = sectionStart + idx;
-                const isAnswered = !!answers[q.id];
+                const isAnswered = (answers[q.id]?.length || 0) > 0;
                 const isCurrent = globalIdx === currentIndex;
                 const isFlagged = flagged[q.id];
                 
