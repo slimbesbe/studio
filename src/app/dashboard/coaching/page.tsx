@@ -42,17 +42,14 @@ export default function CoachingSelectionPage() {
   const attemptsQuery = useMemoFirebase(() => {
     if (isUserLoading || !user?.uid || !profile || !db) return null;
     
-    // Sur le dashboard participant, on ne montre que les tentatives de l'utilisateur en cours
-    // même s'il est admin, pour éviter les erreurs de permission et garder une vue propre.
-    // Les admins ont leurs outils de monitoring dédiés.
+    // Toujours filtrer par userId pour satisfaire les règles Firestore et éviter les erreurs de permission
     return query(
       collection(db, 'coachingAttempts'), 
-      where('userId', '==', user.uid),
-      orderBy('submittedAt', 'desc')
+      where('userId', '==', user.uid)
     );
   }, [db, user?.uid, profile, isUserLoading]);
 
-  const { data: attempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
+  const { data: rawAttempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
 
   if (isUserLoading || isSessionsLoading || isAttemptsLoading) {
     return (
@@ -68,6 +65,14 @@ export default function CoachingSelectionPage() {
                      (user?.uid && ADMIN_UIDS.includes(user.uid));
 
   const displaySessions = sessions || [];
+  
+  // On ne garde que la dernière tentative par session pour l'affichage du score
+  const latestAttempts = rawAttempts ? rawAttempts.reduce((acc: any, curr: any) => {
+    if (!acc[curr.sessionId] || (curr.submittedAt?.seconds || 0) > (acc[curr.sessionId].submittedAt?.seconds || 0)) {
+      acc[curr.sessionId] = curr;
+    }
+    return acc;
+  }, {}) : {};
 
   return (
     <div className="max-w-6xl mx-auto py-8 space-y-10 animate-fade-in">
@@ -93,7 +98,7 @@ export default function CoachingSelectionPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {displaySessions.map((session) => {
-            const attempt = attempts?.find(a => a.sessionId === session.id);
+            const attempt = latestAttempts[session.id];
             const isLocked = !session.isPublished;
 
             return (

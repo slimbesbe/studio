@@ -2,7 +2,7 @@
 "use client";
 
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, where } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, History, Trophy, Clock, ChevronRight } from 'lucide-react';
@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useMemo } from 'react';
 
 export default function HistoryPage() {
   const { user, isUserLoading } = useUser();
@@ -22,12 +23,21 @@ export default function HistoryPage() {
     // Toujours filtrer par userId pour l'historique personnel afin de satisfaire les règles Firestore
     return query(
       collection(db, 'coachingAttempts'),
-      where('userId', '==', user.uid),
-      orderBy('submittedAt', 'desc')
+      where('userId', '==', user.uid)
     );
   }, [db, user?.uid, isUserLoading]);
 
-  const { data: results, isLoading: isCollectionLoading } = useCollection(resultsQuery);
+  const { data: rawResults, isLoading: isCollectionLoading } = useCollection(resultsQuery);
+
+  // Tri côté client pour éviter les problèmes d'index composite et de permissions
+  const results = useMemo(() => {
+    if (!rawResults) return [];
+    return [...rawResults].sort((a, b) => {
+      const timeA = a.submittedAt?.seconds || 0;
+      const timeB = b.submittedAt?.seconds || 0;
+      return timeB - timeA;
+    });
+  }, [rawResults]);
 
   const formatTime = (seconds: number) => {
     if (!seconds) return '0m';
@@ -89,7 +99,7 @@ export default function HistoryPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {!results || results.length === 0 ? (
+              {results.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="h-64 text-center">
                     <div className="flex flex-col items-center justify-center text-slate-400 gap-4">
