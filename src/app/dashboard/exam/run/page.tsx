@@ -22,7 +22,9 @@ import {
   X,
   LayoutGrid,
   Info,
-  Save as SaveIcon
+  Save as SaveIcon,
+  MoveLeft,
+  MoveRight
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -30,6 +32,75 @@ import { Calculator } from '@/components/dashboard/Calculator';
 import { saveExamState, getExamState, clearExamState } from '@/lib/services/exam-state-service';
 
 type ViewMode = 'question' | 'review' | 'break' | 'result';
+
+function PerformanceScale({ score }: { score: number }) {
+  const isPass = score >= 50;
+  
+  // segments widths are equal (25% each)
+  // cursor position is simply the score percent
+  const cursorLeft = `${score}%`;
+
+  return (
+    <div className="w-full max-w-4xl mx-auto space-y-8 py-10 animate-fade-in">
+      <div className="text-left space-y-2">
+        <h2 className="text-3xl font-medium text-slate-700">
+          Your Overall Performance: <span className={cn("font-bold text-4xl", isPass ? "text-[#005bb7]" : "text-destructive")}>
+            {isPass ? 'Pass' : 'Fail'}
+          </span>
+        </h2>
+        <p className="text-slate-500 text-lg">
+          {isPass 
+            ? "Congratulations! You passed your exam and have successfully earned your PMI certification. This is a tremendous accomplishment!" 
+            : "Unfortunately, you did not pass the exam this time. Focus on the areas indicated below to improve for your next attempt."}
+        </p>
+      </div>
+
+      <div className="relative pt-12 pb-16">
+        {/* Labels failing/passing */}
+        <div className="absolute top-0 left-0 w-full flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">
+          <div className="flex items-center gap-2">
+            <MoveLeft className="h-3 w-3" /> Failing
+          </div>
+          <div className="flex items-center gap-2">
+            Passing <MoveRight className="h-3 w-3" />
+          </div>
+        </div>
+
+        {/* The double arrow line */}
+        <div className="absolute top-6 left-0 w-full h-px bg-sky-400 flex items-center justify-center">
+          <div className="h-3 w-px bg-sky-400" /> {/* center mark */}
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 border-y-[4px] border-y-transparent border-r-[6px] border-r-sky-400" />
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1 border-y-[4px] border-y-transparent border-l-[6px] border-l-sky-400" />
+        </div>
+
+        {/* The cursor "YOU" */}
+        <div 
+          className="absolute top-4 z-20 flex flex-col items-center transition-all duration-1000 ease-out"
+          style={{ left: cursorLeft }}
+        >
+          <span className="text-[11px] font-black text-slate-800 mb-1">YOU</span>
+          <div className="h-16 w-0.5 bg-black" />
+        </div>
+
+        {/* The 4 color segments */}
+        <div className="grid grid-cols-4 h-12 w-full gap-1 items-stretch">
+          <div className="bg-[#ffe4e1] flex items-end justify-start p-2">
+            <span className="text-[10px] font-bold text-slate-400 uppercase leading-none">Needs Improvement</span>
+          </div>
+          <div className="bg-[#fff9e6] flex items-end justify-start p-2">
+            <span className="text-[10px] font-bold text-slate-400 uppercase leading-none">Below Target</span>
+          </div>
+          <div className="bg-[#7fcdbb] flex items-end justify-start p-2">
+            <span className="text-[10px] font-bold text-[#005bb7] uppercase leading-none">Target</span>
+          </div>
+          <div className="bg-[#d9ece8] flex items-end justify-start p-2">
+            <span className="text-[10px] font-bold text-slate-400 uppercase leading-none">Above Target</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ExamRunContent() {
   const { user } = useUser();
@@ -268,9 +339,9 @@ function ExamRunContent() {
     const percent = Math.round((correct / questions.length) * 100);
     
     let performance = "Needs Improvement";
-    if (percent >= 80) performance = "Above Target";
-    else if (percent >= 70) performance = "Target";
-    else if (percent >= 60) performance = "Below Target";
+    if (percent >= 75) performance = "Above Target";
+    else if (percent >= 50) performance = "Target";
+    else if (percent >= 25) performance = "Below Target";
 
     const finalData = {
       examId,
@@ -305,35 +376,21 @@ function ExamRunContent() {
 
   if (viewMode === 'result' && result) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <Card className="max-w-3xl w-full rounded-[40px] shadow-2xl border-none p-12 text-center space-y-10 bg-white border-t-8 border-t-primary">
-          <div className="space-y-4">
-            <Trophy className="h-20 w-20 text-yellow-500 mx-auto" />
-            <h2 className="text-5xl font-black italic uppercase tracking-tighter text-slate-900">Résultat Final</h2>
-            <div className="flex justify-center pt-4">
-              <div className={cn(
-                "px-8 py-3 rounded-2xl font-black uppercase italic text-xl tracking-widest shadow-sm",
-                result.performance === "Above Target" ? "bg-emerald-100 text-emerald-600 border-2 border-emerald-200" : 
-                result.performance === "Target" ? "bg-blue-100 text-blue-600 border-2 border-blue-200" : 
-                result.performance === "Below Target" ? "bg-amber-100 text-amber-600 border-2 border-amber-200" : 
-                "bg-red-100 text-red-600 border-2 border-red-200"
-              )}>
-                {result.performance}
-              </div>
-            </div>
-          </div>
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <Card className="max-w-5xl w-full border-none shadow-none p-12 space-y-10 bg-white">
+          <PerformanceScale score={result.scorePercent} />
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-10 border-t border-slate-100">
             <div className="bg-slate-50 p-6 rounded-3xl border-2">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Score</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Score</p>
               <p className="text-4xl font-black italic text-primary">{result.scorePercent}%</p>
             </div>
             <div className="bg-slate-50 p-6 rounded-3xl border-2">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Réponses</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Correct Answers</p>
               <p className="text-4xl font-black italic text-slate-700">{result.correctCount}/{result.totalQuestions}</p>
             </div>
             <div className="bg-slate-50 p-6 rounded-3xl border-2">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Temps utilisé</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Time Spent</p>
               <p className="text-4xl font-black italic text-slate-700">{Math.floor(result.durationSec / 60)}m</p>
             </div>
           </div>
