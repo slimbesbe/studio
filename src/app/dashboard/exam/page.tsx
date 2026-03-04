@@ -58,17 +58,17 @@ export default function ExamPage() {
         const counts: Record<string, number> = {};
         
         const countsPromises = ALL_EXAMS.map(async (exam) => {
-          const newQ = query(qRef, where('sourceIds', 'array-contains', exam.id), where('isActive', '==', true));
-          const snapNew = await getDocs(newQ);
+          // On récupère les IDs des deux sources possibles pour un comptage fiable
+          const [snapNew, snapLegacy] = await Promise.all([
+            getDocs(query(qRef, where('sourceIds', 'array-contains', exam.id), where('isActive', '==', true))),
+            getDocs(query(qRef, where('examId', '==', exam.id), where('isActive', '==', true)))
+          ]);
           
-          let count = snapNew.size;
-          if (count === 0) {
-            const legacyQ = query(qRef, where('examId', '==', exam.id), where('isActive', '==', true));
-            const snapLegacy = await getDocs(legacyQ);
-            count = snapLegacy.size;
-          }
+          const uniqueIds = new Set();
+          snapNew.forEach(d => uniqueIds.add(d.id));
+          snapLegacy.forEach(d => uniqueIds.add(d.id));
 
-          return { id: exam.id, count };
+          return { id: exam.id, count: uniqueIds.size };
         });
 
         const results = await Promise.all(countsPromises);
@@ -197,17 +197,17 @@ export default function ExamPage() {
                 <Trophy className="h-20 w-20" />
               </div>
               
-              <CardHeader className="p-8 pb-4">
-                <div className="h-14 w-14 rounded-2xl bg-indigo-50 flex items-center justify-center mb-4 text-indigo-600 shadow-inner">
+              <CardHeader className="p-8 pb-4 space-y-4">
+                <div className="h-14 w-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-inner">
                   <FileQuestion className="h-7 w-7" />
                 </div>
-                <CardTitle className="text-2xl font-black uppercase italic tracking-tight">{exam.title}</CardTitle>
-                <div className="flex items-center gap-2 mt-2">
-                  <Badge className="bg-emerald-100 text-emerald-600 border-none font-black italic px-3 py-1">
+                <CardTitle className="text-2xl font-black uppercase italic tracking-tight leading-tight pr-10">{exam.title}</CardTitle>
+                <div className="flex items-center gap-3 pt-1">
+                  <Badge className="bg-emerald-100 text-emerald-600 border-none font-black italic px-3 py-1.5 shadow-sm">
                     {examCounts[exam.id] || 0} QUESTIONS
                   </Badge>
-                  <Badge variant="outline" className="font-bold border-2 text-[10px] uppercase">
-                    {Math.floor((examCounts[exam.id] * 230) / 180)} MIN
+                  <Badge variant="outline" className="font-black border-2 text-[10px] uppercase px-3 py-1 bg-slate-50/50">
+                    {Math.floor(((examCounts[exam.id] || 0) * 230) / 180)} MIN
                   </Badge>
                 </div>
               </CardHeader>
@@ -239,7 +239,7 @@ export default function ExamPage() {
         <div>
           <h4 className="font-black uppercase italic text-amber-800 text-sm">Informations Importantes</h4>
           <p className="text-xs font-bold text-amber-700/80 italic mt-1">
-            Le temps alloué est calculé proportionnellement au nombre de questions (ratio : 230 min pour 180 Q).
+            Le temps alloué est calculé proportionnellement au nombre de questions (ratio officiel PMP : 230 min pour 180 questions).
           </p>
         </div>
       </div>

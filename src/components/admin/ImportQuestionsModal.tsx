@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef } from 'react';
@@ -14,7 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { Loader2, CheckCircle2, FileSpreadsheet, XCircle, Upload, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirebase, useUser } from '@/firebase';
-import { collection, doc, writeBatch, serverTimestamp, runTransaction } from 'firebase/firestore';
+import { collection, doc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
 
@@ -156,7 +157,6 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
         const chunk = parsedData.slice(i, i + batchSize);
         
         chunk.forEach((q) => {
-          // Use deterministic ID based on content to avoid duplicates
           const questionId = generateId(q.statement, examId);
           const qRef = doc(db, 'questions', questionId);
 
@@ -168,7 +168,8 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
             createdBy: profile?.id || 'admin',
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
-            examId: examId
+            examId: examId,
+            sourceIds: [examId] // On peuple systématiquement sourceIds pour la compatibilité multi-sources
           };
 
           batch.set(qRef, finalData, { merge: true });

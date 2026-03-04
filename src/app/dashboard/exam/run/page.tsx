@@ -89,43 +89,48 @@ function ExamRunContent() {
   // Chargement des questions et restauration de l'état
   useEffect(() => {
     async function fetchQuestionsAndState() {
-      if (!examId || !user) return;
+      if (!examId || !user || !db) return;
       setIsLoading(true);
       try {
-        // 1. Charger les questions
         const qRef = collection(db, 'questions');
-        const qQuery = query(qRef, where('sourceIds', 'array-contains', examId), where('isActive', '==', true));
-        const snap = await getDocs(qQuery);
         
-        let fetched = snap.docs.map(d => ({ 
-          ...d.data(), 
-          id: d.id,
-          text: d.data().text || d.data().statement,
-          choices: d.data().choices || d.data().options?.map((o: any) => o.text)
-        }));
+        // On fusionne les résultats des deux types de requêtes pour récupérer toutes les questions
+        const [snapNew, snapLegacy] = await Promise.all([
+          getDocs(query(qRef, where('sourceIds', 'array-contains', examId), where('isActive', '==', true))),
+          getDocs(query(qRef, where('examId', '==', examId), where('isActive', '==', true)))
+        ]);
+        
+        const uniqueQuestions = new Map();
+        
+        const processSnap = (snap: any) => {
+          snap.docs.forEach((d: any) => {
+            if (!uniqueQuestions.has(d.id)) {
+              const data = d.data();
+              uniqueQuestions.set(d.id, {
+                ...data,
+                id: d.id,
+                text: data.text || data.statement,
+                choices: data.choices || data.options?.map((o: any) => o.text)
+              });
+            }
+          });
+        };
 
-        if (fetched.length === 0) {
-          const legacyQuery = query(qRef, where('examId', '==', examId), where('isActive', '==', true));
-          const legacySnap = await getDocs(legacyQuery);
-          fetched = legacySnap.docs.map(d => ({ 
-            ...d.data(), 
-            id: d.id,
-            text: d.data().text || d.data().statement,
-            choices: d.data().choices || d.data().options?.map((o: any) => o.text)
-          }));
-        }
+        processSnap(snapNew);
+        processSnap(snapLegacy);
         
+        let fetched = Array.from(uniqueQuestions.values());
         fetched.sort((a, b) => (a.index || 0) - (b.index || 0));
         
         if (fetched.length === 0) {
-          toast({ variant: "destructive", title: "Examen vide", description: "Aucune question trouvée." });
+          toast({ variant: "destructive", title: "Examen vide", description: "Aucune question trouvée pour cet examen." });
           router.push('/dashboard/exam');
           return;
         }
 
         setQuestions(fetched);
 
-        // 2. Tenter de restaurer l'état si demandé
+        // Tenter de restaurer l'état
         if (isResumeMode) {
           const saved = await getExamState(db, user.uid);
           if (saved && saved.examId === examId) {
@@ -134,7 +139,7 @@ function ExamRunContent() {
             setFlagged(saved.flagged || {});
             setTimeLeft(saved.timeLeft);
             setCurrentSection(saved.currentSection || 1);
-            toast({ title: "Simulation reprise", description: `Reprise à la question ${saved.currentIndex + 1}.` });
+            toast({ title: "Simulation reprise", description: `Reprise à la question ${saved.currentIndex + 1} (${fetched.length} questions au total).` });
           } else {
             setTimeLeft(calculateTotalTime(fetched.length));
           }
