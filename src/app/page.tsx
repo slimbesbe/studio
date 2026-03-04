@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -133,7 +134,7 @@ export default function Home() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
       <div className="flex items-center gap-3 mb-8">
         <SimuLuxLogo className="h-12 w-12" />
-        <span className="font-headline font-black text-3xl italic tracking-tighter text-primary">
+        <span suppressHydrationWarning className="font-headline font-black text-3xl italic tracking-tighter text-primary">
           Simu-lux <span className="text-accent">PMP</span>
         </span>
       </div>

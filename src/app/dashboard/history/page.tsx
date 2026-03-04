@@ -19,7 +19,7 @@ export default function HistoryPage() {
     // Sécurité : Attendre que l'utilisateur et son profil soient chargés
     if (isUserLoading || !user?.uid || !profile || !db) return null;
     
-    // Le filtre par userId est OBLIGATOIRE pour respecter les règles de sécurité Firestore
+    // Toujours filtrer par userId pour l'historique personnel
     return query(
       collection(db, 'coachingAttempts'),
       where('userId', '==', user.uid),

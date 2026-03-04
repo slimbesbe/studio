@@ -40,7 +40,7 @@ export default function AdminGroupStats() {
 
   const attemptsQuery = useMemoFirebase(() => {
     if (!isAdmin || !groupId) return null;
-    return query(collection(db, 'coachingAttempts'), where('groupId', '==', groupId));
+    return query(collection(db, 'coachingAttempts'), where('userId', '==', user.uid));
   }, [db, groupId, isAdmin]);
   const { data: allAttempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
 
