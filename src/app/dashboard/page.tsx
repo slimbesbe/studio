@@ -4,296 +4,273 @@
 
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { 
-  PlayCircle,
-  Loader2,
-  Clock,
-  History,
-  TrendingUp,
-  Award,
-  Target,
-  Layers,
-  Brain,
-  Zap,
-  BarChart3,
-  ShieldCheck,
-  TrendingDown
+  Loader2, 
+  Clock, 
+  History, 
+  TrendingUp, 
+  Target, 
+  Award, 
+  CheckCircle2,
+  BookOpen
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, limit, where } from 'firebase/firestore';
-import Link from 'next/link';
+import { collection, query, where, orderBy, limit } from 'firebase/firestore';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell
 } from 'recharts';
 import { cn } from '@/lib/utils';
 
-interface CircularStatProps {
-  value: string | number;
-  sublabel: string;
-  percent: number;
-  color?: string;
-}
-
-const CircularStat = ({ value, sublabel, percent, color = "hsl(var(--primary))" }: CircularStatProps) => {
-  const radius = 65;
-  const circumference = 2 * Math.PI * radius;
-  const visualPercent = Math.min(100, Math.max(0, percent));
-  const offset = circumference - (visualPercent / 100) * circumference;
-
-  return (
-    <div className="flex flex-col items-center text-center animate-fade-in group">
-      <div className="relative h-40 w-40 flex items-center justify-center mb-6">
-        <svg viewBox="0 0 160 160" className="absolute h-full w-full transform -rotate-90">
-          <circle cx="80" cy="80" r={radius} stroke="#f1f5f9" strokeWidth="6" fill="transparent" />
-          <circle
-            cx="80" cy="80" r={radius} stroke={color} strokeWidth={visualPercent > 0 ? 12 : 0} fill="transparent"
-            strokeDasharray={circumference}
-            style={{ strokeDashoffset: offset, transition: 'stroke-dashoffset 2s cubic-bezier(0.4, 0, 0.2, 1)' }}
-            strokeLinecap="round"
-          />
-        </svg>
-        <div className="z-10 flex items-center justify-center">
-          <span className="text-4xl font-black text-slate-900 tracking-tighter italic tabular-nums">{value}</span>
-        </div>
-      </div>
-      <div className="h-10 flex items-start justify-center">
-        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic leading-tight text-center">
-          {sublabel}
-        </span>
-      </div>
-    </div>
-  );
-};
-
 export default function DashboardPage() {
   const { user, profile, isUserLoading } = useUser();
   const db = useFirestore();
   const isDemo = user?.isAnonymous;
 
-  // 1. Requête Exam Results (Subcollection utilisateur)
-  const resultsQuery = useMemoFirebase(() => {
-    if (isUserLoading || !user?.uid || isDemo) return null;
-    return query(
-      collection(db, 'users', user.uid, 'exam_results'), 
-      orderBy('completedAt', 'asc'), 
-      limit(50)
-    );
-  }, [db, user?.uid, isDemo, isUserLoading]);
-
-  // 2. Requête Coaching Attempts (Collection racine avec filtre userId pour satisfaire les règles)
+  // Récupération des tentatives (Examens et Coaching)
   const attemptsQuery = useMemoFirebase(() => {
     if (isUserLoading || !user?.uid || isDemo) return null;
-    
-    // On force TOUJOURS le filtre par userId pour que Firestore valide la permission.
-    // Même un admin, sur son cockpit personnel, ne doit voir que ses données.
     return query(
       collection(db, 'coachingAttempts'), 
-      where('userId', '==', user.uid),
-      limit(500)
+      where('userId', '==', user.uid)
     );
   }, [db, user?.uid, isDemo, isUserLoading]);
 
-  const { data: results, isLoading: isResultsLoading } = useCollection(resultsQuery);
   const { data: attempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
 
   const stats = useMemo(() => {
     if (isDemo) {
       return {
-        avgExamScore: 72,
-        avgPracticeScore: 68,
+        latestScore: 80,
+        totalExams: 2,
+        avgScore: 73,
         totalQuestions: 450,
-        domainData: [
-          { name: 'People', score: 75 },
-          { name: 'Process', score: 62 },
-          { name: 'Business', score: 80 }
-        ],
-        approachData: [
-          { name: 'Predictive', score: 65 },
-          { name: 'Agile', score: 78 },
-          { name: 'Hybrid', score: 70 }
-        ],
-        avgTimePerQuestion: 72,
-        recurrenceRate: 12,
-        probability: 78,
+        studyTime: 12600, // 3h 30m
         progressionData: [
-          { name: 'Sim 1', score: 60 },
-          { name: 'Sim 2', score: 65 },
-          { name: 'Sim 3', score: 72 },
-          { name: 'Sim 4', score: 70 },
-          { name: 'Sim 5', score: 75 }
+          { date: '2024-05-15', score: 65 },
+          { date: '2024-05-16', score: 70 },
+          { date: '2024-05-18', score: 80 }
         ],
-        demoTimeSpent: 45000 
+        strengthData: [
+          { name: 'People', value: 85, color: '#004d73' },
+          { name: 'Process', value: 65, color: '#4fc3f7' },
+          { name: 'Business Environment', value: 45, color: '#4fc3f7' }
+        ]
       };
     }
 
-    if (!results || !attempts) return null;
+    if (!attempts || attempts.length === 0) return null;
 
-    const totalQuestions = attempts.length;
-    const examResults = results || [];
+    // Tri par date décroissante pour le dernier score
+    const sorted = [...attempts].sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
+    const latest = sorted[0];
     
-    const avgExamScore = examResults.length > 0 
-      ? Math.round(examResults.reduce((acc, r) => acc + (r.percentage || 0), 0) / examResults.length) 
-      : 0;
+    const avgScore = Math.round(attempts.reduce((acc, a) => acc + (a.scorePercent || 0), 0) / attempts.length);
+    const totalQuestions = attempts.reduce((acc, a) => acc + (a.totalQuestions || 0), 0);
     
-    // Pour simplifier, le score pratique est calculé sur l'ensemble des tentatives de coaching
-    const avgPracticeScore = attempts.length > 0
-      ? Math.round(attempts.reduce((acc, a) => acc + (a.scorePercent || 0), 0) / attempts.length)
-      : 0;
+    // Données de progression (chronologique)
+    const progressionData = [...attempts]
+      .sort((a, b) => (a.submittedAt?.seconds || 0) - (b.submittedAt?.seconds || 0))
+      .map(a => ({
+        date: a.submittedAt?.toDate ? a.submittedAt.toDate().toLocaleDateString() : 'N/A',
+        score: a.scorePercent
+      }));
 
-    const domainStats: Record<string, { correct: number, total: number }> = {
-      'People': { correct: 0, total: 0 },
-      'Process': { correct: 0, total: 0 },
-      'Business': { correct: 0, total: 0 }
+    // Analyse des forces par domaine
+    const domains: Record<string, { strong: number, total: number }> = {
+      'People': { strong: 0, total: 0 },
+      'Process': { strong: 0, total: 0 },
+      'Business Environment': { strong: 0, total: 0 }
     };
 
     attempts.forEach(a => {
-      // Si la tentative contient déjà un breakdown par domaine
-      if (a.domainBreakdown) {
-        Object.keys(a.domainBreakdown).forEach(d => {
-          if (domainStats[d]) {
-            domainStats[d].total++;
-            if (a.domainBreakdown[d] >= 75) domainStats[d].correct++;
-          }
-        });
+      // On regarde si l'essai lui-même est taggué ou si on analyse les réponses
+      const domain = a.tags?.domain || 'Process';
+      const dKey = domain === 'Business' ? 'Business Environment' : domain;
+      
+      if (domains[dKey]) {
+        domains[dKey].total++;
+        if (a.scorePercent >= 75) domains[dKey].strong++;
       }
     });
 
-    const domainData = Object.keys(domainStats).map(name => ({
+    const strengthData = Object.keys(domains).map(name => ({
       name,
-      score: domainStats[name].total > 0 ? Math.round((domainStats[name].correct / domainStats[name].total) * 100) : 0
-    }));
-
-    const totalTime = attempts.reduce((acc, a) => acc + (a.durationSec || 0), 0);
-    const avgTimePerQuestion = attempts.length > 0 ? Math.round(totalTime / (attempts.length * 35)) : 0;
+      value: domains[name].total > 0 ? Math.round((domains[name].strong / attempts.length) * 100) : 0,
+      color: name === 'People' ? '#004d73' : '#4fc3f7'
+    })).sort((a, b) => b.value - a.value);
 
     return {
-      avgExamScore,
-      avgPracticeScore,
-      totalQuestions: attempts.length * 35, // Estimation basée sur le format 35Q par session
-      domainData,
-      avgTimePerQuestion,
-      recurrenceRate: 0,
-      probability: Math.round(avgExamScore > 0 ? avgExamScore : avgPracticeScore),
-      progressionData: examResults.map((r, i) => ({ name: `Sim ${i+1}`, score: r.percentage }))
+      latestScore: latest.scorePercent,
+      totalExams: attempts.length,
+      avgScore,
+      totalQuestions,
+      studyTime: profile?.totalTimeSpent || 0,
+      progressionData,
+      strengthData
     };
-  }, [results, attempts, isDemo]);
+  }, [attempts, profile, isDemo]);
 
-  if (isUserLoading || (!isDemo && (isResultsLoading || isAttemptsLoading))) {
+  if (isUserLoading || (!isDemo && isAttemptsLoading)) {
     return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
-  const formatTotalTime = (seconds: number) => {
-    const s = seconds || 0;
-    const h = Math.floor(s / 3600);
-    const m = Math.floor((s % 3600) / 60);
+  const formatTime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
     return `${h}h ${m}m`;
   };
 
-  const displayTime = isDemo ? (stats?.demoTimeSpent || 0) : (profile?.totalTimeSpent || 0);
-
   return (
-    <div className="space-y-10 animate-fade-in max-w-7xl mx-auto pb-24 pt-4">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 bg-white p-10 rounded-[40px] shadow-xl border-2">
-        <div className="space-y-2">
-          <h1 className="text-4xl font-black italic uppercase tracking-tighter text-primary">Cockpit de Performance</h1>
-          <p className="text-base text-slate-500 font-bold uppercase tracking-widest italic">
-            {isDemo ? "Mode DÉMO (Visualisation des KPIs)" : `Participant : ${profile?.firstName} ${profile?.lastName}`}
-          </p>
-        </div>
-        <div className="flex gap-4">
-          <Button variant="outline" className="rounded-2xl h-14 px-8 font-black uppercase tracking-widest border-4" asChild disabled={isDemo}>
-            <Link href="/dashboard/history"><History className="mr-2 h-5 w-5" /> Historique</Link>
-          </Button>
-          <Button className="rounded-2xl h-14 px-10 shadow-xl uppercase font-black tracking-widest bg-primary italic hover:scale-105 transition-all" asChild>
-            <Link href="/dashboard/exam"><PlayCircle className="mr-2 h-6 w-6" /> Lancer Simulation</Link>
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="rounded-[32px] border-none shadow-lg bg-white overflow-hidden group">
-          <CardContent className="p-8 flex flex-col items-center justify-center">
-            <CircularStat value={`${stats?.avgExamScore || 0}%`} sublabel="SCORE SIMULATION" percent={stats?.avgExamScore || 0} color="#3F51B5" />
-          </CardContent>
-        </Card>
-        <Card className="rounded-[32px] border-none shadow-lg bg-white overflow-hidden group">
-          <CardContent className="p-8 flex flex-col items-center justify-center">
-            <CircularStat value={`${stats?.avgPracticeScore || 0}%`} sublabel="SCORE COACHING" percent={stats?.avgPracticeScore || 0} color="#7E57C2" />
-          </CardContent>
-        </Card>
-        <Card className="rounded-[32px] border-none shadow-lg bg-white overflow-hidden group">
-          <CardContent className="p-8 flex flex-col items-center justify-center">
-            <CircularStat value={stats?.totalQuestions || 0} sublabel="QUESTIONS TRAITÉES" percent={Math.min(100, (stats?.totalQuestions || 0) / 10)} color="#10b981" />
-          </CardContent>
-        </Card>
-        <Card className="rounded-[32px] border-none shadow-lg bg-white overflow-hidden group">
-          <CardContent className="p-8 flex flex-col items-center justify-center">
-            <CircularStat value={formatTotalTime(displayTime)} sublabel="TEMPS ÉTUDE CUMULÉ" percent={Math.min(100, (displayTime) / 180000)} color="#f59e0b" />
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Card className="lg:col-span-2 rounded-[40px] shadow-xl border-none bg-white overflow-hidden">
-          <CardHeader className="border-b p-8 bg-slate-50/50">
-            <CardTitle className="text-xs font-black uppercase tracking-[0.3em] text-primary flex items-center gap-3 italic">
-              <TrendingUp className="h-5 w-5" /> Courbe de progression individuelle
-            </CardTitle>
-            <CardDescription className="uppercase text-[10px] font-bold italic">Evolution des scores sur les dernières simulations</CardDescription>
+    <div className="space-y-8 animate-fade-in pb-20">
+      {/* Header Statistique */}
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {/* Dernier Score */}
+        <Card className="border-t-4 border-t-[#004d73] shadow-sm">
+          <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2 space-y-0">
+            <Award className="h-4 w-4 text-[#004d73]" />
+            <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Latest Score</CardTitle>
           </CardHeader>
-          <CardContent className="p-8 h-[350px]">
+          <CardContent className="p-4 pt-2">
+            <div className="text-3xl font-black text-slate-900">{stats?.latestScore || 0}%</div>
+            <p className="text-[10px] text-slate-400 font-medium">From last session</p>
+          </CardContent>
+        </Card>
+
+        {/* Examens réalisés */}
+        <Card className="border-t-4 border-t-[#4fc3f7] shadow-sm">
+          <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2 space-y-0">
+            <Target className="h-4 w-4 text-[#4fc3f7]" />
+            <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Exams Taken</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-2">
+            <div className="text-3xl font-black text-slate-900">{stats?.totalExams || 0}</div>
+            <p className="text-[10px] text-slate-400 font-medium">Full & Mini simulations</p>
+          </CardContent>
+        </Card>
+
+        {/* Score Moyen */}
+        <Card className="border-t-4 border-t-[#004d73] shadow-sm">
+          <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2 space-y-0">
+            <TrendingUp className="h-4 w-4 text-[#004d73]" />
+            <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Average Score</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-2">
+            <div className="text-3xl font-black text-slate-900">{stats?.avgScore || 0}%</div>
+            <p className="text-[10px] text-slate-400 font-medium">Overall progress</p>
+          </CardContent>
+        </Card>
+
+        {/* Temps d'étude cumulé */}
+        <Card className="border-t-4 border-t-[#4fc3f7] shadow-sm">
+          <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2 space-y-0">
+            <Clock className="h-4 w-4 text-[#4fc3f7]" />
+            <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Study Time</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-2">
+            <div className="text-3xl font-black text-slate-900">{formatTime(stats?.studyTime || 0)}</div>
+            <p className="text-[10px] text-slate-400 font-medium">Total learning duration</p>
+          </CardContent>
+        </Card>
+
+        {/* Questions traitées */}
+        <Card className="border-t-4 border-t-[#004d73] shadow-sm">
+          <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2 space-y-0">
+            <BookOpen className="h-4 w-4 text-[#004d73]" />
+            <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Questions</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-2">
+            <div className="text-3xl font-black text-slate-900">{stats?.totalQuestions || 0}</div>
+            <p className="text-[10px] text-slate-400 font-medium">Items processed</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Courbe de progression */}
+        <Card className="rounded-xl shadow-sm border-none bg-white p-6">
+          <CardHeader className="px-0 pt-0">
+            <CardTitle className="text-xl font-bold text-slate-800">Score Progression</CardTitle>
+            <CardDescription className="text-xs text-slate-400">Visualizing your improvement over time</CardDescription>
+          </CardHeader>
+          <CardContent className="px-0 pb-0 h-[300px] mt-4">
             {stats?.progressionData && stats.progressionData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={stats.progressionData}>
+                <LineChart data={stats.progressionData} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} />
+                  <XAxis dataKey="date" stroke="#94a3b8" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} />
                   <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} />
                   <Tooltip 
-                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontWeight: 'bold' }} 
-                    itemStyle={{ color: '#3F51B5' }}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontWeight: 'bold' }} 
                   />
-                  <Line type="monotone" dataKey="score" stroke="#3F51B5" strokeWidth={4} dot={{ r: 6, fill: '#3F51B5', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8 }} />
+                  <Line 
+                    type="monotone" 
+                    dataKey="score" 
+                    stroke="#004d73" 
+                    strokeWidth={3} 
+                    dot={{ r: 4, fill: '#004d73', strokeWidth: 2, stroke: '#fff' }} 
+                    activeDot={{ r: 6 }} 
+                  />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4">
-                <BarChart3 className="h-12 w-12 opacity-20" />
-                <p className="text-xs font-black uppercase italic tracking-widest">Données de progression insuffisantes</p>
-              </div>
+              <EmptyState message="No data to show progression" />
             )}
           </CardContent>
         </Card>
 
-        <div className="space-y-6">
-          <Card className="rounded-[32px] border-none shadow-lg bg-primary text-white p-8">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="bg-white/20 p-3 rounded-2xl group-hover:scale-110 transition-transform"><Zap className="h-6 w-6 text-white" /></div>
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest opacity-70 italic text-white">Rythme moyen</p>
-                <h3 className="text-3xl font-black italic tracking-tighter text-white">{stats?.avgTimePerQuestion || 0}s / Q</h3>
-              </div>
-            </div>
-            <p className="text-[10px] font-bold leading-relaxed opacity-80 uppercase italic text-white">
-              Cible PMP : 75s par question. {stats?.avgTimePerQuestion && stats.avgTimePerQuestion <= 75 ? "Excellent rythme !" : "Attention à la gestion du temps."}
-            </p>
-          </Card>
-
-          <Card className="rounded-[32px] border-none shadow-lg bg-amber-500 text-white p-8">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="bg-white/20 p-3 rounded-2xl group-hover:scale-110 transition-transform"><Brain className="h-6 w-6 text-white" /></div>
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest opacity-70 italic text-white">Focus Mindset</p>
-                <h3 className="text-3xl font-black italic tracking-tighter text-white">ANALYSE</h3>
-              </div>
-            </div>
-            <p className="text-[10px] font-bold leading-relaxed opacity-80 uppercase italic text-white">
-              Identifiez vos lacunes structurelles en consultant les justifications détaillées dans votre historique.
-            </p>
-          </Card>
-        </div>
+        {/* Analyse des forces */}
+        <Card className="rounded-xl shadow-sm border-none bg-white p-6">
+          <CardHeader className="px-0 pt-0">
+            <CardTitle className="text-xl font-bold text-slate-800">Strength Areas</CardTitle>
+            <CardDescription className="text-xs text-slate-400">Frequency of "Strong" performance by Domain</CardDescription>
+          </CardHeader>
+          <CardContent className="px-0 pb-0 h-[300px] mt-4">
+            {stats?.strengthData && stats.strengthData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart 
+                  layout="vertical" 
+                  data={stats.strengthData} 
+                  margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                  <XAxis type="number" domain={[0, 100]} hide />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    stroke="#64748b" 
+                    fontSize={10} 
+                    fontWeight="bold" 
+                    tickLine={false} 
+                    axisLine={false}
+                    width={100}
+                  />
+                  <Tooltip 
+                    cursor={{ fill: 'transparent' }}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontWeight: 'bold' }}
+                  />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={40}>
+                    {stats.strengthData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState message="No data to show strengths" />
+            )}
+          </CardContent>
+        </Card>
       </div>
+    </div>
+  );
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-2 border-2 border-dashed rounded-xl">
+      <TrendingUp className="h-8 w-8 opacity-20" />
+      <p className="text-[10px] font-bold uppercase tracking-widest">{message}</p>
     </div>
   );
 }
