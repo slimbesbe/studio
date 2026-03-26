@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, setDoc, query, orderBy, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -71,25 +71,12 @@ export default function AdminCoachingSessions() {
         batch.set(doc(db, 'coachingSessions', s.id), { ...s, updatedAt: serverTimestamp() });
       });
       await batch.commit();
-      toast({ title: "Programme initialisé", description: "Les 6 séances ont été créées avec leurs plages de 35 questions." });
+      toast({ title: "Programme initialisé" });
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur d'initialisation" });
     } finally {
       setIsInitializing(false);
     }
-  };
-
-  const handleResetRanges = () => {
-    if (!confirm("Voulez-vous réinitialiser toutes les plages de questions aux valeurs standards (35 Q par séance) ?")) return;
-    const defaults = getDefaultSessions();
-    setEditSessions(prev => prev.map(s => {
-      const d = defaults.find(x => x.id === s.id);
-      if (d && d.type === 'QUIZ') {
-        return { ...s, questionStart: d.questionStart, questionEnd: d.questionEnd };
-      }
-      return s;
-    }));
-    toast({ title: "Plages réinitialisées localement", description: "Cliquez sur Sauver pour appliquer." });
   };
 
   const handleSave = async (id: string) => {
@@ -100,8 +87,8 @@ export default function AdminCoachingSessions() {
     try {
       await setDoc(doc(db, 'coachingSessions', id), {
         ...s,
-        questionStart: s.questionStart ? parseInt(String(s.questionStart)) : null,
-        questionEnd: s.questionEnd ? parseInt(String(s.questionEnd)) : null,
+        questionStart: Number(s.questionStart) || 0,
+        questionEnd: Number(s.questionEnd) || 0,
         updatedAt: serverTimestamp()
       }, { merge: true });
       toast({ title: "Session enregistrée" });
@@ -134,16 +121,11 @@ export default function AdminCoachingSessions() {
             <p className="text-muted-foreground mt-1 uppercase tracking-widest text-[10px] font-bold italic">Pilotez vos 5 micro-simulations de 35 questions (S2-S6).</p>
           </div>
         </div>
-        <div className="flex gap-4">
-          <Button variant="outline" onClick={handleResetRanges} className="h-14 px-6 rounded-2xl font-black uppercase tracking-widest text-xs italic border-2 hover:bg-amber-50">
-            <RefreshCw className="mr-2 h-4 w-4" /> Reset Plages
+        {(!sessions || sessions.length === 0) && (
+          <Button onClick={handleInitializeAll} disabled={isInitializing} className="bg-emerald-600 h-14 px-8 rounded-2xl font-black uppercase tracking-widest shadow-xl scale-105 transition-transform hover:bg-emerald-700">
+            {isInitializing ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : <PlusCircle className="mr-2 h-5 w-5" />} Initialiser S1-S6
           </Button>
-          {(!sessions || sessions.length === 0) && (
-            <Button onClick={handleInitializeAll} disabled={isInitializing} className="bg-emerald-600 h-14 px-8 rounded-2xl font-black uppercase tracking-widest shadow-xl scale-105 transition-transform hover:bg-emerald-700">
-              {isInitializing ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : <PlusCircle className="mr-2 h-5 w-5" />} Initialiser S1-S6
-            </Button>
-          )}
-        </div>
+        )}
       </div>
 
       <div className="grid gap-8">
@@ -207,7 +189,7 @@ export default function AdminCoachingSessions() {
                           type="number"
                           value={s.questionStart ?? ''} 
                           onChange={(e) => {
-                            const val = e.target.value === '' ? 0 : parseInt(e.target.value);
+                            const val = e.target.value === '' ? 0 : Number(e.target.value);
                             setEditSessions(prev => prev.map(x => x.id === s.id ? {...x, questionStart: val} : x));
                           }}
                           className="font-black italic h-16 border-2 rounded-2xl text-2xl bg-white text-center"
@@ -219,7 +201,7 @@ export default function AdminCoachingSessions() {
                           type="number"
                           value={s.questionEnd ?? ''} 
                           onChange={(e) => {
-                            const val = e.target.value === '' ? 0 : parseInt(e.target.value);
+                            const val = e.target.value === '' ? 0 : Number(e.target.value);
                             setEditSessions(prev => prev.map(x => x.id === s.id ? {...x, questionEnd: val} : x));
                           }}
                           className="font-black italic h-16 border-2 rounded-2xl text-2xl bg-white text-center"

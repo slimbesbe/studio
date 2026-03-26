@@ -53,10 +53,10 @@ export default function Home() {
             userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
             toast({ title: "Bienvenue", description: "Initialisation de votre accès Super Admin." });
           } catch (createError: any) {
+            // Si le compte existe déjà mais que 147813 échoue, c'est que le MDP a été changé
             if (createError.code === 'auth/email-already-in-use') {
-              // Le compte existe mais le MDP maître échoue (il a été changé)
               setShowAdminReset(true);
-              throw new Error("Accès Admin : Le mot de passe par défaut a été modifié. Utilisez votre mot de passe actuel ou réinitialisez-le via le bouton ci-dessous.");
+              throw new Error("Mot de passe incorrect. Utilisez le bouton de réinitialisation ci-dessous pour débloquer votre accès admin.");
             }
             throw createError;
           }
@@ -67,37 +67,41 @@ export default function Home() {
 
       const user = userCredential.user;
 
-      // Synchronisation systématique pour l'admin
+      // Synchronisation SYSTEMATIQUE pour l'admin
       if (trimmedEmail === ADMIN_EMAIL) {
         const now = serverTimestamp();
-        // On force les rôles dans Firestore sans attendre (non-blocking)
+        
+        // Force les rôles admin dans Firestore (Non-blocking)
         setDoc(doc(db, 'roles_admin', user.uid), { 
           createdAt: now,
           email: ADMIN_EMAIL,
           isSuperAdmin: true
-        }, { merge: true }).catch(() => {});
+        }, { merge: true }).catch(e => console.error("Sync roles error", e));
 
         setDoc(doc(db, 'users', user.uid), {
           id: user.uid,
-          email: trimmedEmail,
+          email: ADMIN_EMAIL,
           firstName: 'Slim',
           lastName: 'Besbes',
           role: 'super_admin',
           status: 'active',
           updatedAt: now
-        }, { merge: true }).catch(() => {});
+        }, { merge: true }).catch(e => console.error("Sync profile error", e));
 
+        toast({ title: "Accès Admin Déverrouillé" });
         router.push('/admin/dashboard');
       } else {
+        // Vérifier si c'est un admin (non-super)
         const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
         if (adminDoc.exists()) router.push('/admin/dashboard');
         else router.push('/dashboard');
       }
     } catch (error: any) {
+      console.error("Login error", error);
       toast({
         variant: "destructive",
-        title: "Erreur",
-        description: error.message || "Identifiants incorrects."
+        title: "Identification échouée",
+        description: error.message || "Email ou mot de passe incorrect."
       });
     } finally {
       setIsLoading(false);

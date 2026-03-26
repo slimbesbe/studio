@@ -45,7 +45,6 @@ export interface FirebaseServicesAndUser {
 
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
-const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1'];
 const ADMIN_EMAIL = 'slim.besbes@yahoo.fr'.toLowerCase();
 
 export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
@@ -68,17 +67,9 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const isSA = ADMIN_UIDS.includes(firebaseUser.uid) || (firebaseUser.email?.toLowerCase() === ADMIN_EMAIL);
+        const isSA = firebaseUser.email?.toLowerCase() === ADMIN_EMAIL;
         
-        // Initialisation silencieuse des rôles admin pour garantir l'accès
-        if (isSA) {
-          setDoc(doc(firestore, 'roles_admin', firebaseUser.uid), { 
-            createdAt: serverTimestamp(),
-            email: firebaseUser.email || ADMIN_EMAIL,
-            isSuperAdmin: true
-          }, { merge: true }).catch(() => {});
-        }
-
+        // Souscription au profil Firestore
         const userDocRef = doc(firestore, 'users', firebaseUser.uid);
         const unsubscribeProfile = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
@@ -93,7 +84,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
             }
 
             const currentStatus = isExpired ? 'expired' : (profileData.status || 'active');
-            // Priorité au rôle Super Admin pour l'email de référence
+            // Priorité absolue au rôle Super Admin si l'email correspond
             const role = isSA ? 'super_admin' : (profileData.role || 'user');
 
             setUserAuthState({ 
@@ -102,43 +93,40 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               isUserLoading: false,
               userError: null
             });
-          } else if (isSA) {
-            // Création automatique du profil Firestore si c'est l'admin et que le doc n'existe pas
-            const now = serverTimestamp();
-            const initialData = {
-              id: firebaseUser.uid,
-              email: firebaseUser.email || ADMIN_EMAIL,
-              firstName: 'Slim',
-              lastName: 'Besbes',
-              role: 'super_admin',
-              status: 'active',
-              createdAt: now,
-              updatedAt: now,
-              lastLoginAt: now
-            };
-            setDoc(userDocRef, initialData, { merge: true }).catch(() => {});
-            setUserAuthState({ user: firebaseUser, profile: initialData, isUserLoading: false, userError: null });
           } else {
-            setUserAuthState({ user: firebaseUser, profile: null, isUserLoading: false, userError: null });
+            // Création automatique du profil si Admin
+            if (isSA) {
+              const initialAdmin = {
+                id: firebaseUser.uid,
+                email: ADMIN_EMAIL,
+                firstName: 'Slim',
+                lastName: 'Besbes',
+                role: 'super_admin',
+                status: 'active',
+                createdAt: serverTimestamp()
+              };
+              setDoc(userDocRef, initialAdmin, { merge: true }).catch(() => {});
+              setUserAuthState({ user: firebaseUser, profile: initialAdmin, isUserLoading: false, userError: null });
+            } else {
+              setUserAuthState({ user: firebaseUser, profile: null, isUserLoading: false, userError: null });
+            }
           }
         }, (error) => {
-          // En cas d'erreur de permission pour l'admin, on lui donne quand même son rôle client-side
+          console.error("Profile sync error:", error);
+          // Fallback pour l'admin en cas d'erreur Firestore
           if (isSA) {
             setUserAuthState({ 
               user: firebaseUser, 
-              profile: { id: firebaseUser.uid, email: firebaseUser.email, role: 'super_admin', status: 'active' }, 
+              profile: { id: firebaseUser.uid, email: ADMIN_EMAIL, role: 'super_admin', status: 'active' }, 
               isUserLoading: false, 
               userError: null 
             });
-          } else {
-            console.error("Profile subscription error:", error);
           }
         });
 
         return () => unsubscribeProfile();
       } else {
         setUserAuthState({ user: null, profile: null, isUserLoading: false, userError: null });
-        // Redirection uniquement si on essaie d'accéder à une page protégée sans être loggué
         if (pathname.startsWith('/dashboard') || pathname.startsWith('/admin')) {
           router.push('/');
         }
