@@ -27,16 +27,27 @@ import { cn } from '@/lib/utils';
 import { startOfDay, endOfDay, isWithinInterval, subDays, format, startOfMonth, endOfMonth } from 'date-fns';
 import Link from 'next/link';
 
+// LISTE BLANCHE MATÉRIELLE DE SÉCURITÉ
+const ADMIN_EMAILS = ['slim.besbes@yahoo.fr'];
+const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1'];
+
 export default function SuperAdminDashboard() {
-  const { profile, isUserLoading } = useUser();
+  const { user, profile, isUserLoading } = useUser();
   const router = useRouter();
   const db = useFirestore();
   const [mounted, setMounted] = useState(false);
   const [chartKey, setChartKey] = useState(0);
 
-  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
+  // VÉRIFICATION DE SÉCURITÉ MATÉRIELLE (Strictement Slim Besbes)
+  const isHardcodedAdmin = user && (
+    (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) || 
+    ADMIN_UIDS.includes(user.uid)
+  );
 
-  // 1. FETCH DATA - Protected by isAdmin check
+  const isAdmin = isHardcodedAdmin && (profile?.role === 'admin' || profile?.role === 'super_admin');
+
+  // 1. FETCH DATA - Protected by strict isAdmin check
+  // Si l'utilisateur n'est pas dans la liste blanche, les requêtes sont NULL et ne s'exécutent pas.
   const usersQuery = useMemoFirebase(() => {
     if (!isAdmin) return null;
     return query(collection(db, 'users'), limit(1000));
@@ -59,11 +70,11 @@ export default function SuperAdminDashboard() {
     setMounted(true);
     const timer = setTimeout(() => setChartKey(prev => prev + 1), 500);
     
-    if (!isUserLoading && profile && profile.role !== 'admin' && profile.role !== 'super_admin') {
+    if (!isUserLoading && profile && !isAdmin) {
       router.push('/dashboard');
     }
     return () => clearTimeout(timer);
-  }, [profile, isUserLoading, router]);
+  }, [profile, isUserLoading, router, isAdmin]);
 
   const safeParseDate = (ts: any) => {
     if (!ts) return new Date();

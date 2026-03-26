@@ -36,7 +36,7 @@ export interface FirebaseServicesAndUser {
 
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
-// LISTE BLANCHE MATÉRIELLE - SEULE SOURCE DE VÉRITÉ POUR LE SUPER ADMIN
+// LISTE BLANCHE MATÉRIELLE - SEULE SOURCE DE VÉRITÉ POUR LES ACCÈS ADMIN
 const ADMIN_EMAILS = ['slim.besbes@yahoo.fr'];
 const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1'];
 
@@ -51,7 +51,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   const [isUserLoading, setIsUserLoading] = useState(true);
   const [userError, setUserError] = useState<Error | null>(null);
 
-  // 1. Gérer l'état d'authentification
   useEffect(() => {
     if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -68,7 +67,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     return () => unsubscribe();
   }, [auth]);
 
-  // 2. Gérer le profil Firestore
   useEffect(() => {
     if (!firestore || !user) {
       if (!user) setIsUserLoading(false);
@@ -78,7 +76,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     setIsUserLoading(true);
     const userDocRef = doc(firestore, 'users', user.uid);
     
-    // Détection Admin MATÉRIELLE (Email ou UID)
     const isHardcodedAdmin = (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) || 
                              ADMIN_UIDS.includes(user.uid);
 
@@ -96,13 +93,12 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
         const currentStatus = isExpired ? 'expired' : (profileData.status || 'active');
         
-        // SECURITÉ CRITIQUE : Si pas dans la liste blanche, le rôle est forcé à 'user' 
-        // pour éviter que Jed ne voie le dashboard admin s'il a été promu par erreur
-        const role = isHardcodedAdmin ? 'super_admin' : (profileData.role === 'admin' ? 'admin' : 'user');
+        // SECURITÉ STRICTE : Seuls les membres de la liste blanche peuvent être admin.
+        // Jed (ou tout autre utilisateur non listé) est systématiquement forcé en 'user'.
+        const role = isHardcodedAdmin ? 'super_admin' : 'user';
 
         setProfile({ ...profileData, id: user.uid, status: currentStatus, role });
       } else if (isHardcodedAdmin) {
-        // Auto-création du profil admin s'il manque
         const initialAdmin = {
           id: user.uid,
           email: user.email,
@@ -115,7 +111,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         setDoc(userDocRef, initialAdmin, { merge: true }).catch(console.error);
         setProfile(initialAdmin);
       } else {
-        // Cas utilisateur standard sans profil (ne devrait pas arriver avec l'inscription admin)
         setProfile({ id: user.uid, email: user.email, role: 'user', status: 'active' });
       }
       setIsUserLoading(false);
@@ -127,7 +122,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     return () => unsubscribe();
   }, [firestore, user]);
 
-  // 3. Suivi du temps d'étude
   useEffect(() => {
     if (!firestore || !user || user.isAnonymous || !profile) return;
     const interval = setInterval(() => {

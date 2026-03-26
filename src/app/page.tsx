@@ -42,13 +42,9 @@ export default function Home() {
         const userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, password);
         const uid = userCredential.user.uid;
         
-        // Vérification du profil pour redirection
-        const userRef = doc(db, 'users', uid);
-        const userSnap = await getDoc(userRef);
-        const userData = userSnap.data();
-        
-        // SECURITÉ : On vérifie si l'utilisateur est admin MATÉRIEL (Slim) ou admin Firestore
-        const isSA = ADMIN_EMAILS.includes(trimmedEmail) || userData?.role === 'super_admin' || userData?.role === 'admin';
+        // SECURITÉ : Seul l'email de Slim Besbes redirige vers l'admin.
+        // Jed et les autres sont envoyés vers le dashboard élève.
+        const isSA = ADMIN_EMAILS.includes(trimmedEmail);
         
         if (isSA) {
           router.push('/admin/dashboard');
@@ -58,7 +54,7 @@ export default function Home() {
         
         toast({ title: "Connexion réussie", description: "Bienvenue sur Simu-lux." });
       } catch (authError: any) {
-        // 2. Détection de désynchronisation (Si l'admin a changé le pass dans Firestore mais pas dans Auth)
+        // 2. Détection de désynchronisation
         const usersRef = collection(db, 'users');
         const q = query(usersRef, where('email', '==', trimmedEmail), limit(1));
         const querySnapshot = await getDocs(q);
