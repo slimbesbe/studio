@@ -165,15 +165,15 @@ export default function DashboardPage() {
       </div>
 
       {/* Middle: Main Progression Chart */}
-      <Card className="flex-1 rounded-[40px] shadow-2xl border-none bg-white p-10 flex flex-col min-h-[450px]">
+      <Card className="flex-1 rounded-[40px] shadow-2xl border-none bg-white p-10 flex flex-col min-h-[500px]">
         <CardHeader className="p-0 pb-10 shrink-0">
           <CardTitle className="text-3xl font-black text-slate-900 uppercase italic tracking-tighter">PROGRESSION DYNAMIQUE</CardTitle>
           <CardDescription className="text-[11px] font-bold text-slate-400 uppercase tracking-widest italic mt-1">Évolution de votre mindset PMP au fil des simulations</CardDescription>
         </CardHeader>
-        <CardContent className="flex-1 min-h-0 p-0">
+        <CardContent className="flex-1 min-h-[350px] p-0">
           {stats?.progressionData && stats.progressionData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={stats.progressionData} margin={{ top: 20, right: 30, left: -20, bottom: 0 }}>
+              <ComposedChart data={stats.progressionData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis 
                   dataKey="date" 
@@ -183,6 +183,7 @@ export default function DashboardPage() {
                   tickLine={false} 
                   axisLine={false}
                   dy={15}
+                  type="category"
                 />
                 <YAxis 
                   domain={[0, 100]} 
@@ -190,7 +191,8 @@ export default function DashboardPage() {
                   fontSize={12} 
                   fontWeight="800" 
                   tickLine={false} 
-                  axisLine={false} 
+                  axisLine={false}
+                  type="number"
                 />
                 <Tooltip 
                   cursor={{ fill: '#f8fafc' }}
@@ -199,7 +201,8 @@ export default function DashboardPage() {
                 <Bar 
                   dataKey="score" 
                   radius={[8, 8, 0, 0]}
-                  barSize={80}
+                  barSize={60}
+                  fill="#7dd3fc"
                 >
                   {stats.progressionData.map((entry, index) => (
                     <Cell 
@@ -220,7 +223,7 @@ export default function DashboardPage() {
               </ComposedChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 border-4 border-dashed border-slate-50 rounded-[32px]">
+            <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 border-4 border-dashed border-slate-50 rounded-[32px] py-20">
               <Target className="h-16 w-16 opacity-20" />
               <p className="font-black uppercase tracking-widest text-sm italic">Réalisez votre première simulation pour voir la progression</p>
             </div>
