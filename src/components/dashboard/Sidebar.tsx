@@ -73,7 +73,7 @@ export function Sidebar() {
       : user?.email?.[0].toUpperCase() || '?';
 
   return (
-    <div className="flex flex-col h-full bg-white text-slate-600 w-64 fixed left-0 top-0 z-40 shadow-sm border-r border-slate-100">
+    <div className="flex flex-col h-full bg-white text-slate-600 w-64 fixed left-0 top-0 z-40 shadow-sm border-r-2 border-slate-50">
       <div className="h-20 flex items-center px-6 border-b border-slate-50 bg-white">
         <Link className="flex items-center gap-3 group" href={isAdmin ? "/admin/dashboard" : "/dashboard"}>
           <div className="bg-primary/5 p-2 rounded-xl group-hover:scale-105 transition-transform">
@@ -185,7 +185,7 @@ function NavItem({ href, icon: Icon, label, active }: any) {
       className={cn(
         "flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all group",
         active 
-          ? "bg-primary/10 text-primary" 
+          ? "bg-primary/5 text-primary" 
           : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
       )}
     >

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
@@ -19,11 +18,7 @@ export default function SessionQuestionBreakdown() {
   const { profile, user, isUserLoading: isAuthLoading } = useUser();
   const db = useFirestore();
 
-  const ADMIN_UIDS = ['GPgreBe1JzZYbEHQGn3xIdcQGQs1', 'vwyrAnNtQkSojYSEEK2qkRB5feh2'];
-  const isAdmin = profile?.role === 'super_admin' || 
-                  profile?.role === 'admin' || 
-                  user?.email === 'slim.besbes@yahoo.fr' ||
-                  (user?.uid && ADMIN_UIDS.includes(user.uid));
+  const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
 
   const groupRef = useMemoFirebase(() => doc(db, 'coachingGroups', groupId), [db, groupId]);
   const { data: group } = useDoc(groupRef);
@@ -65,18 +60,21 @@ export default function SessionQuestionBreakdown() {
 
   const COLORS = ['#10b981', '#ef4444', '#f59e0b', '#3F51B5'];
 
-  const getQuestionStats = (qId: string) => {
-    if (!attempts) return [];
-    
-    // Pour cet MVP, on simule une distribution réaliste basée sur le score total.
-    const dist = [
-      { name: 'Réponse A', value: Math.floor(Math.random() * 40) + 10 },
-      { name: 'Réponse B', value: Math.floor(Math.random() * 30) + 5 },
-      { name: 'Réponse C', value: Math.floor(Math.random() * 20) + 5 },
-      { name: 'Réponse D', value: Math.floor(Math.random() * 10) + 5 },
-    ];
-    return dist;
-  };
+  // Utilisation d'un useMemo pour stabiliser les données et éviter les erreurs d'hydratation (Math.random)
+  const questionStatsMap = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    questions.forEach(q => {
+      // Pour cet MVP, on simule une distribution basée sur l'ID de la question pour être déterministe au rendu
+      const seed = q.id.length;
+      map[q.id] = [
+        { name: 'Réponse A', value: 25 + (seed % 10) },
+        { name: 'Réponse B', value: 15 + (seed % 5) },
+        { name: 'Réponse C', value: 10 + (seed % 3) },
+        { name: 'Réponse D', value: 5 + (seed % 2) },
+      ];
+    });
+    return map;
+  }, [questions]);
 
   if (isAuthLoading || isSessionLoading || isAttemptsLoading || isQuestionsLoading) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
@@ -97,7 +95,7 @@ export default function SessionQuestionBreakdown() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {questions.map((q, idx) => (
+        {questions.map((q) => (
           <Card key={q.id} className="rounded-[40px] shadow-xl border-none bg-white overflow-hidden flex flex-col h-[500px]">
             <CardHeader className="bg-slate-50/50 border-b p-8 shrink-0">
               <div className="flex justify-between items-start gap-4">
@@ -110,7 +108,7 @@ export default function SessionQuestionBreakdown() {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={getQuestionStats(q.id)}
+                      data={questionStatsMap[q.id]}
                       cx="50%"
                       cy="50%"
                       innerRadius={60}
@@ -118,7 +116,7 @@ export default function SessionQuestionBreakdown() {
                       paddingAngle={5}
                       dataKey="value"
                     >
-                      {getQuestionStats(q.id).map((entry, index) => (
+                      {questionStatsMap[q.id].map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>

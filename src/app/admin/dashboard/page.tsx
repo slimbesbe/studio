@@ -38,15 +38,15 @@ export default function SuperAdminDashboard() {
   const [mounted, setMounted] = useState(false);
   const [chartKey, setChartKey] = useState(0);
 
-  // VÉRIFICATION DE SÉCURITÉ MATÉRIELLE
+  // VÉRIFICATION DE SÉCURITÉ MATÉRIELLE STRICTE
   const isHardcodedAdmin = user && (
     (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) || 
     ADMIN_UIDS.includes(user.uid)
   );
 
-  const isAdmin = isHardcodedAdmin && (profile?.role === 'super_admin');
+  const isAdmin = isHardcodedAdmin && (profile?.role === 'super_admin' || profile?.role === 'admin');
 
-  // 1. FETCH DATA - Protected by strict isAdmin check
+  // FETCH DATA - Protected by strict isAdmin check
   const usersQuery = useMemoFirebase(() => {
     if (!isAdmin) return null;
     return query(collection(db, 'users'), limit(1000));
@@ -82,7 +82,6 @@ export default function SuperAdminDashboard() {
     return isNaN(d.getTime()) ? new Date() : d;
   };
 
-  // 2. ANALYTICS LOGIC
   const stats = useMemo(() => {
     if (!allUsers || !allGroups || !allAttempts) return null;
 
@@ -166,29 +165,24 @@ export default function SuperAdminDashboard() {
   }, [allUsers, allGroups, allAttempts]);
 
   if (!mounted || isUserLoading) {
-    return <div className="h-screen flex items-center justify-center bg-[#f8fafc]"><Loader2 className="h-12 w-12 animate-spin text-blue-600" /></div>;
+    return <div className="h-screen flex items-center justify-center bg-white"><Loader2 className="h-12 w-12 animate-spin text-blue-600" /></div>;
   }
 
   if (!isAdmin) return null;
 
   if (!stats) {
-    return <div className="h-screen flex items-center justify-center bg-[#f8fafc]"><Loader2 className="h-12 w-12 animate-spin text-blue-600" /></div>;
+    return <div className="h-screen flex items-center justify-center bg-white"><Loader2 className="h-12 w-12 animate-spin text-blue-600" /></div>;
   }
 
-  const formatTime = (seconds: number) => {
-    const h = Math.floor(seconds / 3600);
-    return h.toLocaleString();
-  };
-
   return (
-    <div className="min-h-screen bg-[#f1f5f9] p-8 space-y-8 animate-fade-in pb-20">
+    <div className="min-h-screen bg-white p-8 space-y-8 animate-fade-in pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Cockpit Super Admin</h1>
           <p className="text-slate-500 font-medium text-sm mt-1 uppercase tracking-widest italic">Pilotage en temps réel • Simu-lux</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl shadow-sm border">
+          <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border">
             <Activity className="h-4 w-4 text-blue-600 ml-2" />
             <span className="text-[10px] font-black uppercase text-slate-400 italic mr-2">Système Actif</span>
           </div>
@@ -197,7 +191,7 @@ export default function SuperAdminDashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         <div className="md:col-span-4">
-          <Card className="rounded-[24px] border-none shadow-sm p-6 space-y-6 h-full bg-white">
+          <Card className="rounded-[24px] border-2 shadow-sm p-6 space-y-6 h-full bg-white">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-slate-800 text-sm uppercase tracking-widest flex items-center gap-2 italic">1. Vue d'ensemble</h3>
               <MoreHorizontal className="h-4 w-4 text-slate-400" />
@@ -209,7 +203,7 @@ export default function SuperAdminDashboard() {
               <OverviewCard icon={Briefcase} label="Partenaires" val={stats.partners} color="bg-amber-50 text-amber-600" />
             </div>
             
-            <div className="pt-6 border-t border-slate-50 space-y-4">
+            <div className="pt-6 border-t border-slate-100 space-y-4">
               <h3 className="font-bold text-slate-800 text-sm uppercase tracking-widest italic">4. Alertes Gestion</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
@@ -226,7 +220,7 @@ export default function SuperAdminDashboard() {
         </div>
 
         <div className="md:col-span-4">
-          <Card className="rounded-[24px] border-none shadow-sm p-6 h-full space-y-6 bg-white">
+          <Card className="rounded-[24px] border-2 shadow-sm p-6 h-full space-y-6 bg-white">
             <h3 className="font-bold text-slate-800 text-sm uppercase tracking-widest italic">2. Activité Simulations</h3>
             
             <div className="grid grid-cols-2 gap-6">
@@ -235,7 +229,7 @@ export default function SuperAdminDashboard() {
                 <p className="text-3xl font-black text-slate-900">{stats.todaySims}</p>
                 <div className="h-40 w-full">
                   <ResponsiveContainer width="100%" height="100%" key={`bar-today-${chartKey}`}>
-                    <BarChart data={stats.chartData} margin={{ left: -20 }}>
+                    <BarChart data={stats.chartData}>
                       <XAxis dataKey="name" hide />
                       <Bar dataKey="val" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={12} />
                     </BarChart>
@@ -247,7 +241,7 @@ export default function SuperAdminDashboard() {
                 <p className="text-3xl font-black text-slate-900">{stats.totalSimsMonth}</p>
                 <div className="h-40 w-full">
                   <ResponsiveContainer width="100%" height="100%" key={`bar-month-${chartKey}`}>
-                    <BarChart data={stats.chartData} margin={{ left: -20 }}>
+                    <BarChart data={stats.chartData}>
                       <XAxis dataKey="name" hide />
                       <Bar dataKey="val" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={12} />
                     </BarChart>
@@ -255,29 +249,11 @@ export default function SuperAdminDashboard() {
                 </div>
               </div>
             </div>
-
-            <div className="grid grid-cols-2 gap-6 pt-6 border-t border-slate-50">
-              <div className="flex flex-col items-center justify-center text-center">
-                <p className="text-[10px] font-black text-slate-400 uppercase italic">Temps d'étude</p>
-                <div className="relative h-20 w-20 flex items-center justify-center mt-2">
-                  <svg className="h-full w-full transform -rotate-90">
-                    <circle cx="40" cy="40" r="35" stroke="#f1f5f9" strokeWidth="6" fill="transparent" />
-                    <circle cx="40" cy="40" r="35" stroke="#10b981" strokeWidth="6" fill="transparent" strokeDasharray="220" strokeDashoffset="80" strokeLinecap="round" />
-                  </svg>
-                  <span className="absolute text-xs font-black text-slate-900">{formatTime(stats.totalStudyTime)}h</span>
-                </div>
-              </div>
-              <div className="flex flex-col justify-center">
-                <p className="text-[10px] font-black text-slate-400 uppercase italic">Questions</p>
-                <p className="text-3xl font-black text-slate-900 tracking-tighter">{stats.totalQuestions.toLocaleString()}</p>
-                <div className="flex items-center gap-1 text-emerald-500 font-bold text-[9px] italic"><TrendingUp className="h-3 w-3" /> Volume cumulé</div>
-              </div>
-            </div>
           </Card>
         </div>
 
         <div className="md:col-span-4">
-          <Card className="rounded-[24px] border-none shadow-sm p-6 h-full space-y-6 bg-white">
+          <Card className="rounded-[24px] border-2 shadow-sm p-6 h-full space-y-6 bg-white">
             <h3 className="font-bold text-slate-800 text-sm uppercase tracking-widest italic">3. Performance Globale</h3>
             
             <div className="grid grid-cols-2 gap-4">
@@ -285,90 +261,12 @@ export default function SuperAdminDashboard() {
               <GaugeCard label="Taux réussite" val={stats.successRate} color="#10b981" />
             </div>
 
-            <div className="space-y-3 pt-4 border-t border-slate-50">
+            <div className="space-y-3 pt-4 border-t border-slate-100">
               <div className="bg-indigo-50/50 p-4 rounded-2xl flex justify-between items-center border border-indigo-100">
                 <p className="text-[10px] font-black text-indigo-600 uppercase italic">Top Score Groupe</p>
                 <p className="text-xl font-black text-indigo-600">{stats.groupAnalysis[0]?.score || 0}%</p>
               </div>
-              <div className="bg-slate-50 p-4 rounded-2xl border space-y-2">
-                <div className="flex justify-between items-center">
-                  <p className="text-[10px] font-black text-slate-400 uppercase italic">Indice Confiance</p>
-                  <p className="text-sm font-black text-slate-900">Optimal</p>
-                </div>
-                <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-500 w-[85%]" />
-                </div>
-              </div>
             </div>
-          </Card>
-        </div>
-
-        <div className="md:col-span-5">
-          <Card className="rounded-[24px] border-none shadow-sm p-8 h-full space-y-8 bg-white">
-            <h3 className="font-bold text-slate-800 text-sm uppercase tracking-widest italic">5. Business & Licences B2B</h3>
-            
-            <div className="grid grid-cols-2 gap-10">
-              <div className="space-y-4">
-                <p className="text-[10px] font-black text-slate-400 uppercase italic">Capacité Licences</p>
-                <p className="text-5xl font-black text-slate-900 tracking-tighter">{stats.totalLicences}</p>
-                <div className="h-24 w-full mt-4">
-                  <ResponsiveContainer width="100%" height="100%" key={`lic-${chartKey}`}>
-                    <BarChart data={stats.chartData}>
-                      <XAxis dataKey="name" hide />
-                      <Bar dataKey="val" fill="#6366f1" radius={[2, 2, 0, 0]} barSize={10} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-              <div className="flex flex-col items-center justify-center space-y-4">
-                <p className="text-[10px] font-black text-slate-400 uppercase italic">Taux d'occupation</p>
-                <div className="relative h-32 w-32 flex items-center justify-center">
-                  <svg className="h-full w-full transform -rotate-90">
-                    <circle cx="64" cy="64" r="50" stroke="#f1f5f9" strokeWidth="12" fill="transparent" />
-                    <circle cx="64" cy="64" r="50" stroke="#6366f1" strokeWidth="12" fill="transparent" strokeDasharray="314" strokeDashoffset={314 - (314 * (stats.usedLicences / (stats.totalLicences || 1)))} strokeLinecap="round" />
-                  </svg>
-                  <div className="absolute flex flex-col items-center">
-                    <span className="text-xl font-black text-slate-900">{stats.usedLicences}</span>
-                    <span className="text-[8px] font-bold text-slate-400 uppercase italic">Occupées</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        <div className="md:col-span-7">
-          <Card className="rounded-[24px] border-none shadow-sm overflow-hidden bg-white">
-            <div className="p-6 border-b bg-slate-50/30 flex items-center justify-between">
-              <h3 className="font-bold text-slate-800 text-sm uppercase tracking-widest italic">6. Top Cohortes Actives</h3>
-              <Button variant="ghost" size="sm" asChild className="text-[10px] font-black text-blue-600 uppercase italic">
-                <Link href="/admin/coaching/stats">Détails <ArrowRight className="ml-2 h-3 w-3" /></Link>
-              </Button>
-            </div>
-            <Table>
-              <TableHeader className="bg-slate-50/50">
-                <TableRow>
-                  <TableHead className="font-black text-[10px] uppercase text-slate-400 italic">Groupe</TableHead>
-                  <TableHead className="font-black text-[10px] uppercase text-slate-400 text-center italic">Élèves</TableHead>
-                  <TableHead className="font-black text-[10px] uppercase text-slate-400 text-center italic">Score</TableHead>
-                  <TableHead className="font-black text-[10px] uppercase text-slate-400 text-right pr-6 italic">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {stats.groupAnalysis.map((g, i) => (
-                  <TableRow key={i} className="h-16">
-                    <TableCell className="font-bold text-blue-600 text-xs italic uppercase">{g.name}</TableCell>
-                    <TableCell className="text-center text-xs font-black text-slate-900">{g.members}</TableCell>
-                    <TableCell className="text-center font-black text-slate-900 text-sm italic">{g.score}%</TableCell>
-                    <TableCell className="text-right pr-6">
-                      <Button variant="ghost" size="icon" asChild className="h-8 w-8 text-slate-400 border rounded-lg">
-                        <Link href={`/admin/coaching/config-groups/${g.id}`}><Pencil className="h-3.5 w-3.5" /></Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
           </Card>
         </div>
       </div>
@@ -378,7 +276,7 @@ export default function SuperAdminDashboard() {
 
 function OverviewCard({ icon: Icon, label, val, color }: any) {
   return (
-    <div className="p-4 rounded-2xl bg-white border shadow-sm flex flex-col gap-3">
+    <div className="p-4 rounded-2xl bg-white border-2 shadow-sm flex flex-col gap-3">
       <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shadow-inner", color)}>
         <Icon className="h-5 w-5" />
       </div>
@@ -393,7 +291,7 @@ function OverviewCard({ icon: Icon, label, val, color }: any) {
 function GaugeCard({ label, val, color }: any) {
   const numericVal = Number(val) || 0;
   return (
-    <div className="flex flex-col items-center justify-center space-y-2 p-4 bg-slate-50/50 rounded-2xl border shadow-inner">
+    <div className="flex flex-col items-center justify-center space-y-2 p-4 bg-slate-50/50 rounded-2xl border-2 shadow-inner">
       <p className="text-[10px] font-black text-slate-400 uppercase text-center italic">{label}</p>
       <div className="relative h-24 w-32 flex items-center justify-center overflow-hidden">
         <svg className="absolute top-0 transform" width="120" height="120">

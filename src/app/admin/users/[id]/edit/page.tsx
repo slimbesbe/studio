@@ -203,7 +203,7 @@ export default function EditUserPage() {
                     <SelectTrigger className="h-12 rounded-xl border-2 font-black italic shadow-sm bg-white"><SelectValue placeholder="Aucun groupe" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Sans groupe</SelectItem>
-                      {groups?.filter(g => g.id).map(g => (
+                      {groups?.filter(g => g.id && g.id.trim() !== '').map(g => (
                         <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
                       ))}
                     </SelectContent>

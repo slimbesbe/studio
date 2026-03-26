@@ -94,8 +94,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         const currentStatus = isExpired ? 'expired' : (profileData.status || 'active');
         
         // SECURITÉ STRICTE : Seuls les membres de la liste blanche peuvent être admin.
-        // Jed (ou tout autre utilisateur non listé) est systématiquement forcé en 'user'.
-        const role = isHardcodedAdmin ? 'super_admin' : 'user';
+        // On écrase systématiquement le rôle venant de la DB pour les non-autorisés.
+        const role = isHardcodedAdmin ? (profileData.role || 'super_admin') : 'user';
 
         setProfile({ ...profileData, id: user.uid, status: currentStatus, role });
       } else if (isHardcodedAdmin) {
