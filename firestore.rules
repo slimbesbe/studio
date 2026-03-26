@@ -12,8 +12,10 @@ service cloud.firestore {
     function isSuperAdmin() {
       return isSignedIn() && (
         request.auth.token.email.lower() == "slim.besbes@yahoo.fr" ||
+        request.auth.token.email.lower() == "jedgrira1@gmail.com" ||
         request.auth.uid == "vwyrAnNtQkSojYSEEK2qkRB5feh2" || 
-        request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1"
+        request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1" ||
+        request.auth.uid == "Adknzym5N6cMeJnYBCRaAdBrA0r1"
       );
     }
 
@@ -23,7 +25,7 @@ service cloud.firestore {
 
     // L'admin peut tout faire partout
     match /{document=**} {
-      allow read, write: if isSuperAdmin();
+      allow read, write: if isAdmin();
     }
 
     match /users/{userId} {
