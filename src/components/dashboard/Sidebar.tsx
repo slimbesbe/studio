@@ -13,30 +13,27 @@ import {
   Users,
   LayoutGrid,
   GraduationCap,
-  Database
+  Database,
+  Briefcase,
+  Activity,
+  BarChart3
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
 
-/**
- * Composant Logo Officiel Simu-lux
- * Fidèle à l'image : bouclier bleu avec dégradé, S blanc épais et flèche jaune ascendante.
- */
 export const SimuLuxLogo = ({ className = "h-8 w-8" }: { className?: string }) => (
   <svg viewBox="0 0 200 200" className={className} xmlns="http://www.w3.org/2000/svg">
     <defs>
       <linearGradient id="shieldGrad" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#0047AB" />
-        <stop offset="100%" stopColor="#002366" />
+        <stop offset="0%" stopColor="#3b82f6" />
+        <stop offset="100%" stopColor="#1d4ed8" />
       </linearGradient>
     </defs>
-    {/* Bouclier bleu avec dégradé */}
     <path 
       d="M100,10 L30,35 L30,100 C30,155 100,190 100,190 C100,190 170,155 170,100 L170,35 Z" 
       fill="url(#shieldGrad)" 
     />
-    {/* Le 'S' blanc en forme de ruban dynamique */}
     <path 
       d="M60,140 C60,140 140,150 140,115 C140,80 60,95 60,60 C60,25 140,35 140,35" 
       fill="none" 
@@ -45,7 +42,6 @@ export const SimuLuxLogo = ({ className = "h-8 w-8" }: { className?: string }) =
       strokeLinecap="round" 
       strokeLinejoin="round"
     />
-    {/* La flèche dorée de réussite */}
     <path 
       d="M140,20 L195,5 L180,60 L160,40 Z" 
       fill="#FFD700" 
@@ -69,14 +65,6 @@ export function Sidebar() {
   const showSimulationMenus = isAdmin || accessType === 'simulation' || accessType === 'coaching_simulation';
   const showCoachingMenu = isAdmin || accessType === 'coaching' || accessType === 'coaching_simulation';
 
-  const navItems = [
-    { name: 'Tableau de bord', href: '/dashboard', icon: LayoutDashboard, show: true },
-    { name: 'Coaching', href: '/dashboard/coaching', icon: GraduationCap, show: showCoachingMenu },
-    { name: 'Pratique Libre', href: '/dashboard/practice', icon: BookOpen, show: showSimulationMenus },
-    { name: 'Simulations d\'Examen', href: '/dashboard/exam', icon: Trophy, show: showSimulationMenus },
-    { name: 'Historique', href: '/dashboard/history', icon: History, show: showSimulationMenus },
-  ];
-
   const handleSignOut = async () => {
     await signOut(auth);
     router.push('/');
@@ -89,67 +77,63 @@ export function Sidebar() {
       : user?.email?.[0].toUpperCase() || '?';
 
   return (
-    <div className="flex flex-col h-full bg-white border-r w-64 fixed left-0 top-0 z-40 animate-in fade-in slide-in-from-left duration-300">
-      <div className="h-16 flex items-center px-6 border-b">
-        <Link className="flex items-center gap-2 group" href="/">
-          <SimuLuxLogo className="h-7 w-7 group-hover:scale-110 transition-transform" />
-          <span className="font-headline font-black text-xl italic tracking-tighter text-primary">Simu-lux</span>
+    <div className="flex flex-col h-full bg-[#0f172a] text-slate-300 w-64 fixed left-0 top-0 z-40 shadow-2xl">
+      <div className="h-20 flex items-center px-6 border-b border-slate-800">
+        <Link className="flex items-center gap-3 group" href="/">
+          <SimuLuxLogo className="h-8 w-8" />
+          <div className="flex flex-col">
+            <span className="font-black text-lg italic tracking-tighter text-white leading-none">Tableau de Bord</span>
+            <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mt-1">Super Admin</span>
+          </div>
         </Link>
       </div>
 
-      <div className="flex-1 py-6 px-4 space-y-1 overflow-y-auto">
-        {navItems.filter(i => i.show).map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-              pathname === item.href 
-                ? "bg-primary text-white shadow-sm" 
-                : "text-muted-foreground hover:bg-secondary hover:text-primary"
-            )}
-          >
-            <div className="flex items-center gap-3">
-              <item.icon className="h-4 w-4" />
-              {item.name}
-            </div>
-          </Link>
-        ))}
+      <div className="flex-1 py-8 px-4 space-y-2 overflow-y-auto custom-scrollbar">
+        {/* Main Section */}
+        <Link
+          href="/admin/dashboard"
+          className={cn(
+            "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
+            pathname === '/admin/dashboard' 
+              ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20" 
+              : "hover:bg-slate-800 hover:text-white"
+          )}
+        >
+          <LayoutDashboard className="h-5 w-5" />
+          Tableau de Bord
+        </Link>
+
+        <div className="pt-6 pb-2 px-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Pilotage</div>
         
-        {isAdmin && (
-          <div className="pt-4 mt-4 border-t space-y-1">
-            <p className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 mt-2">Administration</p>
-            <Link href="/admin/dashboard" className={cn("flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors", pathname === '/admin/dashboard' ? "bg-accent text-white" : "text-muted-foreground hover:bg-secondary")}>
-              <LayoutGrid className="h-4 w-4" /> Vue d'ensemble
-            </Link>
-            <Link href="/admin/coaching" className={cn("flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors", pathname.startsWith('/admin/coaching') ? "bg-accent text-white" : "text-muted-foreground hover:bg-secondary")}>
-              <GraduationCap className="h-4 w-4" /> Coaching
-            </Link>
-            <Link href="/admin/questions" className={cn("flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors", pathname.startsWith('/admin/questions') ? "bg-accent text-white" : "text-muted-foreground hover:bg-secondary")}>
-              <BookCopy className="h-4 w-4" /> Banque de questions
-            </Link>
-            <Link href="/admin/users" className={cn("flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors", pathname.startsWith('/admin/users') ? "bg-accent text-white" : "text-muted-foreground hover:bg-secondary")}>
-              <Users className="h-4 w-4" /> Utilisateurs
-            </Link>
-            <Link href="/admin/maintenance" className={cn("flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors", pathname.startsWith('/admin/maintenance') ? "bg-destructive text-white" : "text-muted-foreground hover:bg-red-50 text-destructive")}>
-              <Database className="h-4 w-4" /> Maintenance
-            </Link>
-          </div>
-        )}
+        <Link href="/admin/coaching" className={cn("flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:bg-slate-800 hover:text-white", pathname.startsWith('/admin/coaching') && "text-white")}>
+          <GraduationCap className="h-5 w-5" /> Coaching
+        </Link>
+        <Link href="/admin/questions" className={cn("flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:bg-slate-800 hover:text-white", pathname.startsWith('/admin/questions') && "text-white")}>
+          <BookCopy className="h-5 w-5" /> Banque questions
+        </Link>
+        <Link href="/admin/users" className={cn("flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:bg-slate-800 hover:text-white", pathname.startsWith('/admin/users') && "text-white")}>
+          <Users className="h-5 w-5" /> Utilisateurs
+        </Link>
+
+        <div className="pt-6 pb-2 px-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Système</div>
+        
+        <Link href="/admin/maintenance" className={cn("flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:bg-red-900/20 text-slate-400 hover:text-red-400", pathname.startsWith('/admin/maintenance') && "text-red-400")}>
+          <Database className="h-5 w-5" /> Maintenance
+        </Link>
       </div>
 
-      <div className="p-4 border-t space-y-4">
-        <div className="flex items-center gap-3 px-3">
-          <div className={cn("h-8 w-8 rounded-full flex items-center justify-center text-white font-bold text-xs", isDemo ? "bg-amber-500" : (isAdmin ? "bg-primary" : "bg-accent"))}>
+      <div className="p-6 border-t border-slate-800 space-y-6 bg-slate-900/50">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl flex items-center justify-center text-white font-black bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg">
             {initials}
           </div>
           <div className="flex-1 overflow-hidden">
-            <p className="text-sm font-bold truncate">{profile?.firstName ? `${profile.firstName} ${profile.lastName}` : isDemo ? 'Visiteur Démo' : 'Utilisateur'}</p>
-            <p className="text-xs text-muted-foreground truncate italic">{profile?.role === 'super_admin' ? 'Super Admin' : profile?.role === 'admin' ? 'Admin' : isDemo ? 'Mode Démo' : 'Participant'}</p>
+            <p className="text-sm font-black text-white truncate">{profile?.firstName} {profile?.lastName}</p>
+            <p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest truncate">En ligne</p>
           </div>
         </div>
-        <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-destructive" onClick={handleSignOut}>
-          <LogOut className="mr-2 h-4 w-4" /> Déconnexion
+        <Button variant="ghost" className="w-full justify-start text-slate-400 hover:text-red-400 hover:bg-red-900/10 h-12 rounded-xl font-bold" onClick={handleSignOut}>
+          <LogOut className="mr-3 h-5 w-5" /> Déconnexion
         </Button>
       </div>
     </div>
