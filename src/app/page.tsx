@@ -40,15 +40,23 @@ export default function Home() {
     try {
       // 1. Tentative de connexion standard
       try {
-        await signInWithEmailAndPassword(auth, trimmedEmail, password);
+        const userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, password);
+        const uid = userCredential.user.uid;
         
-        // Redirection après succès - On vérifie si c'est un admin
-        const adminDoc = await getDoc(doc(db, 'roles_admin', auth.currentUser?.uid || ''));
-        if (adminDoc.exists() || ADMIN_EMAILS.includes(trimmedEmail)) {
+        // Vérification du profil pour redirection
+        const userRef = doc(db, 'users', uid);
+        const userSnap = await getDoc(userRef);
+        const userData = userSnap.data();
+        
+        const isSA = ADMIN_EMAILS.includes(trimmedEmail) || userData?.role === 'super_admin' || userData?.role === 'admin';
+        
+        if (isSA) {
           router.push('/admin/dashboard');
         } else {
           router.push('/dashboard');
         }
+        
+        toast({ title: "Connexion réussie", description: "Bienvenue sur Simu-lux." });
       } catch (authError: any) {
         // 2. Détection de désynchronisation
         const usersRef = collection(db, 'users');
