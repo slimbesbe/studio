@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Loader2, Mail, Lock, Play, ShieldCheck, MailWarning, RefreshCw } from 'lucide-react';
 import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword, signInAnonymously, sendPasswordResetEmail } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp, getDocs, collection, query, where } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, getDocs, collection, query, where, limit } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { SimuLuxLogo } from '@/components/dashboard/Sidebar';
 
@@ -43,7 +43,7 @@ export default function Home() {
         const userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, password);
         const user = userCredential.user;
 
-        // Synchronisation du profil Admin si c'est vous
+        // Synchronisation automatique si Admin
         if (trimmedEmail === ADMIN_EMAIL) {
           await setDoc(doc(db, 'users', user.uid), {
             id: user.uid,
@@ -63,17 +63,22 @@ export default function Home() {
           router.push('/dashboard');
         }
       } catch (authError: any) {
-        // 2. Gestion de la désynchronisation (Mot de passe changé par l'admin en base mais pas en Auth)
+        // 2. Gestion de la désynchronisation
+        // On vérifie si l'utilisateur existe avec ce mot de passe "mémo" dans Firestore
         const usersRef = collection(db, 'users');
-        const q = query(usersRef, where('email', '==', trimmedEmail));
+        const q = query(usersRef, where('email', '==', trimmedEmail), limit(1));
         const querySnapshot = await getDocs(q);
         
         if (!querySnapshot.empty) {
           const userDoc = querySnapshot.docs[0].data();
-          // Si le mot de passe saisi correspond au mémo Firestore mais que Auth a échoué
           if (userDoc.password === password || (trimmedEmail === ADMIN_EMAIL && password === ADMIN_PASS)) {
             setNeedsSync(true);
-            throw new Error("Accès désynchronisé : Votre mot de passe a été mis à jour par l'administration. Une synchronisation par email est nécessaire.");
+            toast({
+              variant: "destructive",
+              title: "Synchronisation requise",
+              description: "Votre mot de passe a été mis à jour par l'administration. Veuillez cliquer sur le bouton de synchronisation ci-dessous."
+            });
+            return;
           }
         }
         throw authError;
@@ -83,7 +88,7 @@ export default function Home() {
       toast({
         variant: "destructive",
         title: "Échec d'identification",
-        description: error.message || "Vérifiez vos identifiants."
+        description: "Email ou mot de passe incorrect."
       });
     } finally {
       setIsLoading(false);
@@ -97,11 +102,11 @@ export default function Home() {
       await sendPasswordResetEmail(auth, email.trim().toLowerCase());
       toast({ 
         title: "Email envoyé", 
-        description: "Suivez le lien reçu pour synchroniser votre nouveau mot de passe et accéder à votre compte." 
+        description: "Suivez le lien reçu par email pour définir votre nouveau mot de passe et activer votre accès." 
       });
       setNeedsSync(false);
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Erreur", description: e.message });
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible d'envoyer l'email. Contactez le support." });
     } finally {
       setIsResetLoading(false);
     }
@@ -120,7 +125,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 animate-fade-in">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 animate-fade-in overflow-y-auto">
       <div className="flex items-center gap-3 mb-8">
         <SimuLuxLogo className="h-12 w-12" />
         <span className="font-headline font-black text-3xl italic tracking-tighter text-primary">
@@ -131,7 +136,7 @@ export default function Home() {
       <Card className="w-full max-w-md border-t-4 border-t-primary shadow-2xl overflow-hidden">
         <CardHeader className="space-y-1 bg-slate-50/50 border-b">
           <CardTitle className="text-2xl font-black text-center text-primary italic uppercase tracking-tight">Espace Membre</CardTitle>
-          <CardDescription className="text-center font-bold text-[10px] uppercase tracking-widest text-slate-400">Accès sécurisé v2.2</CardDescription>
+          <CardDescription className="text-center font-bold text-[10px] uppercase tracking-widest text-slate-400">Accès sécurisé v2.3</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 pt-8">
           <form onSubmit={handleLogin} className="space-y-4">
@@ -162,7 +167,7 @@ export default function Home() {
                 <p className="text-[11px] font-black uppercase italic leading-tight">Action requise : Synchronisation du compte</p>
               </div>
               <p className="text-[10px] font-bold text-amber-600 leading-relaxed italic">
-                L'administrateur a modifié vos accès. Pour activer votre nouveau mot de passe, cliquez sur le bouton ci-dessous.
+                L'administrateur a mis à jour vos accès. Pour activer votre compte, vous devez définir votre mot de passe réel via le lien ci-dessous.
               </p>
               <Button 
                 variant="outline" 

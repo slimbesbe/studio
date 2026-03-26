@@ -9,25 +9,16 @@ service cloud.firestore {
     }
     
     // ACCÈS PRIORITAIRE ABSOLU POUR L'ADMINISTRATEUR
-    // Cette règle outrepasse toutes les autres pour votre email
     function isSuperAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email.lower() == "slim.besbes@yahoo.fr" ||
-        request.auth.uid == "vwyrAnNtQkSojYSEEK2qkRB5feh2" || 
-        request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1"
+      return (
+        (isSignedIn() && request.auth.token.email.lower() == "slim.besbes@yahoo.fr") ||
+        (isSignedIn() && request.auth.uid == "vwyrAnNtQkSojYSEEK2qkRB5feh2") || 
+        (isSignedIn() && request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1")
       );
     }
 
     function isAdmin() { 
       return isSuperAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin");
-    }
-
-    function isCoach() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "coach";
-    }
-
-    function isPartner() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "partner";
     }
 
     // --- RÈGLES PAR COLLECTION ---
@@ -37,32 +28,22 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
 
+    match /users/{userId} {
+      // Autoriser la lecture par email pour la vérification à la connexion (désynchronisation)
+      allow read: if isSignedIn() || (request.query.limit == 1); 
+      
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
     match /roles_admin/{userId} {
       allow read, write: if isSuperAdmin() || (isSignedIn() && request.auth.token.email.lower() == "slim.besbes@yahoo.fr");
     }
 
-    match /users/{userId} {
-      allow read: if isSignedIn() && (
-        request.auth.uid == userId || isAdmin() || isCoach() || isPartner()
-      );
-      
-      allow create: if isSignedIn(); // Permettre la création du profil initial
-      
-      allow update: if isSignedIn() && (
-        request.auth.uid == userId || isAdmin() || (isPartner() && resource.data.partnerId == request.auth.uid)
-      );
-      
-      allow delete: if isAdmin();
-    }
-
     match /coachingGroups/{groupId} {
-      allow read: if isSignedIn() && (
-        isAdmin() || 
-        (isCoach() && resource.data.coachId == request.auth.uid) ||
-        (isPartner() && resource.data.partnerId == request.auth.uid) ||
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groupId == groupId)
-      );
-      allow write: if isAdmin() || (isPartner() && (request.resource.data.partnerId == request.auth.uid || resource.data.partnerId == request.auth.uid));
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
     match /questions/{questionId} {
@@ -76,13 +57,8 @@ service cloud.firestore {
     }
 
     match /coachingAttempts/{attemptId} {
-      allow read: if isSignedIn() && (
-        isAdmin() || 
-        resource.data.userId == request.auth.uid ||
-        isCoach() ||
-        isPartner()
-      );
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
       allow update, delete: if isAdmin();
     }
   }
