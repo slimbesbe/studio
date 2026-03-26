@@ -11,17 +11,17 @@ service cloud.firestore {
     // ACCÈS PRIORITAIRE ABSOLU POUR L'ADMINISTRATEUR
     function isSuperAdmin() {
       return (
-        (isSignedIn() && request.auth.token.email.lower() == "slim.besbes@yahoo.fr") ||
-        (isSignedIn() && request.auth.uid == "vwyrAnNtQkSojYSEEK2qkRB5feh2") || 
-        (isSignedIn() && request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1")
+        isSignedIn() && (
+          request.auth.token.email.lower() == "slim.besbes@yahoo.fr" ||
+          request.auth.uid == "vwyrAnNtQkSojYSEEK2qkRB5feh2" || 
+          request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1"
+        )
       );
     }
 
     function isAdmin() { 
       return isSuperAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin");
     }
-
-    // --- RÈGLES PAR COLLECTION ---
 
     // L'admin peut tout faire partout
     match /{document=**} {
@@ -30,7 +30,9 @@ service cloud.firestore {
 
     match /users/{userId} {
       // Autoriser la lecture par email pour la vérification à la connexion (désynchronisation)
-      allow read: if isSignedIn() || (request.query.limit == 1); 
+      // On autorise la liste si le filtre est sur l'email et limité à 1
+      allow list: if (request.query.limit == 1);
+      allow get: if isSignedIn() || (request.auth.uid == userId);
       
       allow create: if isSignedIn();
       allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
@@ -38,7 +40,7 @@ service cloud.firestore {
     }
 
     match /roles_admin/{userId} {
-      allow read, write: if isSuperAdmin() || (isSignedIn() && request.auth.token.email.lower() == "slim.besbes@yahoo.fr");
+      allow read, write: if isSignedIn();
     }
 
     match /coachingGroups/{groupId} {

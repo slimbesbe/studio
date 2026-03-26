@@ -40,30 +40,16 @@ export default function Home() {
     try {
       // 1. Tentative de connexion standard
       try {
-        const userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, password);
-        const user = userCredential.user;
-
-        // Synchronisation automatique si Admin
+        await signInWithEmailAndPassword(auth, trimmedEmail, password);
+        
+        // Redirection après succès
         if (trimmedEmail === ADMIN_EMAIL) {
-          await setDoc(doc(db, 'users', user.uid), {
-            id: user.uid,
-            email: ADMIN_EMAIL,
-            role: 'super_admin',
-            status: 'active',
-            updatedAt: serverTimestamp()
-          }, { merge: true });
-          
-          await setDoc(doc(db, 'roles_admin', user.uid), { 
-            email: ADMIN_EMAIL, 
-            isSuperAdmin: true 
-          }, { merge: true });
-
           router.push('/admin/dashboard');
         } else {
           router.push('/dashboard');
         }
       } catch (authError: any) {
-        // 2. Gestion de la désynchronisation
+        // 2. Détection de désynchronisation
         // On vérifie si l'utilisateur existe avec ce mot de passe "mémo" dans Firestore
         const usersRef = collection(db, 'users');
         const q = query(usersRef, where('email', '==', trimmedEmail), limit(1));
@@ -71,12 +57,13 @@ export default function Home() {
         
         if (!querySnapshot.empty) {
           const userDoc = querySnapshot.docs[0].data();
+          // Si le mot de passe saisi correspond au mémo admin OU au pass maître admin
           if (userDoc.password === password || (trimmedEmail === ADMIN_EMAIL && password === ADMIN_PASS)) {
             setNeedsSync(true);
             toast({
               variant: "destructive",
               title: "Synchronisation requise",
-              description: "Votre mot de passe a été mis à jour par l'administration. Veuillez cliquer sur le bouton de synchronisation ci-dessous."
+              description: "L'administration a mis à jour votre accès. Cliquez sur le bouton de synchronisation ci-dessous."
             });
             return;
           }
@@ -102,11 +89,11 @@ export default function Home() {
       await sendPasswordResetEmail(auth, email.trim().toLowerCase());
       toast({ 
         title: "Email envoyé", 
-        description: "Suivez le lien reçu par email pour définir votre nouveau mot de passe et activer votre accès." 
+        description: "Suivez le lien reçu par email pour définir votre nouveau mot de passe." 
       });
       setNeedsSync(false);
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Erreur", description: "Impossible d'envoyer l'email. Contactez le support." });
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible d'envoyer l'email." });
     } finally {
       setIsResetLoading(false);
     }
@@ -136,7 +123,7 @@ export default function Home() {
       <Card className="w-full max-w-md border-t-4 border-t-primary shadow-2xl overflow-hidden">
         <CardHeader className="space-y-1 bg-slate-50/50 border-b">
           <CardTitle className="text-2xl font-black text-center text-primary italic uppercase tracking-tight">Espace Membre</CardTitle>
-          <CardDescription className="text-center font-bold text-[10px] uppercase tracking-widest text-slate-400">Accès sécurisé v2.3</CardDescription>
+          <CardDescription className="text-center font-bold text-[10px] uppercase tracking-widest text-slate-400">Accès sécurisé v2.4</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 pt-8">
           <form onSubmit={handleLogin} className="space-y-4">
