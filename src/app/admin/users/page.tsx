@@ -13,7 +13,7 @@ import {
   Loader2, UserPlus, ChevronLeft, Users, User, Clock, Key, 
   Trash2, BarChart, Target, Mail, Pencil, CalendarDays, 
   ShieldCheck, Filter, Building2, GraduationCap, MailWarning,
-  CheckCircle2
+  CheckCircle2, RefreshCw, Info
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -89,7 +89,7 @@ export default function UsersListPage() {
         password: newPassword,
         updatedAt: serverTimestamp()
       });
-      toast({ title: "Mémo mis à jour", description: "La référence du mot de passe a été modifiée dans Firestore." });
+      toast({ title: "Mémo mis à jour", description: "Référence enregistrée. N'oubliez pas d'envoyer l'email pour synchroniser l'accès réel." });
       setPasswordChangeUser(null);
       setNewPassword('');
     } catch (e: any) {
@@ -104,7 +104,7 @@ export default function UsersListPage() {
     setIsSendingReset(true);
     try {
       await sendPasswordResetEmail(auth, passwordChangeUser.email);
-      toast({ title: "Email envoyé", description: `Lien de réinitialisation envoyé à ${passwordChangeUser.email}` });
+      toast({ title: "Email envoyé", description: `Lien de synchronisation envoyé à ${passwordChangeUser.email}` });
       setPasswordChangeUser(null);
     } catch (e: any) {
       toast({ variant: "destructive", title: "Erreur d'envoi", description: e.message });
@@ -139,7 +139,7 @@ export default function UsersListPage() {
   }
 
   return (
-    <div className="p-10 max-w-[1600px] mx-auto space-y-10 animate-fade-in">
+    <div className="p-10 max-w-[1600px] mx-auto space-y-10 animate-fade-in pb-32">
       <div className="flex flex-col lg:flex-row items-center justify-between bg-white p-8 rounded-[40px] shadow-xl border-2 gap-6">
         <div className="flex items-center gap-6">
           <Button variant="ghost" size="icon" asChild className="h-16 w-16 rounded-3xl border-2 shadow-sm"><Link href="/admin/dashboard"><ChevronLeft className="h-8 w-8" /></Link></Button>
@@ -223,7 +223,7 @@ export default function UsersListPage() {
                           <DropdownMenuContent align="end" className="w-64 p-2 rounded-2xl shadow-2xl border-4">
                             <DropdownMenuItem asChild className="h-12 rounded-xl font-black uppercase text-xs italic cursor-pointer"><Link href={`/admin/users/${u.id}/edit`}><Pencil className="mr-3 h-4 w-4" /> Modifier Profil</Link></DropdownMenuItem>
                             <DropdownMenuItem onClick={() => toggleStatus(u.id, u.status)} className="h-12 rounded-xl font-black uppercase text-xs italic cursor-pointer">{u.status === 'active' ? '🚫 Suspendre' : '✅ Réactiver'}</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => { setPasswordChangeUser(u); setNewPassword(''); }} className="h-12 rounded-xl font-black uppercase text-xs italic cursor-pointer"><Key className="mr-3 h-4 w-4" /> Mot de passe</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setPasswordChangeUser(u); setNewPassword(''); }} className="h-12 rounded-xl font-black uppercase text-xs italic cursor-pointer"><Key className="mr-3 h-4 w-4" /> Accès & Sync</DropdownMenuItem>
                             <DropdownMenuSeparator className="my-2" />
                             <DropdownMenuItem onClick={() => setUserToDelete(u)} className="h-12 rounded-xl font-black uppercase text-xs italic text-destructive focus:bg-red-50 cursor-pointer"><Trash2 className="mr-3 h-4 w-4" /> Supprimer</DropdownMenuItem>
                           </DropdownMenuContent>
@@ -242,27 +242,42 @@ export default function UsersListPage() {
         <DialogContent className="rounded-[40px] max-w-lg p-12 border-4 shadow-3xl">
           <DialogHeader>
             <DialogTitle className="text-3xl font-black uppercase italic text-primary">Gestion des Accès</DialogTitle>
-            <DialogDescription className="font-bold text-slate-400 uppercase text-[10px] italic">Mise à jour ou réinitialisation.</DialogDescription>
+            <DialogDescription className="font-bold text-slate-400 uppercase text-[10px] italic">Synchronisation réelle ou mémo admin.</DialogDescription>
           </DialogHeader>
           <div className="space-y-6 py-6">
             <div className="p-6 bg-slate-50 rounded-2xl text-center border-2 border-dashed">
-              <p className="text-[10px] font-black text-slate-400 uppercase italic mb-2">Mémo base de données</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase italic mb-2">Mémo actuel (Firestore)</p>
               <code className="text-2xl font-black text-primary">{passwordChangeUser?.password || '---'}</code>
             </div>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="font-black uppercase text-[10px] text-slate-400 italic">Nouveau mot de passe mémo</Label>
-                <Input value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="6 caractères min." className="h-14 rounded-xl font-black italic border-2 bg-white" />
+                <Label className="font-black uppercase text-[10px] text-slate-400 italic">Modifier le mémo (Admin uniquement)</Label>
+                <Input value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Nouveau mot de passe mémo..." className="h-14 rounded-xl font-black italic border-2 bg-white" />
+                <p className="text-[9px] font-bold text-slate-400 leading-tight italic">
+                  Note : Modifier ce champ ne change pas l'accès réel de l'utilisateur. Utilisez le bouton de synchronisation ci-dessous.
+                </p>
               </div>
-              <Button variant="outline" className="w-full h-14 rounded-xl font-black uppercase italic text-xs gap-2 border-2" onClick={handleSendResetEmail} disabled={isSendingReset}>
-                {isSendingReset ? <Loader2 className="animate-spin h-4 w-4" /> : <MailWarning className="h-4 w-4 text-amber-500" />}
-                Envoyer un email de réinitialisation réel
+              
+              <div className="relative py-2">
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-dashed" /></div>
+                <div className="relative flex justify-center text-[9px] uppercase"><span className="bg-white px-2 text-primary font-black italic tracking-widest">Action Réelle</span></div>
+              </div>
+
+              <Button variant="outline" className="w-full h-16 rounded-xl font-black uppercase italic text-xs gap-3 border-4 border-amber-200 text-amber-700 hover:bg-amber-50 shadow-sm" onClick={handleSendResetEmail} disabled={isSendingReset}>
+                {isSendingReset ? <Loader2 className="animate-spin h-5 w-5" /> : <RefreshCw className="h-5 w-5" />}
+                Envoyer Lien de Synchronisation
               </Button>
+              <div className="flex items-start gap-2 bg-blue-50 p-3 rounded-xl border border-blue-100">
+                <Info className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
+                <p className="text-[9px] font-bold text-blue-600 leading-relaxed italic">
+                  C'est la seule méthode pour mettre à jour l'accès réel de l'utilisateur. Il recevra un email pour définir son nouveau mot de passe.
+                </p>
+              </div>
             </div>
           </div>
           <DialogFooter className="gap-4">
-            <Button variant="outline" className="h-14 rounded-xl font-black uppercase flex-1 border-2" onClick={() => setPasswordChangeUser(null)}>Fermer</Button>
-            <Button className="h-14 rounded-xl font-black bg-primary flex-1 shadow-xl uppercase text-xs" onClick={handleUpdatePasswordMemo} disabled={isChangingPassword || newPassword.length < 6}>
+            <Button variant="outline" className="h-14 rounded-xl font-black uppercase flex-1 border-2" onClick={() => setPasswordChangeUser(null)}>Annuler</Button>
+            <Button className="h-14 rounded-xl font-black bg-primary flex-1 shadow-xl uppercase text-xs" onClick={handleUpdatePasswordMemo} disabled={isChangingPassword || !newPassword}>
               {isChangingPassword ? <Loader2 className="animate-spin h-5 w-5" /> : "Mettre à jour Mémo"}
             </Button>
           </DialogFooter>
