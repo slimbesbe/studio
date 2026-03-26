@@ -2,8 +2,8 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, orderBy, doc, setDoc, serverTimestamp, where, updateDoc } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy, doc, setDoc, serverTimestamp, where } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,10 +11,17 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { 
   Plus, Users, ArrowRight, Loader2, ChevronLeft, 
-  ShieldCheck, GraduationCap, Building2, Calendar, 
-  Settings2, Pencil, Trash2, Archive 
+  ShieldCheck, GraduationCap, Building2, 
+  Pencil
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -90,7 +97,6 @@ export default function ConfigGroupsPage() {
         createdAt: editingGroup ? editingGroup.createdAt : serverTimestamp()
       };
       
-      // Si c'est un partenaire qui crée, on force son ID
       if (isPartner && !isSA) data.partnerId = profile!.id;
 
       await setDoc(gRef, data, { merge: true });
@@ -125,8 +131,8 @@ export default function ConfigGroupsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {groups?.map((g) => {
           const membersCount = allUsers?.filter(u => u.groupId === g.id).length || 0;
-          const coachName = coaches.find(c => c.id === g.coachId)?.firstName || 'Non assigné';
-          const partnerName = partners.find(p => p.id === g.partnerId)?.firstName || 'Libre';
+          const coachName = coaches.find(c => c.id === g.coachId) ? `${coaches.find(c => c.id === g.coachId).firstName} ${coaches.find(c => c.id === g.coachId).lastName}` : 'Non assigné';
+          const partnerName = partners.find(p => p.id === g.partnerId) ? `${partners.find(p => p.id === g.partnerId).firstName} ${partners.find(p => p.id === g.partnerId).lastName}` : 'Libre';
 
           return (
             <Card key={g.id} className="rounded-[40px] shadow-xl border-none overflow-hidden bg-white group hover:shadow-2xl transition-all">
@@ -176,7 +182,6 @@ export default function ConfigGroupsPage() {
         })}
       </div>
 
-      {/* Creation/Edit Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="rounded-[40px] p-12 border-4 shadow-3xl max-w-2xl">
           <DialogHeader>
@@ -233,7 +238,7 @@ export default function ConfigGroupsPage() {
                 <Input 
                   type="number" 
                   value={formData.maxUsers} 
-                  onChange={(e) => setFormData({...formData, maxUsers: parseInt(e.target.value)})}
+                  onChange={(e) => setFormData({...formData, maxUsers: parseInt(e.target.value) || 0})}
                   className="h-14 rounded-xl font-black text-center text-lg italic border-2"
                 />
               </div>
