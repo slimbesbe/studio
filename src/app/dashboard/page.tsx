@@ -177,9 +177,9 @@ export default function DashboardPage() {
                 <Line 
                   type="monotone" 
                   dataKey="score" 
-                  stroke="#004d73" 
+                  stroke="#ef4444" 
                   strokeWidth={3} 
-                  dot={{ fill: '#004d73', r: 4, strokeWidth: 2, stroke: '#fff' }}
+                  dot={{ fill: '#ef4444', r: 4, strokeWidth: 2, stroke: '#fff' }}
                   activeDot={{ r: 6, strokeWidth: 0 }}
                 />
               </ComposedChart>
