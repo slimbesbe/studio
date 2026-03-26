@@ -9,17 +9,23 @@ service cloud.firestore {
     }
     
     function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data 
+        : {"role": "none"};
     }
 
     // --- LOGIQUE DES RÔLES ---
     function isSuperAdmin() {
       return isSignedIn() && (
-        getUserData().role == "super_admin" || 
+        request.auth.token.email == "slim.besbes@yahoo.fr" ||
         request.auth.uid == "vwyrAnNtQkSojYSEEK2qkRB5feh2" || 
         request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1" ||
-        request.auth.token.email == "slim.besbes@yahoo.fr"
+        getUserData().role == "super_admin"
       );
+    }
+
+    function isAdmin() { 
+      return isSuperAdmin() || (isSignedIn() && (getUserData().role == "admin"));
     }
 
     function isCoach() {
@@ -30,16 +36,14 @@ service cloud.firestore {
       return isSignedIn() && getUserData().role == "partner";
     }
 
-    function isAdmin() { 
-      return isSuperAdmin() || (isSignedIn() && (getUserData().role == "admin"));
-    }
-
     // --- RÈGLES PAR COLLECTION ---
 
+    // Collection technique pour les accès admin
+    match /roles_admin/{userId} {
+      allow read, write: if isSuperAdmin();
+    }
+
     match /users/{userId} {
-      // Un utilisateur voit son propre profil
-      // Un coach voit les élèves de ses groupes
-      // Un partenaire voit les utilisateurs de son périmètre
       allow get: if isSignedIn() && (
         request.auth.uid == userId || 
         isAdmin() || 
@@ -53,7 +57,8 @@ service cloud.firestore {
         isPartner()
       );
 
-      allow create: if isAdmin() || isPartner();
+      // Autoriser la création si Admin/Partner ou si c'est le Super Admin qui s'auto-enregistre
+      allow create: if isAdmin() || isPartner() || (request.auth.uid == userId && request.auth.token.email == "slim.besbes@yahoo.fr");
       
       allow update: if isSignedIn() && (
         isAdmin() || 
@@ -89,7 +94,7 @@ service cloud.firestore {
         isAdmin() || 
         resource.data.userId == request.auth.uid ||
         (isCoach() && resource.data.groupId in getCoachGroupIds()) ||
-        (isPartner() && get(/databases/$(database)/documents/users/$(resource.data.userId)).data.partnerId == request.auth.uid)
+        (isPartner() && exists(/databases/$(database)/documents/users/$(resource.data.userId)) && get(/databases/$(database)/documents/users/$(resource.data.userId)).data.partnerId == request.auth.uid)
       );
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
@@ -97,9 +102,6 @@ service cloud.firestore {
 
     // --- HELPERS ---
     function getCoachGroupIds() {
-      // Cette fonction nécessiterait une requête 'list' sur coachingGroups filtrée par coachId
-      // Les règles Firestore ne supportent pas nativement les boucles sur collections, 
-      // on utilise donc souvent la vérification directe dans le match du document.
       return []; 
     }
   }

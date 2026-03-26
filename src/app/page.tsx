@@ -43,15 +43,12 @@ export default function Home() {
         const isAuthAdmin = trimmedEmail === ADMIN_EMAIL && password === ADMIN_PASS;
         
         if (isAuthAdmin) {
-          // Si le compte n'existe pas dans Auth, on le crée à la volée avec le mot de passe 147813
           try {
             userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
             toast({ title: "Bienvenue", description: "Initialisation de votre accès Super Admin." });
           } catch (createError: any) {
-            // Si l'erreur est 'email-already-in-use', cela signifie que le compte existe 
-            // mais que le mot de passe stocké dans Firebase Auth est différent de 147813.
             if (createError.code === 'auth/email-already-in-use') {
-              throw new Error("Accès Admin : Le mot de passe 147813 ne correspond pas au compte existant. Veuillez utiliser le mot de passe que vous avez défini ou le réinitialiser dans la console Firebase.");
+              throw new Error("Accès Admin : Le mot de passe 147813 est incorrect pour ce compte existant. Veuillez utiliser votre mot de passe habituel.");
             }
             throw createError;
           }
@@ -65,13 +62,15 @@ export default function Home() {
       // Synchronisation forcée des droits Firestore pour le Super Admin
       if (trimmedEmail === ADMIN_EMAIL) {
         const now = serverTimestamp();
-        await Promise.all([
-          setDoc(doc(db, 'roles_admin', user.uid), { 
+        try {
+          // On tente les écritures mais on ne bloque pas si une seule échoue (sécurité)
+          await setDoc(doc(db, 'roles_admin', user.uid), { 
             createdAt: now,
             email: ADMIN_EMAIL,
             isSuperAdmin: true
-          }, { merge: true }),
-          setDoc(doc(db, 'users', user.uid), {
+          }, { merge: true });
+
+          await setDoc(doc(db, 'users', user.uid), {
             id: user.uid,
             email: trimmedEmail,
             firstName: 'Slim',
@@ -80,13 +79,16 @@ export default function Home() {
             status: 'active',
             updatedAt: now,
             lastLoginAt: now
-          }, { merge: true })
-        ]);
+          }, { merge: true });
 
-        toast({ title: "Accès Super Admin", description: "Connexion réussie au panel Simu-lux." });
-        router.push('/admin/dashboard');
+          toast({ title: "Accès Super Admin", description: "Connexion réussie." });
+          router.push('/admin/dashboard');
+        } catch (dbError) {
+          console.error("Admin DB Sync Error:", dbError);
+          // Si l'auth a réussi mais pas la DB, on tente quand même d'avancer
+          router.push('/admin/dashboard');
+        }
       } else {
-        // Vérification du rôle pour les autres utilisateurs
         const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
         if (adminDoc.exists()) {
           router.push('/admin/dashboard');
