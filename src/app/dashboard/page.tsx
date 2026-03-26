@@ -14,7 +14,7 @@ import {
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
 
 export default function DashboardPage() {
@@ -48,7 +48,10 @@ export default function DashboardPage() {
         studyTime: 66660, // 18h 31m
         progressionData: [
           { date: '2024-05-15', score: 65 },
-          { date: '2024-05-18', score: 80 }
+          { date: '2024-05-18', score: 80 },
+          { date: '2024-05-20', score: 72 },
+          { date: '2024-05-22', score: 91 },
+          { date: '2024-05-25', score: 85 }
         ]
       };
     }
@@ -66,7 +69,7 @@ export default function DashboardPage() {
     const progressionData = [...attempts]
       .sort((a, b) => (a.submittedAt?.seconds || 0) - (b.submittedAt?.seconds || 0))
       .map(a => ({
-        date: a.submittedAt?.toDate ? a.submittedAt.toDate().toLocaleDateString('en-CA') : 'N/A',
+        date: a.submittedAt?.toDate ? a.submittedAt.toDate().toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : 'N/A',
         score: a.scorePercent
       }));
 
@@ -92,13 +95,13 @@ export default function DashboardPage() {
 
   return (
     <div className="h-full flex flex-col gap-4 overflow-hidden animate-fade-in box-border">
-      {/* Top 3 Indicator Cards - Height ~25% (Increased for hierarchy) */}
+      {/* Top 3 Indicator Cards - Height 25% */}
       <div className="h-[25%] shrink-0 grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* 1. Latest Score */}
         <Card className="flex flex-col justify-center border-t-4 border-t-[#004d73] shadow-sm rounded-none bg-white">
           <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2 space-y-0 shrink-0">
             <Award className="h-4 w-4 text-[#004d73]" />
-            <CardTitle className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Latest Score</CardTitle>
+            <CardTitle className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Latest Score</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1 flex items-center">
             <div className="text-7xl font-black text-slate-900 tracking-tighter leading-none">{stats?.latestScore || 0}%</div>
@@ -109,7 +112,7 @@ export default function DashboardPage() {
         <Card className="flex flex-col justify-center border-t-4 border-t-[#4fc3f7] shadow-sm rounded-none bg-white">
           <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2 space-y-0 shrink-0">
             <Target className="h-4 w-4 text-[#4fc3f7]" />
-            <CardTitle className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Exams Taken</CardTitle>
+            <CardTitle className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Exams Taken</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1 flex items-center">
             <div className="text-7xl font-black text-slate-900 tracking-tighter leading-none">{stats?.totalExams || 0}</div>
@@ -120,7 +123,7 @@ export default function DashboardPage() {
         <Card className="flex flex-col justify-center border-t-4 border-t-[#004d73] shadow-sm rounded-none bg-white">
           <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2 space-y-0 shrink-0">
             <TrendingUp className="h-4 w-4 text-[#004d73]" />
-            <CardTitle className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Average Score</CardTitle>
+            <CardTitle className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Average Score</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-1 flex items-center">
             <div className="text-7xl font-black text-slate-900 tracking-tighter leading-none">{stats?.avgScore || 0}%</div>
@@ -128,31 +131,50 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Middle large progression card - Height: flex-1 (Dynamic remaining space) */}
+      {/* Middle large progression card (Histogram) - Height: flex-1 */}
       <Card className="flex-1 min-h-0 flex flex-col rounded-none shadow-sm border-none bg-white p-6">
         <CardHeader className="p-0 pb-4 shrink-0">
           <CardTitle className="text-2xl font-black text-[#004d73] uppercase italic tracking-tighter">Score Progression</CardTitle>
-          <CardDescription className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Evolution of your performance</CardDescription>
+          <CardDescription className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Performance analysis per session</CardDescription>
         </CardHeader>
         <CardContent className="flex-1 min-h-0 p-0">
           {stats?.progressionData && stats.progressionData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={stats.progressionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <BarChart data={stats.progressionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="date" stroke="#94a3b8" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} />
-                <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} />
+                <XAxis 
+                  dataKey="date" 
+                  stroke="#94a3b8" 
+                  fontSize={10} 
+                  fontWeight="bold" 
+                  tickLine={false} 
+                  axisLine={false} 
+                />
+                <YAxis 
+                  domain={[0, 100]} 
+                  stroke="#94a3b8" 
+                  fontSize={10} 
+                  fontWeight="bold" 
+                  tickLine={false} 
+                  axisLine={false} 
+                />
                 <Tooltip 
+                  cursor={{ fill: '#f8fafc' }}
                   contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontWeight: 'bold', fontSize: '12px' }} 
                 />
-                <Line 
-                  type="monotone" 
+                <Bar 
                   dataKey="score" 
-                  stroke="#004d73" 
-                  strokeWidth={3} 
-                  dot={{ r: 4, fill: '#004d73', strokeWidth: 2, stroke: '#fff' }} 
-                  activeDot={{ r: 6 }} 
-                />
-              </LineChart>
+                  radius={[4, 4, 0, 0]}
+                  barSize={40}
+                >
+                  {stats.progressionData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={entry.score >= 75 ? '#004d73' : '#4fc3f7'} 
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           ) : (
             <EmptyState message="Start your first simulation to see progression" />
@@ -160,7 +182,7 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Bottom row large indicators - Height ~25% (Reduced for hierarchy) */}
+      {/* Bottom row large indicators - Height 25% */}
       <div className="h-[25%] shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Study Time Card */}
         <Card className="border-t-8 border-t-[#4fc3f7] shadow-lg rounded-none bg-white flex flex-col justify-center overflow-hidden">
