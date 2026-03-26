@@ -23,7 +23,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
+import { collection, query, limit } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { 
   BarChart, Bar, LineChart, Line, 
@@ -31,7 +31,7 @@ import {
 } from 'recharts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
-import { startOfDay, endOfDay, isWithinInterval, subDays, format } from 'date-fns';
+import { startOfDay, endOfDay, isWithinInterval, subDays, format, startOfMonth, endOfMonth } from 'date-fns';
 
 export default function SuperAdminDashboard() {
   const { profile, isUserLoading } = useUser();
@@ -39,14 +39,14 @@ export default function SuperAdminDashboard() {
   const db = useFirestore();
   const [mounted, setMounted] = useState(false);
 
-  // 1. FETCH DATA
-  const usersQuery = useMemoFirebase(() => collection(db, 'users'), [db]);
+  // 1. FETCH DATA (With safety limit)
+  const usersQuery = useMemoFirebase(() => query(collection(db, 'users'), limit(1000)), [db]);
   const { data: allUsers, isLoading: loadingUsers } = useCollection(usersQuery);
 
-  const groupsQuery = useMemoFirebase(() => collection(db, 'coachingGroups'), [db]);
+  const groupsQuery = useMemoFirebase(() => query(collection(db, 'coachingGroups'), limit(500)), [db]);
   const { data: allGroups, isLoading: loadingGroups } = useCollection(groupsQuery);
 
-  const attemptsQuery = useMemoFirebase(() => collection(db, 'coachingAttempts'), [db]);
+  const attemptsQuery = useMemoFirebase(() => query(collection(db, 'coachingAttempts'), limit(1000)), [db]);
   const { data: allAttempts, isLoading: loadingAttempts } = useCollection(attemptsQuery);
 
   useEffect(() => {
@@ -56,6 +56,14 @@ export default function SuperAdminDashboard() {
     }
   }, [profile, isUserLoading, router]);
 
+  // Utility for safe date parsing from Firestore
+  const safeParseDate = (ts: any) => {
+    if (!ts) return new Date(); // Fallback for pending server timestamps
+    if (ts.toDate) return ts.toDate();
+    const d = new Date(ts);
+    return isNaN(d.getTime()) ? new Date() : d;
+  };
+
   // 2. ANALYTICS LOGIC
   const stats = useMemo(() => {
     if (!allUsers || !allGroups || !allAttempts) return null;
@@ -63,6 +71,8 @@ export default function SuperAdminDashboard() {
     const now = new Date();
     const todayStart = startOfDay(now);
     const todayEnd = endOfDay(now);
+    const monthStart = startOfMonth(now);
+    const monthEnd = endOfMonth(now);
 
     // Overview
     const activeUsers = allUsers.filter(u => u.status === 'active').length;
@@ -74,8 +84,13 @@ export default function SuperAdminDashboard() {
 
     // Activity
     const todayAttempts = allAttempts.filter(a => {
-      const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
+      const date = safeParseDate(a.submittedAt);
       return isWithinInterval(date, { start: todayStart, end: todayEnd });
+    });
+
+    const monthAttempts = allAttempts.filter(a => {
+      const date = safeParseDate(a.submittedAt);
+      return isWithinInterval(date, { start: monthStart, end: monthEnd });
     });
 
     const totalStudyTime = allUsers.reduce((acc, u) => acc + (u.totalTimeSpent || 0), 0);
@@ -87,7 +102,7 @@ export default function SuperAdminDashboard() {
       : 0;
     
     const successRate = allAttempts.length > 0
-      ? Math.round((allAttempts.filter(a => a.scorePercent >= 75).length / allAttempts.length) * 100)
+      ? Math.round((allAttempts.filter(a => (a.scorePercent || 0) >= 75).length / allAttempts.length) * 100)
       : 0;
 
     // Business
@@ -100,7 +115,7 @@ export default function SuperAdminDashboard() {
       const dayStart = startOfDay(d);
       const dayEnd = endOfDay(d);
       const count = allAttempts.filter(a => {
-        const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
+        const date = safeParseDate(a.submittedAt);
         return isWithinInterval(date, { start: dayStart, end: dayEnd });
       }).length;
       return { name: format(d, 'EEE'), val: count };
@@ -129,7 +144,7 @@ export default function SuperAdminDashboard() {
       activeUsers, activeGroups, coaches, partners,
       expiredCount, suspendedCount,
       todaySims: todayAttempts.length,
-      totalSimsMonth: allAttempts.length, // Simplified
+      totalSimsMonth: monthAttempts.length,
       totalStudyTime, totalQuestions,
       avgScore, successRate,
       totalLicences, usedLicences,
@@ -222,19 +237,19 @@ export default function SuperAdminDashboard() {
               </div>
               <div className="space-y-4">
                 <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase italic">Total Simulations</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase italic">Simulations ce mois</p>
                   <p className="text-2xl font-black text-slate-900">{stats.totalSimsMonth.toLocaleString()}</p>
                 </div>
                 <div className="h-32 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={stats.chartData}>
                       <defs>
-                        <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
+                        <linearGradient id="colorActivity" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
                           <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                         </linearGradient>
                       </defs>
-                      <Area type="monotone" dataKey="val" stroke="#3b82f6" fillOpacity={1} fill="url(#colorVal)" strokeWidth={3} />
+                      <Area type="monotone" dataKey="val" stroke="#3b82f6" fillOpacity={1} fill="url(#colorActivity)" strokeWidth={3} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
