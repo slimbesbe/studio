@@ -10,14 +10,19 @@
         "email": { "type": "string" },
         "firstName": { "type": "string" },
         "lastName": { "type": "string" },
-        "role": { "type": "string", "enum": ["super_admin", "admin", "user"] },
-        "status": { "type": "string", "enum": ["active", "disabled", "expired"] },
-        "accessType": { "type": "string", "enum": ["simulation", "coaching", "coaching_simulation"] },
+        "role": { "type": "string", "enum": ["super_admin", "admin", "coach", "partner", "user"] },
+        "status": { "type": "string", "enum": ["active", "disabled", "expired", "suspended", "pending"] },
+        "accessType": { "type": "string", "enum": ["simulation", "coaching", "coaching_simulation", "simulation_only", "coaching_only", "simulation_and_coaching"] },
         "groupId": { "type": "string" },
+        "partnerId": { "type": "string", "description": "ID du partenaire B2B si applicable" },
+        "assignedCoachId": { "type": "string" },
+        "validUntil": { "type": "string", "format": "date-time" },
         "simulationsCount": { "type": "number" },
         "averageScore": { "type": "number" },
         "totalTimeSpent": { "type": "number" },
-        "allowedExams": { "type": "array", "items": { "type": "string" } }
+        "allowedExams": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       }
     },
     "CoachingSession": {
@@ -42,8 +47,14 @@
         "id": { "type": "string" },
         "name": { "type": "string" },
         "description": { "type": "string" },
-        "isActive": { "type": "boolean" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "coachId": { "type": "string" },
+        "partnerId": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "archived", "draft"] },
+        "maxUsers": { "type": "number" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       }
     },
     "CoachingAttempt": {
@@ -65,9 +76,9 @@
       "type": "object",
       "properties": {
         "id": { "type": "string" },
-        "index": { "type": "number", "description": "Global index for coaching sequences (1-180)" },
+        "index": { "type": "number" },
         "text": { "type": "string" },
-        "imageUrl": { "type": "string", "description": "URL d'une image d'illustration pour l'étude de cas" },
+        "imageUrl": { "type": "string" },
         "choices": { "type": "array", "items": { "type": "string" } },
         "correctChoice": { "type": "string" },
         "correctChoiceIds": { "type": "array", "items": { "type": "string" } },
