@@ -50,9 +50,8 @@ export default function SuperAdminDashboard() {
 
   useEffect(() => {
     setMounted(true);
-    // Petit délai pour forcer Recharts à recalculer les dimensions après le montage
     const timer = setTimeout(() => setChartKey(prev => prev + 1), 200);
-    if (!isUserLoading && profile?.role !== 'admin' && profile?.role !== 'super_admin') {
+    if (!isUserLoading && profile && profile.role !== 'admin' && profile.role !== 'super_admin') {
       router.push('/dashboard');
     }
     return () => clearTimeout(timer);
@@ -148,7 +147,7 @@ export default function SuperAdminDashboard() {
     };
   }, [allUsers, allGroups, allAttempts]);
 
-  if (isUserLoading || !mounted || !stats) {
+  if (!mounted || isUserLoading || !profile || !stats) {
     return <div className="h-screen flex items-center justify-center bg-[#f8fafc]"><Loader2 className="h-12 w-12 animate-spin text-blue-600" /></div>;
   }
 

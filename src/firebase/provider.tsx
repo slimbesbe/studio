@@ -55,112 +55,104 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 }) => {
   const router = useRouter();
   const pathname = usePathname();
-  const [userAuthState, setUserAuthState] = useState<UserAuthState>({
-    user: null,
-    profile: null,
-    isUserLoading: true,
-    userError: null,
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<any | null>(null);
+  const [isUserLoading, setIsUserLoading] = useState(true);
+  const [userError, setUserError] = useState<Error | null>(null);
 
+  // 1. Gérer l'état d'authentification
   useEffect(() => {
-    if (!auth || !firestore) return;
-
-    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        const isSA = firebaseUser.email?.toLowerCase() === ADMIN_EMAIL;
-        
-        // Souscription au profil Firestore
-        const userDocRef = doc(firestore, 'users', firebaseUser.uid);
-        const unsubscribeProfile = onSnapshot(userDocRef, (docSnap) => {
-          if (docSnap.exists()) {
-            const profileData = docSnap.data();
-            
-            let isExpired = false;
-            if (profileData.expiresAt) {
-              const expiryDate = profileData.expiresAt instanceof Timestamp 
-                ? profileData.expiresAt.toDate() 
-                : new Date(profileData.expiresAt);
-              if (expiryDate < new Date()) isExpired = true;
-            }
-
-            const currentStatus = isExpired ? 'expired' : (profileData.status || 'active');
-            // Priorité absolue au rôle Super Admin si l'email correspond
-            const role = isSA ? 'super_admin' : (profileData.role || 'user');
-
-            setUserAuthState({ 
-              user: firebaseUser, 
-              profile: { ...profileData, id: firebaseUser.uid, status: currentStatus, role }, 
-              isUserLoading: false,
-              userError: null
-            });
-          } else {
-            // Création automatique du profil si Admin
-            if (isSA) {
-              const initialAdmin = {
-                id: firebaseUser.uid,
-                email: ADMIN_EMAIL,
-                firstName: 'Slim',
-                lastName: 'Besbes',
-                role: 'super_admin',
-                status: 'active',
-                createdAt: serverTimestamp()
-              };
-              setDoc(userDocRef, initialAdmin, { merge: true }).catch(() => {});
-              setUserAuthState({ user: firebaseUser, profile: initialAdmin, isUserLoading: false, userError: null });
-            } else {
-              setUserAuthState({ user: firebaseUser, profile: null, isUserLoading: false, userError: null });
-            }
-          }
-        }, (error) => {
-          console.error("Profile sync error:", error);
-          // Fallback pour l'admin en cas d'erreur Firestore
-          if (isSA) {
-            setUserAuthState({ 
-              user: firebaseUser, 
-              profile: { id: firebaseUser.uid, email: ADMIN_EMAIL, role: 'super_admin', status: 'active' }, 
-              isUserLoading: false, 
-              userError: null 
-            });
-          }
-        });
-
-        return () => unsubscribeProfile();
-      } else {
-        setUserAuthState({ user: null, profile: null, isUserLoading: false, userError: null });
+    if (!auth) return;
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser);
+      if (!firebaseUser) {
+        setProfile(null);
+        setIsUserLoading(false);
         if (pathname.startsWith('/dashboard') || pathname.startsWith('/admin')) {
           router.push('/');
         }
       }
+    }, (error) => {
+      setUserError(error);
+      setIsUserLoading(false);
+    });
+    return () => unsubscribe();
+  }, [auth, pathname, router]);
+
+  // 2. Gérer le profil Firestore séparément pour éviter les boucles
+  useEffect(() => {
+    if (!firestore || !user) return;
+
+    setIsUserLoading(true);
+    const userDocRef = doc(firestore, 'users', user.uid);
+    const isSA = user.email?.toLowerCase() === ADMIN_EMAIL;
+
+    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const profileData = docSnap.data();
+        
+        let isExpired = false;
+        if (profileData.expiresAt) {
+          const expiryDate = profileData.expiresAt instanceof Timestamp 
+            ? profileData.expiresAt.toDate() 
+            : new Date(profileData.expiresAt);
+          if (expiryDate < new Date()) isExpired = true;
+        }
+
+        const currentStatus = isExpired ? 'expired' : (profileData.status || 'active');
+        const role = isSA ? 'super_admin' : (profileData.role || 'user');
+
+        setProfile({ ...profileData, id: user.uid, status: currentStatus, role });
+      } else if (isSA) {
+        // Initialisation automatique pour le Super Admin
+        const initialAdmin = {
+          id: user.uid,
+          email: ADMIN_EMAIL,
+          firstName: 'Slim',
+          lastName: 'Besbes',
+          role: 'super_admin',
+          status: 'active',
+          createdAt: serverTimestamp()
+        };
+        setDoc(userDocRef, initialAdmin, { merge: true }).catch(console.error);
+        setProfile(initialAdmin);
+      } else {
+        setProfile(null);
+      }
+      setIsUserLoading(false);
+    }, (error) => {
+      console.error("Profile sync error:", error);
+      if (isSA) {
+        setProfile({ id: user.uid, email: ADMIN_EMAIL, role: 'super_admin', status: 'active' });
+      }
+      setIsUserLoading(false);
     });
 
-    return () => unsubscribeAuth();
-  }, [auth, firestore, pathname, router]);
+    return () => unsubscribe();
+  }, [firestore, user]);
 
-  // Track time spent only for registered users
+  // 3. Suivi du temps d'étude (Uniquement pour les utilisateurs enregistrés)
   useEffect(() => {
-    if (!auth || !firestore || !userAuthState.user || userAuthState.user.isAnonymous) return;
+    if (!firestore || !user || user.isAnonymous || !profile) return;
     const interval = setInterval(() => {
-      setDoc(doc(firestore, 'users', userAuthState.user!.uid), { 
+      setDoc(doc(firestore, 'users', user.uid), { 
         totalTimeSpent: increment(60),
         lastLoginAt: serverTimestamp() 
       }, { merge: true }).catch(() => {});
     }, 60000);
     return () => clearInterval(interval);
-  }, [auth, firestore, userAuthState.user]);
+  }, [firestore, user, profile]);
 
-  const contextValue = useMemo((): FirebaseContextState => {
-    const servicesAvailable = !!(firebaseApp && firestore && auth);
-    return {
-      areServicesAvailable: servicesAvailable,
-      firebaseApp: servicesAvailable ? firebaseApp : null,
-      firestore: servicesAvailable ? firestore : null,
-      auth: servicesAvailable ? auth : null,
-      user: userAuthState.user,
-      profile: userAuthState.profile,
-      isUserLoading: userAuthState.isUserLoading,
-      userError: userAuthState.userError,
-    };
-  }, [firebaseApp, firestore, auth, userAuthState]);
+  const contextValue = useMemo((): FirebaseContextState => ({
+    areServicesAvailable: !!(firebaseApp && firestore && auth),
+    firebaseApp,
+    firestore,
+    auth,
+    user,
+    profile,
+    isUserLoading,
+    userError,
+  }), [firebaseApp, firestore, auth, user, profile, isUserLoading, userError]);
 
   return (
     <FirebaseContext.Provider value={contextValue}>
