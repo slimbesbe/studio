@@ -16,37 +16,37 @@ export default function CoachingStatsGroups() {
   const db = useFirestore();
   const [filterPartner, setFilterPartner] = useState('all');
   
-  // LISTE BLANCHE MATÉRIELLE DE SÉCURITÉ
+  // SÉCURITÉ MATÉRIELLE STRICTE
   const ADMIN_EMAILS = ['slim.besbes@yahoo.fr'];
-  const isHardcodedAdmin = user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
+  const isAuthorizedAdmin = user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
 
-  const isSA = isHardcodedAdmin && profile?.role === 'super_admin';
-  const isAdmin = isHardcodedAdmin || profile?.role === 'admin';
+  const isSA = isAuthorizedAdmin && profile?.role === 'super_admin';
+  const isAdmin = isAuthorizedAdmin || profile?.role === 'admin';
   const isCoach = profile?.role === 'coach';
   const isPartner = profile?.role === 'partner';
 
-  // Sécurité : On ne lance les requêtes que si l'utilisateur est un vrai admin ou staff autorisé
+  // Verrouillage des requêtes : Si l'utilisateur n'est pas authentiquement admin, on ne renvoie rien.
   const groupsQuery = useMemoFirebase(() => {
-    if (!isHardcodedAdmin && !isCoach && !isPartner) return null;
+    if (!isAuthorizedAdmin && !isCoach && !isPartner) return null;
     const base = collection(db, 'coachingGroups');
-    if (isHardcodedAdmin) return query(base, orderBy('createdAt', 'desc'));
+    if (isAuthorizedAdmin) return query(base, orderBy('createdAt', 'desc'));
     if (isCoach) return query(base, where('coachId', '==', profile?.id));
     if (isPartner) return query(base, where('partnerId', '==', profile?.id));
     return null;
-  }, [db, isHardcodedAdmin, isCoach, isPartner, profile?.id]);
+  }, [db, isAuthorizedAdmin, isCoach, isPartner, profile?.id]);
 
   const { data: groups, isLoading } = useCollection(groupsQuery);
 
   const usersQuery = useMemoFirebase(() => {
-    if (!isHardcodedAdmin && !isCoach && !isPartner) return null;
+    if (!isAuthorizedAdmin && !isCoach && !isPartner) return null;
     return collection(db, 'users');
-  }, [db, isHardcodedAdmin, isCoach, isPartner]);
+  }, [db, isAuthorizedAdmin, isCoach, isPartner]);
   const { data: allUsers } = useCollection(usersQuery);
 
   const attemptsQuery = useMemoFirebase(() => {
-    if (!isHardcodedAdmin && !isCoach && !isPartner) return null;
+    if (!isAuthorizedAdmin && !isCoach && !isPartner) return null;
     return collection(db, 'coachingAttempts');
-  }, [db, isHardcodedAdmin, isCoach, isPartner]);
+  }, [db, isAuthorizedAdmin, isCoach, isPartner]);
   const { data: allAttempts } = useCollection(attemptsQuery);
 
   const partners = useMemo(() => allUsers?.filter(u => u.role === 'partner') || [], [allUsers]);
@@ -76,12 +76,20 @@ export default function CoachingStatsGroups() {
 
   if (isLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
 
-  if (!isHardcodedAdmin && !isCoach && !isPartner) {
-    return <div className="h-screen flex items-center justify-center p-8 text-center"><p className="font-bold text-destructive italic uppercase">Accès restreint au personnel autorisé.</p></div>;
+  if (!isAuthorizedAdmin && !isCoach && !isPartner) {
+    return (
+      <div className="h-screen flex items-center justify-center p-8 text-center bg-white">
+        <div className="space-y-4">
+          <p className="font-black text-destructive italic uppercase text-2xl tracking-tighter">Accès Restreint</p>
+          <p className="text-slate-400 font-bold italic text-sm">Seul l'administrateur principal peut accéder à ces données.</p>
+          <Button asChild variant="outline"><Link href="/dashboard">Retour au Dashboard</Link></Button>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-10 animate-fade-in">
+    <div className="p-8 max-w-7xl mx-auto space-y-10 animate-fade-in pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild className="h-14 w-14 rounded-2xl border-2"><Link href="/admin/coaching"><ChevronLeft /></Link></Button>
@@ -97,7 +105,7 @@ export default function CoachingStatsGroups() {
               <SelectTrigger className="w-48 h-10 border-none font-bold italic text-xs uppercase"><SelectValue placeholder="Partenaire" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les partenaires</SelectItem>
-                {partners.map(p => (
+                {partners.filter(p => p.id).map(p => (
                   <SelectItem key={p.id} value={p.id}>{p.firstName} {p.lastName}</SelectItem>
                 ))}
               </SelectContent>
