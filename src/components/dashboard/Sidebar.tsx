@@ -74,7 +74,7 @@ export function Sidebar() {
 
   return (
     <div className="flex flex-col h-full bg-white text-slate-600 w-64 fixed left-0 top-0 z-40 shadow-sm border-r border-slate-100">
-      <div className="h-20 flex items-center px-6 border-b border-slate-50">
+      <div className="h-20 flex items-center px-6 border-b border-slate-50 bg-white">
         <Link className="flex items-center gap-3 group" href={isAdmin ? "/admin/dashboard" : "/dashboard"}>
           <div className="bg-primary/5 p-2 rounded-xl group-hover:scale-105 transition-transform">
             <SimuLuxLogo className="h-8 w-8" />
@@ -86,7 +86,7 @@ export function Sidebar() {
         </Link>
       </div>
 
-      <div className="flex-1 py-8 px-4 space-y-1 overflow-y-auto">
+      <div className="flex-1 py-8 px-4 space-y-1 overflow-y-auto bg-white">
         {/* Navigation Admin */}
         {isAdmin && (
           <>
@@ -160,7 +160,7 @@ export function Sidebar() {
         )}
       </div>
 
-      <div className="p-6 border-t border-slate-100 space-y-6 bg-slate-50/30">
+      <div className="p-6 border-t border-slate-100 space-y-6 bg-white">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl flex items-center justify-center text-white font-black bg-gradient-to-br from-primary to-indigo-600 shadow-md">
             {initials}

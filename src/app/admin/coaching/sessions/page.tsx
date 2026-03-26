@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -30,13 +29,22 @@ import { CoachingImportModal } from '@/components/admin/CoachingImportModal';
 import { CoachingGenerateModal } from '@/components/admin/CoachingGenerateModal';
 
 export default function AdminCoachingSessions() {
+  const { profile } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
+
+  const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
   
-  const sessionsQuery = useMemoFirebase(() => query(collection(db, 'coachingSessions'), orderBy('index', 'asc')), [db]);
+  const sessionsQuery = useMemoFirebase(() => {
+    if (!isAdmin) return null;
+    return query(collection(db, 'coachingSessions'), orderBy('index', 'asc'));
+  }, [db, isAdmin]);
   const { data: sessions, isLoading } = useCollection(sessionsQuery);
 
-  const groupsQuery = useMemoFirebase(() => query(collection(db, 'coachingGroups')), [db]);
+  const groupsQuery = useMemoFirebase(() => {
+    if (!isAdmin) return null;
+    return query(collection(db, 'coachingGroups'));
+  }, [db, isAdmin]);
   const { data: groups } = useCollection(groupsQuery);
 
   const [editSessions, setEditSessions] = useState<any[]>([]);
@@ -110,6 +118,8 @@ export default function AdminCoachingSessions() {
   };
 
   if (isLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
+
+  if (!isAdmin) return null;
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-8 animate-fade-in">

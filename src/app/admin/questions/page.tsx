@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, Suspense, useEffect } from 'react';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, orderBy, deleteDoc, doc, limit, where } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,7 @@ import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
 
 function QuestionsList() {
+  const { profile } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
@@ -35,13 +36,15 @@ function QuestionsList() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [counts, setCounts] = useState<Record<string, number>>({});
 
+  const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
+
   const questionsQuery = useMemoFirebase(() => {
+    if (!isAdmin) return null;
     return query(collection(db, 'questions'), orderBy('updatedAt', 'desc'), limit(2000));
-  }, [db]);
+  }, [db, isAdmin]);
 
   const { data: questions, isLoading } = useCollection(questionsQuery);
 
-  // CALCUL DES COMPTEURS POUR LE FILTRE
   useEffect(() => {
     if (questions) {
       const newCounts: Record<string, number> = {};
@@ -52,7 +55,6 @@ function QuestionsList() {
             newCounts[s] = (newCounts[s] || 0) + 1;
           });
         } else {
-          // Fallback legacy
           const id = q.examId || q.sessionId || 'general';
           newCounts[id] = (newCounts[id] || 0) + 1;
         }
@@ -114,6 +116,8 @@ function QuestionsList() {
   };
 
   if (isLoading) return <div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
+
+  if (!isAdmin) return null;
 
   return (
     <div className="space-y-8 animate-fade-in">

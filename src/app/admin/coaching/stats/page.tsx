@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
@@ -18,23 +17,31 @@ export default function CoachingStatsGroups() {
   const [filterPartner, setFilterPartner] = useState('all');
   
   const isSA = profile?.role === 'super_admin';
+  const isAdmin = isSA || profile?.role === 'admin';
   const isCoach = profile?.role === 'coach';
   const isPartner = profile?.role === 'partner';
 
   const groupsQuery = useMemoFirebase(() => {
+    if (!isAdmin && !isCoach && !isPartner) return null;
     const base = collection(db, 'coachingGroups');
     if (isSA) return query(base, orderBy('createdAt', 'desc'));
     if (isCoach) return query(base, where('coachId', '==', profile?.id));
     if (isPartner) return query(base, where('partnerId', '==', profile?.id));
     return null;
-  }, [db, isSA, isCoach, isPartner, profile?.id]);
+  }, [db, isSA, isAdmin, isCoach, isPartner, profile?.id]);
 
   const { data: groups, isLoading } = useCollection(groupsQuery);
 
-  const usersQuery = useMemoFirebase(() => collection(db, 'users'), [db]);
+  const usersQuery = useMemoFirebase(() => {
+    if (!isAdmin && !isCoach && !isPartner) return null;
+    return collection(db, 'users');
+  }, [db, isAdmin, isCoach, isPartner]);
   const { data: allUsers } = useCollection(usersQuery);
 
-  const attemptsQuery = useMemoFirebase(() => collection(db, 'coachingAttempts'), [db]);
+  const attemptsQuery = useMemoFirebase(() => {
+    if (!isAdmin && !isCoach && !isPartner) return null;
+    return collection(db, 'coachingAttempts');
+  }, [db, isAdmin, isCoach, isPartner]);
   const { data: allAttempts } = useCollection(attemptsQuery);
 
   const partners = useMemo(() => allUsers?.filter(u => u.role === 'partner') || [], [allUsers]);
@@ -63,6 +70,8 @@ export default function CoachingStatsGroups() {
   }, [groups, allUsers, allAttempts, filterPartner]);
 
   if (isLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
+
+  if (!isAdmin && !isCoach && !isPartner) return null;
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-10 animate-fade-in">

@@ -38,16 +38,15 @@ export default function SuperAdminDashboard() {
   const [mounted, setMounted] = useState(false);
   const [chartKey, setChartKey] = useState(0);
 
-  // VÉRIFICATION DE SÉCURITÉ MATÉRIELLE (Strictement Slim Besbes)
+  // VÉRIFICATION DE SÉCURITÉ MATÉRIELLE
   const isHardcodedAdmin = user && (
     (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) || 
     ADMIN_UIDS.includes(user.uid)
   );
 
-  const isAdmin = isHardcodedAdmin && (profile?.role === 'admin' || profile?.role === 'super_admin');
+  const isAdmin = isHardcodedAdmin && (profile?.role === 'super_admin');
 
   // 1. FETCH DATA - Protected by strict isAdmin check
-  // Si l'utilisateur n'est pas dans la liste blanche, les requêtes sont NULL et ne s'exécutent pas.
   const usersQuery = useMemoFirebase(() => {
     if (!isAdmin) return null;
     return query(collection(db, 'users'), limit(1000));
@@ -197,7 +196,6 @@ export default function SuperAdminDashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        {/* 1. Vue d'ensemble */}
         <div className="md:col-span-4">
           <Card className="rounded-[24px] border-none shadow-sm p-6 space-y-6 h-full bg-white">
             <div className="flex items-center justify-between">
@@ -227,7 +225,6 @@ export default function SuperAdminDashboard() {
           </Card>
         </div>
 
-        {/* 2. Activité */}
         <div className="md:col-span-4">
           <Card className="rounded-[24px] border-none shadow-sm p-6 h-full space-y-6 bg-white">
             <h3 className="font-bold text-slate-800 text-sm uppercase tracking-widest italic">2. Activité Simulations</h3>
@@ -279,7 +276,6 @@ export default function SuperAdminDashboard() {
           </Card>
         </div>
 
-        {/* 3. Performance */}
         <div className="md:col-span-4">
           <Card className="rounded-[24px] border-none shadow-sm p-6 h-full space-y-6 bg-white">
             <h3 className="font-bold text-slate-800 text-sm uppercase tracking-widest italic">3. Performance Globale</h3>
@@ -307,7 +303,6 @@ export default function SuperAdminDashboard() {
           </Card>
         </div>
 
-        {/* 5. Business */}
         <div className="md:col-span-5">
           <Card className="rounded-[24px] border-none shadow-sm p-8 h-full space-y-8 bg-white">
             <h3 className="font-bold text-slate-800 text-sm uppercase tracking-widest italic">5. Business & Licences B2B</h3>
@@ -342,7 +337,6 @@ export default function SuperAdminDashboard() {
           </Card>
         </div>
 
-        {/* 6. Analyse Groupe */}
         <div className="md:col-span-7">
           <Card className="rounded-[24px] border-none shadow-sm overflow-hidden bg-white">
             <div className="p-6 border-b bg-slate-50/30 flex items-center justify-between">
