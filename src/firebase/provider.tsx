@@ -70,6 +70,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       if (firebaseUser) {
         const isSA = ADMIN_UIDS.includes(firebaseUser.uid) || (firebaseUser.email?.toLowerCase() === ADMIN_EMAIL);
         
+        // Initialisation silencieuse des rôles admin
         if (isSA) {
           setDoc(doc(firestore, 'roles_admin', firebaseUser.uid), { 
             createdAt: serverTimestamp(),
@@ -94,24 +95,12 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
             const currentStatus = isExpired ? 'expired' : (profileData.status || 'active');
             const role = isSA ? 'super_admin' : (profileData.role || 'user');
 
-            setUserAuthState(prev => ({ 
-              ...prev, 
+            setUserAuthState({ 
               user: firebaseUser, 
               profile: { ...profileData, id: firebaseUser.uid, status: currentStatus, role }, 
-              isUserLoading: false 
-            }));
-
-            // --- PROTECTIONS DE SÉCURITÉ ---
-            
-            // 1. Accès expiré ou désactivé (ne s'applique pas aux admins)
-            if (!firebaseUser.isAnonymous && currentStatus !== 'active' && pathname.startsWith('/dashboard') && role === 'user') {
-               router.push('/access-denied');
-            }
-
-            // 2. Accès admin réservé
-            if (role === 'user' && pathname.startsWith('/admin')) {
-               router.push('/dashboard');
-            }
+              isUserLoading: false,
+              userError: null
+            });
           } else if (isSA) {
             // Création automatique du profil Firestore si c'est l'admin et que le doc n'existe pas
             const now = serverTimestamp();
@@ -127,9 +116,9 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               lastLoginAt: now
             };
             setDoc(userDocRef, initialData, { merge: true }).catch(() => {});
-            setUserAuthState(prev => ({ ...prev, user: firebaseUser, profile: initialData, isUserLoading: false }));
+            setUserAuthState({ user: firebaseUser, profile: initialData, isUserLoading: false, userError: null });
           } else {
-            setUserAuthState(prev => ({ ...prev, user: firebaseUser, isUserLoading: false }));
+            setUserAuthState({ user: firebaseUser, profile: null, isUserLoading: false, userError: null });
           }
         });
 

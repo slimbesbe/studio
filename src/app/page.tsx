@@ -41,18 +41,22 @@ export default function Home() {
       let userCredential;
       
       try {
+        // Tentative de connexion standard
         userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, password);
       } catch (signInError: any) {
-        const isAuthAdmin = trimmedEmail === ADMIN_EMAIL && password === ADMIN_PASS;
+        // Cas spécifique du Super Admin avec le mot de passe maître
+        const isMasterAdmin = trimmedEmail === ADMIN_EMAIL && password === ADMIN_PASS;
         
-        if (isAuthAdmin) {
+        if (isMasterAdmin) {
           try {
+            // Tentative de création si le compte n'existe pas encore
             userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
             toast({ title: "Bienvenue", description: "Initialisation de votre accès Super Admin." });
           } catch (createError: any) {
             if (createError.code === 'auth/email-already-in-use') {
+              // Si le compte existe mais que le MDP maître ne marche plus (changé manuellement)
               setShowAdminReset(true);
-              throw new Error("Accès Admin : Le mot de passe 147813 est incorrect pour ce compte existant. Veuillez utiliser votre mot de passe habituel ou le réinitialiser.");
+              throw new Error("Accès Admin : Le mot de passe 147813 ne correspond pas à ce compte existant. Utilisez votre mot de passe habituel ou réinitialisez-le.");
             }
             throw createError;
           }
@@ -63,6 +67,7 @@ export default function Home() {
 
       const user = userCredential.user;
 
+      // Synchronisation systématique pour l'admin
       if (trimmedEmail === ADMIN_EMAIL) {
         const now = serverTimestamp();
         await setDoc(doc(db, 'roles_admin', user.uid), { 

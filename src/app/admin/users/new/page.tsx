@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, getDoc, setDoc, Timestamp, collection, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, Timestamp, collection, serverTimestamp } from 'firebase/firestore';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { firebaseConfig } from '@/firebase/config';
@@ -28,12 +28,11 @@ const AVAILABLE_EXAMS = [
 ];
 
 export default function NewUserPage() {
-  const { user: adminUser, isUserLoading } = useUser();
+  const { profile, isUserLoading } = useUser();
   const db = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
   
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validityType, setValidityType] = useState('days');
   const [selectedExams, setSelectedExams] = useState<string[]>(['exam1']); 
@@ -55,17 +54,6 @@ export default function NewUserPage() {
   const groupsQuery = useMemoFirebase(() => collection(db, 'coachingGroups'), [db]);
   const { data: groups } = useCollection(groupsQuery);
 
-  useEffect(() => {
-    async function checkAdmin() {
-      if (adminUser) {
-        const adminDoc = await getDoc(doc(db, 'roles_admin', adminUser.uid));
-        if (!adminDoc.exists()) router.push('/dashboard');
-        else setIsAdmin(true);
-      } else if (!isUserLoading) router.push('/');
-    }
-    checkAdmin();
-  }, [adminUser, isUserLoading, db, router]);
-
   const toggleExam = (id: string) => {
     setSelectedExams(prev => 
       prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id]
@@ -84,20 +72,15 @@ export default function NewUserPage() {
       return;
     }
 
-    if (isCreatingNewGroup && !formData.newGroupName.trim()) {
-      toast({ variant: "destructive", title: "Nom du groupe requis", description: "Veuillez saisir un nom pour le nouveau groupe." });
-      return;
-    }
-
     setIsSubmitting(true);
     
-    const secondaryApp = initializeApp(firebaseConfig, "secondary_user_creation");
+    const secondaryApp = initializeApp(firebaseConfig, "secondary_user_creation_" + Date.now());
     const secondaryAuth = getAuth(secondaryApp);
 
     try {
       // 1. Gérer la création du groupe si nécessaire
       let finalGroupId = formData.groupId;
-      if (isCreatingNewGroup) {
+      if (isCreatingNewGroup && formData.newGroupName.trim()) {
         const newGroupRef = doc(collection(db, 'coachingGroups'));
         await setDoc(newGroupRef, {
           id: newGroupRef.id,
@@ -117,7 +100,7 @@ export default function NewUserPage() {
       // 3. Calculer la validité
       let expiresAt: Date | null = null;
       if (validityType === 'days') {
-        const days = parseInt(formData.validityDays);
+        const days = parseInt(formData.validityDays) || 30;
         expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + days);
       } else if (validityType === 'fixedDate' && formData.fixedDate) {
@@ -136,10 +119,11 @@ export default function NewUserPage() {
         status: 'active',
         password: formData.password,
         validityType,
-        validityDays: validityType === 'days' ? parseInt(formData.validityDays) : null,
+        validityDays: validityType === 'days' ? (parseInt(formData.validityDays) || 30) : null,
         expiresAt: expiresAt ? Timestamp.fromDate(expiresAt) : null,
         allowedExams: selectedExams,
-        createdAt: Timestamp.now(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
         simulationsCount: 0,
         averageScore: 0,
         totalTimeSpent: 0
@@ -148,7 +132,7 @@ export default function NewUserPage() {
       // 5. Ajouter aux rôles admin si nécessaire
       if (formData.role === 'admin' || formData.role === 'super_admin') {
         await setDoc(doc(db, 'roles_admin', newUid), { 
-          createdAt: Timestamp.now(), 
+          createdAt: serverTimestamp(), 
           email: formData.email,
           isSuperAdmin: formData.role === 'super_admin'
         });
@@ -167,7 +151,7 @@ export default function NewUserPage() {
     }
   };
 
-  if (isUserLoading || isAdmin === null) return <div className="h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (isUserLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-6 animate-fade-in">
@@ -185,7 +169,6 @@ export default function NewUserPage() {
         </CardHeader>
         <CardContent className="p-8">
           <form onSubmit={handleCreateUser} className="space-y-10">
-            {/* 1. Informations Personnelles */}
             <div className="space-y-6">
               <Label className="text-primary font-black uppercase italic text-xs tracking-widest flex items-center gap-2">
                 <User className="h-4 w-4" /> 1. Identité & Sécurité
@@ -219,14 +202,12 @@ export default function NewUserPage() {
               </div>
             </div>
 
-            {/* 2. Rôle et Groupe */}
             <div className="space-y-6 pt-6 border-t">
               <Label className="text-primary font-black uppercase italic text-xs tracking-widest flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4" /> 2. Rôle & Affectation
               </Label>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* CASE : LE RÔLE */}
                 <div className="space-y-3">
                   <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Rôle sur la plateforme</Label>
                   <Select value={formData.role} onValueChange={(val) => setFormData({...formData, role: val})}>
@@ -242,7 +223,6 @@ export default function NewUserPage() {
                   </Select>
                 </div>
 
-                {/* CASE : LE GROUPE */}
                 <div className="space-y-3">
                   <div className="flex justify-between items-center px-1">
                     <Label className="text-[10px] font-black uppercase text-slate-400">Groupe / Cohorte</Label>
@@ -284,7 +264,6 @@ export default function NewUserPage() {
               </div>
             </div>
 
-            {/* 3. Droits d'accès */}
             <div className="space-y-6 pt-6 border-t">
               <Label className="text-primary font-black uppercase italic text-xs tracking-widest flex items-center gap-2">
                 <Trophy className="h-4 w-4" /> 3. Périmètre des Examens
@@ -315,7 +294,6 @@ export default function NewUserPage() {
               </div>
             </div>
 
-            {/* 4. Validité */}
             <div className="space-y-6 pt-6 border-t">
               <Label className="text-primary font-black uppercase italic text-xs tracking-widest flex items-center gap-2">
                 <Clock className="h-4 w-4" /> 4. Période de Validité
@@ -330,7 +308,7 @@ export default function NewUserPage() {
                     <TabsContent value="days" className="mt-0">
                       <div className="flex items-center gap-4">
                         <Input type="number" min="1" value={formData.validityDays} onChange={(e) => setFormData({...formData, validityDays: e.target.value})} className="h-12 font-black italic border-2 rounded-xl text-center text-xl w-32" />
-                        <span className="font-black italic uppercase text-slate-400 text-xs">Jours d'accès à partir d'aujourd'hui</span>
+                        <span className="font-black italic uppercase text-slate-400 text-xs">Jours d'accès</span>
                       </div>
                     </TabsContent>
                     <TabsContent value="fixedDate" className="mt-0">
