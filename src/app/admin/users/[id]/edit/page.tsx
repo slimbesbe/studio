@@ -1,16 +1,15 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
-import { doc, getDoc, updateDoc, Timestamp, collection, setDoc } from 'firebase/firestore';
+import { doc, updateDoc, Timestamp, collection } from 'firebase/firestore';
 import { useRouter, useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, ArrowLeft, ShieldCheck, Mail, User, Clock, Calendar, Trophy, Pencil, Check } from 'lucide-react';
+import { Loader2, ArrowLeft, ShieldCheck, Mail, User, Clock, Trophy, Pencil, Check, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Link from 'next/link';
@@ -31,7 +30,6 @@ export default function EditUserPage() {
   const userId = params.id as string;
   const { toast } = useToast();
   
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validityType, setValidityType] = useState('days');
   const [selectedExams, setSelectedExams] = useState<string[]>([]);
@@ -40,11 +38,13 @@ export default function EditUserPage() {
     firstName: '',
     lastName: '',
     email: '',
+    password: '',
     role: 'user',
     accessType: 'simulation',
     groupId: '',
     validityDays: '30',
-    fixedDate: ''
+    fixedDate: '',
+    status: 'active'
   });
 
   const userRef = useMemoFirebase(() => doc(db, 'users', userId), [db, userId]);
@@ -54,27 +54,18 @@ export default function EditUserPage() {
   const { data: groups } = useCollection(groupsQuery);
 
   useEffect(() => {
-    async function checkAdmin() {
-      if (adminUser) {
-        const adminDoc = await getDoc(doc(db, 'roles_admin', adminUser.uid));
-        if (!adminDoc.exists()) router.push('/dashboard');
-        else setIsAdmin(true);
-      } else if (!isUserLoading) router.push('/');
-    }
-    checkAdmin();
-  }, [adminUser, isUserLoading, db, router]);
-
-  useEffect(() => {
     if (userData) {
       setFormData({
         firstName: userData.firstName || '',
         lastName: userData.lastName || '',
         email: userData.email || '',
+        password: userData.password || '',
         role: userData.role || 'user',
         accessType: userData.accessType || 'simulation',
         groupId: userData.groupId || '',
         validityDays: String(userData.validityDays || '30'),
-        fixedDate: userData.expiresAt ? new Date(userData.expiresAt.seconds * 1000).toISOString().split('T')[0] : ''
+        fixedDate: userData.expiresAt ? new Date(userData.expiresAt.seconds * 1000).toISOString().split('T')[0] : '',
+        status: userData.status || 'active'
       });
       setSelectedExams(userData.allowedExams || []);
       setValidityType(userData.validityType || 'days');
@@ -90,11 +81,6 @@ export default function EditUserPage() {
   const handleUpdateUser = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if ((formData.accessType === 'coaching' || formData.accessType === 'coaching_simulation') && !formData.groupId) {
-      toast({ variant: "destructive", title: "Groupe requis", description: "Veuillez sélectionner un groupe pour le coaching." });
-      return;
-    }
-
     setIsSubmitting(true);
     
     try {
@@ -108,12 +94,13 @@ export default function EditUserPage() {
       }
 
       await updateDoc(doc(db, 'users', userId), {
-        email: formData.email,
         firstName: formData.firstName,
         lastName: formData.lastName,
         role: formData.role,
         accessType: formData.accessType,
         groupId: formData.groupId || null,
+        status: formData.status,
+        password: formData.password,
         validityType,
         validityDays: validityType === 'days' ? parseInt(formData.validityDays) : null,
         expiresAt: expiresAt ? Timestamp.fromDate(expiresAt) : null,
@@ -121,15 +108,7 @@ export default function EditUserPage() {
         updatedAt: Timestamp.now(),
       });
 
-      if (formData.role !== 'user') {
-        const adminRolesRef = doc(db, 'roles_admin', userId);
-        const adminDoc = await getDoc(adminRolesRef);
-        if (!adminDoc.exists()) {
-          await setDoc(adminRolesRef, { createdAt: Timestamp.now(), email: formData.email });
-        }
-      }
-
-      toast({ title: "Utilisateur mis à jour", description: `Le compte de ${formData.firstName} a été modifié.` });
+      toast({ title: "Utilisateur mis à jour", description: `Les modifications pour ${formData.firstName} ont été enregistrées.` });
       router.push('/admin/users');
     } catch (error: any) {
       toast({ variant: "destructive", title: "Erreur", description: error.message || "Impossible de modifier le compte." });
@@ -138,135 +117,165 @@ export default function EditUserPage() {
     }
   };
 
-  if (isUserLoading || isAdmin === null || isUserDataLoading) {
-    return <div className="h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (isUserLoading || isUserDataLoading) {
+    return <div className="h-screen flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-6">
-      <Button variant="ghost" asChild><Link href="/admin/users"><ArrowLeft className="mr-2 h-4 w-4" /> Retour</Link></Button>
+    <div className="p-8 max-w-4xl mx-auto space-y-6 animate-fade-in">
+      <Button variant="ghost" asChild className="rounded-xl"><Link href="/admin/users"><ArrowLeft className="mr-2 h-4 w-4" /> Retour à la liste</Link></Button>
 
-      <Card className="border-t-4 border-t-primary shadow-xl">
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="bg-primary/10 p-2 rounded-lg"><Pencil className="h-6 w-6 text-primary" /></div>
+      <Card className="border-t-8 border-t-primary shadow-2xl rounded-[32px] overflow-hidden">
+        <CardHeader className="bg-slate-50/50 border-b p-8">
+          <div className="flex items-center gap-4">
+            <div className="bg-primary/10 p-3 rounded-2xl"><Pencil className="h-8 w-8 text-primary" /></div>
             <div>
-              <CardTitle>Modifier le Participant</CardTitle>
-              <CardDescription>Mettez à jour les accès et la validité du compte de {formData.firstName}.</CardDescription>
+              <CardTitle className="text-2xl font-black uppercase italic tracking-tight">Modifier Profil</CardTitle>
+              <CardDescription className="font-bold text-slate-400 uppercase text-[10px] tracking-widest italic">Édition des accès de {formData.firstName} {formData.lastName}.</CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleUpdateUser} className="space-y-8">
+        <CardContent className="p-8">
+          <form onSubmit={handleUpdateUser} className="space-y-10">
+            {/* 1. Informations Personnelles */}
             <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+              <Label className="text-primary font-black uppercase italic text-xs tracking-widest flex items-center gap-2">
+                <User className="h-4 w-4" /> 1. Identité & Sécurité
+              </Label>
+              <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label>Prénom</Label>
-                  <Input placeholder="Prénom" required value={formData.firstName} onChange={(e) => setFormData({...formData, firstName: e.target.value})} />
+                  <Label className="text-[10px] font-black uppercase text-slate-400 ml-1 italic">Prénom</Label>
+                  <Input className="h-12 rounded-xl font-bold italic border-2" required value={formData.firstName} onChange={(e) => setFormData({...formData, firstName: e.target.value})} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Nom</Label>
-                  <Input placeholder="Nom" required value={formData.lastName} onChange={(e) => setFormData({...formData, lastName: e.target.value})} />
+                  <Label className="text-[10px] font-black uppercase text-slate-400 ml-1 italic">Nom</Label>
+                  <Input className="h-12 rounded-xl font-bold italic border-2" required value={formData.lastName} onChange={(e) => setFormData({...formData, lastName: e.target.value})} />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input type="email" placeholder="email@exemple.com" required value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase text-slate-400 ml-1 italic">Email (Lecture seule)</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-4 h-4 w-4 text-slate-300" />
+                    <Input disabled className="pl-12 h-12 rounded-xl font-bold italic border-2 bg-slate-50 opacity-60" value={formData.email} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase text-slate-400 ml-1 italic">Mot de passe (Mémo)</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-4 h-4 w-4 text-slate-300" />
+                    <Input className="pl-12 h-12 rounded-xl font-bold italic border-2" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-6 border-t pt-6">
-              <Label className="text-base font-black uppercase tracking-widest flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-primary" /> Configuration des Accès
+            {/* 2. Rôle et Groupe */}
+            <div className="space-y-6 pt-6 border-t">
+              <Label className="text-primary font-black uppercase italic text-xs tracking-widest flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4" /> 2. Rôle, Groupe & Statut
               </Label>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase text-muted-foreground">Type d'accès plateforme</Label>
-                  <Select value={formData.accessType} onValueChange={(val) => setFormData({...formData, accessType: val})}>
-                    <SelectTrigger className="font-bold h-12"><SelectValue /></SelectTrigger>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-3">
+                  <Label className="text-[10px] font-black uppercase text-slate-400 ml-1 italic">Rôle</Label>
+                  <Select value={formData.role} onValueChange={(val) => setFormData({...formData, role: val})}>
+                    <SelectTrigger className="h-12 rounded-xl border-2 font-black italic shadow-sm bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="simulation">Simulation Uniquement</SelectItem>
-                      <SelectItem value="coaching">Coaching Uniquement</SelectItem>
-                      <SelectItem value="coaching_simulation">Hybride (Coaching + Simulation)</SelectItem>
+                      <SelectItem value="user">Élève</SelectItem>
+                      <SelectItem value="coach">Coach</SelectItem>
+                      <SelectItem value="partner">Partenaire</SelectItem>
+                      <SelectItem value="admin">Administrateur</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                {(formData.accessType === 'coaching' || formData.accessType === 'coaching_simulation') && (
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase text-muted-foreground">Groupe de Coaching</Label>
-                    <Select value={formData.groupId} onValueChange={(val) => setFormData({...formData, groupId: val})}>
-                      <SelectTrigger className="font-bold h-12"><SelectValue placeholder="Choisir un groupe" /></SelectTrigger>
-                      <SelectContent>
-                        {groups?.map(g => (
-                          <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
-            </div>
+                <div className="space-y-3">
+                  <Label className="text-[10px] font-black uppercase text-slate-400 ml-1 italic">Statut Compte</Label>
+                  <Select value={formData.status} onValueChange={(val) => setFormData({...formData, status: val})}>
+                    <SelectTrigger className="h-12 rounded-xl border-2 font-black italic shadow-sm bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Actif</SelectItem>
+                      <SelectItem value="disabled">Suspendu</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            {(formData.accessType === 'simulation' || formData.accessType === 'coaching_simulation') && (
-              <div className="space-y-4 border-t pt-6">
-                <Label className="text-base font-black uppercase tracking-widest flex items-center gap-2">
-                  <Trophy className="h-4 w-4 text-primary" /> Accès aux Simulations
-                </Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {AVAILABLE_EXAMS.map((exam) => {
-                    const isChecked = selectedExams.includes(exam.id);
-                    return (
-                      <div 
-                        key={exam.id} 
-                        onClick={() => toggleExam(exam.id)}
-                        className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${isChecked ? 'bg-primary/5 border-primary' : 'bg-muted/10 border-transparent'}`}
-                      >
-                        <div className={`h-5 w-5 rounded-md border-2 flex items-center justify-center ${isChecked ? 'bg-primary border-primary' : 'bg-white'}`}>
-                          {isChecked && <Check className="h-3.5 w-3.5 text-white" />}
-                        </div>
-                        <span className="text-xs font-black uppercase italic">{exam.title}</span>
-                      </div>
-                    );
-                  })}
+                <div className="space-y-3">
+                  <Label className="text-[10px] font-black uppercase text-slate-400 ml-1 italic">Cohorte / Groupe</Label>
+                  <Select value={formData.groupId} onValueChange={(val) => setFormData({...formData, groupId: val})}>
+                    <SelectTrigger className="h-12 rounded-xl border-2 font-black italic shadow-sm bg-white">
+                      <SelectValue placeholder="Aucun groupe" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Sans groupe</SelectItem>
+                      {groups?.map(g => (
+                        <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-            )}
+            </div>
 
-            <div className="space-y-4 border-t pt-6">
-              <Label className="text-base font-black uppercase tracking-widest flex items-center gap-2">
-                <Clock className="h-4 w-4 text-primary" /> Validité du compte
+            {/* 3. Droits d'accès */}
+            <div className="space-y-6 pt-6 border-t">
+              <Label className="text-primary font-black uppercase italic text-xs tracking-widest flex items-center gap-2">
+                <Trophy className="h-4 w-4" /> 3. Périmètre des Examens
               </Label>
-              <Tabs value={validityType} onValueChange={setValidityType} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 h-12">
-                  <TabsTrigger value="days" className="font-bold italic uppercase text-xs">Durée (Jours)</TabsTrigger>
-                  <TabsTrigger value="fixedDate" className="font-bold italic uppercase text-xs">Date Fixe</TabsTrigger>
-                </TabsList>
-                <TabsContent value="days" className="pt-4">
-                  <Input type="number" min="1" value={formData.validityDays} onChange={(e) => setFormData({...formData, validityDays: e.target.value})} className="h-12 font-black italic" />
-                </TabsContent>
-                <TabsContent value="fixedDate" className="pt-4">
-                  <Input type="date" value={formData.fixedDate} onChange={(e) => setFormData({...formData, fixedDate: e.target.value})} className="h-12 font-black italic" />
-                </TabsContent>
-              </Tabs>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {AVAILABLE_EXAMS.map((exam) => {
+                  const isChecked = selectedExams.includes(exam.id);
+                  return (
+                    <div 
+                      key={exam.id} 
+                      onClick={() => toggleExam(exam.id)}
+                      className={`flex items-center gap-4 p-5 rounded-2xl border-2 transition-all cursor-pointer shadow-sm group ${isChecked ? "border-primary bg-primary/5 scale-[1.02]" : "border-slate-100 hover:border-slate-200"}`}
+                    >
+                      <div className={`h-6 w-6 rounded-lg border-2 flex items-center justify-center transition-colors ${isChecked ? "bg-primary border-primary" : "bg-white border-slate-200 group-hover:border-primary/50"}`}>
+                        {isChecked && <Check className="h-4 w-4 text-white" strokeWidth={4} />}
+                      </div>
+                      <span className={`text-xs font-black uppercase italic ${isChecked ? "text-primary" : "text-slate-500"}`}>{exam.title}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="space-y-2 border-t pt-6">
-              <Label className="text-xs font-bold uppercase text-muted-foreground">Rôle du compte</Label>
-              <Select value={formData.role} onValueChange={(val) => setFormData({...formData, role: val})}>
-                <SelectTrigger className="h-12 font-black italic"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">Participant Standard</SelectItem>
-                  <SelectItem value="admin">Administrateur</SelectItem>
-                  <SelectItem value="super_admin">Super Admin</SelectItem>
-                </SelectContent>
-              </Select>
+            {/* 4. Validité */}
+            <div className="space-y-6 pt-6 border-t">
+              <Label className="text-primary font-black uppercase italic text-xs tracking-widest flex items-center gap-2">
+                <Clock className="h-4 w-4" /> 4. Période de Validité
+              </Label>
+              <Card className="border-2 rounded-2xl overflow-hidden bg-slate-50/50">
+                <Tabs value={validityType} onValueChange={setValidityType} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 h-14 bg-slate-100 rounded-none border-b-2">
+                    <TabsTrigger value="days" className="font-black italic uppercase text-[10px]">Durée (Jours)</TabsTrigger>
+                    <TabsTrigger value="fixedDate" className="font-black italic uppercase text-[10px]">Date d'expiration</TabsTrigger>
+                  </TabsList>
+                  <CardContent className="p-6">
+                    <TabsContent value="days" className="mt-0">
+                      <div className="flex items-center gap-4">
+                        <Input type="number" min="1" value={formData.validityDays} onChange={(e) => setFormData({...formData, validityDays: e.target.value})} className="h-12 font-black italic border-2 rounded-xl text-center text-xl w-32 bg-white" />
+                        <span className="font-black italic uppercase text-slate-400 text-xs">Nombre de jours restants</span>
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="fixedDate" className="mt-0">
+                      <Input type="date" value={formData.fixedDate} onChange={(e) => setFormData({...formData, fixedDate: e.target.value})} className="h-12 font-black italic border-2 rounded-xl bg-white" />
+                    </TabsContent>
+                  </CardContent>
+                </Tabs>
+              </Card>
             </div>
 
-            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 h-14 font-black uppercase tracking-widest text-lg shadow-xl" disabled={isSubmitting}>
-              {isSubmitting ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Mise à jour...</> : <><ShieldCheck className="mr-2 h-5 w-5" /> Enregistrer les modifications</>}
+            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 h-20 rounded-[24px] font-black uppercase tracking-widest text-xl shadow-2xl scale-105 transition-transform" disabled={isSubmitting}>
+              {isSubmitting ? <><Loader2 className="mr-3 h-8 w-8 animate-spin" /> Enregistrement...</> : <><ShieldCheck className="mr-3 h-8 w-8" /> Sauvegarder les modifications</>}
             </Button>
           </form>
         </CardContent>
