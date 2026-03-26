@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
@@ -19,25 +18,23 @@ export default function GroupStatsDashboard() {
   const { profile, user, isUserLoading: isAuthLoading } = useUser();
   const db = useFirestore();
 
-  const ADMIN_UIDS = ['GPgreBe1JzZYbEHQGn3xIdcQGQs1', 'vwyrAnNtQkSojYSEEK2qkRB5feh2'];
-  const isAdmin = profile?.role === 'super_admin' || 
-                  profile?.role === 'admin' || 
-                  user?.email === 'slim.besbes@yahoo.fr' ||
-                  (user?.uid && ADMIN_UIDS.includes(user.uid));
+  // LISTE BLANCHE MATÉRIELLE DE SÉCURITÉ
+  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr'];
+  const isHardcodedAdmin = user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
 
   const groupRef = useMemoFirebase(() => doc(db, 'coachingGroups', groupId), [db, groupId]);
   const { data: group, isLoading: isGroupLoading } = useDoc(groupRef);
 
   const usersQuery = useMemoFirebase(() => {
-    if (!isAdmin || !groupId) return null;
+    if (!isHardcodedAdmin || !groupId) return null;
     return query(collection(db, 'users'), where('groupId', '==', groupId));
-  }, [db, groupId, isAdmin]);
+  }, [db, groupId, isHardcodedAdmin]);
   const { data: participants, isLoading: isUsersLoading } = useCollection(usersQuery);
 
   const attemptsQuery = useMemoFirebase(() => {
-    if (!isAdmin || !groupId) return null;
+    if (!isHardcodedAdmin || !groupId) return null;
     return query(collection(db, 'coachingAttempts'), where('groupId', '==', groupId));
-  }, [db, groupId, isAdmin]);
+  }, [db, groupId, isHardcodedAdmin]);
   const { data: allAttempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
 
   const stats = useMemo(() => {
@@ -60,8 +57,8 @@ export default function GroupStatsDashboard() {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
   }
 
-  if (!isAdmin) {
-    return <div className="h-screen flex items-center justify-center p-8 text-center"><p className="font-bold text-destructive italic uppercase">Accès restreint aux administrateurs.</p></div>;
+  if (!isHardcodedAdmin) {
+    return <div className="h-screen flex items-center justify-center p-8 text-center"><p className="font-bold text-destructive italic uppercase">Accès restreint aux administrateurs autorisés.</p></div>;
   }
 
   return (

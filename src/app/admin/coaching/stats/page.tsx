@@ -12,36 +12,41 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function CoachingStatsGroups() {
-  const { profile } = useUser();
+  const { profile, user } = useUser();
   const db = useFirestore();
   const [filterPartner, setFilterPartner] = useState('all');
   
-  const isSA = profile?.role === 'super_admin';
-  const isAdmin = isSA || profile?.role === 'admin';
+  // LISTE BLANCHE MATÉRIELLE DE SÉCURITÉ
+  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr'];
+  const isHardcodedAdmin = user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
+
+  const isSA = isHardcodedAdmin && profile?.role === 'super_admin';
+  const isAdmin = isHardcodedAdmin || profile?.role === 'admin';
   const isCoach = profile?.role === 'coach';
   const isPartner = profile?.role === 'partner';
 
+  // Sécurité : On ne lance les requêtes que si l'utilisateur est un vrai admin ou staff autorisé
   const groupsQuery = useMemoFirebase(() => {
-    if (!isAdmin && !isCoach && !isPartner) return null;
+    if (!isHardcodedAdmin && !isCoach && !isPartner) return null;
     const base = collection(db, 'coachingGroups');
-    if (isSA) return query(base, orderBy('createdAt', 'desc'));
+    if (isHardcodedAdmin) return query(base, orderBy('createdAt', 'desc'));
     if (isCoach) return query(base, where('coachId', '==', profile?.id));
     if (isPartner) return query(base, where('partnerId', '==', profile?.id));
     return null;
-  }, [db, isSA, isAdmin, isCoach, isPartner, profile?.id]);
+  }, [db, isHardcodedAdmin, isCoach, isPartner, profile?.id]);
 
   const { data: groups, isLoading } = useCollection(groupsQuery);
 
   const usersQuery = useMemoFirebase(() => {
-    if (!isAdmin && !isCoach && !isPartner) return null;
+    if (!isHardcodedAdmin && !isCoach && !isPartner) return null;
     return collection(db, 'users');
-  }, [db, isAdmin, isCoach, isPartner]);
+  }, [db, isHardcodedAdmin, isCoach, isPartner]);
   const { data: allUsers } = useCollection(usersQuery);
 
   const attemptsQuery = useMemoFirebase(() => {
-    if (!isAdmin && !isCoach && !isPartner) return null;
+    if (!isHardcodedAdmin && !isCoach && !isPartner) return null;
     return collection(db, 'coachingAttempts');
-  }, [db, isAdmin, isCoach, isPartner]);
+  }, [db, isHardcodedAdmin, isCoach, isPartner]);
   const { data: allAttempts } = useCollection(attemptsQuery);
 
   const partners = useMemo(() => allUsers?.filter(u => u.role === 'partner') || [], [allUsers]);
@@ -71,7 +76,9 @@ export default function CoachingStatsGroups() {
 
   if (isLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
 
-  if (!isAdmin && !isCoach && !isPartner) return null;
+  if (!isHardcodedAdmin && !isCoach && !isPartner) {
+    return <div className="h-screen flex items-center justify-center p-8 text-center"><p className="font-bold text-destructive italic uppercase">Accès restreint au personnel autorisé.</p></div>;
+  }
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-10 animate-fade-in">
