@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -48,6 +47,7 @@ export default function Home() {
         const userSnap = await getDoc(userRef);
         const userData = userSnap.data();
         
+        // SECURITÉ : On vérifie si l'utilisateur est admin MATÉRIEL (Slim) ou admin Firestore
         const isSA = ADMIN_EMAILS.includes(trimmedEmail) || userData?.role === 'super_admin' || userData?.role === 'admin';
         
         if (isSA) {
@@ -58,7 +58,7 @@ export default function Home() {
         
         toast({ title: "Connexion réussie", description: "Bienvenue sur Simu-lux." });
       } catch (authError: any) {
-        // 2. Détection de désynchronisation
+        // 2. Détection de désynchronisation (Si l'admin a changé le pass dans Firestore mais pas dans Auth)
         const usersRef = collection(db, 'users');
         const q = query(usersRef, where('email', '==', trimmedEmail), limit(1));
         const querySnapshot = await getDocs(q);

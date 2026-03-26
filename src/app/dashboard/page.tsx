@@ -1,4 +1,3 @@
-
 /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
@@ -30,7 +29,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setMounted(true);
-    const timer = setTimeout(() => setChartKey(prev => prev + 1), 200);
+    // Force Recharts layout calculation after animation frame
+    const timer = setTimeout(() => setChartKey(prev => prev + 1), 500);
     return () => clearTimeout(timer);
   }, []);
 
@@ -104,9 +104,8 @@ export default function DashboardPage() {
         <span className="text-slate-900">Analyses</span>
       </div>
 
-      {/* Top Row: KPIs (Matching the image) */}
+      {/* Top Row: KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Dernier Score */}
         <Card className="rounded-[24px] border-none shadow-md bg-white p-6 relative overflow-hidden group">
           <div className="flex justify-between items-center h-full">
             <div className="space-y-4">
@@ -123,7 +122,6 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        {/* Examens Passés */}
         <Card className="rounded-[24px] border-none shadow-md bg-white p-6 space-y-6">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
@@ -142,7 +140,6 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        {/* Score Moyen */}
         <Card className="rounded-[24px] border-none shadow-md bg-white p-6">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
@@ -164,13 +161,13 @@ export default function DashboardPage() {
       </div>
 
       {/* Middle: Progression du Score (Main Chart) */}
-      <Card className="rounded-[32px] shadow-lg border-none bg-white p-10 flex flex-col">
+      <Card className="rounded-[32px] shadow-lg border-none bg-white p-10 flex flex-col min-h-[550px]">
         <CardHeader className="p-0 pb-10">
           <CardTitle className="text-2xl font-black text-slate-900 uppercase italic tracking-tighter">PROGRESSION DU SCORE</CardTitle>
           <CardDescription className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic mt-1">Analyse de performance par session</CardDescription>
         </CardHeader>
-        <CardContent className="p-0 h-[400px]">
-          {stats?.progressionData && stats.progressionData.length > 0 ? (
+        <CardContent className="p-0 flex-1 h-[400px]">
+          {mounted && stats?.progressionData && stats.progressionData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%" key={chartKey}>
               <ComposedChart data={stats.progressionData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="0" vertical={false} stroke="#f1f5f9" />
@@ -224,9 +221,8 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Bottom Row: Detailed Stats */}
+      {/* Bottom Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6">
-        {/* Study Time */}
         <Card className="rounded-[24px] shadow-md border-none bg-white p-8">
           <div className="flex items-center gap-10">
             <div className="relative h-24 w-24 shrink-0 flex items-center justify-center">
@@ -247,7 +243,6 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        {/* Items Processed */}
         <Card className="rounded-[24px] shadow-md border-none bg-white p-8">
           <div className="flex items-center gap-10">
             <div className="bg-slate-50 h-24 w-24 rounded-[32px] flex items-center justify-center text-slate-900 shadow-inner">

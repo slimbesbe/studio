@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
@@ -13,11 +12,8 @@ import {
   Briefcase,
   Clock,
   MoreHorizontal,
-  Search,
   Pencil,
-  Info,
   LayoutGrid,
-  Target,
   TrendingUp
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -61,7 +57,8 @@ export default function SuperAdminDashboard() {
 
   useEffect(() => {
     setMounted(true);
-    const timer = setTimeout(() => setChartKey(prev => prev + 1), 300);
+    const timer = setTimeout(() => setChartKey(prev => prev + 1), 500);
+    
     if (!isUserLoading && profile && profile.role !== 'admin' && profile.role !== 'super_admin') {
       router.push('/dashboard');
     }
@@ -162,9 +159,7 @@ export default function SuperAdminDashboard() {
     return <div className="h-screen flex items-center justify-center bg-[#f8fafc]"><Loader2 className="h-12 w-12 animate-spin text-blue-600" /></div>;
   }
 
-  if (!isAdmin) {
-    return null; // Let the redirect happen
-  }
+  if (!isAdmin) return null;
 
   if (!stats) {
     return <div className="h-screen flex items-center justify-center bg-[#f8fafc]"><Loader2 className="h-12 w-12 animate-spin text-blue-600" /></div>;
@@ -310,7 +305,7 @@ export default function SuperAdminDashboard() {
               <div className="space-y-4">
                 <p className="text-[10px] font-black text-slate-400 uppercase italic">Capacité Licences</p>
                 <p className="text-5xl font-black text-slate-900 tracking-tighter">{stats.totalLicences}</p>
-                <div className="h-20 w-full mt-4">
+                <div className="h-24 w-full mt-4">
                   <ResponsiveContainer width="100%" height="100%" key={`lic-${chartKey}`}>
                     <BarChart data={stats.chartData}>
                       <XAxis dataKey="name" hide />

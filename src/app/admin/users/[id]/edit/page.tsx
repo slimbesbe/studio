@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -200,11 +199,11 @@ export default function EditUserPage() {
                 </div>
                 <div className="space-y-3">
                   <Label className="text-[10px] font-black uppercase text-slate-400 ml-1 italic">Cohorte / Groupe</Label>
-                  <Select value={formData.groupId} onValueChange={(val) => setFormData({...formData, groupId: val})}>
+                  <Select value={formData.groupId || 'none'} onValueChange={(val) => setFormData({...formData, groupId: val})}>
                     <SelectTrigger className="h-12 rounded-xl border-2 font-black italic shadow-sm bg-white"><SelectValue placeholder="Aucun groupe" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Sans groupe</SelectItem>
-                      {groups?.map(g => (
+                      {groups?.filter(g => g.id).map(g => (
                         <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
                       ))}
                     </SelectContent>
