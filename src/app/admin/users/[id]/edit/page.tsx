@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
-import { doc, updateDoc, Timestamp, collection } from 'firebase/firestore';
+import { doc, updateDoc, Timestamp, collection, serverTimestamp } from 'firebase/firestore';
 import { useRouter, useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -80,20 +81,19 @@ export default function EditUserPage() {
 
   const handleUpdateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-
     setIsSubmitting(true);
     
     try {
-      let expiresAt: Date | null = null;
+      let expiresAtDate: Date | null = null;
       if (validityType === 'days') {
-        const days = parseInt(formData.validityDays);
-        expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + days);
+        const days = parseInt(formData.validityDays) || 30;
+        expiresAtDate = new Date();
+        expiresAtDate.setDate(expiresAtDate.getDate() + days);
       } else if (validityType === 'fixedDate' && formData.fixedDate) {
-        expiresAt = new Date(formData.fixedDate);
+        expiresAtDate = new Date(formData.fixedDate);
       }
 
-      await updateDoc(doc(db, 'users', userId), {
+      const updates: any = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         role: formData.role,
@@ -102,13 +102,15 @@ export default function EditUserPage() {
         status: formData.status,
         password: formData.password,
         validityType,
-        validityDays: validityType === 'days' ? parseInt(formData.validityDays) : null,
-        expiresAt: expiresAt ? Timestamp.fromDate(expiresAt) : null,
+        validityDays: validityType === 'days' ? (parseInt(formData.validityDays) || 30) : null,
+        expiresAt: expiresAtDate ? Timestamp.fromDate(expiresAtDate) : null,
         allowedExams: selectedExams,
-        updatedAt: Timestamp.now(),
-      });
+        updatedAt: serverTimestamp(),
+      };
 
-      toast({ title: "Utilisateur mis à jour", description: `Les modifications pour ${formData.firstName} ont été enregistrées.` });
+      await updateDoc(doc(db, 'users', userId), updates);
+
+      toast({ title: "Utilisateur mis à jour", description: "Les modifications ont été enregistrées avec succès." });
       router.push('/admin/users');
     } catch (error: any) {
       toast({ variant: "destructive", title: "Erreur", description: error.message || "Impossible de modifier le compte." });
@@ -137,7 +139,6 @@ export default function EditUserPage() {
         </CardHeader>
         <CardContent className="p-8">
           <form onSubmit={handleUpdateUser} className="space-y-10">
-            {/* 1. Informations Personnelles */}
             <div className="space-y-6">
               <Label className="text-primary font-black uppercase italic text-xs tracking-widest flex items-center gap-2">
                 <User className="h-4 w-4" /> 1. Identité & Sécurité
@@ -152,7 +153,6 @@ export default function EditUserPage() {
                   <Input className="h-12 rounded-xl font-bold italic border-2" required value={formData.lastName} onChange={(e) => setFormData({...formData, lastName: e.target.value})} />
                 </div>
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black uppercase text-slate-400 ml-1 italic">Email (Lecture seule)</Label>
@@ -171,47 +171,37 @@ export default function EditUserPage() {
               </div>
             </div>
 
-            {/* 2. Rôle et Groupe */}
             <div className="space-y-6 pt-6 border-t">
               <Label className="text-primary font-black uppercase italic text-xs tracking-widest flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4" /> 2. Rôle, Groupe & Statut
               </Label>
-              
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-3">
                   <Label className="text-[10px] font-black uppercase text-slate-400 ml-1 italic">Rôle</Label>
                   <Select value={formData.role} onValueChange={(val) => setFormData({...formData, role: val})}>
-                    <SelectTrigger className="h-12 rounded-xl border-2 font-black italic shadow-sm bg-white">
-                      <SelectValue />
-                    </SelectTrigger>
+                    <SelectTrigger className="h-12 rounded-xl border-2 font-black italic shadow-sm bg-white"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="user">Élève</SelectItem>
                       <SelectItem value="coach">Coach</SelectItem>
                       <SelectItem value="partner">Partenaire</SelectItem>
-                      <SelectItem value="admin">Administrateur</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-
                 <div className="space-y-3">
                   <Label className="text-[10px] font-black uppercase text-slate-400 ml-1 italic">Statut Compte</Label>
                   <Select value={formData.status} onValueChange={(val) => setFormData({...formData, status: val})}>
-                    <SelectTrigger className="h-12 rounded-xl border-2 font-black italic shadow-sm bg-white">
-                      <SelectValue />
-                    </SelectTrigger>
+                    <SelectTrigger className="h-12 rounded-xl border-2 font-black italic shadow-sm bg-white"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="active">Actif</SelectItem>
                       <SelectItem value="disabled">Suspendu</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-
                 <div className="space-y-3">
                   <Label className="text-[10px] font-black uppercase text-slate-400 ml-1 italic">Cohorte / Groupe</Label>
                   <Select value={formData.groupId} onValueChange={(val) => setFormData({...formData, groupId: val})}>
-                    <SelectTrigger className="h-12 rounded-xl border-2 font-black italic shadow-sm bg-white">
-                      <SelectValue placeholder="Aucun groupe" />
-                    </SelectTrigger>
+                    <SelectTrigger className="h-12 rounded-xl border-2 font-black italic shadow-sm bg-white"><SelectValue placeholder="Aucun groupe" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">Sans groupe</SelectItem>
                       {groups?.map(g => (
@@ -223,12 +213,10 @@ export default function EditUserPage() {
               </div>
             </div>
 
-            {/* 3. Droits d'accès */}
             <div className="space-y-6 pt-6 border-t">
               <Label className="text-primary font-black uppercase italic text-xs tracking-widest flex items-center gap-2">
                 <Trophy className="h-4 w-4" /> 3. Périmètre des Examens
               </Label>
-              
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {AVAILABLE_EXAMS.map((exam) => {
                   const isChecked = selectedExams.includes(exam.id);
@@ -248,7 +236,6 @@ export default function EditUserPage() {
               </div>
             </div>
 
-            {/* 4. Validité */}
             <div className="space-y-6 pt-6 border-t">
               <Label className="text-primary font-black uppercase italic text-xs tracking-widest flex items-center gap-2">
                 <Clock className="h-4 w-4" /> 4. Période de Validité
@@ -263,7 +250,7 @@ export default function EditUserPage() {
                     <TabsContent value="days" className="mt-0">
                       <div className="flex items-center gap-4">
                         <Input type="number" min="1" value={formData.validityDays} onChange={(e) => setFormData({...formData, validityDays: e.target.value})} className="h-12 font-black italic border-2 rounded-xl text-center text-xl w-32 bg-white" />
-                        <span className="font-black italic uppercase text-slate-400 text-xs">Nombre de jours restants</span>
+                        <span className="font-black italic uppercase text-slate-400 text-xs">Jours d'accès restants</span>
                       </div>
                     </TabsContent>
                     <TabsContent value="fixedDate" className="mt-0">
