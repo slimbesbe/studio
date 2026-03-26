@@ -15,8 +15,7 @@ import {
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Cell
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 
 export default function DashboardPage() {
@@ -51,10 +50,6 @@ export default function DashboardPage() {
         progressionData: [
           { date: '2024-05-15', score: 65 },
           { date: '2024-05-18', score: 80 }
-        ],
-        strengthData: [
-          { name: 'People', value: 85, color: '#004d73' },
-          { name: 'Business Environment', value: 45, color: '#4fc3f7' }
         ]
       };
     }
@@ -76,41 +71,13 @@ export default function DashboardPage() {
         score: a.scorePercent
       }));
 
-    // Analyse des forces par domaine
-    const domains: Record<string, { strong: number, total: number }> = {
-      'People': { strong: 0, total: 0 },
-      'Process': { strong: 0, total: 0 },
-      'Business Environment': { strong: 0, total: 0 }
-    };
-
-    attempts.forEach(a => {
-      // Simplification pour l'analyse de domaine
-      const domain = a.tags?.domain || 'Process';
-      const dKey = domain === 'Business' ? 'Business Environment' : domain;
-      
-      if (domains[dKey]) {
-        domains[dKey].total++;
-        if (a.scorePercent >= 75) domains[dKey].strong++;
-      }
-    });
-
-    const strengthData = Object.keys(domains)
-      .map(name => ({
-        name,
-        value: domains[name].total > 0 ? Math.round((domains[name].strong / attempts.length) * 100) : 0,
-        color: name === 'People' ? '#004d73' : '#4fc3f7'
-      }))
-      .filter(d => d.value > 0 || isDemo)
-      .sort((a, b) => b.value - a.value);
-
     return {
       latestScore: latest.scorePercent,
       totalExams: attempts.length,
       avgScore,
       totalQuestions,
       studyTime: profile?.totalTimeSpent || 0,
-      progressionData,
-      strengthData
+      progressionData
     };
   }, [attempts, profile, isDemo]);
 
@@ -125,7 +92,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in pb-20">
+    <div className="space-y-8 animate-fade-in pb-20 max-w-6xl mx-auto">
       {/* Top 3 Indicator Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* 1. Latest Score */}
@@ -135,7 +102,7 @@ export default function DashboardPage() {
             <CardTitle className="text-sm font-semibold text-slate-600">Latest Score</CardTitle>
           </CardHeader>
           <CardContent className="p-6 pt-2">
-            <div className="text-4xl font-black text-slate-900">{stats?.latestScore || 0}%</div>
+            <div className="text-5xl font-black text-slate-900 tracking-tighter">{stats?.latestScore || 0}%</div>
             <p className="text-xs text-slate-400 font-medium mt-1">From last session</p>
           </CardContent>
         </Card>
@@ -147,7 +114,7 @@ export default function DashboardPage() {
             <CardTitle className="text-sm font-semibold text-slate-600">Exams Taken</CardTitle>
           </CardHeader>
           <CardContent className="p-6 pt-2">
-            <div className="text-4xl font-black text-slate-900">{stats?.totalExams || 0}</div>
+            <div className="text-5xl font-black text-slate-900 tracking-tighter">{stats?.totalExams || 0}</div>
             <p className="text-xs text-slate-400 font-medium mt-1">Full & Mini simulations</p>
           </CardContent>
         </Card>
@@ -159,116 +126,71 @@ export default function DashboardPage() {
             <CardTitle className="text-sm font-semibold text-slate-600">Average Score</CardTitle>
           </CardHeader>
           <CardContent className="p-6 pt-2">
-            <div className="text-4xl font-black text-slate-900">{stats?.avgScore || 0}%</div>
+            <div className="text-5xl font-black text-slate-900 tracking-tighter">{stats?.avgScore || 0}%</div>
             <p className="text-xs text-slate-400 font-medium mt-1">Overall progress</p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Score Progression Chart */}
-        <Card className="rounded-none shadow-sm border-none bg-white p-8">
-          <CardHeader className="px-0 pt-0">
-            <CardTitle className="text-2xl font-bold text-slate-800">Score Progression</CardTitle>
-            <CardDescription className="text-sm text-slate-400">Visualizing your improvement over time</CardDescription>
-          </CardHeader>
-          <CardContent className="px-0 pb-0 h-[350px] mt-8">
-            {stats?.progressionData && stats.progressionData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={stats.progressionData} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="date" stroke="#94a3b8" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} />
-                  <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} />
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontWeight: 'bold' }} 
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="score" 
-                    stroke="#004d73" 
-                    strokeWidth={3} 
-                    dot={{ r: 5, fill: '#004d73', strokeWidth: 2, stroke: '#fff' }} 
-                    activeDot={{ r: 7 }} 
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <EmptyState message="Start your first simulation to see progression" />
-            )}
-          </CardContent>
-        </Card>
+      {/* Middle large progression card */}
+      <Card className="rounded-none shadow-sm border-none bg-white p-10">
+        <CardHeader className="px-0 pt-0">
+          <CardTitle className="text-4xl font-black text-[#004d73] uppercase italic tracking-tighter">Score Progression</CardTitle>
+          <CardDescription className="text-lg font-bold text-slate-400 uppercase tracking-widest italic">Visualizing your improvement over time</CardDescription>
+        </CardHeader>
+        <CardContent className="px-0 pb-0 h-[450px] mt-10">
+          {stats?.progressionData && stats.progressionData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={stats.progressionData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} fontWeight="bold" tickLine={false} axisLine={false} />
+                <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={12} fontWeight="bold" tickLine={false} axisLine={false} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontWeight: 'bold' }} 
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="score" 
+                  stroke="#004d73" 
+                  strokeWidth={4} 
+                  dot={{ r: 6, fill: '#004d73', strokeWidth: 3, stroke: '#fff' }} 
+                  activeDot={{ r: 8 }} 
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <EmptyState message="Start your first simulation to see progression" />
+          )}
+        </CardContent>
+      </Card>
 
-        {/* Strength Areas Chart */}
-        <Card className="rounded-none shadow-sm border-none bg-white p-8">
-          <CardHeader className="px-0 pt-0">
-            <CardTitle className="text-2xl font-bold text-slate-800">Strength Areas</CardTitle>
-            <CardDescription className="text-sm text-slate-400">Frequency of "Strong" performance by Domain</CardDescription>
-          </CardHeader>
-          <CardContent className="px-0 pb-0 h-[350px] mt-8">
-            {stats?.strengthData && stats.strengthData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart 
-                  layout="vertical" 
-                  data={stats.strengthData} 
-                  margin={{ top: 5, right: 30, left: 60, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                  <XAxis type="number" domain={[0, 100]} hide />
-                  <YAxis 
-                    dataKey="name" 
-                    type="category" 
-                    stroke="#64748b" 
-                    fontSize={10} 
-                    fontWeight="bold" 
-                    tickLine={false} 
-                    axisLine={false}
-                    width={100}
-                  />
-                  <Tooltip 
-                    cursor={{ fill: 'transparent' }}
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontWeight: 'bold' }}
-                  />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={60}>
-                    {stats.strengthData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <EmptyState message="Analyze your mistakes to identify strengths" />
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Bottom Large Indicators */}
+      {/* Bottom row large indicators */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Study Time Card */}
-        <Card className="border-t-4 border-t-[#4fc3f7] shadow-sm rounded-none overflow-hidden bg-white">
-          <CardContent className="p-10 text-center space-y-4">
-            <div className="flex items-center justify-center gap-4 text-[#4fc3f7]">
-              <Clock className="h-10 w-10" />
-              <h3 className="text-xl font-black uppercase tracking-[0.2em] italic">Study Time</h3>
+        <Card className="border-t-8 border-t-[#4fc3f7] shadow-xl rounded-none bg-white">
+          <CardContent className="p-12 space-y-6">
+            <div className="flex items-center gap-4 text-[#4fc3f7]">
+              <Clock className="h-12 w-12" />
+              <h3 className="text-2xl font-black uppercase tracking-[0.2em] italic">Study Time</h3>
             </div>
-            <div className="text-7xl font-black text-slate-900 tracking-tighter">
+            <div className="text-8xl font-black text-slate-900 tracking-tighter">
               {formatTimeHoursMinutes(stats?.studyTime || 0)}
             </div>
-            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic">Cumulated learning</p>
+            <p className="text-lg font-bold text-slate-400 uppercase tracking-widest italic pt-4">Cumulated learning</p>
           </CardContent>
         </Card>
 
         {/* Questions Card */}
-        <Card className="border-t-4 border-t-[#004d73] shadow-sm rounded-none overflow-hidden bg-white">
-          <CardContent className="p-10 text-center space-y-4">
-            <div className="flex items-center justify-center gap-4 text-[#004d73]">
-              <BookOpen className="h-10 w-10" />
-              <h3 className="text-xl font-black uppercase tracking-[0.2em] italic">Questions</h3>
+        <Card className="border-t-8 border-t-[#004d73] shadow-xl rounded-none bg-white">
+          <CardContent className="p-12 space-y-6">
+            <div className="flex items-center gap-4 text-[#004d73]">
+              <BookOpen className="h-12 w-12" />
+              <h3 className="text-2xl font-black uppercase tracking-[0.2em] italic">Questions</h3>
             </div>
-            <div className="text-7xl font-black text-slate-900 tracking-tighter">
+            <div className="text-8xl font-black text-slate-900 tracking-tighter">
               {stats?.totalQuestions || 0}
             </div>
-            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic">Items processed</p>
+            <p className="text-lg font-bold text-slate-400 uppercase tracking-widest italic pt-4">Items processed</p>
           </CardContent>
         </Card>
       </div>
@@ -278,9 +200,9 @@ export default function DashboardPage() {
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 border-4 border-dashed rounded-3xl">
-      <TrendingUp className="h-12 w-12 opacity-20" />
-      <p className="text-xs font-black uppercase tracking-widest text-center px-8">{message}</p>
+    <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 border-4 border-dashed rounded-none">
+      <Target className="h-16 w-16 opacity-20" />
+      <p className="text-sm font-black uppercase tracking-widest text-center px-8">{message}</p>
     </div>
   );
 }
