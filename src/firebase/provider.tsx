@@ -38,8 +38,8 @@ export interface FirebaseServicesAndUser {
 
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
-const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'jedgrira1@gmail.com'];
-const ADMIN_UIDS = ['Adknzym5N6cMeJnYBCRaAdBrA0r1', 'vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1'];
+const ADMIN_EMAILS = ['slim.besbes@yahoo.fr'];
+const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1'];
 
 export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   children,
@@ -96,6 +96,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         }
 
         const currentStatus = isExpired ? 'expired' : (profileData.status || 'active');
+        
+        // Un utilisateur est admin s'il est Super Admin OU s'il a le rôle admin dans son profil
         const role = isSA ? 'super_admin' : (profileData.role || 'user');
 
         setProfile({ ...profileData, id: user.uid, status: currentStatus, role });
