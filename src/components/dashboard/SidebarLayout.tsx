@@ -7,7 +7,6 @@ import { usePathname } from 'next/navigation';
 
 /**
  * SidebarLayout component that conditionally renders the Sidebar and adjusts main content padding.
- * Enforces h-screen and overflow-hidden to allow children to use flex layouts for single-page view.
  */
 export function SidebarLayout({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
@@ -17,10 +16,10 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
   const showSidebar = !!user && !isUserLoading && pathname !== '/' && pathname !== '/login';
 
   return (
-    <div className="h-screen bg-background overflow-hidden flex">
+    <div className="min-h-screen bg-background flex">
       <Sidebar />
       <main className={cn(
-        "flex-1 h-screen transition-all duration-300 ease-in-out overflow-hidden flex flex-col",
+        "flex-1 transition-all duration-300 ease-in-out flex flex-col",
         showSidebar ? "pl-64" : "pl-0"
       )}>
         {children}

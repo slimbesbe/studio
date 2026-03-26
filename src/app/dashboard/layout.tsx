@@ -7,7 +7,7 @@ export default function DashboardLayout({
 }) {
   return (
     <DemoGuard>
-      <div className="h-full w-full p-6 max-w-7xl mx-auto overflow-hidden box-border">
+      <div className="w-full p-6 max-w-7xl mx-auto box-border">
         {children}
       </div>
     </DemoGuard>
