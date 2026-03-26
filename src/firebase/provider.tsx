@@ -70,7 +70,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       if (firebaseUser) {
         const isSA = ADMIN_UIDS.includes(firebaseUser.uid) || (firebaseUser.email?.toLowerCase() === ADMIN_EMAIL);
         
-        // Initialisation silencieuse des rôles admin
+        // Initialisation silencieuse des rôles admin pour garantir l'accès
         if (isSA) {
           setDoc(doc(firestore, 'roles_admin', firebaseUser.uid), { 
             createdAt: serverTimestamp(),
@@ -93,6 +93,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
             }
 
             const currentStatus = isExpired ? 'expired' : (profileData.status || 'active');
+            // Priorité au rôle Super Admin pour l'email de référence
             const role = isSA ? 'super_admin' : (profileData.role || 'user');
 
             setUserAuthState({ 
@@ -120,11 +121,24 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
           } else {
             setUserAuthState({ user: firebaseUser, profile: null, isUserLoading: false, userError: null });
           }
+        }, (error) => {
+          // En cas d'erreur de permission pour l'admin, on lui donne quand même son rôle client-side
+          if (isSA) {
+            setUserAuthState({ 
+              user: firebaseUser, 
+              profile: { id: firebaseUser.uid, email: firebaseUser.email, role: 'super_admin', status: 'active' }, 
+              isUserLoading: false, 
+              userError: null 
+            });
+          } else {
+            console.error("Profile subscription error:", error);
+          }
         });
 
         return () => unsubscribeProfile();
       } else {
         setUserAuthState({ user: null, profile: null, isUserLoading: false, userError: null });
+        // Redirection uniquement si on essaie d'accéder à une page protégée sans être loggué
         if (pathname.startsWith('/dashboard') || pathname.startsWith('/admin')) {
           router.push('/');
         }

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, setDoc, Timestamp, collection, serverTimestamp } from 'firebase/firestore';
 import { initializeApp, deleteApp } from 'firebase/app';
@@ -28,7 +28,7 @@ const AVAILABLE_EXAMS = [
 ];
 
 export default function NewUserPage() {
-  const { profile, isUserLoading } = useUser();
+  const { isUserLoading } = useUser();
   const db = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
@@ -74,7 +74,9 @@ export default function NewUserPage() {
 
     setIsSubmitting(true);
     
-    const secondaryApp = initializeApp(firebaseConfig, "secondary_user_creation_" + Date.now());
+    // On utilise un identifiant d'application unique pour éviter les conflits lors de créations rapides
+    const secondaryAppName = "secondary_user_creation_" + Date.now();
+    const secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
     const secondaryAuth = getAuth(secondaryApp);
 
     try {
@@ -100,7 +102,7 @@ export default function NewUserPage() {
       // 3. Calculer la validité
       let expiresAt: Date | null = null;
       if (validityType === 'days') {
-        const days = parseInt(formData.validityDays) || 30;
+        const days = Number(formData.validityDays) || 30;
         expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + days);
       } else if (validityType === 'fixedDate' && formData.fixedDate) {
@@ -119,8 +121,8 @@ export default function NewUserPage() {
         status: 'active',
         password: formData.password,
         validityType,
-        validityDays: validityType === 'days' ? (parseInt(formData.validityDays) || 30) : null,
-        expiresAt: expiresAt ? Timestamp.fromDate(expiresAt) : null,
+        validityDays: validityType === 'days' ? (Number(formData.validityDays) || 30) : null,
+        expiresAt: (expiresAt && !isNaN(expiresAt.getTime())) ? Timestamp.fromDate(expiresAt) : null,
         allowedExams: selectedExams,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),

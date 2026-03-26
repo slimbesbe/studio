@@ -24,7 +24,7 @@ const AVAILABLE_EXAMS = [
 ];
 
 export default function EditUserPage() {
-  const { user: adminUser, isUserLoading } = useUser();
+  const { isUserLoading } = useUser();
   const db = useFirestore();
   const router = useRouter();
   const params = useParams();
@@ -86,7 +86,7 @@ export default function EditUserPage() {
     try {
       let expiresAtDate: Date | null = null;
       if (validityType === 'days') {
-        const days = parseInt(formData.validityDays) || 30;
+        const days = Number(formData.validityDays) || 30;
         expiresAtDate = new Date();
         expiresAtDate.setDate(expiresAtDate.getDate() + days);
       } else if (validityType === 'fixedDate' && formData.fixedDate) {
@@ -102,8 +102,8 @@ export default function EditUserPage() {
         status: formData.status,
         password: formData.password,
         validityType,
-        validityDays: validityType === 'days' ? (parseInt(formData.validityDays) || 30) : null,
-        expiresAt: expiresAtDate ? Timestamp.fromDate(expiresAtDate) : null,
+        validityDays: validityType === 'days' ? (Number(formData.validityDays) || 30) : null,
+        expiresAt: (expiresAtDate && !isNaN(expiresAtDate.getTime())) ? Timestamp.fromDate(expiresAtDate) : null,
         allowedExams: selectedExams,
         updatedAt: serverTimestamp(),
       };

@@ -8,52 +8,49 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     // --- LOGIQUE DES RÔLES ---
+    // Votre email et vos UIDs sont prioritaires pour éviter tout blocage
     function isSuperAdmin() {
       return isSignedIn() && (
         request.auth.token.email == "slim.besbes@yahoo.fr" ||
         request.auth.uid == "vwyrAnNtQkSojYSEEK2qkRB5feh2" || 
         request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1" ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().role == "super_admin")
+        (exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)))
       );
     }
 
     function isAdmin() { 
-      return isSuperAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().role == "admin");
+      return isSuperAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin");
     }
 
     function isCoach() {
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().role == "coach";
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "coach";
     }
 
     function isPartner() {
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().role == "partner";
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "partner";
     }
 
     // --- RÈGLES PAR COLLECTION ---
 
     match /roles_admin/{userId} {
-      allow read, write: if isSuperAdmin();
+      // L'admin suprême peut toujours s'auto-initialiser
+      allow read, write: if isSuperAdmin() || (isSignedIn() && request.auth.token.email == "slim.besbes@yahoo.fr");
     }
 
     match /users/{userId} {
       allow read: if isSignedIn() && (
-        request.auth.uid == userId || 
-        isAdmin() || 
-        isCoach() || 
-        isPartner()
+        isOwner(userId) || isAdmin() || isCoach() || isPartner()
       );
       
-      allow create: if isAdmin() || isPartner() || (request.auth.uid == userId && request.auth.token.email == "slim.besbes@yahoo.fr");
+      allow create: if (isSignedIn() && request.auth.token.email == "slim.besbes@yahoo.fr") || isAdmin() || isPartner();
       
       allow update: if isSignedIn() && (
-        isAdmin() || 
-        (request.auth.uid == userId) ||
-        (isPartner() && resource.data.partnerId == request.auth.uid)
+        isOwner(userId) || isAdmin() || (isPartner() && resource.data.partnerId == request.auth.uid)
       );
       
       allow delete: if isAdmin();
@@ -64,9 +61,9 @@ service cloud.firestore {
         isAdmin() || 
         (isCoach() && resource.data.coachId == request.auth.uid) ||
         (isPartner() && resource.data.partnerId == request.auth.uid) ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().groupId == groupId)
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groupId == groupId)
       );
-      allow write: if isAdmin() || (isPartner() && request.resource.data.partnerId == request.auth.uid);
+      allow write: if isAdmin() || (isPartner() && (request.resource.data.partnerId == request.auth.uid || resource.data.partnerId == request.auth.uid));
     }
 
     match /questions/{questionId} {

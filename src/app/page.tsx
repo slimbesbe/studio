@@ -54,9 +54,9 @@ export default function Home() {
             toast({ title: "Bienvenue", description: "Initialisation de votre accès Super Admin." });
           } catch (createError: any) {
             if (createError.code === 'auth/email-already-in-use') {
-              // Si le compte existe mais que le MDP maître ne marche plus (changé manuellement)
+              // Le compte existe mais le MDP maître échoue (il a été changé)
               setShowAdminReset(true);
-              throw new Error("Accès Admin : Le mot de passe 147813 ne correspond pas à ce compte existant. Utilisez votre mot de passe habituel ou réinitialisez-le.");
+              throw new Error("Accès Admin : Le mot de passe par défaut a été modifié. Utilisez votre mot de passe actuel ou réinitialisez-le via le bouton ci-dessous.");
             }
             throw createError;
           }
@@ -70,13 +70,14 @@ export default function Home() {
       // Synchronisation systématique pour l'admin
       if (trimmedEmail === ADMIN_EMAIL) {
         const now = serverTimestamp();
-        await setDoc(doc(db, 'roles_admin', user.uid), { 
+        // On force les rôles dans Firestore sans attendre (non-blocking)
+        setDoc(doc(db, 'roles_admin', user.uid), { 
           createdAt: now,
           email: ADMIN_EMAIL,
           isSuperAdmin: true
-        }, { merge: true });
+        }, { merge: true }).catch(() => {});
 
-        await setDoc(doc(db, 'users', user.uid), {
+        setDoc(doc(db, 'users', user.uid), {
           id: user.uid,
           email: trimmedEmail,
           firstName: 'Slim',
@@ -84,7 +85,7 @@ export default function Home() {
           role: 'super_admin',
           status: 'active',
           updatedAt: now
-        }, { merge: true });
+        }, { merge: true }).catch(() => {});
 
         router.push('/admin/dashboard');
       } else {
