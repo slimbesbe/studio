@@ -112,8 +112,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
             // --- PROTECTIONS DE SÉCURITÉ ---
             
-            // 1. Accès expiré ou désactivé
-            if (!firebaseUser.isAnonymous && currentStatus !== 'active' && pathname.startsWith('/dashboard')) {
+            // 1. Accès expiré ou désactivé (ne s'applique pas aux admins)
+            if (!firebaseUser.isAnonymous && currentStatus !== 'active' && pathname.startsWith('/dashboard') && role === 'user') {
                router.push('/access-denied');
             }
 

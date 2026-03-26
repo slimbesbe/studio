@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Mail, Lock, Play, ShieldCheck } from 'lucide-react';
 import { useAuth, useFirestore } from '@/firebase';
-import { signInWithEmailAndPassword, signInAnonymously, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInAnonymously, createUserWithEmailAndPassword, updatePassword } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { SimuLuxLogo } from '@/components/dashboard/Sidebar';
@@ -38,18 +38,19 @@ export default function Home() {
       try {
         userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, password);
       } catch (signInError: any) {
+        // Logique de secours pour le Super Admin
         const isAuthAdmin = trimmedEmail === ADMIN_EMAIL && password === ADMIN_PASS;
-        const isPotentialNewAdmin = signInError.code === 'auth/user-not-found' || 
-                                   signInError.code === 'user-not-found' || 
-                                   signInError.code === 'auth/invalid-credential';
-
-        if (isAuthAdmin && isPotentialNewAdmin) {
+        
+        if (isAuthAdmin) {
+          // Si le compte n'existe pas ou si le mot de passe a changé, on tente de recréer/réparer
           try {
             userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
-            toast({ title: "Bienvenue", description: "Initialisation de votre compte Super Admin Simu-lux." });
+            toast({ title: "Bienvenue", description: "Initialisation de votre compte Super Admin." });
           } catch (createError: any) {
             if (createError.code === 'auth/email-already-in-use') {
-              throw new Error("Identifiants incorrects pour ce compte administrateur.");
+              // L'utilisateur existe mais le mot de passe est différent. 
+              // Dans un environnement de prototype, on affiche une erreur explicite.
+              throw new Error("Compte admin existant avec un mot de passe différent. Veuillez utiliser le mot de passe enregistré.");
             }
             throw createError;
           }
@@ -60,9 +61,9 @@ export default function Home() {
 
       const user = userCredential.user;
 
+      // Initialisation/Mise à jour forcée des données Admin
       if (trimmedEmail === ADMIN_EMAIL) {
         const adminUserRef = doc(db, 'users', user.uid);
-        const adminUserSnap = await getDoc(adminUserRef);
         const now = serverTimestamp();
 
         await Promise.all([
@@ -79,15 +80,14 @@ export default function Home() {
             role: 'super_admin',
             status: 'active',
             updatedAt: now,
-            createdAt: adminUserSnap.exists() && adminUserSnap.data().createdAt ? adminUserSnap.data().createdAt : now,
-            firstLoginAt: adminUserSnap.exists() && adminUserSnap.data().firstLoginAt ? adminUserSnap.data().firstLoginAt : now,
             lastLoginAt: now
           }, { merge: true })
         ]);
 
-        toast({ title: "Accès Admin", description: "Connexion réussie au panel Simu-lux." });
+        toast({ title: "Accès Super Admin", description: "Connexion réussie au panel Simu-lux." });
         router.push('/admin/dashboard');
       } else {
+        // Vérifier si c'est un autre admin
         const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
         if (adminDoc.exists()) {
           router.push('/admin/dashboard');
@@ -99,10 +99,13 @@ export default function Home() {
       console.error("Login error:", error.code, error.message);
       let message = "Identifiants incorrects.";
       
-      if (error.code === 'auth/wrong-password') message = "Mot de passe incorrect.";
-      if (error.code === 'auth/invalid-email') message = "Format d'email invalide.";
-      if (error.code === 'auth/too-many-requests') message = "Compte bloqué temporairement.";
-      if (error.code === 'auth/user-disabled') message = "Ce compte a été désactivé.";
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        message = "Email ou mot de passe incorrect.";
+      } else if (error.code === 'auth/user-not-found') {
+        message = "Ce compte n'existe pas.";
+      } else if (error.message) {
+        message = error.message;
+      }
       
       toast({
         variant: "destructive",
@@ -119,7 +122,7 @@ export default function Home() {
     try {
       await signInAnonymously(auth);
       toast({ title: "Mode DÉMO", description: "Accès aux fonctionnalités de démonstration." });
-      router.push('/dashboard/practice');
+      router.push('/dashboard');
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -133,7 +136,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
-      <div className="flex items-center gap-3 mb-8" suppressHydrationWarning>
+      <div className="flex items-center gap-3 mb-8">
         <SimuLuxLogo className="h-12 w-12" />
         <span className="font-headline font-black text-3xl italic tracking-tighter text-primary">
           Simu-lux <span className="text-accent">PMP</span>
@@ -142,8 +145,8 @@ export default function Home() {
       
       <Card className="w-full max-w-md border-t-4 border-t-primary shadow-2xl animate-slide-up">
         <CardHeader className="space-y-1">
-          <CardTitle suppressHydrationWarning className="text-2xl font-headline font-bold text-center text-primary">Identification</CardTitle>
-          <CardDescription suppressHydrationWarning className="text-center">
+          <CardTitle className="text-2xl font-headline font-bold text-center text-primary">Identification</CardTitle>
+          <CardDescription className="text-center">
             Accédez à votre espace de simulation professionnel
           </CardDescription>
         </CardHeader>
