@@ -1,39 +1,32 @@
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
   Users, 
-  BookCopy, 
   Loader2,
   ArrowRight,
-  BarChart3,
   GraduationCap,
-  ShieldCheck,
-  Database,
-  TrendingUp,
   Activity,
   Briefcase,
   Clock,
-  CheckCircle2,
-  AlertTriangle,
   ChevronUp,
   MoreHorizontal,
   Search,
   Pencil,
   Trash2,
-  Info
+  Info,
+  LayoutGrid
 } from 'lucide-react';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { 
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer, Cell, PieChart, Pie, RadialBarChart, RadialBar
+  BarChart, Bar, LineChart, Line, 
+  ResponsiveContainer, Cell
 } from 'recharts';
-import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 
 export default function SuperAdminDashboard() {
   const { profile, isUserLoading } = useUser();
