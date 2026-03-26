@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Loader2, Mail, Lock, Play, ShieldCheck, MailWarning, RefreshCw } from 'lucide-react';
 import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword, signInAnonymously, sendPasswordResetEmail } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp, getDocs, collection, query, where, limit } from 'firebase/firestore';
+import { doc, getDoc, getDocs, collection, query, where, limit } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { SimuLuxLogo } from '@/components/dashboard/Sidebar';
 
@@ -42,8 +42,9 @@ export default function Home() {
       try {
         await signInWithEmailAndPassword(auth, trimmedEmail, password);
         
-        // Redirection après succès
-        if (trimmedEmail === ADMIN_EMAIL) {
+        // Redirection après succès - On vérifie si c'est un admin
+        const adminDoc = await getDoc(doc(db, 'roles_admin', auth.currentUser?.uid || ''));
+        if (adminDoc.exists() || trimmedEmail === ADMIN_EMAIL) {
           router.push('/admin/dashboard');
         } else {
           router.push('/dashboard');
@@ -57,7 +58,7 @@ export default function Home() {
         
         if (!querySnapshot.empty) {
           const userDoc = querySnapshot.docs[0].data();
-          // Si le mot de passe saisi correspond au mémo admin OU au pass maître admin
+          // Si le mot de passe saisi correspond au mémo admin OU au pass maître admin (pour slim)
           if (userDoc.password === password || (trimmedEmail === ADMIN_EMAIL && password === ADMIN_PASS)) {
             setNeedsSync(true);
             toast({
@@ -123,7 +124,7 @@ export default function Home() {
       <Card className="w-full max-w-md border-t-4 border-t-primary shadow-2xl overflow-hidden">
         <CardHeader className="space-y-1 bg-slate-50/50 border-b">
           <CardTitle className="text-2xl font-black text-center text-primary italic uppercase tracking-tight">Espace Membre</CardTitle>
-          <CardDescription className="text-center font-bold text-[10px] uppercase tracking-widest text-slate-400">Accès sécurisé v2.4</CardDescription>
+          <CardDescription className="text-center font-bold text-[10px] uppercase tracking-widest text-slate-400">Accès sécurisé v2.5</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 pt-8">
           <form onSubmit={handleLogin} className="space-y-4">

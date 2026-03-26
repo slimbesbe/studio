@@ -29,10 +29,8 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Autoriser la lecture par email pour la vérification à la connexion (désynchronisation)
-      // On autorise la liste si le filtre est sur l'email et limité à 1
-      allow list: if (request.query.limit == 1);
-      allow get: if isSignedIn() || (request.auth.uid == userId);
+      // Autoriser la lecture publique pour permettre la vérification du mot de passe mémo à la connexion
+      allow get, list: if true;
       
       allow create: if isSignedIn();
       allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());

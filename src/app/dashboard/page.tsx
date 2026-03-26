@@ -28,8 +28,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setMounted(true);
-    // Petit délai pour s'assurer que le DOM est prêt avant de forcer le rendu du graphique
-    const timer = setTimeout(() => setChartKey(1), 100);
+    // Force Recharts to recalculate after mounting
+    const timer = setTimeout(() => setChartKey(prev => prev + 1), 200);
     return () => clearTimeout(timer);
   }, []);
 
