@@ -9,7 +9,8 @@ import {
   TrendingUp, 
   Award, 
   BookOpen,
-  Target
+  Target,
+  ChevronRight
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
@@ -40,17 +41,15 @@ export default function DashboardPage() {
   const stats = useMemo(() => {
     if (isDemo) {
       return {
-        latestScore: 80,
-        totalExams: 2,
-        avgScore: 73,
+        latestScore: 99,
+        totalExams: 3,
+        avgScore: 86,
         totalQuestions: 540,
-        studyTime: 66660,
+        studyTime: 82020, // 22h 47m
         progressionData: [
-          { date: '15 Mai', score: 65 },
-          { date: '18 Mai', score: 80 },
-          { date: '20 Mai', score: 72 },
-          { date: '22 Mai', score: 91 },
-          { date: '25 Mai', score: 85 }
+          { date: '11 Mars', score: 62 },
+          { date: '11 Mars', score: 91 },
+          { date: '11 Mars', score: 99 }
         ]
       };
     }
@@ -91,129 +90,179 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-full flex flex-col gap-4 p-4 box-border animate-fade-in">
-      {/* Top 3 Indicator Cards (20% preferred height) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
-        <Card className="flex flex-col justify-center border-t-[6px] border-t-[#004d73] shadow-lg rounded-none bg-white py-4">
-          <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2 space-y-0">
-            <Award className="h-5 w-5 text-[#004d73]" />
-            <CardTitle className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Latest Score</CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-1">
-            <div className="text-7xl font-black text-slate-900 tracking-tighter leading-none italic">{stats?.latestScore || 0}%</div>
-          </CardContent>
+    <div className="min-h-full flex flex-col gap-6 p-6 box-border animate-fade-in bg-[#f8fafc]">
+      {/* Header Path */}
+      <div className="flex items-center gap-2 text-slate-400 font-bold text-sm mb-2">
+        <span>Tableau de Bord</span>
+        <ChevronRight className="h-4 w-4" />
+        <span className="text-slate-900">Analyses</span>
+      </div>
+
+      {/* Top Row: Key Performance Indicators */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0">
+        {/* Latest Score */}
+        <Card className="rounded-[32px] border-none shadow-xl bg-white p-6 relative overflow-hidden group">
+          <div className="flex justify-between items-center h-full">
+            <div className="space-y-4">
+              <div className="bg-blue-50 h-14 w-14 rounded-2xl flex items-center justify-center text-primary">
+                <Award className="h-8 w-8" />
+              </div>
+              <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest leading-tight">DERNIER<br/>SCORE</p>
+            </div>
+            <div className="relative h-32 w-32 flex items-center justify-center">
+              <svg className="h-full w-full transform -rotate-90">
+                <circle cx="64" cy="64" r="54" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-slate-100" />
+                <circle cx="64" cy="64" r="54" stroke="currentColor" strokeWidth="12" fill="transparent" strokeDasharray={339.29} strokeDashoffset={339.29 - (339.29 * (stats?.latestScore || 0)) / 100} className="text-primary" />
+              </svg>
+              <span className="absolute text-4xl font-black italic tracking-tighter text-slate-900">{stats?.latestScore || 0}%</span>
+            </div>
+          </div>
         </Card>
 
-        <Card className="flex flex-col justify-center border-t-[6px] border-t-[#4fc3f7] shadow-lg rounded-none bg-white py-4">
-          <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2 space-y-0">
-            <Target className="h-5 w-5 text-[#4fc3f7]" />
-            <CardTitle className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Exams Taken</CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-1">
-            <div className="text-7xl font-black text-slate-900 tracking-tighter leading-none italic">{stats?.totalExams || 0}</div>
-          </CardContent>
+        {/* Exams Passed */}
+        <Card className="rounded-[32px] border-none shadow-xl bg-white p-8 space-y-6">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">EXAMENS PASSÉS</p>
+              <p className="text-7xl font-black italic tracking-tighter text-slate-900 leading-none">{stats?.totalExams || 0}</p>
+            </div>
+            <div className="bg-cyan-50 h-14 w-14 rounded-2xl flex items-center justify-center text-cyan-500">
+              <Target className="h-8 w-8" />
+            </div>
+          </div>
+          <div className="relative pt-4">
+            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden flex items-center">
+              <div className="h-full bg-slate-300 transition-all" style={{ width: '60%' }} />
+            </div>
+            <div className="flex justify-between mt-2">
+              <div className="h-3 w-3 rounded-full bg-slate-200" />
+              <div className="h-3 w-3 rounded-full bg-slate-300" />
+              <div className="h-3 w-3 rounded-full bg-slate-400" />
+              <div className="h-3 w-3 rounded-full bg-slate-100" />
+            </div>
+          </div>
         </Card>
 
-        <Card className="flex flex-col justify-center border-t-[6px] border-t-[#004d73] shadow-lg rounded-none bg-white py-4">
-          <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2 space-y-0">
-            <TrendingUp className="h-5 w-5 text-[#004d73]" />
-            <CardTitle className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Average Score</CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-1">
-            <div className="text-7xl font-black text-slate-900 tracking-tighter leading-none italic">{stats?.avgScore || 0}%</div>
-          </CardContent>
+        {/* Average Score */}
+        <Card className="rounded-[32px] border-none shadow-xl bg-white p-8">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-cyan-500 mb-2">
+                <TrendingUp className="h-5 w-5" />
+                <p className="text-[11px] font-black uppercase tracking-widest">SCORE MOYEN</p>
+              </div>
+              <p className="text-7xl font-black italic tracking-tighter text-slate-900 leading-none">{stats?.avgScore || 0}%</p>
+            </div>
+            <div className="h-20 w-32 flex items-center">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={stats?.progressionData || []}>
+                  <Line type="monotone" dataKey="score" stroke="#22d3ee" strokeWidth={3} dot={false} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </Card>
       </div>
 
-      {/* Middle large progression card (Flexible) */}
-      <Card className="flex-1 min-h-[300px] rounded-none shadow-lg border-none bg-white p-6 flex flex-col">
-        <CardHeader className="p-0 pb-4 shrink-0">
-          <CardTitle className="text-3xl font-black text-[#004d73] uppercase italic tracking-tighter">Score Progression</CardTitle>
-          <CardDescription className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] italic">Analyse temporelle des performances</CardDescription>
+      {/* Middle: Main Progression Chart */}
+      <Card className="flex-1 rounded-[40px] shadow-2xl border-none bg-white p-10 flex flex-col min-h-[450px]">
+        <CardHeader className="p-0 pb-10 shrink-0">
+          <CardTitle className="text-3xl font-black text-slate-900 uppercase italic tracking-tighter">PROGRESSION DU SCORE</CardTitle>
+          <CardDescription className="text-[11px] font-bold text-slate-400 uppercase tracking-widest italic mt-1">Analyse de performance par session</CardDescription>
         </CardHeader>
         <CardContent className="flex-1 min-h-0 p-0">
           {stats?.progressionData && stats.progressionData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={stats.progressionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <ComposedChart data={stats.progressionData} margin={{ top: 20, right: 30, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis 
                   dataKey="date" 
                   stroke="#94a3b8" 
-                  fontSize={10} 
+                  fontSize={12} 
                   fontWeight="800" 
                   tickLine={false} 
                   axisLine={false}
-                  dy={10}
+                  dy={15}
                 />
                 <YAxis 
                   domain={[0, 100]} 
                   stroke="#94a3b8" 
-                  fontSize={10} 
+                  fontSize={12} 
                   fontWeight="800" 
                   tickLine={false} 
                   axisLine={false} 
                 />
                 <Tooltip 
                   cursor={{ fill: '#f8fafc' }}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', fontWeight: 'bold' }} 
+                  contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 50px rgba(0,0,0,0.1)', fontWeight: 'bold' }} 
                 />
                 <Bar 
                   dataKey="score" 
-                  radius={[4, 4, 0, 0]}
-                  barSize={40}
+                  radius={[8, 8, 0, 0]}
+                  barSize={80}
                 >
                   {stats.progressionData.map((entry, index) => (
                     <Cell 
                       key={`cell-${index}`} 
-                      fill={entry.score >= 75 ? '#004d73' : '#4fc3f7'} 
+                      fill="#7dd3fc"
+                      fillOpacity={0.8}
                     />
                   ))}
                 </Bar>
                 <Line 
                   type="monotone" 
                   dataKey="score" 
-                  stroke="#ef4444" 
-                  strokeWidth={3} 
-                  dot={{ fill: '#ef4444', r: 4, strokeWidth: 2, stroke: '#fff' }}
-                  activeDot={{ r: 6, strokeWidth: 0 }}
+                  stroke="#7f1d1d" 
+                  strokeWidth={4} 
+                  dot={{ fill: '#7f1d1d', r: 8, strokeWidth: 0 }}
+                  activeDot={{ r: 10, strokeWidth: 4, stroke: '#fff' }}
                 />
               </ComposedChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-2 border-4 border-dashed border-slate-50">
-              <Target className="h-12 w-12 opacity-20" />
-              <p className="font-black uppercase tracking-widest text-[10px] italic">Réalisez votre première simulation pour voir la progression</p>
+            <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 border-4 border-dashed border-slate-50 rounded-[32px]">
+              <Target className="h-16 w-16 opacity-20" />
+              <p className="font-black uppercase tracking-widest text-sm italic">Réalisez votre première simulation pour voir la progression</p>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Bottom row large indicators */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0 pb-4">
-        <Card className="border-t-[8px] border-t-[#4fc3f7] shadow-xl rounded-none bg-white overflow-hidden py-4">
-          <CardContent className="p-0 flex flex-col items-center justify-center text-center">
-            <div className="flex items-center gap-2 text-[#4fc3f7] mb-1">
-              <Clock className="h-6 w-6" />
-              <h3 className="text-lg font-black uppercase tracking-[0.2em] italic">Study Time</h3>
+      {/* Bottom Row: Study Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6">
+        {/* Study Time */}
+        <Card className="rounded-[32px] shadow-xl border-none bg-white p-8 overflow-hidden">
+          <div className="flex items-center gap-10">
+            <div className="relative h-28 w-28 shrink-0 flex items-center justify-center">
+              <svg className="h-full w-full transform -rotate-90">
+                <circle cx="56" cy="56" r="48" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-slate-100" />
+                <circle cx="56" cy="56" r="48" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray={301.59} strokeDashoffset={150} className="text-primary" />
+              </svg>
+              <Clock className="absolute h-10 w-10 text-slate-900" />
             </div>
-            <div className="text-5xl font-black text-slate-900 tracking-tighter leading-none italic">
-              {formatTimeHoursMinutes(stats?.studyTime || 0)}
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-slate-900 mb-1">
+                <Clock className="h-4 w-4" />
+                <p className="text-[11px] font-black uppercase tracking-widest">TEMPS D'ÉTUDE CUMULÉ</p>
+              </div>
+              <p className="text-6xl font-black italic tracking-tighter text-slate-900">{formatTimeHoursMinutes(stats?.studyTime || 0)}</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">TOTAL DE L'APPRENTISSAGE</p>
             </div>
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] italic mt-2">Cumulated learning</p>
-          </CardContent>
+          </div>
         </Card>
 
-        <Card className="border-t-[8px] border-t-[#004d73] shadow-xl rounded-none bg-white overflow-hidden py-4">
-          <CardContent className="p-0 flex flex-col items-center justify-center text-center">
-            <div className="flex items-center gap-2 text-[#004d73] mb-1">
-              <BookOpen className="h-6 w-6" />
-              <h3 className="text-lg font-black uppercase tracking-[0.2em] italic">Questions</h3>
+        {/* Items Processed */}
+        <Card className="rounded-[32px] shadow-xl border-none bg-white p-8 overflow-hidden">
+          <div className="flex items-center gap-10">
+            <div className="bg-slate-50 h-28 w-28 rounded-3xl flex items-center justify-center text-slate-900 shadow-inner">
+              <BookOpen className="h-14 w-14" />
             </div>
-            <div className="text-5xl font-black text-slate-900 tracking-tighter leading-none italic">
-              {stats?.totalQuestions || 0}
+            <div className="space-y-1">
+              <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">QUESTIONS TRAITÉES</p>
+              <p className="text-7xl font-black italic tracking-tighter text-slate-900 leading-none">{stats?.totalQuestions || 0}</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic mt-2">ITEMS TRAITÉS</p>
             </div>
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] italic mt-2">Items processed</p>
-          </CardContent>
+          </div>
         </Card>
       </div>
     </div>
