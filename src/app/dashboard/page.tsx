@@ -1,4 +1,3 @@
-
 /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
@@ -82,7 +81,7 @@ export default function DashboardPage() {
   }, [attempts, profile, isDemo]);
 
   if (isUserLoading || (!isDemo && isAttemptsLoading) || !mounted) {
-    return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
+    return <div className="h-full flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
   const formatTimeHoursMinutes = (seconds: number) => {
@@ -92,69 +91,66 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in pb-20 max-w-6xl mx-auto">
-      {/* Top 3 Indicator Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className="h-full flex flex-col gap-4 overflow-hidden animate-fade-in box-border">
+      {/* Top 3 Indicator Cards - Height ~18% */}
+      <div className="h-[18%] shrink-0 grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* 1. Latest Score */}
-        <Card className="border-t-4 border-t-[#004d73] shadow-sm rounded-none">
-          <CardHeader className="p-6 pb-0 flex flex-row items-center gap-2 space-y-0">
+        <Card className="flex flex-col justify-center border-t-4 border-t-[#004d73] shadow-sm rounded-none bg-white">
+          <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2 space-y-0 shrink-0">
             <Award className="h-4 w-4 text-[#004d73]" />
-            <CardTitle className="text-sm font-semibold text-slate-600">Latest Score</CardTitle>
+            <CardTitle className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Latest Score</CardTitle>
           </CardHeader>
-          <CardContent className="p-6 pt-2">
-            <div className="text-5xl font-black text-slate-900 tracking-tighter">{stats?.latestScore || 0}%</div>
-            <p className="text-xs text-slate-400 font-medium mt-1">From last session</p>
+          <CardContent className="p-4 pt-1 flex items-end">
+            <div className="text-4xl font-black text-slate-900 tracking-tighter leading-none">{stats?.latestScore || 0}%</div>
           </CardContent>
         </Card>
 
         {/* 2. Exams Taken */}
-        <Card className="border-t-4 border-t-[#4fc3f7] shadow-sm rounded-none">
-          <CardHeader className="p-6 pb-0 flex flex-row items-center gap-2 space-y-0">
+        <Card className="flex flex-col justify-center border-t-4 border-t-[#4fc3f7] shadow-sm rounded-none bg-white">
+          <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2 space-y-0 shrink-0">
             <Target className="h-4 w-4 text-[#4fc3f7]" />
-            <CardTitle className="text-sm font-semibold text-slate-600">Exams Taken</CardTitle>
+            <CardTitle className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Exams Taken</CardTitle>
           </CardHeader>
-          <CardContent className="p-6 pt-2">
-            <div className="text-5xl font-black text-slate-900 tracking-tighter">{stats?.totalExams || 0}</div>
-            <p className="text-xs text-slate-400 font-medium mt-1">Full & Mini simulations</p>
+          <CardContent className="p-4 pt-1 flex items-end">
+            <div className="text-4xl font-black text-slate-900 tracking-tighter leading-none">{stats?.totalExams || 0}</div>
           </CardContent>
         </Card>
 
         {/* 3. Average Score */}
-        <Card className="border-t-4 border-t-[#004d73] shadow-sm rounded-none">
-          <CardHeader className="p-6 pb-0 flex flex-row items-center gap-2 space-y-0">
+        <Card className="flex flex-col justify-center border-t-4 border-t-[#004d73] shadow-sm rounded-none bg-white">
+          <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2 space-y-0 shrink-0">
             <TrendingUp className="h-4 w-4 text-[#004d73]" />
-            <CardTitle className="text-sm font-semibold text-slate-600">Average Score</CardTitle>
+            <CardTitle className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Average Score</CardTitle>
           </CardHeader>
-          <CardContent className="p-6 pt-2">
-            <div className="text-5xl font-black text-slate-900 tracking-tighter">{stats?.avgScore || 0}%</div>
-            <p className="text-xs text-slate-400 font-medium mt-1">Overall progress</p>
+          <CardContent className="p-4 pt-1 flex items-end">
+            <div className="text-4xl font-black text-slate-900 tracking-tighter leading-none">{stats?.avgScore || 0}%</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Middle large progression card */}
-      <Card className="rounded-none shadow-sm border-none bg-white p-10">
-        <CardHeader className="px-0 pt-0">
-          <CardTitle className="text-4xl font-black text-[#004d73] uppercase italic tracking-tighter">Score Progression</CardTitle>
-          <CardDescription className="text-lg font-bold text-slate-400 uppercase tracking-widest italic">Visualizing your improvement over time</CardDescription>
+      {/* Middle large progression card - Height: flex-1 */}
+      <Card className="flex-1 min-h-0 flex flex-col rounded-none shadow-sm border-none bg-white p-6">
+        <CardHeader className="p-0 pb-4 shrink-0">
+          <CardTitle className="text-2xl font-black text-[#004d73] uppercase italic tracking-tighter">Score Progression</CardTitle>
+          <CardDescription className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Evolution of your performance</CardDescription>
         </CardHeader>
-        <CardContent className="px-0 pb-0 h-[450px] mt-10">
+        <CardContent className="flex-1 min-h-0 p-0">
           {stats?.progressionData && stats.progressionData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={stats.progressionData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+              <LineChart data={stats.progressionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} fontWeight="bold" tickLine={false} axisLine={false} />
-                <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={12} fontWeight="bold" tickLine={false} axisLine={false} />
+                <XAxis dataKey="date" stroke="#94a3b8" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} />
+                <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} />
                 <Tooltip 
-                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontWeight: 'bold' }} 
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontWeight: 'bold', fontSize: '12px' }} 
                 />
                 <Line 
                   type="monotone" 
                   dataKey="score" 
                   stroke="#004d73" 
-                  strokeWidth={4} 
-                  dot={{ r: 6, fill: '#004d73', strokeWidth: 3, stroke: '#fff' }} 
-                  activeDot={{ r: 8 }} 
+                  strokeWidth={3} 
+                  dot={{ r: 4, fill: '#004d73', strokeWidth: 2, stroke: '#fff' }} 
+                  activeDot={{ r: 6 }} 
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -164,33 +160,33 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Bottom row large indicators */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      {/* Bottom row large indicators - Height ~35% */}
+      <div className="h-[35%] shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Study Time Card */}
-        <Card className="border-t-8 border-t-[#4fc3f7] shadow-xl rounded-none bg-white">
-          <CardContent className="p-12 space-y-6">
-            <div className="flex items-center gap-4 text-[#4fc3f7]">
-              <Clock className="h-12 w-12" />
-              <h3 className="text-2xl font-black uppercase tracking-[0.2em] italic">Study Time</h3>
+        <Card className="border-t-8 border-t-[#4fc3f7] shadow-lg rounded-none bg-white flex flex-col justify-center overflow-hidden">
+          <CardContent className="p-6 space-y-2 flex flex-col items-center justify-center text-center">
+            <div className="flex items-center gap-3 text-[#4fc3f7] shrink-0">
+              <Clock className="h-8 w-8" />
+              <h3 className="text-xl font-black uppercase tracking-[0.1em] italic">Study Time</h3>
             </div>
-            <div className="text-8xl font-black text-slate-900 tracking-tighter">
+            <div className="text-7xl lg:text-8xl font-black text-slate-900 tracking-tighter leading-tight shrink-0">
               {formatTimeHoursMinutes(stats?.studyTime || 0)}
             </div>
-            <p className="text-lg font-bold text-slate-400 uppercase tracking-widest italic pt-4">Cumulated learning</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest italic shrink-0">Cumulated learning</p>
           </CardContent>
         </Card>
 
         {/* Questions Card */}
-        <Card className="border-t-8 border-t-[#004d73] shadow-xl rounded-none bg-white">
-          <CardContent className="p-12 space-y-6">
-            <div className="flex items-center gap-4 text-[#004d73]">
-              <BookOpen className="h-12 w-12" />
-              <h3 className="text-2xl font-black uppercase tracking-[0.2em] italic">Questions</h3>
+        <Card className="border-t-8 border-t-[#004d73] shadow-lg rounded-none bg-white flex flex-col justify-center overflow-hidden">
+          <CardContent className="p-6 space-y-2 flex flex-col items-center justify-center text-center">
+            <div className="flex items-center gap-3 text-[#004d73] shrink-0">
+              <BookOpen className="h-8 w-8" />
+              <h3 className="text-xl font-black uppercase tracking-[0.1em] italic">Questions</h3>
             </div>
-            <div className="text-8xl font-black text-slate-900 tracking-tighter">
+            <div className="text-7xl lg:text-8xl font-black text-slate-900 tracking-tighter leading-tight shrink-0">
               {stats?.totalQuestions || 0}
             </div>
-            <p className="text-lg font-bold text-slate-400 uppercase tracking-widest italic pt-4">Items processed</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest italic shrink-0">Items processed</p>
           </CardContent>
         </Card>
       </div>
@@ -200,9 +196,9 @@ export default function DashboardPage() {
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 border-4 border-dashed rounded-none">
-      <Target className="h-16 w-16 opacity-20" />
-      <p className="text-sm font-black uppercase tracking-widest text-center px-8">{message}</p>
+    <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 border-4 border-dashed border-slate-50 rounded-none bg-slate-50/30">
+      <Target className="h-12 w-12 opacity-20" />
+      <p className="text-[10px] font-black uppercase tracking-widest text-center px-8">{message}</p>
     </div>
   );
 }
