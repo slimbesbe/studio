@@ -59,6 +59,7 @@ export function Sidebar() {
   }
 
   const isDemo = user?.isAnonymous;
+  // Vérification de rôle admin basée sur le profil forcé par le provider
   const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
 
   const handleSignOut = async () => {
@@ -76,17 +77,17 @@ export function Sidebar() {
     <div className="flex flex-col h-full bg-white text-slate-600 w-64 fixed left-0 top-0 z-40 shadow-[1px_0_0_rgba(0,0,0,0.05)] border-none">
       <div className="h-24 flex items-center px-8 border-b border-slate-50 bg-white">
         <Link className="flex items-center gap-3 group" href={isAdmin ? "/admin/dashboard" : "/dashboard"}>
-          <div className="bg-primary/5 p-2 rounded-2xl group-hover:scale-105 transition-transform">
+          <div className="bg-primary/5 p-2 rounded-2xl group-hover:scale-105 transition-transform text-primary">
             <SimuLuxLogo className="h-9 w-9" />
           </div>
           <div className="flex flex-col">
             <span className="font-black text-xl italic tracking-tighter text-slate-900 leading-none">Simu-lux</span>
-            <span className="text-[9px] font-black text-primary uppercase tracking-[0.3em] mt-1.5">{isAdmin ? 'SUPER ADMIN' : 'CANDIDAT'}</span>
+            <span className="text-[9px] font-black text-primary uppercase tracking-[0.3em] mt-1.5">{isAdmin ? 'PILOTAGE' : 'ESPACE ÉLÈVE'}</span>
           </div>
         </Link>
       </div>
 
-      <div className="flex-1 py-10 px-5 space-y-1.5 overflow-y-auto bg-white">
+      <div className="flex-1 py-8 px-5 space-y-1.5 overflow-y-auto bg-white">
         {/* Navigation Admin */}
         {isAdmin && (
           <>
@@ -95,12 +96,12 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 px-5 py-3.5 rounded-2xl text-[13px] font-black italic uppercase transition-all",
                 pathname === '/admin/dashboard' 
-                  ? "bg-primary text-white shadow-xl shadow-primary/20 scale-[1.02]" 
+                  ? "bg-primary/10 text-primary" 
                   : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
               )}
             >
               <LayoutDashboard className="h-5 w-5" />
-              Pilotage Admin
+              Cockpit Admin
             </Link>
 
             <Link
@@ -108,7 +109,7 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 px-5 py-3.5 rounded-2xl text-[13px] font-black italic uppercase transition-all mt-2 border-2 border-dashed border-slate-100",
                 pathname === '/dashboard' 
-                  ? "bg-slate-50 text-primary border-primary/20" 
+                  ? "bg-slate-50 text-indigo-600 border-indigo-100" 
                   : "text-slate-400 hover:bg-slate-50 hover:text-slate-900"
               )}
             >
@@ -116,13 +117,13 @@ export function Sidebar() {
               Vue Élève
             </Link>
 
-            <div className="pt-10 pb-3 px-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 italic">Configuration</div>
+            <div className="pt-8 pb-3 px-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 italic">Pilotage</div>
             
             <NavItem href="/admin/coaching" icon={GraduationCap} label="COACHING & GROUPES" active={pathname.startsWith('/admin/coaching')} />
             <NavItem href="/admin/questions" icon={BookCopy} label="BANQUE QUESTIONS" active={pathname.startsWith('/admin/questions')} />
             <NavItem href="/admin/users" icon={Users} label="UTILISATEURS" active={pathname.startsWith('/admin/users')} />
 
-            <div className="pt-10 pb-3 px-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 italic">Maintenance</div>
+            <div className="pt-8 pb-3 px-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 italic">Maintenance</div>
             
             <Link href="/admin/maintenance" className={cn("flex items-center gap-3 px-5 py-3.5 rounded-2xl text-[13px] font-black italic uppercase transition-all hover:bg-red-50 text-slate-400 hover:text-red-600", pathname.startsWith('/admin/maintenance') ? "text-red-600 bg-red-50" : "")}>
               <Database className="h-5 w-5" /> Maintenance
@@ -138,7 +139,7 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 px-5 py-3.5 rounded-2xl text-[13px] font-black italic uppercase transition-all",
                 pathname === '/dashboard' 
-                  ? "bg-primary text-white shadow-xl shadow-primary/20 scale-[1.02]" 
+                  ? "bg-primary/10 text-primary shadow-sm" 
                   : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
               )}
             >
@@ -146,14 +147,14 @@ export function Sidebar() {
               Ma Progression
             </Link>
 
-            <div className="pt-10 pb-3 px-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 italic">Entraînement</div>
+            <div className="pt-8 pb-3 px-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 italic">Entraînement</div>
             
             <NavItem href="/dashboard/exam" icon={Trophy} label="SIMULATIONS EXAMEN" active={pathname.startsWith('/dashboard/exam')} />
             <NavItem href="/dashboard/coaching" icon={GraduationCap} label="PROGRAMME COACHING" active={pathname.startsWith('/dashboard/coaching')} />
             <NavItem href="/dashboard/practice" icon={BookOpen} label="PRATIQUE LIBRE" active={pathname.startsWith('/dashboard/practice')} />
             <NavItem href="/dashboard/kill-mistake-selection" icon={Brain} label="KILL MISTAKE" active={pathname.startsWith('/dashboard/kill-mistake')} />
 
-            <div className="pt-10 pb-3 px-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 italic">Données</div>
+            <div className="pt-8 pb-3 px-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 italic">Données</div>
             
             <NavItem href="/dashboard/history" icon={History} label="HISTORIQUE COMPLET" active={pathname.startsWith('/dashboard/history')} />
           </>
@@ -166,8 +167,8 @@ export function Sidebar() {
             {initials}
           </div>
           <div className="flex-1 overflow-hidden">
-            <p className="text-sm font-black text-slate-900 truncate italic">{profile?.firstName || 'Utilisateur'}</p>
-            <p className="text-[9px] text-emerald-500 font-black uppercase tracking-widest truncate">Session Active</p>
+            <p className="text-sm font-black text-slate-900 truncate italic leading-tight">{profile?.firstName || 'Utilisateur'}</p>
+            <p className="text-[9px] text-emerald-500 font-black uppercase tracking-widest truncate mt-0.5">Session Active</p>
           </div>
         </div>
         <Button variant="ghost" className="w-full justify-start text-slate-400 hover:text-red-600 hover:bg-red-50 h-12 rounded-2xl font-black uppercase text-[11px] italic tracking-widest transition-all" onClick={handleSignOut}>

@@ -36,7 +36,7 @@ export interface FirebaseServicesAndUser {
 
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
-// LISTE BLANCHE MATÉRIELLE - SEULE SOURCE DE VÉRITÉ POUR LES ACCÈS ADMIN
+// LISTE BLANCHE MATÉRIELLE STRICTE - SEULE SOURCE DE VÉRITÉ
 const ADMIN_EMAILS = ['slim.besbes@yahoo.fr'];
 const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1'];
 
@@ -60,7 +60,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         setIsUserLoading(false);
       }
     }, (error) => {
-      console.error("Auth error:", error);
       setUserError(error);
       setIsUserLoading(false);
     });
@@ -76,6 +75,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     setIsUserLoading(true);
     const userDocRef = doc(firestore, 'users', user.uid);
     
+    // Vérification matérielle pour forcer le rôle
     const isHardcodedAdmin = (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) || 
                              ADMIN_UIDS.includes(user.uid);
 
@@ -93,8 +93,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
         const currentStatus = isExpired ? 'expired' : (profileData.status || 'active');
         
-        // SÉCURITÉ ABSOLUE : Tout utilisateur non présent dans la liste blanche matérielle
-        // est forcé au rôle 'user', même s'il a réussi à modifier sa DB.
+        // SÉCURITÉ ABSOLUE : Seuls les admins matériels ont accès aux rôles élevés.
+        // Jed (jedgrira1@gmail.com) est systématiquement forcé au rôle 'user'.
         const finalRole = isHardcodedAdmin ? (profileData.role || 'super_admin') : 'user';
 
         setProfile({ 
@@ -113,7 +113,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
           status: 'active',
           createdAt: serverTimestamp()
         };
-        setDoc(userDocRef, initialAdmin, { merge: true }).catch(console.error);
+        setDoc(userDocRef, initialAdmin, { merge: true }).catch(() => {});
         setProfile(initialAdmin);
       } else {
         setProfile({ id: user.uid, email: user.email, role: 'user', status: 'active' });
@@ -127,8 +127,9 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     return () => unsubscribe();
   }, [firestore, user]);
 
+  // Track study time (only for users)
   useEffect(() => {
-    if (!firestore || !user || user.isAnonymous || !profile) return;
+    if (!firestore || !user || user.isAnonymous || !profile || profile.role !== 'user') return;
     const interval = setInterval(() => {
       setDoc(doc(firestore, 'users', user.uid), { 
         totalTimeSpent: increment(60),

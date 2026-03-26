@@ -29,11 +29,14 @@ import { CoachingImportModal } from '@/components/admin/CoachingImportModal';
 import { CoachingGenerateModal } from '@/components/admin/CoachingGenerateModal';
 
 export default function AdminCoachingSessions() {
-  const { profile } = useUser();
+  const { user, profile } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
 
-  const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
+  // Liste blanche matérielle pour double vérification
+  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr'];
+  const isHardwareAdmin = user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
+  const isAdmin = isHardwareAdmin && (profile?.role === 'super_admin' || profile?.role === 'admin');
   
   const sessionsQuery = useMemoFirebase(() => {
     if (!isAdmin) return null;
@@ -71,6 +74,7 @@ export default function AdminCoachingSessions() {
   ];
 
   const handleInitializeAll = async () => {
+    if (!isAdmin) return;
     setIsInitializing(true);
     try {
       const batch = writeBatch(db);
@@ -88,6 +92,7 @@ export default function AdminCoachingSessions() {
   };
 
   const handleSave = async (id: string) => {
+    if (!isAdmin) return;
     const s = editSessions.find(x => x.id === id);
     if (!s) return;
     
@@ -117,9 +122,19 @@ export default function AdminCoachingSessions() {
     }));
   };
 
-  if (isLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
+  if (!isAdmin && !isLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center p-8 bg-white text-center">
+        <div className="space-y-4">
+          <p className="font-black text-destructive uppercase text-2xl tracking-tighter italic">Accès Refusé</p>
+          <p className="text-slate-400 font-bold italic text-sm">Cette page est réservée à l'administrateur principal.</p>
+          <Button asChild variant="outline"><Link href="/dashboard">Retour au Dashboard</Link></Button>
+        </div>
+      </div>
+    );
+  }
 
-  if (!isAdmin) return null;
+  if (isLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-8 animate-fade-in">
