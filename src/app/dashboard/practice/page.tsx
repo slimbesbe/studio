@@ -28,7 +28,7 @@ const MODES = [
 
 interface SessionHistoryItem {
   question: any;
-  userChoice: string | null;
+  userChoices: string[];
   correction: any;
 }
 
@@ -53,7 +53,7 @@ function PracticeContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [sessionResults, setSessionResults] = useState({ correct: 0, total: 0 });
   
-  const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
+  const [selectedChoices, setSelectedChoices] = useState<string[]>([]);
   const [correction, setCorrection] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -85,31 +85,44 @@ function PracticeContent() {
   };
 
   const handleNext = async () => {
-    if (selectedChoice && !correction) {
+    if (selectedChoices.length > 0 && !correction) {
       await handleRevealCorrection();
     }
 
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
-      setSelectedChoice(null);
+      setSelectedChoices([]);
       setCorrection(null);
     } else {
       setStep('summary');
     }
   };
 
+  const toggleChoice = (choiceId: string, isMultiple: boolean) => {
+    if (correction) return;
+    if (isMultiple) {
+      if (selectedChoices.includes(choiceId)) {
+        setSelectedChoices(selectedChoices.filter(id => id !== choiceId));
+      } else {
+        setSelectedChoices([...selectedChoices, choiceId]);
+      }
+    } else {
+      setSelectedChoices([choiceId]);
+    }
+  };
+
   const handleRevealCorrection = async () => {
-    if (!selectedChoice || isSubmitting) return;
+    if (selectedChoices.length === 0 || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      const res = await submitPracticeAnswer(db, user!.uid, questions[currentIndex].id, selectedChoice);
+      const res = await submitPracticeAnswer(db, user!.uid, questions[currentIndex].id, selectedChoices);
       setCorrection(res);
       
       setSessionHistory(prev => [
         ...prev, 
         { 
           question: questions[currentIndex], 
-          userChoice: selectedChoice, 
+          userChoices: selectedChoices, 
           correction: res 
         }
       ]);
@@ -160,21 +173,37 @@ function PracticeContent() {
 
         <Card className="shadow-2xl border-t-8 border-t-primary rounded-[32px] overflow-hidden bg-white">
           <CardHeader className="p-8 pb-4">
-            <CardTitle className="text-xl leading-relaxed font-black italic text-slate-800">
-              {q.statement || q.text}
-            </CardTitle>
+            <div className="space-y-6">
+              {q.isMultipleCorrect && (
+                <Badge variant="outline" className="bg-indigo-50 text-indigo-600 border-indigo-200 font-black italic uppercase text-[10px] tracking-widest py-1 px-4">
+                  Plusieurs choix possibles
+                </Badge>
+              )}
+              <CardTitle className="text-xl leading-relaxed font-black italic text-slate-800">
+                {q.statement || q.text}
+              </CardTitle>
+              {q.imageUrl && (
+                <div className="rounded-[32px] overflow-hidden border-4 border-slate-100 shadow-inner bg-slate-50 p-4">
+                  <img 
+                    src={q.imageUrl} 
+                    alt="Illustration" 
+                    className="max-h-[350px] w-auto mx-auto object-contain rounded-2xl"
+                  />
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="p-8 space-y-4">
             <div className="grid gap-3">
               {(q.options || q.choices || []).map((opt: any, idx: number) => {
-                const optId = opt.id || String.fromCharCode(65 + idx);
-                const isSelected = selectedChoice === optId;
-                const isCorrect = correction?.correctOptionIds?.includes(optId);
+                const choiceId = opt.id || String(idx + 1);
+                const isSelected = selectedChoices.includes(choiceId);
+                const isCorrect = correction?.correctOptionIds?.includes(choiceId);
                 
                 return (
                   <div 
                     key={idx} 
-                    onClick={() => !correction && setSelectedChoice(optId)}
+                    onClick={() => toggleChoice(choiceId, q.isMultipleCorrect)}
                     className={cn(
                       "p-5 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-4 shadow-sm",
                       isSelected && !correction ? "border-primary bg-primary/5 scale-[1.01]" : "border-slate-100 hover:border-slate-300",
@@ -183,7 +212,8 @@ function PracticeContent() {
                     )}
                   >
                     <div className={cn(
-                      "h-8 w-8 rounded-full flex items-center justify-center font-black text-xs shrink-0 border-2",
+                      "h-8 w-8 flex items-center justify-center font-black text-xs shrink-0 border-2",
+                      q.isMultipleCorrect ? "rounded-xl" : "rounded-full",
                       isSelected ? "bg-primary text-white border-primary" : "bg-white text-slate-400",
                       correction && isCorrect ? "bg-emerald-500 text-white border-emerald-500" : "",
                       correction && isSelected && !isCorrect ? "bg-red-500 text-white border-red-500" : ""
@@ -228,7 +258,7 @@ function PracticeContent() {
               variant="outline" 
               className="flex-1 h-14 rounded-xl border-2 font-black uppercase tracking-widest text-xs disabled:opacity-30" 
               onClick={handleRevealCorrection}
-              disabled={!selectedChoice || !!correction || isSubmitting}
+              disabled={selectedChoices.length === 0 || !!correction || isSubmitting}
             >
               {isSubmitting ? <Loader2 className="animate-spin h-4 w-4" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
               Voir correction
@@ -236,7 +266,7 @@ function PracticeContent() {
             <Button 
               className="flex-1 h-14 rounded-xl bg-primary font-black uppercase tracking-widest text-xs shadow-xl hover:scale-[1.02] transition-transform" 
               onClick={handleNext}
-              disabled={(!selectedChoice && !correction) || isSubmitting}
+              disabled={(selectedChoices.length === 0 && !correction) || isSubmitting}
             >
               {isSubmitting ? <Loader2 className="animate-spin h-4 w-4" /> : (currentIndex < questions.length - 1 ? "Question suivante" : "Voir les résultats")} <ChevronRight className="ml-2 h-4 w-4" />
             </Button>
@@ -279,7 +309,7 @@ function PracticeContent() {
   if (step === 'review') {
     const item = sessionHistory[currentIndex];
     if (!item) return null;
-    const { question: q, userChoice, correction: corr } = item;
+    const { question: q, userChoices, correction: corr } = item;
     const isUserCorrect = corr.isCorrect;
 
     return (
@@ -298,16 +328,27 @@ function PracticeContent() {
 
         <Card className={cn("shadow-2xl border-t-8 rounded-[32px] overflow-hidden bg-white", isUserCorrect ? "border-t-emerald-500" : "border-t-red-500")}>
           <CardHeader className="p-8 pb-4">
-            <CardTitle className="text-xl leading-relaxed font-black italic text-slate-800">
-              {q.statement || q.text}
-            </CardTitle>
+            <div className="space-y-6">
+              <CardTitle className="text-xl leading-relaxed font-black italic text-slate-800">
+                {q.statement || q.text}
+              </CardTitle>
+              {q.imageUrl && (
+                <div className="rounded-[32px] overflow-hidden border-4 border-slate-100 shadow-inner bg-slate-50 p-4">
+                  <img 
+                    src={q.imageUrl} 
+                    alt="Illustration" 
+                    className="max-h-[350px] w-auto mx-auto object-contain rounded-2xl"
+                  />
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="p-8 space-y-4">
             <div className="grid gap-3">
               {(q.options || q.choices || []).map((opt: any, idx: number) => {
-                const optId = opt.id || String.fromCharCode(65 + idx);
-                const isUserSelection = userChoice === optId;
-                const isCorrectOpt = corr.correctOptionIds?.includes(optId);
+                const choiceId = opt.id || String(idx + 1);
+                const isUserSelection = userChoices.includes(choiceId);
+                const isCorrectOpt = corr.correctOptionIds?.includes(choiceId);
                 
                 return (
                   <div 
@@ -318,7 +359,8 @@ function PracticeContent() {
                     )}
                   >
                     <div className={cn(
-                      "h-8 w-8 rounded-full flex items-center justify-center font-black text-xs shrink-0 border-2",
+                      "h-8 w-8 flex items-center justify-center font-black text-xs shrink-0 border-2",
+                      (corr.correctOptionIds?.length || 0) > 1 ? "rounded-xl" : "rounded-full",
                       isCorrectOpt ? "bg-emerald-500 text-white border-emerald-500" : isUserSelection ? "bg-red-500 text-white border-red-500" : "bg-white text-slate-400"
                     )}>
                       {String.fromCharCode(65 + idx)}
@@ -504,7 +546,7 @@ function PracticeContent() {
 
 export default function PracticePage() {
   return (
-    <Suspense fallback={<div className="h-[70vh] flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>}>
+    <Suspense fallback={<div className="h-[70vh] flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>}>
       <PracticeContent />
     </Suspense>
   );

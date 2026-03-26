@@ -13,11 +13,10 @@ export default function CoachingSelectionPage() {
   const { profile, user, isUserLoading } = useUser();
   const db = useFirestore();
 
-  // Liste des UIDs Super Admin
+  // Liste des UIDs Super Admin pour cohérence avec les règles
   const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1'];
 
   const sessionsQuery = useMemoFirebase(() => {
-    // Gating : Attendre que l'identité et le profil soient chargés
     if (isUserLoading || !user || !profile || !db) return null;
     
     const isAdminUser = profile.role === 'super_admin' || 
@@ -27,12 +26,10 @@ export default function CoachingSelectionPage() {
 
     const baseRef = collection(db, 'coachingSessions');
     
-    // Si Admin, on liste TOUT sans aucun filtre pour éviter les erreurs de permission
     if (isAdminUser) {
       return query(baseRef, orderBy('index', 'asc'));
     }
     
-    // Si Participant, filtre obligatoire par isPublished
     return query(
       baseRef, 
       where('isPublished', '==', true),
@@ -45,23 +42,14 @@ export default function CoachingSelectionPage() {
   const attemptsQuery = useMemoFirebase(() => {
     if (isUserLoading || !user?.uid || !profile || !db) return null;
     
-    const isAdminUser = profile.role === 'super_admin' || 
-                       profile.role === 'admin' || 
-                       user.email === 'slim.besbes@yahoo.fr' || 
-                       ADMIN_UIDS.includes(user.uid);
-
-    const baseRef = collection(db, 'coachingAttempts');
-
-    // Si Admin, accès global
-    if (isAdminUser) {
-      return query(baseRef, orderBy('submittedAt', 'desc'));
-    }
-
-    // Si User, uniquement ses propres tentatives
-    return query(baseRef, where('userId', '==', user.uid));
+    // Toujours filtrer par userId pour satisfaire les règles Firestore et éviter les erreurs de permission
+    return query(
+      collection(db, 'coachingAttempts'), 
+      where('userId', '==', user.uid)
+    );
   }, [db, user?.uid, profile, isUserLoading]);
 
-  const { data: attempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
+  const { data: rawAttempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
 
   if (isUserLoading || isSessionsLoading || isAttemptsLoading) {
     return (
@@ -77,12 +65,20 @@ export default function CoachingSelectionPage() {
                      (user?.uid && ADMIN_UIDS.includes(user.uid));
 
   const displaySessions = sessions || [];
+  
+  // On ne garde que la dernière tentative par session pour l'affichage du score
+  const latestAttempts = rawAttempts ? rawAttempts.reduce((acc: any, curr: any) => {
+    if (!acc[curr.sessionId] || (curr.submittedAt?.seconds || 0) > (acc[curr.sessionId].submittedAt?.seconds || 0)) {
+      acc[curr.sessionId] = curr;
+    }
+    return acc;
+  }, {}) : {};
 
   return (
     <div className="max-w-6xl mx-auto py-8 space-y-10 animate-fade-in">
       <div className="bg-white p-10 rounded-[40px] shadow-xl border-2 border-primary/5 flex items-center gap-8">
         <div className="bg-primary/10 p-5 rounded-3xl">
-          <GraduationCap className="h-12 w-12 text-primary" />
+          < GraduationCap className="h-12 w-12 text-primary" />
         </div>
         <div>
           <h1 className="text-4xl font-black italic uppercase tracking-tighter text-primary">Programme Coaching PMP®</h1>
@@ -102,7 +98,7 @@ export default function CoachingSelectionPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {displaySessions.map((session) => {
-            const attempt = attempts?.find(a => a.sessionId === session.id && a.userId === user?.uid);
+            const attempt = latestAttempts[session.id];
             const isLocked = !session.isPublished;
 
             return (
@@ -124,7 +120,7 @@ export default function CoachingSelectionPage() {
                       </div>
                     )}
                   </div>
-                  <CardTitle className="text-2xl font-black uppercase italic tracking-tight">Session {session.index}</CardTitle>
+                  <CardTitle className="text-2xl font-black uppercase italic tracking-tight">{session.title || `Session ${session.index}`}</CardTitle>
                   <CardDescription className="font-bold text-slate-400 uppercase tracking-widest text-[10px] mt-1">
                     {session.type === 'MEET' ? 'Visioconférence en direct' : 'Validation par simulation (35 Q)'}
                   </CardDescription>

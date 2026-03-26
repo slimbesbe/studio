@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -66,6 +67,7 @@
         "id": { "type": "string" },
         "index": { "type": "number", "description": "Global index for coaching sequences (1-180)" },
         "text": { "type": "string" },
+        "imageUrl": { "type": "string", "description": "URL d'une image d'illustration pour l'étude de cas" },
         "choices": { "type": "array", "items": { "type": "string" } },
         "correctChoice": { "type": "string" },
         "correctChoiceIds": { "type": "array", "items": { "type": "string" } },

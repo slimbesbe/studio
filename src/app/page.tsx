@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -29,21 +30,22 @@ export default function Home() {
 
     const ADMIN_EMAIL = 'slim.besbes@yahoo.fr';
     const ADMIN_PASS = '147813';
+    const trimmedEmail = email.trim();
 
     try {
       let userCredential;
       
       try {
-        userCredential = await signInWithEmailAndPassword(auth, email, password);
+        userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, password);
       } catch (signInError: any) {
-        const isAuthAdmin = email === ADMIN_EMAIL && password === ADMIN_PASS;
+        const isAuthAdmin = trimmedEmail === ADMIN_EMAIL && password === ADMIN_PASS;
         const isPotentialNewAdmin = signInError.code === 'auth/user-not-found' || 
                                    signInError.code === 'user-not-found' || 
                                    signInError.code === 'auth/invalid-credential';
 
         if (isAuthAdmin && isPotentialNewAdmin) {
           try {
-            userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
             toast({ title: "Bienvenue", description: "Initialisation de votre compte Super Admin Simu-lux." });
           } catch (createError: any) {
             if (createError.code === 'auth/email-already-in-use') {
@@ -58,7 +60,7 @@ export default function Home() {
 
       const user = userCredential.user;
 
-      if (email === ADMIN_EMAIL) {
+      if (trimmedEmail === ADMIN_EMAIL) {
         const adminUserRef = doc(db, 'users', user.uid);
         const adminUserSnap = await getDoc(adminUserRef);
         const now = serverTimestamp();
@@ -71,7 +73,7 @@ export default function Home() {
           }, { merge: true }),
           setDoc(adminUserRef, {
             id: user.uid,
-            email: email,
+            email: trimmedEmail,
             firstName: 'Slim',
             lastName: 'Besbes',
             role: 'super_admin',
@@ -98,9 +100,9 @@ export default function Home() {
       let message = "Identifiants incorrects.";
       
       if (error.code === 'auth/wrong-password') message = "Mot de passe incorrect.";
-      if (error.code === 'auth/too-many-requests') message = "Trop de tentatives. Compte bloqué temporairement.";
+      if (error.code === 'auth/invalid-email') message = "Format d'email invalide.";
+      if (error.code === 'auth/too-many-requests') message = "Compte bloqué temporairement.";
       if (error.code === 'auth/user-disabled') message = "Ce compte a été désactivé.";
-      if (error.message.includes("Identifiants incorrects")) message = error.message;
       
       toast({
         variant: "destructive",
@@ -131,7 +133,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
-      <div className="flex items-center gap-3 mb-8">
+      <div className="flex items-center gap-3 mb-8" suppressHydrationWarning>
         <SimuLuxLogo className="h-12 w-12" />
         <span className="font-headline font-black text-3xl italic tracking-tighter text-primary">
           Simu-lux <span className="text-accent">PMP</span>
@@ -140,8 +142,8 @@ export default function Home() {
       
       <Card className="w-full max-w-md border-t-4 border-t-primary shadow-2xl animate-slide-up">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-headline font-bold text-center text-primary">Identification</CardTitle>
-          <CardDescription className="text-center">
+          <CardTitle suppressHydrationWarning className="text-2xl font-headline font-bold text-center text-primary">Identification</CardTitle>
+          <CardDescription suppressHydrationWarning className="text-center">
             Accédez à votre espace de simulation professionnel
           </CardDescription>
         </CardHeader>

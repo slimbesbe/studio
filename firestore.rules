@@ -31,16 +31,17 @@ service cloud.firestore {
     }
     
     match /users/{userId} {
-      allow get: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isSignedIn() && request.auth.uid == userId;
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      // Empêcher l'auto-promotion ou le changement de statut par l'utilisateur lui-même
+      allow update: if isSignedIn() && request.auth.uid == userId 
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'accessType', 'groupId', 'allowedExams']);
       
       match /{allSubcollections=**} {
-        allow read, write: if isSignedIn() && request.auth.uid == userId;
+        allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       }
     }
 
     match /questions/{questionId} {
-      // Autoriser tous les utilisateurs connectés à lister les questions pour les compteurs
       allow read, list: if isSignedIn();
     }
     
@@ -49,13 +50,15 @@ service cloud.firestore {
     }
 
     match /coachingAttempts/{attemptId} {
-      allow list, get: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid);
-      allow write: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      // Un utilisateur peut lire ses propres tentatives. 
+      allow read: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid));
+      allow list: if isSignedIn() && (isAdmin() || (request.query.limit <= 1000 && request.query.filters.userId == request.auth.uid));
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
     }
 
     match /coachingGroups/{groupId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
+      allow get, list: if isSignedIn();
     }
 
     match /exams/{examId} {
@@ -68,7 +71,7 @@ service cloud.firestore {
     }
     
     match /{path=**}/exam_results/{resultId} {
-      allow read: if isSignedIn() && (isAdmin() || request.auth.uid == resource.data.userId);
+      allow read: if isSignedIn() && (isAdmin() || (resource != null && request.auth.uid == resource.data.userId));
     }
   }
 }

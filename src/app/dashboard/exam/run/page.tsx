@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense, useCallback } from 'react';
 import { useUser, useFirestore } from '@/firebase';
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -19,13 +20,87 @@ import {
   Calculator as CalcIcon,
   Trophy,
   X,
-  LayoutGrid
+  LayoutGrid,
+  Info,
+  Save as SaveIcon,
+  MoveLeft,
+  MoveRight
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Calculator } from '@/components/dashboard/Calculator';
+import { saveExamState, getExamState, clearExamState } from '@/lib/services/exam-state-service';
 
-type ViewMode = 'intro' | 'question' | 'review' | 'break' | 'result';
+type ViewMode = 'question' | 'review' | 'break' | 'result';
+
+function PerformanceScale({ score }: { score: number }) {
+  const isPass = score >= 50;
+  
+  // segments widths are equal (25% each)
+  // cursor position is simply the score percent
+  const cursorLeft = `${score}%`;
+
+  return (
+    <div className="w-full max-w-4xl mx-auto space-y-8 py-10 animate-fade-in">
+      <div className="text-left space-y-2">
+        <h2 className="text-3xl font-medium text-slate-700">
+          Your Overall Performance: <span className={cn("font-bold text-4xl", isPass ? "text-[#005bb7]" : "text-destructive")}>
+            {isPass ? 'Pass' : 'Fail'}
+          </span>
+        </h2>
+        <p className="text-slate-500 text-lg">
+          {isPass 
+            ? "Congratulations! You passed your exam and have successfully earned your PMI certification. This is a tremendous accomplishment!" 
+            : "Unfortunately, you did not pass the exam this time. Focus on the areas indicated below to improve for your next attempt."}
+        </p>
+      </div>
+
+      <div className="relative pt-12 pb-16">
+        {/* Labels failing/passing */}
+        <div className="absolute top-0 left-0 w-full flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">
+          <div className="flex items-center gap-2">
+            <MoveLeft className="h-3 w-3" /> Failing
+          </div>
+          <div className="flex items-center gap-2">
+            Passing <MoveRight className="h-3 w-3" />
+          </div>
+        </div>
+
+        {/* The double arrow line */}
+        <div className="absolute top-6 left-0 w-full h-px bg-sky-400 flex items-center justify-center">
+          <div className="h-3 w-px bg-sky-400" /> {/* center mark */}
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 border-y-[4px] border-y-transparent border-r-[6px] border-r-sky-400" />
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1 border-y-[4px] border-y-transparent border-l-[6px] border-l-sky-400" />
+        </div>
+
+        {/* The cursor "YOU" */}
+        <div 
+          className="absolute top-4 z-20 flex flex-col items-center transition-all duration-1000 ease-out"
+          style={{ left: cursorLeft }}
+        >
+          <span className="text-[11px] font-black text-slate-800 mb-1">YOU</span>
+          <div className="h-16 w-0.5 bg-black" />
+        </div>
+
+        {/* The 4 color segments */}
+        <div className="grid grid-cols-4 h-12 w-full gap-1 items-stretch">
+          <div className="bg-[#ffe4e1] flex items-end justify-start p-2">
+            <span className="text-[10px] font-bold text-slate-400 uppercase leading-none">Needs Improvement</span>
+          </div>
+          <div className="bg-[#fff9e6] flex items-end justify-start p-2">
+            <span className="text-[10px] font-bold text-slate-400 uppercase leading-none">Below Target</span>
+          </div>
+          <div className="bg-[#7fcdbb] flex items-end justify-start p-2">
+            <span className="text-[10px] font-bold text-[#005bb7] uppercase leading-none">Target</span>
+          </div>
+          <div className="bg-[#d9ece8] flex items-end justify-start p-2">
+            <span className="text-[10px] font-bold text-slate-400 uppercase leading-none">Above Target</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ExamRunContent() {
   const { user } = useUser();
@@ -35,14 +110,15 @@ function ExamRunContent() {
   const { toast } = useToast();
   
   const examId = searchParams.get('id');
+  const isResumeMode = searchParams.get('resume') === 'true';
   
   // State
   const [questions, setQuestions] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, string[]>>({});
   const [flagged, setFlagged] = useState<Record<string, boolean>>({});
   const [viewMode, setViewMode] = useState<ViewMode>('question');
-  const [timeLeft, setTimeLeft] = useState(0); 
+  const [timeLeft, setTimeLeft] = useState(-1); 
   const [isPaused, setIsPaused] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [showNavigator, setShowNavigator] = useState(false);
@@ -51,6 +127,7 @@ function ExamRunContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [breakTimeLeft, setBreakTimeLeft] = useState(10 * 60);
   const [currentSection, setCurrentSection] = useState(1);
+  const [isSavingState, setIsSavingState] = useState(false);
 
   // Constants
   const SECTION_SIZE = 60;
@@ -60,22 +137,60 @@ function ExamRunContent() {
     return Math.floor(minutes * 60);
   };
 
+  // Sauvegarde persistante
+  const triggerSave = useCallback(async (forcedTimeLeft?: number) => {
+    if (!db || !user?.uid || !examId || viewMode === 'result') return;
+    try {
+      setIsSavingState(true);
+      await saveExamState(db, user.uid, {
+        examId,
+        currentIndex,
+        answers,
+        flagged,
+        timeLeft: forcedTimeLeft ?? timeLeft,
+        currentSection
+      });
+    } catch (e) {
+      console.error("Auto-save error", e);
+    } finally {
+      setIsSavingState(false);
+    }
+  }, [db, user?.uid, examId, currentIndex, answers, flagged, timeLeft, currentSection, viewMode]);
+
+  // Chargement des questions et restauration de l'état
   useEffect(() => {
-    async function fetchQuestions() {
-      if (!examId || !user) return;
+    async function fetchQuestionsAndState() {
+      if (!examId || !user || !db) return;
       setIsLoading(true);
       try {
         const qRef = collection(db, 'questions');
-        const qQuery = query(qRef, where('examId', '==', examId), where('isActive', '==', true));
-        const snap = await getDocs(qQuery);
         
-        const fetched = snap.docs.map(d => ({ 
-          ...d.data(), 
-          id: d.id,
-          text: d.data().text || d.data().statement,
-          choices: d.data().choices || d.data().options?.map((o: any) => o.text)
-        }));
+        // On fusionne les résultats des deux types de requêtes pour récupérer toutes les questions
+        const [snapNew, snapLegacy] = await Promise.all([
+          getDocs(query(qRef, where('sourceIds', 'array-contains', examId), where('isActive', '==', true))),
+          getDocs(query(qRef, where('examId', '==', examId), where('isActive', '==', true)))
+        ]);
         
+        const uniqueQuestions = new Map();
+        
+        const processSnap = (snap: any) => {
+          snap.docs.forEach((d: any) => {
+            if (!uniqueQuestions.has(d.id)) {
+              const data = d.data();
+              uniqueQuestions.set(d.id, {
+                ...data,
+                id: d.id,
+                text: data.text || data.statement,
+                choices: data.choices || data.options?.map((o: any) => o.text)
+              });
+            }
+          });
+        };
+
+        processSnap(snapNew);
+        processSnap(snapLegacy);
+        
+        let fetched = Array.from(uniqueQuestions.values());
         fetched.sort((a, b) => (a.index || 0) - (b.index || 0));
         
         if (fetched.length === 0) {
@@ -85,7 +200,23 @@ function ExamRunContent() {
         }
 
         setQuestions(fetched);
-        setTimeLeft(calculateTotalTime(fetched.length));
+
+        // Tenter de restaurer l'état
+        if (isResumeMode) {
+          const saved = await getExamState(db, user.uid);
+          if (saved && saved.examId === examId) {
+            setCurrentIndex(saved.currentIndex);
+            setAnswers(saved.answers || {});
+            setFlagged(saved.flagged || {});
+            setTimeLeft(saved.timeLeft);
+            setCurrentSection(saved.currentSection || 1);
+            toast({ title: "Simulation reprise", description: `Reprise à la question ${saved.currentIndex + 1} (${fetched.length} questions au total).` });
+          } else {
+            setTimeLeft(calculateTotalTime(fetched.length));
+          }
+        } else {
+          setTimeLeft(calculateTotalTime(fetched.length));
+        }
       } catch (e) {
         console.error(e);
         toast({ variant: "destructive", title: "Erreur de chargement" });
@@ -93,19 +224,30 @@ function ExamRunContent() {
         setIsLoading(false);
       }
     }
-    fetchQuestions();
-  }, [db, examId, user, router, toast]);
+    fetchQuestionsAndState();
+  }, [db, examId, user, router, toast, isResumeMode]);
 
+  // Sauvegarde automatique toutes les 30 secondes
+  useEffect(() => {
+    if (viewMode !== 'question' || isPaused || isLoading) return;
+    const interval = setInterval(() => {
+      triggerSave();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [triggerSave, viewMode, isPaused, isLoading]);
+
+  // Timer simulation
   useEffect(() => {
     let timer: any;
     if (viewMode === 'question' && !isPaused && timeLeft > 0) {
       timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
-    } else if (timeLeft === 0 && !result && viewMode === 'question') {
+    } else if (timeLeft === 0 && !result && viewMode === 'question' && !isLoading && questions.length > 0) {
       finishExam();
     }
     return () => clearInterval(timer);
-  }, [viewMode, isPaused, timeLeft, result]);
+  }, [viewMode, isPaused, timeLeft, result, isLoading, questions.length]);
 
+  // Timer pause
   useEffect(() => {
     let timer: any;
     if (viewMode === 'break' && breakTimeLeft > 0) {
@@ -117,6 +259,7 @@ function ExamRunContent() {
   }, [viewMode, breakTimeLeft]);
 
   const formatMMSS = (seconds: number) => {
+    if (seconds < 0) return "--:--";
     const m = Math.floor(seconds / 60);
     const s = Math.floor(seconds % 60);
     return `${m}:${s.toString().padStart(2, '0')}`;
@@ -136,8 +279,17 @@ function ExamRunContent() {
     setFlagged(prev => ({ ...prev, [qId]: !prev[qId] }));
   };
 
-  const handleOptionSelect = (qId: string, optId: string) => {
-    setAnswers(prev => ({ ...prev, [qId]: optId }));
+  const toggleAnswer = (qId: string, optId: string, isMultiple: boolean) => {
+    const current = answers[qId] || [];
+    if (isMultiple) {
+      if (current.includes(optId)) {
+        setAnswers({ ...answers, [qId]: current.filter(id => id !== optId) });
+      } else {
+        setAnswers({ ...answers, [qId]: [...current, optId] });
+      }
+    } else {
+      setAnswers({ ...answers, [qId]: [optId] });
+    }
   };
 
   const startNextSection = () => {
@@ -157,19 +309,39 @@ function ExamRunContent() {
   };
 
   const finishExam = async () => {
+    if (isSubmitting || questions.length === 0) return;
     setIsSubmitting(true);
+    
+    const detailedResults: any[] = [];
     let correct = 0;
+
     questions.forEach(q => {
-      const correctVal = String(q.correctChoice || (q.correctOptionIds ? q.correctOptionIds[0] : "1"));
-      if (answers[q.id] === correctVal) correct++;
+      const correctOptionIds = q.correctOptionIds || [String(q.correctChoice || "1")];
+      const userChoices = answers[q.id] || [];
+      
+      const isUserCorrect = userChoices.length === correctOptionIds.length && 
+                            userChoices.every(id => correctOptionIds.includes(id));
+      
+      if (isUserCorrect) correct++;
+
+      detailedResults.push({
+        questionId: q.id,
+        text: q.text,
+        choices: q.choices,
+        correctOptionIds: correctOptionIds,
+        userChoices: userChoices,
+        isCorrect: isUserCorrect,
+        explanation: q.explanation,
+        tags: q.tags || {}
+      });
     });
 
     const percent = Math.round((correct / questions.length) * 100);
     
     let performance = "Needs Improvement";
-    if (percent >= 80) performance = "Above Target";
-    else if (percent >= 70) performance = "Target";
-    else if (percent >= 60) performance = "Below Target";
+    if (percent >= 75) performance = "Above Target";
+    else if (percent >= 50) performance = "Target";
+    else if (percent >= 25) performance = "Below Target";
 
     const finalData = {
       examId,
@@ -178,12 +350,14 @@ function ExamRunContent() {
       correctCount: correct,
       totalQuestions: questions.length,
       performance,
-      durationSec: calculateTotalTime(questions.length) - timeLeft,
-      submittedAt: serverTimestamp()
+      durationSec: calculateTotalTime(questions.length) - (timeLeft > 0 ? timeLeft : 0),
+      submittedAt: serverTimestamp(),
+      responses: detailedResults
     };
 
     try {
       await addDoc(collection(db, 'coachingAttempts'), finalData);
+      if (user?.uid) await clearExamState(db, user.uid); // Effacer l'état temporaire
       setResult(finalData);
       setViewMode('result');
     } catch (e) {
@@ -193,46 +367,37 @@ function ExamRunContent() {
     }
   };
 
+  const handlePause = () => {
+    triggerSave();
+    setIsPaused(true);
+  };
+
   if (isLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
 
   if (viewMode === 'result' && result) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <Card className="max-w-3xl w-full rounded-[40px] shadow-2xl border-none p-12 text-center space-y-10 bg-white border-t-8 border-t-primary">
-          <div className="space-y-4">
-            <Trophy className="h-20 w-20 text-yellow-500 mx-auto" />
-            <h2 className="text-5xl font-black italic uppercase tracking-tighter text-slate-900">Résultat Final</h2>
-            <div className="flex justify-center pt-4">
-              <div className={cn(
-                "px-8 py-3 rounded-2xl font-black uppercase italic text-xl tracking-widest shadow-sm",
-                result.performance === "Above Target" ? "bg-emerald-100 text-emerald-600 border-2 border-emerald-200" : 
-                result.performance === "Target" ? "bg-blue-100 text-blue-600 border-2 border-blue-200" : 
-                result.performance === "Below Target" ? "bg-amber-100 text-amber-600 border-2 border-amber-200" : 
-                "bg-red-100 text-red-600 border-2 border-red-200"
-              )}>
-                {result.performance}
-              </div>
-            </div>
-          </div>
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <Card className="max-w-5xl w-full border-none shadow-none p-12 space-y-10 bg-white">
+          <PerformanceScale score={result.scorePercent} />
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-10 border-t border-slate-100">
             <div className="bg-slate-50 p-6 rounded-3xl border-2">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Score</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Score</p>
               <p className="text-4xl font-black italic text-primary">{result.scorePercent}%</p>
             </div>
             <div className="bg-slate-50 p-6 rounded-3xl border-2">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Réponses</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Correct Answers</p>
               <p className="text-4xl font-black italic text-slate-700">{result.correctCount}/{result.totalQuestions}</p>
             </div>
             <div className="bg-slate-50 p-6 rounded-3xl border-2">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Temps utilisé</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Time Spent</p>
               <p className="text-4xl font-black italic text-slate-700">{Math.floor(result.durationSec / 60)}m</p>
             </div>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 pt-6">
             <Button variant="outline" className="flex-1 h-16 rounded-2xl border-4 font-black uppercase tracking-widest text-lg italic" asChild>
-              <Link href="/dashboard/history">Détails</Link>
+              <Link href="/dashboard/history">Voir mon Historique</Link>
             </Button>
             <Button className="flex-1 h-16 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl text-lg italic" asChild>
               <Link href="/dashboard">Tableau de bord</Link>
@@ -278,7 +443,7 @@ function ExamRunContent() {
             <div className="grid grid-cols-5 sm:grid-cols-10 gap-3 mb-10">
               {currentSectionQuestions.map((q, idx) => {
                 const globalIdx = sectionStart + idx;
-                const isAnswered = !!answers[q.id];
+                const isAnswered = (answers[q.id]?.length || 0) > 0;
                 const isFlagged = flagged[q.id];
                 return (
                   <button
@@ -322,18 +487,24 @@ function ExamRunContent() {
   }
 
   const currentQuestion = questions[currentIndex];
-  const progressPercent = ((currentIndex + 1) / questions.length) * 100;
+  const progressPercent = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
+  const currentAnswers = answers[currentQuestion?.id] || [];
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <div className="bg-black text-white px-8 py-4 flex items-center justify-between shadow-xl sticky top-0 z-50">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => setIsPaused(true)} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-10 px-4">
+          <Button variant="ghost" size="sm" onClick={handlePause} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-10 px-4">
             <Pause className="h-4 w-4 mr-2" /> Pause
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setShowCalculator(true)} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-10 px-4">
             <CalcIcon className="h-4 w-4 mr-2" /> Calculator
           </Button>
+          {isSavingState && (
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase italic text-slate-400 animate-pulse">
+              <SaveIcon className="h-3 w-3" /> Sync...
+            </div>
+          )}
         </div>
 
         <div className="text-center">
@@ -371,26 +542,44 @@ function ExamRunContent() {
         
         <Card className="rounded-[40px] shadow-2xl border-none bg-white overflow-hidden min-h-[450px]">
           <CardContent className="p-12 space-y-10">
-            <h2 className="text-2xl font-black text-slate-800 italic leading-relaxed">
-              {currentQuestion?.text}
-            </h2>
+            <div className="space-y-6">
+              {currentQuestion?.isMultipleCorrect && (
+                <Badge className="bg-indigo-100 text-indigo-600 border-none font-black italic uppercase text-[10px] py-1 px-4">
+                  Plusieurs réponses à sélectionner
+                </Badge>
+              )}
+              <h2 className="text-2xl font-black text-slate-800 italic leading-relaxed">
+                {currentQuestion?.text}
+              </h2>
+
+              {currentQuestion?.imageUrl && (
+                <div className="rounded-[32px] overflow-hidden border-4 border-slate-100 shadow-inner bg-slate-50 p-4">
+                  <img 
+                    src={currentQuestion.imageUrl} 
+                    alt="Illustration" 
+                    className="max-h-[400px] w-auto mx-auto object-contain rounded-2xl"
+                  />
+                </div>
+              )}
+            </div>
 
             <div className="grid gap-4">
               {currentQuestion?.choices?.map((opt: string, idx: number) => {
                 const optId = String(idx + 1);
-                const isSelected = answers[currentQuestion.id] === optId;
+                const isSelected = currentAnswers.includes(optId);
                 
                 return (
                   <div 
                     key={idx} 
-                    onClick={() => handleOptionSelect(currentQuestion.id, optId)}
+                    onClick={() => toggleAnswer(currentQuestion.id, optId, currentQuestion.isMultipleCorrect)}
                     className={cn(
                       "p-6 rounded-2xl border-2 transition-all cursor-pointer flex items-center gap-6 shadow-sm",
                       isSelected ? "border-primary bg-primary/5 scale-[1.01]" : "border-slate-100 hover:border-slate-300"
                     )}
                   >
                     <div className={cn(
-                      "h-10 w-10 rounded-full flex items-center justify-center font-black text-sm shrink-0 border-2",
+                      "h-10 w-10 flex items-center justify-center font-black text-sm shrink-0 border-2",
+                      currentQuestion.isMultipleCorrect ? "rounded-xl" : "rounded-full",
                       isSelected ? "bg-primary text-white border-primary" : "bg-white text-slate-400"
                     )}>{String.fromCharCode(65 + idx)}</div>
                     <p className={cn("flex-1 text-lg font-bold italic", isSelected ? "text-slate-900" : "text-slate-600")}>
@@ -404,7 +593,7 @@ function ExamRunContent() {
         </Card>
       </main>
 
-      <div className="fixed bottom-0 left-64 right-0 bg-white border-t-2 p-6 flex items-center justify-between shadow-2xl z-40">
+      <div className="fixed bottom-0 left-0 lg:left-64 right-0 bg-white border-t-2 p-6 flex items-center justify-between shadow-2xl z-40">
         <div className="flex items-center gap-4">
           <Button 
             variant="outline" 
@@ -451,7 +640,7 @@ function ExamRunContent() {
             <div className="grid grid-cols-6 sm:grid-cols-10 gap-3 overflow-y-auto max-h-[350px] p-2">
               {currentSectionQuestions.map((q, idx) => {
                 const globalIdx = sectionStart + idx;
-                const isAnswered = !!answers[q.id];
+                const isAnswered = (answers[q.id]?.length || 0) > 0;
                 const isCurrent = globalIdx === currentIndex;
                 const isFlagged = flagged[q.id];
                 
@@ -491,9 +680,14 @@ function ExamRunContent() {
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center pointer-events-auto">
           <div className="text-center space-y-8">
             <h2 className="text-6xl font-black uppercase italic text-white tracking-tighter">EXAMEN EN PAUSE</h2>
-            <Button onClick={() => setIsPaused(false)} className="h-20 px-16 rounded-[28px] bg-white text-black text-2xl font-black uppercase tracking-widest shadow-2xl scale-110 hover:scale-115 transition-transform">
-              REPRENDRE
-            </Button>
+            <div className="flex flex-col gap-4 items-center">
+              <Button onClick={() => setIsPaused(false)} className="h-20 px-16 rounded-[28px] bg-white text-black text-2xl font-black uppercase tracking-widest shadow-2xl scale-110 hover:scale-115 transition-transform">
+                REPRENDRE
+              </Button>
+              <Button asChild variant="ghost" className="text-white font-bold uppercase tracking-widest hover:bg-white/10 mt-4">
+                <Link href="/dashboard/exam">Quitter et reprendre plus tard</Link>
+              </Button>
+            </div>
           </div>
         </div>
       )}

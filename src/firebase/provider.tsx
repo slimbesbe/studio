@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
@@ -109,8 +110,16 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               sessionStorage.setItem(sessionKey, 'true');
             }
 
+            // --- PROTECTIONS DE SÉCURITÉ ---
+            
+            // 1. Accès expiré ou désactivé
             if (!firebaseUser.isAnonymous && currentStatus !== 'active' && pathname.startsWith('/dashboard')) {
                router.push('/access-denied');
+            }
+
+            // 2. Accès admin réservé
+            if (role === 'user' && pathname.startsWith('/admin')) {
+               router.push('/dashboard');
             }
           } else if (isSA) {
             const now = serverTimestamp();

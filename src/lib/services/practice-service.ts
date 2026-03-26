@@ -61,20 +61,25 @@ export async function submitPracticeAnswer(
   db: Firestore,
   userId: string,
   questionId: string,
-  selectedChoiceId: string,
+  selectedChoiceIds: string | string[],
   context: "training" | "exam" = "training"
 ) {
   const qDoc = await getDoc(doc(db, 'questions', questionId));
   if (!qDoc.exists()) throw new Error("Question non trouvée");
   
   const qData = qDoc.data();
-  const isCorrect = qData.correctOptionIds ? qData.correctOptionIds.includes(selectedChoiceId) : qData.correctChoice === selectedChoiceId;
+  const userChoices = Array.isArray(selectedChoiceIds) ? selectedChoiceIds : [selectedChoiceIds];
+  const correctOptionIds = qData.correctOptionIds || [String(qData.correctChoice)];
 
-  // Log Attempt with metadata for KPIs
+  // Validation : must match exactly the correct set
+  const isCorrect = userChoices.length === correctOptionIds.length && 
+                    userChoices.every(id => correctOptionIds.includes(id));
+
+  // Log Attempt
   const attemptRef = doc(collection(db, 'users', userId, 'attempts'));
   await setDoc(attemptRef, {
     questionId,
-    selectedChoiceId,
+    selectedChoiceIds: userChoices,
     isCorrect,
     context,
     tags: qData.tags || {},
@@ -89,8 +94,8 @@ export async function submitPracticeAnswer(
       wrongCount: increment(1),
       lastWrongAt: serverTimestamp(),
       questionId,
-      lastSelectedChoiceId: selectedChoiceId,
-      tags: qData.tags || {} // Keep tags for easy breakdown
+      lastSelectedChoiceIds: userChoices,
+      tags: qData.tags || {}
     }, { merge: true });
   } else {
     await setDoc(kmRef, {
@@ -104,7 +109,7 @@ export async function submitPracticeAnswer(
   return { 
     isCorrect, 
     explanation: qData.explanation,
-    correctOptionIds: qData.correctOptionIds || [qData.correctChoice]
+    correctOptionIds
   };
 }
 
@@ -117,11 +122,10 @@ export async function logExamAttempts(
   
   for (const res of results) {
     const attemptRef = doc(collection(db, 'users', userId, 'attempts'));
-    const selectedChoiceId = res.selectedChoiceIds.length > 0 ? res.selectedChoiceIds[0] : 'unanswered';
     
     batch.set(attemptRef, {
       questionId: res.questionId,
-      selectedChoiceId: selectedChoiceId,
+      selectedChoiceIds: res.selectedChoiceIds,
       isCorrect: res.isCorrect,
       context: 'exam',
       tags: res.tags || {},
@@ -135,7 +139,7 @@ export async function logExamAttempts(
         wrongCount: increment(1),
         lastWrongAt: serverTimestamp(),
         questionId: res.questionId,
-        lastSelectedChoiceId: selectedChoiceId,
+        lastSelectedChoiceIds: res.selectedChoiceIds,
         tags: res.tags || {}
       }, { merge: true });
     } else {

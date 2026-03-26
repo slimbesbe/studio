@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, where, doc, getDocs, orderBy } from 'firebase/firestore';
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -15,7 +16,14 @@ export default function SessionQuestionBreakdown() {
   const params = useParams();
   const groupId = params.id as string;
   const sessionId = params.sessionId as string;
+  const { profile, user, isUserLoading: isAuthLoading } = useUser();
   const db = useFirestore();
+
+  const ADMIN_UIDS = ['GPgreBe1JzZYbEHQGn3xIdcQGQs1', 'vwyrAnNtQkSojYSEEK2qkRB5feh2'];
+  const isAdmin = profile?.role === 'super_admin' || 
+                  profile?.role === 'admin' || 
+                  user?.email === 'slim.besbes@yahoo.fr' ||
+                  (user?.uid && ADMIN_UIDS.includes(user.uid));
 
   const groupRef = useMemoFirebase(() => doc(db, 'coachingGroups', groupId), [db, groupId]);
   const { data: group } = useDoc(groupRef);
@@ -24,9 +32,9 @@ export default function SessionQuestionBreakdown() {
   const { data: session, isLoading: isSessionLoading } = useDoc(sessionRef);
 
   const attemptsQuery = useMemoFirebase(() => {
-    if (!groupId || !sessionId) return null;
+    if (!isAdmin || !groupId || !sessionId) return null;
     return query(collection(db, 'coachingAttempts'), where('groupId', '==', groupId), where('sessionId', '==', sessionId));
-  }, [db, groupId, sessionId]);
+  }, [db, groupId, sessionId, isAdmin]);
   const { data: attempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
 
   const [questions, setQuestions] = useState<any[]>([]);
@@ -34,7 +42,7 @@ export default function SessionQuestionBreakdown() {
 
   useEffect(() => {
     async function loadQuestions() {
-      if (!session) return;
+      if (!session || !isAdmin) return;
       setIsQuestionsLoading(true);
       try {
         const qRef = collection(db, 'questions');
@@ -53,7 +61,7 @@ export default function SessionQuestionBreakdown() {
       }
     }
     loadQuestions();
-  }, [db, session]);
+  }, [db, session, isAdmin]);
 
   const COLORS = ['#10b981', '#ef4444', '#f59e0b', '#3F51B5'];
 
@@ -61,7 +69,6 @@ export default function SessionQuestionBreakdown() {
     if (!attempts) return [];
     
     // Pour cet MVP, on simule une distribution réaliste basée sur le score total.
-    // NOTE: Pour une version réelle, chaque réponse par question doit être logguée.
     const dist = [
       { name: 'Réponse A', value: Math.floor(Math.random() * 40) + 10 },
       { name: 'Réponse B', value: Math.floor(Math.random() * 30) + 5 },
@@ -71,7 +78,13 @@ export default function SessionQuestionBreakdown() {
     return dist;
   };
 
-  if (isSessionLoading || isAttemptsLoading || isQuestionsLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
+  if (isAuthLoading || isSessionLoading || isAttemptsLoading || isQuestionsLoading) {
+    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
+  }
+
+  if (!isAdmin) {
+    return <div className="h-screen flex items-center justify-center p-8 text-center"><p className="font-bold text-destructive italic uppercase">Accès restreint aux administrateurs.</p></div>;
+  }
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-10 animate-fade-in">

@@ -27,28 +27,28 @@ export const SimuLuxLogo = ({ className = "h-8 w-8" }: { className?: string }) =
   <svg viewBox="0 0 200 200" className={className} xmlns="http://www.w3.org/2000/svg">
     <defs>
       <linearGradient id="shieldGrad" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#0061D1" />
-        <stop offset="100%" stopColor="#00357A" />
+        <stop offset="0%" stopColor="#0047AB" />
+        <stop offset="100%" stopColor="#002366" />
       </linearGradient>
     </defs>
     {/* Bouclier bleu avec dégradé */}
     <path 
-      d="M100,5 L35,28 L35,95 C35,145 100,190 100,190 C100,190 165,145 165,95 L165,28 Z" 
+      d="M100,10 L30,35 L30,100 C30,155 100,190 100,190 C100,190 170,155 170,100 L170,35 Z" 
       fill="url(#shieldGrad)" 
     />
     {/* Le 'S' blanc en forme de ruban dynamique */}
     <path 
-      d="M55,145 C70,170 150,165 155,125 C160,85 100,85 75,70 C50,55 80,25 140,30" 
+      d="M60,140 C60,140 140,150 140,115 C140,80 60,95 60,60 C60,25 140,35 140,35" 
       fill="none" 
       stroke="white" 
       strokeWidth="24" 
       strokeLinecap="round" 
       strokeLinejoin="round"
     />
-    {/* La flèche jaune/or de réussite */}
+    {/* La flèche dorée de réussite */}
     <path 
-      d="M145,25 L195,5 L175,55 L160,35 Z" 
-      fill="#FFBD59" 
+      d="M140,20 L195,5 L180,60 L160,40 Z" 
+      fill="#FFD700" 
     />
   </svg>
 );
@@ -59,7 +59,7 @@ export function Sidebar() {
   const { user, isUserLoading, profile } = useUser();
   const auth = useAuth();
 
-  if (isUserLoading || !user || pathname === '/') {
+  if (isUserLoading || !user || pathname === '/' || pathname === '/login') {
     return null;
   }
 

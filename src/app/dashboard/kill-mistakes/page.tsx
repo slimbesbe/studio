@@ -111,13 +111,13 @@ function KillMistakesContent() {
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
   // Redo Interactive Browser State
-  const [interactiveSelectedChoice, setInteractiveSelectedChoice] = useState<string | null>(null);
+  const [interactiveSelectedChoices, setInteractiveSelectedChoices] = useState<string[]>([]);
   const [interactiveResult, setInteractiveResult] = useState<any | null>(null);
 
   // Linear Session State
   const [isSessionActive, setIsSessionActive] = useState(mode === 'session');
   const [currentSessionIdx, setCurrentSessionIdx] = useState(0);
-  const [sessionAnswers, setSessionAnswers] = useState<Record<string, string>>({});
+  const [sessionAnswers, setSessionAnswers] = useState<Record<string, string[]>>({});
   const [sessionStep, setStep] = useState<'intro' | 'session' | 'summary' | 'review'>(mode === 'session' ? 'intro' : 'intro');
   const [sessionResults, setSessionResults] = useState<{correct: number, total: number, history: any[]} | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -176,7 +176,7 @@ function KillMistakesContent() {
   // Reset logic
   useEffect(() => {
     setSelectedMistake(null);
-    setInteractiveSelectedChoice(null);
+    setInteractiveSelectedChoices([]);
     setInteractiveResult(null);
   }, [filterDomain, filterApproach, mode]);
 
@@ -188,27 +188,55 @@ function KillMistakesContent() {
     setIsSessionActive(true);
   };
 
-  const handleInteractiveAnswer = async (choiceId: string) => {
-    if (interactiveResult || isSubmitting) return;
-    setInteractiveSelectedChoice(choiceId);
+  const handleInteractiveToggle = (choiceId: string, isMultiple: boolean) => {
+    if (interactiveResult) return;
+    if (isMultiple) {
+      if (interactiveSelectedChoices.includes(choiceId)) {
+        setInteractiveSelectedChoices(interactiveSelectedChoices.filter(id => id !== choiceId));
+      } else {
+        setInteractiveSelectedChoices([...interactiveSelectedChoices, choiceId]);
+      }
+    } else {
+      setInteractiveSelectedChoices([choiceId]);
+    }
+  };
+
+  const handleInteractiveAnswerSubmit = async () => {
+    if (interactiveSelectedChoices.length === 0 || isSubmitting) return;
     setIsSubmitting(true);
     try {
       let res;
       if (isDemo) {
         const mock = MOCK_QUESTION_DETAILS[selectedMistake.questionId] || MOCK_QUESTION_DETAILS['default'];
+        const correctIds = mock.correctOptionIds;
+        const isCorrect = interactiveSelectedChoices.length === correctIds.length && 
+                          interactiveSelectedChoices.every(id => correctIds.includes(id));
         res = { 
-          isCorrect: mock.correctOptionIds.includes(choiceId), 
+          isCorrect, 
           explanation: mock.explanation, 
-          correctOptionIds: mock.correctOptionIds 
+          correctOptionIds: correctIds 
         };
       } else {
-        res = await submitPracticeAnswer(db, user!.uid, selectedMistake.questionId, choiceId);
+        res = await submitPracticeAnswer(db, user!.uid, selectedMistake.questionId, interactiveSelectedChoices);
       }
       setInteractiveResult(res);
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur" });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSessionToggle = (mistakeId: string, choiceId: string, isMultiple: boolean) => {
+    const current = sessionAnswers[mistakeId] || [];
+    if (isMultiple) {
+      if (current.includes(choiceId)) {
+        setSessionAnswers({ ...sessionAnswers, [mistakeId]: current.filter(id => id !== choiceId) });
+      } else {
+        setSessionAnswers({ ...sessionAnswers, [mistakeId]: [...current, choiceId] });
+      }
+    } else {
+      setSessionAnswers({ ...sessionAnswers, [mistakeId]: [choiceId] });
     }
   };
 
@@ -221,16 +249,19 @@ function KillMistakesContent() {
         let correct = 0;
         const history = [];
         for (const m of filteredMistakes) {
-          const userChoice = sessionAnswers[m.questionId];
+          const userChoices = sessionAnswers[m.questionId] || [];
           let res;
           if (isDemo) {
             const mock = MOCK_QUESTION_DETAILS[m.questionId] || MOCK_QUESTION_DETAILS['default'];
-            res = { isCorrect: mock.correctOptionIds.includes(userChoice), explanation: mock.explanation, correctOptionIds: mock.correctOptionIds };
+            const correctIds = mock.correctOptionIds;
+            const isCorrect = userChoices.length === correctIds.length && 
+                              userChoices.every(id => correctIds.includes(id));
+            res = { isCorrect, explanation: mock.explanation, correctOptionIds: correctIds };
           } else {
-            res = await submitPracticeAnswer(db, user!.uid, m.questionId, userChoice);
+            res = await submitPracticeAnswer(db, user!.uid, m.questionId, userChoices);
           }
           if (res.isCorrect) correct++;
-          history.push({ mistake: m, userChoice, correction: res });
+          history.push({ mistake: m, userChoices, correction: res });
         }
         setSessionResults({ correct, total: filteredMistakes.length, history });
         setStep('summary');
@@ -307,7 +338,7 @@ function KillMistakesContent() {
 
     if (sessionStep === 'session') {
       const q = filteredMistakes[currentSessionIdx];
-      const selectedChoice = sessionAnswers[q?.questionId];
+      const selectedChoices = sessionAnswers[q?.questionId] || [];
       return (
         <div className="max-w-4xl mx-auto space-y-8 animate-fade-in py-8 px-4">
           <div className="flex justify-between items-center">
@@ -320,20 +351,33 @@ function KillMistakesContent() {
                 <div className="py-20 flex justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>
               ) : questionDetails && (
                 <>
-                  <p className="text-2xl font-black text-slate-800 italic leading-relaxed">{questionDetails.statement || questionDetails.text}</p>
-                  <div className="grid gap-4">
-                    {questionDetails.options?.map((opt: any, idx: number) => (
-                      <div key={opt.id} onClick={() => setSessionAnswers({ ...sessionAnswers, [q.questionId]: opt.id })} className={cn("p-6 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-5 shadow-sm", selectedChoice === opt.id ? "border-primary bg-primary/5 scale-[1.01]" : "border-slate-100 hover:border-slate-300")}>
-                        <div className={cn("h-10 w-10 rounded-full flex items-center justify-center font-black text-sm shrink-0 border-2", selectedChoice === opt.id ? "bg-primary text-white border-primary" : "bg-white text-slate-400")}>{String.fromCharCode(65 + idx)}</div>
-                        <p className={cn("flex-1 text-lg font-bold italic pt-1", selectedChoice === opt.id ? "text-slate-900" : "text-slate-600")}>{opt.text}</p>
+                  <div className="space-y-6">
+                    {questionDetails.isMultipleCorrect && (
+                      <Badge variant="outline" className="bg-indigo-50 text-indigo-600 border-indigo-200 font-black italic uppercase text-[10px] tracking-widest py-1 px-4">Plusieurs choix possibles</Badge>
+                    )}
+                    <p className="text-2xl font-black text-slate-800 italic leading-relaxed">{questionDetails.statement || questionDetails.text}</p>
+                    {questionDetails.imageUrl && (
+                      <div className="rounded-3xl overflow-hidden border-4 border-slate-100 p-4 bg-slate-50">
+                        <img src={questionDetails.imageUrl} alt="Case illustration" className="max-h-[350px] w-auto mx-auto object-contain rounded-xl" />
                       </div>
-                    ))}
+                    )}
+                  </div>
+                  <div className="grid gap-4">
+                    {questionDetails.options?.map((opt: any, idx: number) => {
+                      const isSelected = selectedChoices.includes(opt.id);
+                      return (
+                        <div key={opt.id} onClick={() => handleSessionToggle(q.questionId, opt.id, questionDetails.isMultipleCorrect)} className={cn("p-6 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-5 shadow-sm", isSelected ? "border-primary bg-primary/5 scale-[1.01]" : "border-slate-100 hover:border-slate-300")}>
+                          <div className={cn("h-10 w-10 flex items-center justify-center font-black text-sm shrink-0 border-2", questionDetails.isMultipleCorrect ? "rounded-xl" : "rounded-full", isSelected ? "bg-primary text-white border-primary" : "bg-white text-slate-400")}>{String.fromCharCode(65 + idx)}</div>
+                          <p className={cn("flex-1 text-lg font-bold italic pt-1", isSelected ? "text-slate-900" : "text-slate-600")}>{opt.text}</p>
+                        </div>
+                      );
+                    })}
                   </div>
                 </>
               )}
             </CardContent>
             <CardFooter className="p-8 bg-slate-50/50 border-t flex justify-end">
-              <Button onClick={handleSessionNext} disabled={!selectedChoice || isSubmitting} className="h-16 px-12 bg-primary rounded-2xl font-black uppercase tracking-widest shadow-xl text-lg group">
+              <Button onClick={handleSessionNext} disabled={selectedChoices.length === 0 || isSubmitting} className="h-16 px-12 bg-primary rounded-2xl font-black uppercase tracking-widest shadow-xl text-lg group">
                 {isSubmitting ? <Loader2 className="animate-spin h-6 w-6" /> : <>{currentSessionIdx < filteredMistakes.length - 1 ? "Suivant" : "Terminer"} <ChevronRight className="ml-2 h-6 w-6 group-hover:translate-x-1 transition-transform" /></>}
               </Button>
             </CardFooter>
@@ -364,7 +408,7 @@ function KillMistakesContent() {
 
     if (sessionStep === 'review') {
       const entry = sessionResults!.history[currentSessionIdx];
-      const { userChoice, correction: corr } = entry;
+      const { userChoices, correction: corr } = entry;
       const isUserCorrect = corr.isCorrect;
       return (
         <div className="max-w-4xl mx-auto space-y-6 animate-fade-in py-8 px-4">
@@ -379,14 +423,21 @@ function KillMistakesContent() {
                 <div className="py-20 flex justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>
               ) : (
                 <>
-                  <p className="text-xl font-black text-slate-800 italic leading-relaxed">{questionDetails?.statement || questionDetails?.text}</p>
+                  <div className="space-y-6">
+                    <p className="text-xl font-black text-slate-800 italic leading-relaxed">{questionDetails?.statement || questionDetails?.text}</p>
+                    {questionDetails?.imageUrl && (
+                      <div className="rounded-3xl overflow-hidden border-4 border-slate-100 p-4 bg-slate-50">
+                        <img src={questionDetails.imageUrl} alt="Illustration" className="max-h-[300px] w-auto mx-auto object-contain rounded-xl" />
+                      </div>
+                    )}
+                  </div>
                   <div className="grid gap-3">
                     {questionDetails?.options?.map((opt: any, idx: number) => {
-                      const isSelected = userChoice === opt.id;
+                      const isSelected = userChoices.includes(opt.id);
                       const isCorrect = corr.correctOptionIds?.includes(opt.id);
                       return (
                         <div key={opt.id} className={cn("p-5 rounded-2xl border-2 flex items-start gap-4 shadow-sm", isCorrect ? "border-emerald-500 bg-emerald-50" : isSelected ? "border-red-500 bg-red-50" : "border-slate-100")}>
-                          <div className={cn("h-8 w-8 rounded-full flex items-center justify-center font-black text-xs shrink-0 border-2", isCorrect ? "bg-emerald-500 text-white border-emerald-500" : isSelected ? "bg-red-500 text-white border-red-500" : "bg-white text-slate-400")}>{String.fromCharCode(65 + idx)}</div>
+                          <div className={cn("h-8 w-8 flex items-center justify-center font-black text-xs shrink-0 border-2", (corr.correctOptionIds?.length || 0) > 1 ? "rounded-xl" : "rounded-full", isCorrect ? "bg-emerald-500 text-white border-emerald-500" : isSelected ? "bg-red-500 text-white border-red-500" : "bg-white text-slate-400")}>{String.fromCharCode(65 + idx)}</div>
                           <p className={cn("flex-1 text-sm font-bold italic pt-1", isCorrect ? "text-emerald-900" : isSelected ? "text-red-900" : "text-slate-600")}>{opt.text}</p>
                         </div>
                       );
@@ -484,7 +535,7 @@ function KillMistakesContent() {
                 onClick={() => {
                   setSelectedMistake(mistake);
                   setInteractiveResult(null);
-                  setInteractiveSelectedChoice(null);
+                  setInteractiveSelectedChoices([]);
                 }}
               >
                 <div className="flex justify-between items-center mb-1">
@@ -520,7 +571,7 @@ function KillMistakesContent() {
                     {mode === 'analyze' ? "Étudiez la logique corrective." : "Ancrer le mindset PMI pour transformer cet échec en réussite."}
                   </CardDescription>
                 </div>
-                <Button variant="ghost" size="icon" className="rounded-full border-2 h-10 w-10" onClick={() => { setInteractiveResult(null); setInteractiveSelectedChoice(null); }}>
+                <Button variant="ghost" size="icon" className="rounded-full border-2 h-10 w-10" onClick={() => { setInteractiveResult(null); setInteractiveSelectedChoices([]); }}>
                   <RotateCcw className="h-5 w-5" />
                 </Button>
               </CardHeader>
@@ -530,19 +581,27 @@ function KillMistakesContent() {
                   <div className="py-20 flex justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>
                 ) : questionDetails && (
                   <>
-                    <div className="p-5 bg-slate-50 rounded-2xl border-2 border-slate-100 shadow-inner space-y-2">
+                    <div className="p-5 bg-slate-50 rounded-2xl border-2 border-slate-100 shadow-inner space-y-4">
                       <h4 className="font-black flex items-center gap-2 text-slate-900 uppercase text-[9px] tracking-widest italic">
                         <Info className="h-3 w-3" /> ÉNONCÉ
                       </h4>
+                      {questionDetails.isMultipleCorrect && (
+                        <Badge variant="outline" className="bg-indigo-50 text-indigo-600 border-indigo-200 font-black italic uppercase text-[8px] tracking-widest py-0.5 px-3">Multi-choix</Badge>
+                      )}
                       <p className="text-lg font-bold text-slate-700 italic leading-relaxed">{questionDetails.statement || questionDetails.text}</p>
+                      {questionDetails.imageUrl && (
+                        <div className="rounded-2xl overflow-hidden border-2 border-slate-200 p-2 bg-white">
+                          <img src={questionDetails.imageUrl} alt="Case illustration" className="max-h-[300px] w-auto mx-auto object-contain rounded-lg" />
+                        </div>
+                      )}
                     </div>
 
                     {mode === 'analyze' ? (
                       <div className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="p-4 rounded-2xl border-l-8 border-l-red-500 bg-red-50/50 shadow-sm space-y-1">
-                            <h5 className="text-[8px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1 italic"><XCircle className="h-3 w-3" /> Votre réponse</h5>
-                            <p className="font-bold text-sm text-slate-800 italic">Choix {selectedMistake.lastSelectedChoiceId}</p>
+                            <h5 className="text-[8px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1 italic"><XCircle className="h-3 w-3" /> Vos choix passés</h5>
+                            <p className="font-bold text-sm text-slate-800 italic">Choix {Array.isArray(selectedMistake.lastSelectedChoiceIds) ? selectedMistake.lastSelectedChoiceIds.join(', ') : selectedMistake.lastSelectedChoiceId}</p>
                           </div>
                           <div className="p-4 rounded-2xl border-l-8 border-l-emerald-500 bg-emerald-50/50 shadow-sm space-y-1">
                             <h5 className="text-[8px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1 italic"><CheckCircle2 className="h-3 w-3" /> Bonne réponse</h5>
@@ -562,12 +621,12 @@ function KillMistakesContent() {
                       <div className="space-y-6">
                         <div className="grid gap-3">
                           {questionDetails.options?.map((opt: any, idx: number) => {
-                            const isSelected = interactiveSelectedChoice === opt.id;
+                            const isSelected = interactiveSelectedChoices.includes(opt.id);
                             const isCorrect = interactiveResult?.correctOptionIds?.includes(opt.id);
                             return (
                               <div 
                                 key={opt.id} 
-                                onClick={() => handleInteractiveAnswer(opt.id)}
+                                onClick={() => handleInteractiveToggle(opt.id, questionDetails.isMultipleCorrect)}
                                 className={cn(
                                   "p-4 rounded-xl border-2 transition-all cursor-pointer flex items-start gap-4 shadow-sm",
                                   interactiveResult ? (
@@ -578,7 +637,8 @@ function KillMistakesContent() {
                                 )}
                               >
                                 <div className={cn(
-                                  "h-8 w-8 rounded-full flex items-center justify-center font-black text-[10px] shrink-0 border-2",
+                                  "h-8 w-8 flex items-center justify-center font-black text-[10px] shrink-0 border-2",
+                                  questionDetails.isMultipleCorrect ? "rounded-lg" : "rounded-full",
                                   interactiveResult ? (
                                     isCorrect ? "bg-emerald-500 text-white border-emerald-500" : isSelected ? "bg-red-500 text-white border-red-500" : "bg-white text-slate-400"
                                   ) : (
@@ -590,6 +650,12 @@ function KillMistakesContent() {
                             );
                           })}
                         </div>
+
+                        {!interactiveResult && (
+                          <Button onClick={handleInteractiveAnswerSubmit} disabled={interactiveSelectedChoices.length === 0 || isSubmitting} className="w-full h-14 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-lg">
+                            {isSubmitting ? <Loader2 className="animate-spin h-5 w-5" /> : "VÉRIFIER MES RÉPONSES"}
+                          </Button>
+                        )}
 
                         {interactiveResult && (
                           <div className="p-6 bg-slate-50 rounded-[24px] border-l-8 border-l-primary shadow-inner animate-slide-up">

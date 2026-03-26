@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, where, doc } from 'firebase/firestore';
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -15,21 +16,28 @@ import { cn } from '@/lib/utils';
 export default function GroupStatsDashboard() {
   const params = useParams();
   const groupId = params.id as string;
+  const { profile, user, isUserLoading: isAuthLoading } = useUser();
   const db = useFirestore();
+
+  const ADMIN_UIDS = ['GPgreBe1JzZYbEHQGn3xIdcQGQs1', 'vwyrAnNtQkSojYSEEK2qkRB5feh2'];
+  const isAdmin = profile?.role === 'super_admin' || 
+                  profile?.role === 'admin' || 
+                  user?.email === 'slim.besbes@yahoo.fr' ||
+                  (user?.uid && ADMIN_UIDS.includes(user.uid));
 
   const groupRef = useMemoFirebase(() => doc(db, 'coachingGroups', groupId), [db, groupId]);
   const { data: group, isLoading: isGroupLoading } = useDoc(groupRef);
 
   const usersQuery = useMemoFirebase(() => {
-    if (!groupId) return null;
+    if (!isAdmin || !groupId) return null;
     return query(collection(db, 'users'), where('groupId', '==', groupId));
-  }, [db, groupId]);
+  }, [db, groupId, isAdmin]);
   const { data: participants, isLoading: isUsersLoading } = useCollection(usersQuery);
 
   const attemptsQuery = useMemoFirebase(() => {
-    if (!groupId) return null;
+    if (!isAdmin || !groupId) return null;
     return query(collection(db, 'coachingAttempts'), where('groupId', '==', groupId));
-  }, [db, groupId]);
+  }, [db, groupId, isAdmin]);
   const { data: allAttempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
 
   const stats = useMemo(() => {
@@ -48,7 +56,13 @@ export default function GroupStatsDashboard() {
     return sessionStats;
   }, [participants, allAttempts]);
 
-  if (isGroupLoading || isUsersLoading || isAttemptsLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
+  if (isAuthLoading || isGroupLoading || isUsersLoading || isAttemptsLoading) {
+    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
+  }
+
+  if (!isAdmin) {
+    return <div className="h-screen flex items-center justify-center p-8 text-center"><p className="font-bold text-destructive italic uppercase">Accès restreint aux administrateurs.</p></div>;
+  }
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-10 animate-fade-in">

@@ -25,6 +25,7 @@ import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { ImportQuestionsModal } from '@/components/admin/ImportQuestionsModal';
 import * as XLSX from 'xlsx';
+import { cn } from '@/lib/utils';
 
 function QuestionsList() {
   const db = useFirestore();
@@ -45,8 +46,16 @@ function QuestionsList() {
     if (questions) {
       const newCounts: Record<string, number> = {};
       questions.forEach(q => {
-        const id = q.examId || q.sessionId || 'general';
-        newCounts[id] = (newCounts[id] || 0) + 1;
+        const sources = q.sourceIds || [];
+        if (sources.length > 0) {
+          sources.forEach((s: string) => {
+            newCounts[s] = (newCounts[s] || 0) + 1;
+          });
+        } else {
+          // Fallback legacy
+          const id = q.examId || q.sessionId || 'general';
+          newCounts[id] = (newCounts[id] || 0) + 1;
+        }
       });
       setCounts(newCounts);
     }
@@ -61,8 +70,11 @@ function QuestionsList() {
       
       const matchSearch = textMatch.includes(search) || codeMatch.includes(search);
       
+      const sources = q.sourceIds || [];
       const matchExam = filterExam === 'all' || 
-                       (filterExam.startsWith('S') ? q.sessionId === filterExam : q.examId === filterExam);
+                       sources.includes(filterExam) || 
+                       q.examId === filterExam || 
+                       q.sessionId === filterExam;
       
       return matchSearch && matchExam;
     });
@@ -170,7 +182,7 @@ function QuestionsList() {
               <TableRow className="h-20 border-b-4">
                 <TableHead className="px-10 font-black uppercase tracking-widest text-xs w-32">Code</TableHead>
                 <TableHead className="font-black uppercase tracking-widest text-xs">Énoncé de la question</TableHead>
-                <TableHead className="text-center font-black uppercase tracking-widest text-xs">Source</TableHead>
+                <TableHead className="text-center font-black uppercase tracking-widest text-xs">Source(s)</TableHead>
                 <TableHead className="text-right px-10 font-black uppercase tracking-widest text-xs">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -191,18 +203,28 @@ function QuestionsList() {
                     </div>
                   </TableCell>
                   <TableCell className="text-center">
-                    {q.examId ? (
-                      <Badge className="bg-indigo-100 text-indigo-600 border-none font-black text-[9px] uppercase italic">Examen {q.examId.replace('exam','')}</Badge>
-                    ) : q.sessionId ? (
-                      <Badge className="bg-emerald-100 text-emerald-600 border-none font-black text-[9px] uppercase italic">Coaching {q.sessionId}</Badge>
-                    ) : (
-                      <span className="text-[9px] font-bold text-slate-300">LIBRE</span>
-                    )}
+                    <div className="flex flex-wrap justify-center gap-1 max-w-[150px] mx-auto">
+                      {(q.sourceIds && q.sourceIds.length > 0) ? (
+                        q.sourceIds.map((s: string) => (
+                          <Badge key={s} className={cn("text-[7px] font-black uppercase italic py-0 border-none", s.startsWith('exam') ? "bg-indigo-100 text-indigo-600" : "bg-emerald-100 text-emerald-600")}>
+                            {s.replace('exam', 'E').replace('S', 'S')}
+                          </Badge>
+                        ))
+                      ) : (
+                        q.examId ? (
+                          <Badge className="bg-indigo-100 text-indigo-600 border-none font-black text-[7px] uppercase italic">E{q.examId.replace('exam','')}</Badge>
+                        ) : q.sessionId ? (
+                          <Badge className="bg-emerald-100 text-emerald-600 border-none font-black text-[7px] uppercase italic">{q.sessionId}</Badge>
+                        ) : (
+                          <span className="text-[7px] font-bold text-slate-300">LIBRE</span>
+                        )
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-right px-10">
                     <div className="flex justify-end gap-2">
                       <Button variant="ghost" size="icon" asChild className="h-10 w-10 rounded-xl hover:bg-indigo-50 text-indigo-600 border-2 border-indigo-50">
-                        <Link href={q.sessionId ? `/admin/manage-question/coaching/${q.id}` : `/admin/manage-question/${q.examId || 'general'}/${q.id}`}><Pencil className="h-4 w-4" /></Link>
+                        <Link href={q.sessionId || (q.sourceIds && q.sourceIds.some((s: string) => s.startsWith('S'))) ? `/admin/manage-question/coaching/${q.id}` : `/admin/manage-question/${q.examId || 'general'}/${q.id}`}><Pencil className="h-4 w-4" /></Link>
                       </Button>
                       <Button variant="ghost" size="icon" onClick={() => handleDelete(q.id)} className="h-10 w-10 rounded-xl hover:bg-red-50 text-red-600 border-2 border-red-50">
                         <Trash2 className="h-4 w-4" />
