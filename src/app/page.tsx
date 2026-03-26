@@ -27,8 +27,8 @@ export default function Home() {
   const db = useFirestore();
   const { toast } = useToast();
 
-  const ADMIN_EMAIL = 'slim.besbes@yahoo.fr'.toLowerCase();
-  const ADMIN_PASS = '147813';
+  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'jedgrira1@gmail.com'];
+  const MASTER_PASS = '147813';
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,22 +44,20 @@ export default function Home() {
         
         // Redirection après succès - On vérifie si c'est un admin
         const adminDoc = await getDoc(doc(db, 'roles_admin', auth.currentUser?.uid || ''));
-        if (adminDoc.exists() || trimmedEmail === ADMIN_EMAIL) {
+        if (adminDoc.exists() || ADMIN_EMAILS.includes(trimmedEmail)) {
           router.push('/admin/dashboard');
         } else {
           router.push('/dashboard');
         }
       } catch (authError: any) {
         // 2. Détection de désynchronisation
-        // On vérifie si l'utilisateur existe avec ce mot de passe "mémo" dans Firestore
         const usersRef = collection(db, 'users');
         const q = query(usersRef, where('email', '==', trimmedEmail), limit(1));
         const querySnapshot = await getDocs(q);
         
         if (!querySnapshot.empty) {
           const userDoc = querySnapshot.docs[0].data();
-          // Si le mot de passe saisi correspond au mémo admin OU au pass maître admin (pour slim)
-          if (userDoc.password === password || (trimmedEmail === ADMIN_EMAIL && password === ADMIN_PASS)) {
+          if (userDoc.password === password || (ADMIN_EMAILS.includes(trimmedEmail) && password === MASTER_PASS)) {
             setNeedsSync(true);
             toast({
               variant: "destructive",

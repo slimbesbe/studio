@@ -13,17 +13,11 @@ export default function CoachingSelectionPage() {
   const { profile, user, isUserLoading } = useUser();
   const db = useFirestore();
 
-  // Liste des UIDs Super Admin pour cohérence avec les règles
-  const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1'];
+  const isAdminUser = profile?.role === 'super_admin' || profile?.role === 'admin';
 
   const sessionsQuery = useMemoFirebase(() => {
     if (isUserLoading || !user || !profile || !db) return null;
     
-    const isAdminUser = profile.role === 'super_admin' || 
-                       profile.role === 'admin' || 
-                       user.email === 'slim.besbes@yahoo.fr' || 
-                       ADMIN_UIDS.includes(user.uid);
-
     const baseRef = collection(db, 'coachingSessions');
     
     if (isAdminUser) {
@@ -35,14 +29,12 @@ export default function CoachingSelectionPage() {
       where('isPublished', '==', true),
       orderBy('index', 'asc')
     );
-  }, [db, user, profile, isUserLoading]);
+  }, [db, user, profile, isUserLoading, isAdminUser]);
 
   const { data: sessions, isLoading: isSessionsLoading } = useCollection(sessionsQuery);
 
   const attemptsQuery = useMemoFirebase(() => {
     if (isUserLoading || !user?.uid || !profile || !db) return null;
-    
-    // Toujours filtrer par userId pour satisfaire les règles Firestore et éviter les erreurs de permission
     return query(
       collection(db, 'coachingAttempts'), 
       where('userId', '==', user.uid)
@@ -59,14 +51,8 @@ export default function CoachingSelectionPage() {
     );
   }
 
-  const isAdminUser = profile?.role === 'super_admin' || 
-                     profile?.role === 'admin' || 
-                     user?.email === 'slim.besbes@yahoo.fr' || 
-                     (user?.uid && ADMIN_UIDS.includes(user.uid));
-
   const displaySessions = sessions || [];
   
-  // On ne garde que la dernière tentative par session pour l'affichage du score
   const latestAttempts = rawAttempts ? rawAttempts.reduce((acc: any, curr: any) => {
     if (!acc[curr.sessionId] || (curr.submittedAt?.seconds || 0) > (acc[curr.sessionId].submittedAt?.seconds || 0)) {
       acc[curr.sessionId] = curr;

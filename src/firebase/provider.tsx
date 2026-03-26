@@ -38,7 +38,8 @@ export interface FirebaseServicesAndUser {
 
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
-const ADMIN_EMAIL = 'slim.besbes@yahoo.fr'.toLowerCase();
+const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'jedgrira1@gmail.com'];
+const ADMIN_UIDS = ['Adknzym5N6cMeJnYBCRaAdBrA0r1', 'vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1'];
 
 export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   children,
@@ -46,8 +47,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   firestore,
   auth,
 }) => {
-  const router = useRouter();
-  const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<any | null>(null);
   const [isUserLoading, setIsUserLoading] = useState(true);
@@ -70,7 +69,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     return () => unsubscribe();
   }, [auth]);
 
-  // 2. Gérer le profil Firestore séparément
+  // 2. Gérer le profil Firestore
   useEffect(() => {
     if (!firestore || !user) {
       if (!user) setIsUserLoading(false);
@@ -79,7 +78,10 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
     setIsUserLoading(true);
     const userDocRef = doc(firestore, 'users', user.uid);
-    const isSA = user.email?.toLowerCase() === ADMIN_EMAIL;
+    
+    // Détection Super Admin robuste (Email ou UID)
+    const isSA = (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) || 
+                 ADMIN_UIDS.includes(user.uid);
 
     const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -100,9 +102,9 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       } else if (isSA) {
         const initialAdmin = {
           id: user.uid,
-          email: ADMIN_EMAIL,
-          firstName: 'Slim',
-          lastName: 'Besbes',
+          email: user.email,
+          firstName: user.email?.split('@')[0] || 'Admin',
+          lastName: 'Simu-lux',
           role: 'super_admin',
           status: 'active',
           createdAt: serverTimestamp()
