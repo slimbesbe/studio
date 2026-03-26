@@ -10,8 +10,7 @@ import {
   TrendingUp, 
   Target, 
   Award, 
-  BookOpen,
-  Calendar
+  BookOpen
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
@@ -19,7 +18,6 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell
 } from 'recharts';
-import { cn } from '@/lib/utils';
 
 export default function DashboardPage() {
   const { user, profile, isUserLoading } = useUser();
@@ -48,11 +46,10 @@ export default function DashboardPage() {
         latestScore: 80,
         totalExams: 2,
         avgScore: 73,
-        totalQuestions: 450,
-        studyTime: 12600, // 3h 30m
+        totalQuestions: 540,
+        studyTime: 66660, // 18h 31m
         progressionData: [
           { date: '2024-05-15', score: 65 },
-          { date: '2024-05-16', score: 70 },
           { date: '2024-05-18', score: 80 }
         ],
         strengthData: [
@@ -75,7 +72,7 @@ export default function DashboardPage() {
     const progressionData = [...attempts]
       .sort((a, b) => (a.submittedAt?.seconds || 0) - (b.submittedAt?.seconds || 0))
       .map(a => ({
-        date: a.submittedAt?.toDate ? a.submittedAt.toDate().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : 'N/A',
+        date: a.submittedAt?.toDate ? a.submittedAt.toDate().toLocaleDateString('en-CA') : 'N/A',
         score: a.scorePercent
       }));
 
@@ -87,7 +84,7 @@ export default function DashboardPage() {
     };
 
     attempts.forEach(a => {
-      // On analyse les résultats globaux des essais pour simplifier l'analyse de domaine
+      // Simplification pour l'analyse de domaine
       const domain = a.tags?.domain || 'Process';
       const dKey = domain === 'Business' ? 'Business Environment' : domain;
       
@@ -121,7 +118,7 @@ export default function DashboardPage() {
     return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
-  const formatTime = (seconds: number) => {
+  const formatTimeHoursMinutes = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     return `${h}h ${m}m`;
@@ -129,65 +126,41 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8 animate-fade-in pb-20">
-      {/* 5 Indicator Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      {/* Top 3 Indicator Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* 1. Latest Score */}
         <Card className="border-t-4 border-t-[#004d73] shadow-sm rounded-none">
-          <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2 space-y-0">
+          <CardHeader className="p-6 pb-0 flex flex-row items-center gap-2 space-y-0">
             <Award className="h-4 w-4 text-[#004d73]" />
-            <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Latest Score</CardTitle>
+            <CardTitle className="text-sm font-semibold text-slate-600">Latest Score</CardTitle>
           </CardHeader>
-          <CardContent className="p-4 pt-2">
+          <CardContent className="p-6 pt-2">
             <div className="text-4xl font-black text-slate-900">{stats?.latestScore || 0}%</div>
-            <p className="text-[10px] text-slate-400 font-medium">From last session</p>
+            <p className="text-xs text-slate-400 font-medium mt-1">From last session</p>
           </CardContent>
         </Card>
 
         {/* 2. Exams Taken */}
         <Card className="border-t-4 border-t-[#4fc3f7] shadow-sm rounded-none">
-          <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2 space-y-0">
+          <CardHeader className="p-6 pb-0 flex flex-row items-center gap-2 space-y-0">
             <Target className="h-4 w-4 text-[#4fc3f7]" />
-            <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Exams Taken</CardTitle>
+            <CardTitle className="text-sm font-semibold text-slate-600">Exams Taken</CardTitle>
           </CardHeader>
-          <CardContent className="p-4 pt-2">
+          <CardContent className="p-6 pt-2">
             <div className="text-4xl font-black text-slate-900">{stats?.totalExams || 0}</div>
-            <p className="text-[10px] text-slate-400 font-medium">Full & Mini simulations</p>
+            <p className="text-xs text-slate-400 font-medium mt-1">Full & Mini simulations</p>
           </CardContent>
         </Card>
 
         {/* 3. Average Score */}
-        <Card className="border-t-4 border-t-slate-400 shadow-sm rounded-none">
-          <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2 space-y-0">
-            <TrendingUp className="h-4 w-4 text-slate-500" />
-            <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Average Score</CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-2">
-            <div className="text-4xl font-black text-slate-900">{stats?.avgScore || 0}%</div>
-            <p className="text-[10px] text-slate-400 font-medium">Overall progress</p>
-          </CardContent>
-        </Card>
-
-        {/* 4. Cumulated Study Time */}
-        <Card className="border-t-4 border-t-[#4fc3f7] shadow-sm rounded-none">
-          <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2 space-y-0">
-            <Clock className="h-4 w-4 text-[#4fc3f7]" />
-            <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Study Time</CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-2">
-            <div className="text-4xl font-black text-slate-900">{formatTime(stats?.studyTime || 0)}</div>
-            <p className="text-[10px] text-slate-400 font-medium">Cumulated learning</p>
-          </CardContent>
-        </Card>
-
-        {/* 5. Questions Treated */}
         <Card className="border-t-4 border-t-[#004d73] shadow-sm rounded-none">
-          <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2 space-y-0">
-            <BookOpen className="h-4 w-4 text-[#004d73]" />
-            <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Questions</CardTitle>
+          <CardHeader className="p-6 pb-0 flex flex-row items-center gap-2 space-y-0">
+            <TrendingUp className="h-4 w-4 text-[#004d73]" />
+            <CardTitle className="text-sm font-semibold text-slate-600">Average Score</CardTitle>
           </CardHeader>
-          <CardContent className="p-4 pt-2">
-            <div className="text-4xl font-black text-slate-900">{stats?.totalQuestions || 0}</div>
-            <p className="text-[10px] text-slate-400 font-medium">Items processed</p>
+          <CardContent className="p-6 pt-2">
+            <div className="text-4xl font-black text-slate-900">{stats?.avgScore || 0}%</div>
+            <p className="text-xs text-slate-400 font-medium mt-1">Overall progress</p>
           </CardContent>
         </Card>
       </div>
@@ -265,6 +238,37 @@ export default function DashboardPage() {
             ) : (
               <EmptyState message="Analyze your mistakes to identify strengths" />
             )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Bottom Large Indicators */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Study Time Card */}
+        <Card className="border-t-4 border-t-[#4fc3f7] shadow-sm rounded-none overflow-hidden bg-white">
+          <CardContent className="p-10 text-center space-y-4">
+            <div className="flex items-center justify-center gap-4 text-[#4fc3f7]">
+              <Clock className="h-10 w-10" />
+              <h3 className="text-xl font-black uppercase tracking-[0.2em] italic">Study Time</h3>
+            </div>
+            <div className="text-7xl font-black text-slate-900 tracking-tighter">
+              {formatTimeHoursMinutes(stats?.studyTime || 0)}
+            </div>
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic">Cumulated learning</p>
+          </CardContent>
+        </Card>
+
+        {/* Questions Card */}
+        <Card className="border-t-4 border-t-[#004d73] shadow-sm rounded-none overflow-hidden bg-white">
+          <CardContent className="p-10 text-center space-y-4">
+            <div className="flex items-center justify-center gap-4 text-[#004d73]">
+              <BookOpen className="h-10 w-10" />
+              <h3 className="text-xl font-black uppercase tracking-[0.2em] italic">Questions</h3>
+            </div>
+            <div className="text-7xl font-black text-slate-900 tracking-tighter">
+              {stats?.totalQuestions || 0}
+            </div>
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic">Items processed</p>
           </CardContent>
         </Card>
       </div>
