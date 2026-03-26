@@ -15,13 +15,6 @@ interface FirebaseProviderProps {
   auth: Auth;
 }
 
-interface UserAuthState {
-  user: User | null;
-  profile: any | null;
-  isUserLoading: boolean;
-  userError: Error | null;
-}
-
 export interface FirebaseContextState {
   areServicesAvailable: boolean;
   firebaseApp: FirebaseApp | null;
@@ -68,20 +61,21 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       if (!firebaseUser) {
         setProfile(null);
         setIsUserLoading(false);
-        if (pathname.startsWith('/dashboard') || pathname.startsWith('/admin')) {
-          router.push('/');
-        }
       }
     }, (error) => {
+      console.error("Auth error:", error);
       setUserError(error);
       setIsUserLoading(false);
     });
     return () => unsubscribe();
-  }, [auth, pathname, router]);
+  }, [auth]);
 
-  // 2. Gérer le profil Firestore séparément pour éviter les boucles
+  // 2. Gérer le profil Firestore séparément
   useEffect(() => {
-    if (!firestore || !user) return;
+    if (!firestore || !user) {
+      if (!user) setIsUserLoading(false);
+      return;
+    }
 
     setIsUserLoading(true);
     const userDocRef = doc(firestore, 'users', user.uid);
@@ -104,7 +98,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
         setProfile({ ...profileData, id: user.uid, status: currentStatus, role });
       } else if (isSA) {
-        // Initialisation automatique pour le Super Admin
         const initialAdmin = {
           id: user.uid,
           email: ADMIN_EMAIL,
@@ -122,16 +115,13 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       setIsUserLoading(false);
     }, (error) => {
       console.error("Profile sync error:", error);
-      if (isSA) {
-        setProfile({ id: user.uid, email: ADMIN_EMAIL, role: 'super_admin', status: 'active' });
-      }
       setIsUserLoading(false);
     });
 
     return () => unsubscribe();
   }, [firestore, user]);
 
-  // 3. Suivi du temps d'étude (Uniquement pour les utilisateurs enregistrés)
+  // 3. Suivi du temps d'étude
   useEffect(() => {
     if (!firestore || !user || user.isAnonymous || !profile) return;
     const interval = setInterval(() => {

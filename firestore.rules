@@ -10,17 +10,15 @@ service cloud.firestore {
     
     // ACCÈS PRIORITAIRE ABSOLU POUR L'ADMINISTRATEUR
     function isSuperAdmin() {
-      return (
-        isSignedIn() && (
-          request.auth.token.email.lower() == "slim.besbes@yahoo.fr" ||
-          request.auth.uid == "vwyrAnNtQkSojYSEEK2qkRB5feh2" || 
-          request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1"
-        )
+      return isSignedIn() && (
+        request.auth.token.email.lower() == "slim.besbes@yahoo.fr" ||
+        request.auth.uid == "vwyrAnNtQkSojYSEEK2qkRB5feh2" || 
+        request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1"
       );
     }
 
     function isAdmin() { 
-      return isSuperAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin");
+      return isSuperAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
     }
 
     // L'admin peut tout faire partout
@@ -29,16 +27,22 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Autoriser la lecture publique pour permettre la vérification du mot de passe mémo à la connexion
+      // Autoriser la lecture publique restreinte pour la détection de sync par email
       allow get, list: if true;
       
       allow create: if isSignedIn();
       allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow delete: if isAdmin();
+      
+      // Sous-collections privées
+      match /{allSubcollections=**} {
+        allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      }
     }
 
     match /roles_admin/{userId} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
     }
 
     match /coachingGroups/{groupId} {
@@ -57,7 +61,7 @@ service cloud.firestore {
     }
 
     match /coachingAttempts/{attemptId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
       allow create: if isSignedIn();
       allow update, delete: if isAdmin();
     }
