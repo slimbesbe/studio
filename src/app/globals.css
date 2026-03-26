@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -31,27 +30,6 @@
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
   }
-  .dark {
-    --background: 231 60% 5%;
-    --foreground: 231 44% 98%;
-    --card: 231 60% 7%;
-    --card-foreground: 231 44% 98%;
-    --popover: 231 60% 7%;
-    --popover-foreground: 231 44% 98%;
-    --primary: 231 48% 60%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 231 40% 15%;
-    --secondary-foreground: 231 44% 98%;
-    --muted: 231 40% 15%;
-    --muted-foreground: 231 20% 65%;
-    --accent: 261 51% 65%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 231 40% 20%;
-    --input: 231 40% 20%;
-    --ring: 231 48% 60%;
-  }
 }
 
 @layer base {
@@ -60,5 +38,41 @@
   }
   body {
     @apply bg-background text-foreground font-body;
+    overflow-x: hidden;
   }
+}
+
+/* Custom Scrollbar Styles - More visible for navigation */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary) / 0.3);
+  border-radius: 5px;
+  border: 2px solid hsl(var(--muted));
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary) / 0.6);
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: auto;
+  scrollbar-color: hsl(var(--primary) / 0.4) hsl(var(--muted));
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

@@ -27,7 +27,6 @@ export default function DashboardPage() {
     setMounted(true);
   }, []);
 
-  // Récupération des tentatives (Examens et Coaching)
   const attemptsQuery = useMemoFirebase(() => {
     if (isUserLoading || !user?.uid || isDemo) return null;
     return query(
@@ -45,7 +44,7 @@ export default function DashboardPage() {
         totalExams: 2,
         avgScore: 73,
         totalQuestions: 540,
-        studyTime: 66660, // 18h 31m
+        studyTime: 66660,
         progressionData: [
           { date: '15 Mai', score: 65 },
           { date: '18 Mai', score: 80 },
@@ -58,14 +57,12 @@ export default function DashboardPage() {
 
     if (!attempts || attempts.length === 0) return null;
 
-    // Tri par date décroissante pour le dernier score
     const sorted = [...attempts].sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
     const latest = sorted[0];
     
     const avgScore = Math.round(attempts.reduce((acc, a) => acc + (a.scorePercent || 0), 0) / attempts.length);
     const totalQuestions = attempts.reduce((acc, a) => acc + (a.totalQuestions || 0), 0);
     
-    // Données de progression (chronologique)
     const progressionData = [...attempts]
       .sort((a, b) => (a.submittedAt?.seconds || 0) - (b.submittedAt?.seconds || 0))
       .map(a => ({
@@ -94,58 +91,55 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 animate-fade-in pb-10">
-      {/* Top 3 Indicator Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* 1. Latest Score */}
-        <Card className="flex flex-col justify-center border-t-8 border-t-[#004d73] shadow-xl rounded-none bg-white py-8">
-          <CardHeader className="p-6 pb-0 flex flex-row items-center gap-2 space-y-0">
-            <Award className="h-6 w-6 text-[#004d73]" />
-            <CardTitle className="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">Latest Score</CardTitle>
+    <div className="min-h-full flex flex-col gap-4 p-4 box-border animate-fade-in">
+      {/* Top 3 Indicator Cards (20% preferred height) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
+        <Card className="flex flex-col justify-center border-t-[6px] border-t-[#004d73] shadow-lg rounded-none bg-white py-4">
+          <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2 space-y-0">
+            <Award className="h-5 w-5 text-[#004d73]" />
+            <CardTitle className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Latest Score</CardTitle>
           </CardHeader>
-          <CardContent className="p-6 pt-2">
+          <CardContent className="p-4 pt-1">
             <div className="text-7xl font-black text-slate-900 tracking-tighter leading-none italic">{stats?.latestScore || 0}%</div>
           </CardContent>
         </Card>
 
-        {/* 2. Exams Taken */}
-        <Card className="flex flex-col justify-center border-t-8 border-t-[#4fc3f7] shadow-xl rounded-none bg-white py-8">
-          <CardHeader className="p-6 pb-0 flex flex-row items-center gap-2 space-y-0">
-            <Target className="h-6 w-6 text-[#4fc3f7]" />
-            <CardTitle className="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">Exams Taken</CardTitle>
+        <Card className="flex flex-col justify-center border-t-[6px] border-t-[#4fc3f7] shadow-lg rounded-none bg-white py-4">
+          <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2 space-y-0">
+            <Target className="h-5 w-5 text-[#4fc3f7]" />
+            <CardTitle className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Exams Taken</CardTitle>
           </CardHeader>
-          <CardContent className="p-6 pt-2">
+          <CardContent className="p-4 pt-1">
             <div className="text-7xl font-black text-slate-900 tracking-tighter leading-none italic">{stats?.totalExams || 0}</div>
           </CardContent>
         </Card>
 
-        {/* 3. Average Score */}
-        <Card className="flex flex-col justify-center border-t-8 border-t-[#004d73] shadow-xl rounded-none bg-white py-8">
-          <CardHeader className="p-6 pb-0 flex flex-row items-center gap-2 space-y-0">
-            <TrendingUp className="h-6 w-6 text-[#004d73]" />
-            <CardTitle className="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">Average Score</CardTitle>
+        <Card className="flex flex-col justify-center border-t-[6px] border-t-[#004d73] shadow-lg rounded-none bg-white py-4">
+          <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2 space-y-0">
+            <TrendingUp className="h-5 w-5 text-[#004d73]" />
+            <CardTitle className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Average Score</CardTitle>
           </CardHeader>
-          <CardContent className="p-6 pt-2">
+          <CardContent className="p-4 pt-1">
             <div className="text-7xl font-black text-slate-900 tracking-tighter leading-none italic">{stats?.avgScore || 0}%</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Middle large progression card */}
-      <Card className="rounded-none shadow-xl border-none bg-white p-8">
-        <CardHeader className="p-0 pb-8">
-          <CardTitle className="text-4xl font-black text-[#004d73] uppercase italic tracking-tighter">Score Progression</CardTitle>
-          <CardDescription className="text-xs font-bold text-slate-400 uppercase tracking-[0.3em] italic">Analyse temporelle des performances</CardDescription>
+      {/* Middle large progression card (Flexible) */}
+      <Card className="flex-1 min-h-[300px] rounded-none shadow-lg border-none bg-white p-6 flex flex-col">
+        <CardHeader className="p-0 pb-4 shrink-0">
+          <CardTitle className="text-3xl font-black text-[#004d73] uppercase italic tracking-tighter">Score Progression</CardTitle>
+          <CardDescription className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] italic">Analyse temporelle des performances</CardDescription>
         </CardHeader>
-        <CardContent className="h-[400px] p-0">
+        <CardContent className="flex-1 min-h-0 p-0">
           {stats?.progressionData && stats.progressionData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={stats.progressionData} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+              <ComposedChart data={stats.progressionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis 
                   dataKey="date" 
                   stroke="#94a3b8" 
-                  fontSize={11} 
+                  fontSize={10} 
                   fontWeight="800" 
                   tickLine={false} 
                   axisLine={false}
@@ -154,7 +148,7 @@ export default function DashboardPage() {
                 <YAxis 
                   domain={[0, 100]} 
                   stroke="#94a3b8" 
-                  fontSize={11} 
+                  fontSize={10} 
                   fontWeight="800" 
                   tickLine={false} 
                   axisLine={false} 
@@ -165,8 +159,8 @@ export default function DashboardPage() {
                 />
                 <Bar 
                   dataKey="score" 
-                  radius={[6, 6, 0, 0]}
-                  barSize={50}
+                  radius={[4, 4, 0, 0]}
+                  barSize={40}
                 >
                   {stats.progressionData.map((entry, index) => (
                     <Cell 
@@ -179,48 +173,46 @@ export default function DashboardPage() {
                   type="monotone" 
                   dataKey="score" 
                   stroke="#ef4444" 
-                  strokeWidth={4} 
-                  dot={{ fill: '#ef4444', r: 6, strokeWidth: 2, stroke: '#fff' }}
-                  activeDot={{ r: 8, strokeWidth: 0 }}
+                  strokeWidth={3} 
+                  dot={{ fill: '#ef4444', r: 4, strokeWidth: 2, stroke: '#fff' }}
+                  activeDot={{ r: 6, strokeWidth: 0 }}
                 />
               </ComposedChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 border-4 border-dashed border-slate-50">
-              <Target className="h-16 w-16 opacity-20" />
-              <p className="font-black uppercase tracking-widest text-xs italic">Réalisez votre première simulation pour voir la progression</p>
+            <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-2 border-4 border-dashed border-slate-50">
+              <Target className="h-12 w-12 opacity-20" />
+              <p className="font-black uppercase tracking-widest text-[10px] italic">Réalisez votre première simulation pour voir la progression</p>
             </div>
           )}
         </CardContent>
       </Card>
 
       {/* Bottom row large indicators */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Study Time Card */}
-        <Card className="border-t-[12px] border-t-[#4fc3f7] shadow-2xl rounded-none bg-white overflow-hidden py-10">
-          <CardContent className="p-0 flex flex-col items-center justify-center text-center space-y-2">
-            <div className="flex items-center gap-3 text-[#4fc3f7] mb-2">
-              <Clock className="h-8 w-8" />
-              <h3 className="text-2xl font-black uppercase tracking-[0.2em] italic">Study Time</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0 pb-4">
+        <Card className="border-t-[8px] border-t-[#4fc3f7] shadow-xl rounded-none bg-white overflow-hidden py-4">
+          <CardContent className="p-0 flex flex-col items-center justify-center text-center">
+            <div className="flex items-center gap-2 text-[#4fc3f7] mb-1">
+              <Clock className="h-6 w-6" />
+              <h3 className="text-lg font-black uppercase tracking-[0.2em] italic">Study Time</h3>
             </div>
-            <div className="text-8xl font-black text-slate-900 tracking-tighter leading-none italic">
+            <div className="text-5xl font-black text-slate-900 tracking-tighter leading-none italic">
               {formatTimeHoursMinutes(stats?.studyTime || 0)}
             </div>
-            <p className="text-xs font-black text-slate-400 uppercase tracking-[0.4em] italic mt-4">Cumulated learning</p>
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] italic mt-2">Cumulated learning</p>
           </CardContent>
         </Card>
 
-        {/* Questions Card */}
-        <Card className="border-t-[12px] border-t-[#004d73] shadow-2xl rounded-none bg-white overflow-hidden py-10">
-          <CardContent className="p-0 flex flex-col items-center justify-center text-center space-y-2">
-            <div className="flex items-center gap-3 text-[#004d73] mb-2">
-              <BookOpen className="h-8 w-8" />
-              <h3 className="text-2xl font-black uppercase tracking-[0.2em] italic">Questions</h3>
+        <Card className="border-t-[8px] border-t-[#004d73] shadow-xl rounded-none bg-white overflow-hidden py-4">
+          <CardContent className="p-0 flex flex-col items-center justify-center text-center">
+            <div className="flex items-center gap-2 text-[#004d73] mb-1">
+              <BookOpen className="h-6 w-6" />
+              <h3 className="text-lg font-black uppercase tracking-[0.2em] italic">Questions</h3>
             </div>
-            <div className="text-8xl font-black text-slate-900 tracking-tighter leading-none italic">
+            <div className="text-5xl font-black text-slate-900 tracking-tighter leading-none italic">
               {stats?.totalQuestions || 0}
             </div>
-            <p className="text-xs font-black text-slate-400 uppercase tracking-[0.4em] italic mt-4">Items processed</p>
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] italic mt-2">Items processed</p>
           </CardContent>
         </Card>
       </div>
