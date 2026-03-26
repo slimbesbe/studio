@@ -1,8 +1,7 @@
-
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, updateDoc, Timestamp, deleteDoc, query, where } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -11,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { 
   Loader2, UserPlus, ChevronLeft, Users, User, Clock, Key, 
   Trash2, BarChart, Target, Mail, Pencil, CalendarDays, 
-  ShieldCheck, Filter, Building2, GraduationCap 
+  ShieldCheck, Filter, Building2, GraduationCap, LayerWide 
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -31,6 +30,7 @@ export default function UsersListPage() {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [groupFilter, setGroupFilter] = useState('all');
   const [userToDelete, setUserToDelete] = useState<any | null>(null);
   const [passwordChangeUser, setPasswordChangeUser] = useState<any | null>(null);
   const [newPassword, setNewPassword] = useState('');
@@ -56,9 +56,10 @@ export default function UsersListPage() {
     return users.filter(u => {
       const matchesSearch = (u.firstName + ' ' + u.lastName + ' ' + u.email).toLowerCase().includes(searchTerm.toLowerCase());
       const matchesRole = roleFilter === 'all' || u.role === roleFilter;
-      return matchesSearch && matchesRole;
+      const matchesGroup = groupFilter === 'all' || u.groupId === groupFilter;
+      return matchesSearch && matchesRole && matchesGroup;
     });
-  }, [users, searchTerm, roleFilter]);
+  }, [users, searchTerm, roleFilter, groupFilter]);
 
   const toggleStatus = async (userId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'active' ? 'disabled' : 'active';
@@ -115,7 +116,7 @@ export default function UsersListPage() {
 
   return (
     <div className="p-10 max-w-[1600px] mx-auto space-y-10 animate-fade-in">
-      <div className="flex flex-col md:flex-row items-center justify-between bg-white p-8 rounded-[40px] shadow-xl border-2 gap-6">
+      <div className="flex flex-col lg:flex-row items-center justify-between bg-white p-8 rounded-[40px] shadow-xl border-2 gap-6">
         <div className="flex items-center gap-6">
           <Button variant="ghost" size="icon" asChild className="h-16 w-16 rounded-3xl border-2 shadow-sm">
             <Link href="/admin/dashboard"><ChevronLeft className="h-8 w-8" /></Link>
@@ -127,23 +128,48 @@ export default function UsersListPage() {
             <p className="text-slate-500 font-bold mt-1 uppercase tracking-widest text-sm">Contrôle des accès, rôles et affectations de groupes.</p>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="relative w-64">
-            <Filter className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-            <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger className="pl-10 h-12 rounded-2xl border-2 font-bold italic">
-                <SelectValue placeholder="Filtrer par rôle" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les rôles</SelectItem>
-                <SelectItem value="super_admin">Super Admin</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="coach">Coach</SelectItem>
-                <SelectItem value="partner">Partenaire B2B</SelectItem>
-                <SelectItem value="user">Utilisateur</SelectItem>
-              </SelectContent>
-            </Select>
+        
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-2xl border-2">
+            {/* Filtre Rôle */}
+            <div className="relative w-48">
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="h-12 rounded-xl border-none font-black italic text-xs uppercase bg-white">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-primary" />
+                    <SelectValue placeholder="Rôle" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les rôles</SelectItem>
+                  <SelectItem value="super_admin">Super Admin</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="coach">Coach</SelectItem>
+                  <SelectItem value="partner">Partenaire</SelectItem>
+                  <SelectItem value="user">Utilisateur</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Filtre Groupe */}
+            <div className="relative w-56">
+              <Select value={groupFilter} onValueChange={setGroupFilter}>
+                <SelectTrigger className="h-12 rounded-xl border-none font-black italic text-xs uppercase bg-white">
+                  <div className="flex items-center gap-2">
+                    <GraduationCap className="h-4 w-4 text-accent" />
+                    <SelectValue placeholder="Groupe" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les groupes</SelectItem>
+                  {groups?.map(g => (
+                    <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+
           <Button asChild className="bg-accent hover:bg-accent/90 h-16 px-12 rounded-[24px] font-black uppercase tracking-widest shadow-2xl">
             <Link href="/admin/users/new">
               <UserPlus className="mr-3 h-7 w-7" /> Créer Participant
@@ -177,58 +203,69 @@ export default function UsersListPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredUsers.map((u) => {
-                const groupName = groups?.find(g => g.id === u.groupId)?.name || '-';
-                return (
-                  <TableRow key={u.id} className="h-24 hover:bg-slate-50 transition-all border-b last:border-0 group">
-                    <TableCell className="px-10">
-                      <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center font-black text-primary italic">
-                          {u.firstName?.[0]}{u.lastName?.[0]}
+              {filteredUsers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-64 text-center">
+                    <div className="flex flex-col items-center justify-center text-slate-300 gap-4">
+                      <Users className="h-16 w-16 opacity-20" />
+                      <p className="font-black uppercase italic tracking-widest">Aucun utilisateur trouvé</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredUsers.map((u) => {
+                  const groupName = groups?.find(g => g.id === u.groupId)?.name || '-';
+                  return (
+                    <TableRow key={u.id} className="h-24 hover:bg-slate-50 transition-all border-b last:border-0 group">
+                      <TableCell className="px-10">
+                        <div className="flex items-center gap-4">
+                          <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center font-black text-primary italic">
+                            {u.firstName?.[0]}{u.lastName?.[0]}
+                          </div>
+                          <div className="space-y-0.5">
+                            <div className="font-black text-lg text-slate-800 italic uppercase tracking-tight">{u.firstName} {u.lastName}</div>
+                            <div className="text-[10px] text-slate-400 font-bold flex items-center gap-1 uppercase italic"><Mail className="h-3 w-3" /> {u.email}</div>
+                          </div>
                         </div>
-                        <div className="space-y-0.5">
-                          <div className="font-black text-lg text-slate-800 italic uppercase tracking-tight">{u.firstName} {u.lastName}</div>
-                          <div className="text-[10px] text-slate-400 font-bold flex items-center gap-1 uppercase italic"><Mail className="h-3 w-3" /> {u.email}</div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {getRoleBadge(u.role)}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex flex-col items-center">
+                          <span className="font-bold text-slate-600 text-sm italic">{groupName}</span>
+                          {u.partnerId && <Badge variant="outline" className="text-[8px] mt-1"><Building2 className="h-2 w-2 mr-1" /> PARTNER</Badge>}
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {getRoleBadge(u.role)}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex flex-col items-center">
-                        <span className="font-bold text-slate-600 text-sm italic">{groupName}</span>
-                        {u.partnerId && <Badge variant="outline" className="text-[8px] mt-1"><Building2 className="h-2 w-2 mr-1" /> PARTNER</Badge>}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center text-xs font-bold text-slate-400 italic">
-                      {u.lastLoginAt ? new Date(u.lastLoginAt.seconds * 1000).toLocaleString() : 'Jamais'}
-                    </TableCell>
-                    <TableCell className="text-right px-10">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-12 w-12 rounded-xl border-2"><Pencil className="h-5 w-5 text-slate-400" /></Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-64 p-2 rounded-2xl shadow-2xl border-4">
-                          <DropdownMenuItem asChild className="h-12 rounded-xl font-black uppercase text-xs italic">
-                            <Link href={`/admin/users/${u.id}/edit`}><Pencil className="mr-3 h-4 w-4" /> Modifier Profil</Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => toggleStatus(u.id, u.status)} className="h-12 rounded-xl font-black uppercase text-xs italic">
-                            {u.status === 'active' ? '🚫 Suspendre' : '✅ Réactiver'}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => { setPasswordChangeUser(u); setNewPassword(''); }} className="h-12 rounded-xl font-black uppercase text-xs italic">
-                            <Key className="mr-3 h-4 w-4" /> Mot de passe
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator className="my-2" />
-                          <DropdownMenuItem onClick={() => setUserToDelete(u)} className="h-12 rounded-xl font-black uppercase text-xs italic text-destructive focus:bg-red-50 focus:text-destructive">
-                            <Trash2 className="mr-3 h-4 w-4" /> Supprimer
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+                      </TableCell>
+                      <TableCell className="text-center text-xs font-bold text-slate-400 italic">
+                        {u.lastLoginAt ? new Date(u.lastLoginAt.seconds * 1000).toLocaleString() : 'Jamais'}
+                      </TableCell>
+                      <TableCell className="text-right px-10">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-12 w-12 rounded-xl border-2"><Pencil className="h-5 w-5 text-slate-400" /></Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-64 p-2 rounded-2xl shadow-2xl border-4">
+                            <DropdownMenuItem asChild className="h-12 rounded-xl font-black uppercase text-xs italic">
+                              <Link href={`/admin/users/${u.id}/edit`}><Pencil className="mr-3 h-4 w-4" /> Modifier Profil</Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => toggleStatus(u.id, u.status)} className="h-12 rounded-xl font-black uppercase text-xs italic">
+                              {u.status === 'active' ? '🚫 Suspendre' : '✅ Réactiver'}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setPasswordChangeUser(u); setNewPassword(''); }} className="h-12 rounded-xl font-black uppercase text-xs italic">
+                              <Key className="mr-3 h-4 w-4" /> Mot de passe
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator className="my-2" />
+                            <DropdownMenuItem onClick={() => setUserToDelete(u)} className="h-12 rounded-xl font-black uppercase text-xs italic text-destructive focus:bg-red-50 focus:text-destructive">
+                              <Trash2 className="mr-3 h-4 w-4" /> Supprimer
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </CardContent>
