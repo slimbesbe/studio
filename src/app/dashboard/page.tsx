@@ -14,7 +14,7 @@ import {
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
+  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
 
 export default function DashboardPage() {
@@ -47,11 +47,11 @@ export default function DashboardPage() {
         totalQuestions: 540,
         studyTime: 66660, // 18h 31m
         progressionData: [
-          { date: '2024-05-15', score: 65 },
-          { date: '2024-05-18', score: 80 },
-          { date: '2024-05-20', score: 72 },
-          { date: '2024-05-22', score: 91 },
-          { date: '2024-05-25', score: 85 }
+          { date: '15 Mai', score: 65 },
+          { date: '18 Mai', score: 80 },
+          { date: '20 Mai', score: 72 },
+          { date: '22 Mai', score: 91 },
+          { date: '25 Mai', score: 85 }
         ]
       };
     }
@@ -131,16 +131,16 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Middle large progression card (Histogram) - Height: flex-1 */}
+      {/* Middle large progression card (Composed Chart) - Height: flex-1 */}
       <Card className="flex-1 min-h-0 flex flex-col rounded-none shadow-sm border-none bg-white p-6">
         <CardHeader className="p-0 pb-4 shrink-0">
           <CardTitle className="text-2xl font-black text-[#004d73] uppercase italic tracking-tighter">Score Progression</CardTitle>
-          <CardDescription className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Performance analysis per session</CardDescription>
+          <CardDescription className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Performance analysis with trend curve</CardDescription>
         </CardHeader>
         <CardContent className="flex-1 min-h-0 p-0">
           {stats?.progressionData && stats.progressionData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.progressionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <ComposedChart data={stats.progressionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis 
                   dataKey="date" 
@@ -174,7 +174,15 @@ export default function DashboardPage() {
                     />
                   ))}
                 </Bar>
-              </BarChart>
+                <Line 
+                  type="monotone" 
+                  dataKey="score" 
+                  stroke="#004d73" 
+                  strokeWidth={3} 
+                  dot={{ fill: '#004d73', r: 4, strokeWidth: 2, stroke: '#fff' }}
+                  activeDot={{ r: 6, strokeWidth: 0 }}
+                />
+              </ComposedChart>
             </ResponsiveContainer>
           ) : (
             <EmptyState message="Start your first simulation to see progression" />
