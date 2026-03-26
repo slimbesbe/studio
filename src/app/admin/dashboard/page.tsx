@@ -50,7 +50,7 @@ export default function SuperAdminDashboard() {
 
   useEffect(() => {
     setMounted(true);
-    const timer = setTimeout(() => setChartKey(prev => prev + 1), 200);
+    const timer = setTimeout(() => setChartKey(prev => prev + 1), 300);
     if (!isUserLoading && profile && profile.role !== 'admin' && profile.role !== 'super_admin') {
       router.push('/dashboard');
     }
@@ -212,9 +212,10 @@ export default function SuperAdminDashboard() {
                 <p className="text-[10px] font-black text-slate-400 uppercase italic">Aujourd'hui</p>
                 <p className="text-3xl font-black text-slate-900">{stats.todaySims}</p>
                 <div className="h-40 w-full">
-                  <ResponsiveContainer width="100%" height="100%" key={`bar-${chartKey}`}>
-                    <BarChart data={stats.chartData}>
-                      <Bar dataKey="val" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  <ResponsiveContainer width="100%" height="100%" key={`bar-today-${chartKey}`}>
+                    <BarChart data={stats.chartData} margin={{ left: -20 }}>
+                      <XAxis dataKey="name" hide />
+                      <Bar dataKey="val" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={12} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -223,10 +224,11 @@ export default function SuperAdminDashboard() {
                 <p className="text-[10px] font-black text-slate-400 uppercase italic">Ce mois</p>
                 <p className="text-3xl font-black text-slate-900">{stats.totalSimsMonth}</p>
                 <div className="h-40 w-full">
-                  <ResponsiveContainer width="100%" height="100%" key={`area-${chartKey}`}>
-                    <AreaChart data={stats.chartData}>
-                      <Area type="monotone" dataKey="val" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.1} strokeWidth={3} />
-                    </AreaChart>
+                  <ResponsiveContainer width="100%" height="100%" key={`bar-month-${chartKey}`}>
+                    <BarChart data={stats.chartData} margin={{ left: -20 }}>
+                      <XAxis dataKey="name" hide />
+                      <Bar dataKey="val" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={12} />
+                    </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
@@ -292,7 +294,8 @@ export default function SuperAdminDashboard() {
                 <div className="h-20 w-full mt-4">
                   <ResponsiveContainer width="100%" height="100%" key={`lic-${chartKey}`}>
                     <BarChart data={stats.chartData}>
-                      <Bar dataKey="val" fill="#6366f1" radius={[2, 2, 0, 0]} />
+                      <XAxis dataKey="name" hide />
+                      <Bar dataKey="val" fill="#6366f1" radius={[2, 2, 0, 0]} barSize={10} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

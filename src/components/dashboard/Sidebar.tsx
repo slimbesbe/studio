@@ -14,7 +14,8 @@ import {
   History,
   Trophy,
   Brain,
-  BookOpen
+  BookOpen,
+  User
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useAuth } from '@/firebase';
@@ -98,6 +99,19 @@ export function Sidebar() {
             >
               <LayoutDashboard className="h-5 w-5" />
               Dashboard Admin
+            </Link>
+
+            <Link
+              href="/dashboard"
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all border border-blue-500/20",
+                pathname === '/dashboard' 
+                  ? "bg-blue-900/40 text-white" 
+                  : "hover:bg-slate-800 hover:text-white"
+              )}
+            >
+              <User className="h-5 w-5 text-blue-400" />
+              Vue Élève
             </Link>
 
             <div className="pt-6 pb-2 px-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Pilotage</div>
