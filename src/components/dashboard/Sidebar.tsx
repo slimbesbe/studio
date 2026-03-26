@@ -15,7 +15,8 @@ import {
   Trophy,
   Brain,
   BookOpen,
-  User
+  User,
+  ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useAuth } from '@/firebase';
@@ -73,18 +74,20 @@ export function Sidebar() {
       : user?.email?.[0].toUpperCase() || '?';
 
   return (
-    <div className="flex flex-col h-full bg-white text-slate-600 w-64 fixed left-0 top-0 z-40 shadow-xl border-r border-slate-200">
-      <div className="h-20 flex items-center px-6 border-b border-slate-100">
+    <div className="flex flex-col h-full bg-white text-slate-600 w-64 fixed left-0 top-0 z-40 shadow-sm border-r border-slate-100">
+      <div className="h-20 flex items-center px-6 border-b border-slate-50">
         <Link className="flex items-center gap-3 group" href={isAdmin ? "/admin/dashboard" : "/dashboard"}>
-          <SimuLuxLogo className="h-8 w-8" />
+          <div className="bg-primary/5 p-2 rounded-xl group-hover:scale-105 transition-transform">
+            <SimuLuxLogo className="h-8 w-8" />
+          </div>
           <div className="flex flex-col">
             <span className="font-black text-lg italic tracking-tighter text-slate-900 leading-none">Simu-lux</span>
-            <span className="text-[10px] font-bold text-primary uppercase tracking-widest mt-1">{isAdmin ? 'Super Admin' : 'Membre'}</span>
+            <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mt-1">{isAdmin ? 'Super Admin' : 'Membre'}</span>
           </div>
         </Link>
       </div>
 
-      <div className="flex-1 py-8 px-4 space-y-2 overflow-y-auto">
+      <div className="flex-1 py-8 px-4 space-y-1 overflow-y-auto">
         {/* Navigation Admin */}
         {isAdmin && (
           <>
@@ -93,8 +96,8 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
                 pathname === '/admin/dashboard' 
-                  ? "bg-primary text-white shadow-md" 
-                  : "hover:bg-slate-50 hover:text-slate-900"
+                  ? "bg-primary text-white shadow-lg shadow-primary/20" 
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
               )}
             >
               <LayoutDashboard className="h-5 w-5" />
@@ -104,29 +107,23 @@ export function Sidebar() {
             <Link
               href="/dashboard"
               className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all border border-primary/10",
+                "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all mt-2 border border-dashed border-primary/20",
                 pathname === '/dashboard' 
                   ? "bg-primary/5 text-primary" 
-                  : "hover:bg-slate-50 hover:text-slate-900"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
               )}
             >
-              <User className="h-5 w-5 text-primary" />
+              <User className="h-5 w-5" />
               Vue Élève
             </Link>
 
-            <div className="pt-6 pb-2 px-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Pilotage</div>
+            <div className="pt-8 pb-2 px-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Pilotage</div>
             
-            <Link href="/admin/coaching" className={cn("flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:bg-slate-50 hover:text-slate-900", pathname.startsWith('/admin/coaching') ? "bg-slate-100 text-slate-900" : "")}>
-              <GraduationCap className="h-5 w-5" /> Coaching
-            </Link>
-            <Link href="/admin/questions" className={cn("flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:bg-slate-50 hover:text-slate-900", pathname.startsWith('/admin/questions') ? "bg-slate-100 text-slate-900" : "")}>
-              <BookCopy className="h-5 w-5" /> Banque questions
-            </Link>
-            <Link href="/admin/users" className={cn("flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:bg-slate-50 hover:text-slate-900", pathname.startsWith('/admin/users') ? "bg-slate-100 text-slate-900" : "")}>
-              <Users className="h-5 w-5" /> Utilisateurs
-            </Link>
+            <NavItem href="/admin/coaching" icon={GraduationCap} label="Coaching" active={pathname.startsWith('/admin/coaching')} />
+            <NavItem href="/admin/questions" icon={BookCopy} label="Banque questions" active={pathname.startsWith('/admin/questions')} />
+            <NavItem href="/admin/users" icon={Users} label="Utilisateurs" active={pathname.startsWith('/admin/users')} />
 
-            <div className="pt-6 pb-2 px-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Système</div>
+            <div className="pt-8 pb-2 px-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Système</div>
             
             <Link href="/admin/maintenance" className={cn("flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:bg-red-50 text-slate-500 hover:text-red-600", pathname.startsWith('/admin/maintenance') ? "text-red-600 bg-red-50" : "")}>
               <Database className="h-5 w-5" /> Maintenance
@@ -142,41 +139,31 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
                 pathname === '/dashboard' 
-                  ? "bg-primary text-white shadow-md" 
-                  : "hover:bg-slate-50 hover:text-slate-900"
+                  ? "bg-primary text-white shadow-lg shadow-primary/20" 
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
               )}
             >
               <LayoutDashboard className="h-5 w-5" />
               Ma Progression
             </Link>
 
-            <div className="pt-6 pb-2 px-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Entraînement</div>
+            <div className="pt-8 pb-2 px-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Entraînement</div>
             
-            <Link href="/dashboard/exam" className={cn("flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:bg-slate-50 hover:text-slate-900", pathname.startsWith('/dashboard/exam') ? "bg-slate-100 text-slate-900" : "")}>
-              <Trophy className="h-5 w-5" /> Simulations Examen
-            </Link>
-            <Link href="/dashboard/coaching" className={cn("flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:bg-slate-50 hover:text-slate-900", pathname.startsWith('/dashboard/coaching') ? "bg-slate-100 text-slate-900" : "")}>
-              <GraduationCap className="h-5 w-5" /> Programme Coaching
-            </Link>
-            <Link href="/dashboard/practice" className={cn("flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:bg-slate-50 hover:text-slate-900", pathname.startsWith('/dashboard/practice') ? "bg-slate-100 text-slate-900" : "")}>
-              <BookOpen className="h-5 w-5" /> Pratique Libre
-            </Link>
-            <Link href="/dashboard/kill-mistake-selection" className={cn("flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:bg-slate-50 hover:text-slate-900", pathname.startsWith('/dashboard/kill-mistake') ? "bg-slate-100 text-slate-900" : "")}>
-              <Brain className="h-5 w-5" /> Kill Mistake
-            </Link>
+            <NavItem href="/dashboard/exam" icon={Trophy} label="Simulations Examen" active={pathname.startsWith('/dashboard/exam')} />
+            <NavItem href="/dashboard/coaching" icon={GraduationCap} label="Programme Coaching" active={pathname.startsWith('/dashboard/coaching')} />
+            <NavItem href="/dashboard/practice" icon={BookOpen} label="Pratique Libre" active={pathname.startsWith('/dashboard/practice')} />
+            <NavItem href="/dashboard/kill-mistake-selection" icon={Brain} label="Kill Mistake" active={pathname.startsWith('/dashboard/kill-mistake')} />
 
-            <div className="pt-6 pb-2 px-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Données</div>
+            <div className="pt-8 pb-2 px-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Données</div>
             
-            <Link href="/dashboard/history" className={cn("flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:bg-slate-50 hover:text-slate-900", pathname.startsWith('/dashboard/history') ? "bg-slate-100 text-slate-900" : "")}>
-              <History className="h-5 w-5" /> Historique complet
-            </Link>
+            <NavItem href="/dashboard/history" icon={History} label="Historique complet" active={pathname.startsWith('/dashboard/history')} />
           </>
         )}
       </div>
 
-      <div className="p-6 border-t border-slate-100 space-y-6 bg-slate-50/50">
+      <div className="p-6 border-t border-slate-100 space-y-6 bg-slate-50/30">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl flex items-center justify-center text-white font-black bg-gradient-to-br from-primary to-indigo-600 shadow-lg">
+          <div className="h-10 w-10 rounded-xl flex items-center justify-center text-white font-black bg-gradient-to-br from-primary to-indigo-600 shadow-md">
             {initials}
           </div>
           <div className="flex-1 overflow-hidden">
@@ -184,10 +171,30 @@ export function Sidebar() {
             <p className="text-[10px] text-primary font-bold uppercase tracking-widest truncate">En ligne</p>
           </div>
         </div>
-        <Button variant="ghost" className="w-full justify-start text-slate-500 hover:text-red-600 hover:bg-red-50 h-12 rounded-xl font-bold" onClick={handleSignOut}>
+        <Button variant="ghost" className="w-full justify-start text-slate-500 hover:text-red-600 hover:bg-red-50 h-12 rounded-xl font-bold transition-colors" onClick={handleSignOut}>
           <LogOut className="mr-3 h-5 w-5" /> Déconnexion
         </Button>
       </div>
     </div>
+  );
+}
+
+function NavItem({ href, icon: Icon, label, active }: any) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all group",
+        active 
+          ? "bg-primary/10 text-primary" 
+          : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+      )}
+    >
+      <div className="flex items-center gap-3">
+        <Icon className={cn("h-5 w-5 transition-transform group-hover:scale-110", active ? "text-primary" : "text-slate-400 group-hover:text-slate-600")} />
+        {label}
+      </div>
+      {active && <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />}
+    </Link>
   );
 }
