@@ -24,9 +24,13 @@ export default function DashboardPage() {
   const db = useFirestore();
   const isDemo = user?.isAnonymous;
   const [mounted, setMounted] = useState(false);
+  const [chartKey, setChartKey] = useState(0);
 
   useEffect(() => {
     setMounted(true);
+    // Petit délai pour s'assurer que le DOM est prêt avant de forcer le rendu du graphique
+    const timer = setTimeout(() => setChartKey(1), 100);
+    return () => clearTimeout(timer);
   }, []);
 
   const attemptsQuery = useMemoFirebase(() => {
@@ -46,7 +50,7 @@ export default function DashboardPage() {
         totalExams: 3,
         avgScore: 86,
         totalQuestions: 540,
-        studyTime: 82020, // 22h 47m
+        studyTime: 96600, // 26h 50m
         progressionData: [
           { date: 'Simu 1', score: 62 },
           { date: 'Simu 2', score: 91 },
@@ -165,65 +169,64 @@ export default function DashboardPage() {
       </div>
 
       {/* Middle: Main Progression Chart */}
-      <Card className="flex-1 rounded-[40px] shadow-2xl border-none bg-white p-10 flex flex-col min-h-[500px]">
+      <Card className="rounded-[40px] shadow-2xl border-none bg-white p-10 flex flex-col">
         <CardHeader className="p-0 pb-10 shrink-0">
           <CardTitle className="text-3xl font-black text-slate-900 uppercase italic tracking-tighter">PROGRESSION DYNAMIQUE</CardTitle>
           <CardDescription className="text-[11px] font-bold text-slate-400 uppercase tracking-widest italic mt-1">Évolution de votre mindset PMP au fil des simulations</CardDescription>
         </CardHeader>
-        <CardContent className="flex-1 min-h-[350px] p-0">
+        <CardContent className="p-0 min-h-[450px]">
           {stats?.progressionData && stats.progressionData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={stats.progressionData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis 
-                  dataKey="date" 
-                  stroke="#94a3b8" 
-                  fontSize={12} 
-                  fontWeight="800" 
-                  tickLine={false} 
-                  axisLine={false}
-                  dy={15}
-                  type="category"
-                />
-                <YAxis 
-                  domain={[0, 100]} 
-                  stroke="#94a3b8" 
-                  fontSize={12} 
-                  fontWeight="800" 
-                  tickLine={false} 
-                  axisLine={false}
-                  type="number"
-                />
-                <Tooltip 
-                  cursor={{ fill: '#f8fafc' }}
-                  contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 50px rgba(0,0,0,0.1)', fontWeight: 'bold' }} 
-                />
-                <Bar 
-                  dataKey="score" 
-                  radius={[8, 8, 0, 0]}
-                  barSize={60}
-                  fill="#7dd3fc"
-                >
-                  {stats.progressionData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={entry.score >= 80 ? "#10b981" : "#7dd3fc"}
-                      fillOpacity={0.8}
-                    />
-                  ))}
-                </Bar>
-                <Line 
-                  type="monotone" 
-                  dataKey="score" 
-                  stroke="#7f1d1d" 
-                  strokeWidth={4} 
-                  dot={{ fill: '#7f1d1d', r: 8, strokeWidth: 0 }}
-                  activeDot={{ r: 10, strokeWidth: 4, stroke: '#fff' }}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
+            <div className="w-full h-[450px]">
+              <ResponsiveContainer width="100%" height="100%" key={chartKey}>
+                <ComposedChart data={stats.progressionData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="#94a3b8" 
+                    fontSize={12} 
+                    fontWeight="800" 
+                    tickLine={false} 
+                    axisLine={false}
+                  />
+                  <YAxis 
+                    domain={[0, 100]} 
+                    stroke="#94a3b8" 
+                    fontSize={12} 
+                    fontWeight="800" 
+                    tickLine={false} 
+                    axisLine={false}
+                  />
+                  <Tooltip 
+                    cursor={{ fill: '#f8fafc' }}
+                    contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 50px rgba(0,0,0,0.1)', fontWeight: 'bold' }} 
+                  />
+                  <Bar 
+                    dataKey="score" 
+                    radius={[8, 8, 0, 0]}
+                    barSize={60}
+                    fill="#7dd3fc"
+                  >
+                    {stats.progressionData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={entry.score >= 80 ? "#10b981" : "#7dd3fc"}
+                        fillOpacity={0.8}
+                      />
+                    ))}
+                  </Bar>
+                  <Line 
+                    type="monotone" 
+                    dataKey="score" 
+                    stroke="#7f1d1d" 
+                    strokeWidth={4} 
+                    dot={{ fill: '#7f1d1d', r: 8, strokeWidth: 0 }}
+                    activeDot={{ r: 10, strokeWidth: 4, stroke: '#fff' }}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 border-4 border-dashed border-slate-50 rounded-[32px] py-20">
+            <div className="h-[450px] flex flex-col items-center justify-center text-slate-300 gap-4 border-4 border-dashed border-slate-50 rounded-[32px]">
               <Target className="h-16 w-16 opacity-20" />
               <p className="font-black uppercase tracking-widest text-sm italic">Réalisez votre première simulation pour voir la progression</p>
             </div>
@@ -232,7 +235,7 @@ export default function DashboardPage() {
       </Card>
 
       {/* Bottom Row: Study Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 shrink-0">
         {/* Study Time */}
         <Card className="rounded-[32px] shadow-xl border-none bg-white p-8 overflow-hidden group hover:shadow-2xl transition-all">
           <div className="flex items-center gap-10">
