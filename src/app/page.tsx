@@ -27,7 +27,7 @@ export default function Home() {
   const db = useFirestore();
   const { toast } = useToast();
 
-  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'jedgrira1@gmail.com'];
+  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr'];
   const MASTER_PASS = '147813';
 
   const handleLogin = async (e: React.FormEvent) => {

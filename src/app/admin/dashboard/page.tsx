@@ -24,7 +24,7 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebas
 import { collection, query, limit } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { 
-  BarChart, Bar, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, AreaChart, Area, Cell
+  BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, Cell
 } from 'recharts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
@@ -38,14 +38,25 @@ export default function SuperAdminDashboard() {
   const [mounted, setMounted] = useState(false);
   const [chartKey, setChartKey] = useState(0);
 
-  // 1. FETCH DATA
-  const usersQuery = useMemoFirebase(() => query(collection(db, 'users'), limit(1000)), [db]);
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
+
+  // 1. FETCH DATA - Protected by isAdmin check
+  const usersQuery = useMemoFirebase(() => {
+    if (!isAdmin) return null;
+    return query(collection(db, 'users'), limit(1000));
+  }, [db, isAdmin]);
   const { data: allUsers, isLoading: loadingUsers } = useCollection(usersQuery);
 
-  const groupsQuery = useMemoFirebase(() => query(collection(db, 'coachingGroups'), limit(500)), [db]);
+  const groupsQuery = useMemoFirebase(() => {
+    if (!isAdmin) return null;
+    return query(collection(db, 'coachingGroups'), limit(500));
+  }, [db, isAdmin]);
   const { data: allGroups, isLoading: loadingGroups } = useCollection(groupsQuery);
 
-  const attemptsQuery = useMemoFirebase(() => query(collection(db, 'coachingAttempts'), limit(1000)), [db]);
+  const attemptsQuery = useMemoFirebase(() => {
+    if (!isAdmin) return null;
+    return query(collection(db, 'coachingAttempts'), limit(1000));
+  }, [db, isAdmin]);
   const { data: allAttempts, isLoading: loadingAttempts } = useCollection(attemptsQuery);
 
   useEffect(() => {
@@ -147,7 +158,15 @@ export default function SuperAdminDashboard() {
     };
   }, [allUsers, allGroups, allAttempts]);
 
-  if (!mounted || isUserLoading || !profile || !stats) {
+  if (!mounted || isUserLoading) {
+    return <div className="h-screen flex items-center justify-center bg-[#f8fafc]"><Loader2 className="h-12 w-12 animate-spin text-blue-600" /></div>;
+  }
+
+  if (!isAdmin) {
+    return null; // Let the redirect happen
+  }
+
+  if (!stats) {
     return <div className="h-screen flex items-center justify-center bg-[#f8fafc]"><Loader2 className="h-12 w-12 animate-spin text-blue-600" /></div>;
   }
 
