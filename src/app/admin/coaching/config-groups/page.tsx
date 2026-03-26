@@ -61,14 +61,14 @@ export default function ConfigGroupsPage() {
     name: '',
     description: '',
     coachId: '',
-    partnerId: '',
+    partnerId: 'none',
     maxUsers: 25,
     status: 'active'
   });
 
   const handleOpenCreate = () => {
     setEditingGroup(null);
-    setFormData({ name: '', description: '', coachId: '', partnerId: '', maxUsers: 25, status: 'active' });
+    setFormData({ name: '', description: '', coachId: '', partnerId: 'none', maxUsers: 25, status: 'active' });
     setIsModalOpen(true);
   };
 
@@ -78,7 +78,7 @@ export default function ConfigGroupsPage() {
       name: group.name,
       description: group.description || '',
       coachId: group.coachId || '',
-      partnerId: group.partnerId || '',
+      partnerId: group.partnerId || 'none',
       maxUsers: group.maxUsers || 25,
       status: group.status || 'active'
     });
@@ -90,9 +90,10 @@ export default function ConfigGroupsPage() {
     setIsSubmitting(true);
     try {
       const gRef = editingGroup ? doc(db, 'coachingGroups', editingGroup.id) : doc(collection(db, 'coachingGroups'));
-      const data = {
+      const data: any = {
         ...formData,
         id: gRef.id,
+        partnerId: formData.partnerId === 'none' ? null : formData.partnerId,
         updatedAt: serverTimestamp(),
         createdAt: editingGroup ? editingGroup.createdAt : serverTimestamp()
       };
@@ -223,7 +224,7 @@ export default function ConfigGroupsPage() {
                     <SelectValue placeholder="Libre / Individuel" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Aucun Partenaire</SelectItem>
+                    <SelectItem value="none">Aucun Partenaire</SelectItem>
                     {partners.map(p => (
                       <SelectItem key={p.id} value={p.id}>{p.firstName} {p.lastName}</SelectItem>
                     ))}
@@ -245,7 +246,7 @@ export default function ConfigGroupsPage() {
               <div className="space-y-2">
                 <Label className="font-black uppercase text-[10px] text-slate-400 italic">Statut</Label>
                 <Select value={formData.status} onValueChange={(val) => setFormData({...formData, status: val})}>
-                  <SelectTrigger className="h-14 rounded-xl border-2 font-bold italic">
+                  <SelectTrigger className="h-14 rounded-xl border-2 font-black italic">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

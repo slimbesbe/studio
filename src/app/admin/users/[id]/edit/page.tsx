@@ -42,7 +42,7 @@ export default function EditUserPage() {
     password: '',
     role: 'user',
     accessType: 'simulation',
-    groupId: '',
+    groupId: 'none',
     validityDays: '30',
     fixedDate: '',
     status: 'active'
@@ -63,7 +63,7 @@ export default function EditUserPage() {
         password: userData.password || '',
         role: userData.role || 'user',
         accessType: userData.accessType || 'simulation',
-        groupId: userData.groupId || '',
+        groupId: userData.groupId || 'none',
         validityDays: String(userData.validityDays || '30'),
         fixedDate: userData.expiresAt ? new Date(userData.expiresAt.seconds * 1000).toISOString().split('T')[0] : '',
         status: userData.status || 'active'
@@ -98,7 +98,7 @@ export default function EditUserPage() {
         lastName: formData.lastName,
         role: formData.role,
         accessType: formData.accessType,
-        groupId: formData.groupId || null,
+        groupId: formData.groupId === 'none' ? null : formData.groupId,
         status: formData.status,
         password: formData.password,
         validityType,
@@ -203,7 +203,7 @@ export default function EditUserPage() {
                   <Select value={formData.groupId} onValueChange={(val) => setFormData({...formData, groupId: val})}>
                     <SelectTrigger className="h-12 rounded-xl border-2 font-black italic shadow-sm bg-white"><SelectValue placeholder="Aucun groupe" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Sans groupe</SelectItem>
+                      <SelectItem value="none">Sans groupe</SelectItem>
                       {groups?.map(g => (
                         <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
                       ))}

@@ -45,7 +45,7 @@ export default function NewUserPage() {
     password: '',
     role: 'user',
     accessType: 'simulation_and_coaching',
-    groupId: '',
+    groupId: 'none',
     newGroupName: '',
     validityDays: '30',
     fixedDate: ''
@@ -67,21 +67,19 @@ export default function NewUserPage() {
       return;
     }
 
-    if (!isCreatingNewGroup && !formData.groupId && formData.role === 'user') {
+    if (!isCreatingNewGroup && formData.groupId === 'none' && formData.role === 'user') {
       toast({ variant: "destructive", title: "Groupe requis", description: "Veuillez sélectionner un groupe pour l'utilisateur." });
       return;
     }
 
     setIsSubmitting(true);
     
-    // On utilise un identifiant d'application unique pour éviter les conflits lors de créations rapides
     const secondaryAppName = "secondary_user_creation_" + Date.now();
     const secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
     const secondaryAuth = getAuth(secondaryApp);
 
     try {
-      // 1. Gérer la création du groupe si nécessaire
-      let finalGroupId = formData.groupId;
+      let finalGroupId = formData.groupId === 'none' ? null : formData.groupId;
       if (isCreatingNewGroup && formData.newGroupName.trim()) {
         const newGroupRef = doc(collection(db, 'coachingGroups'));
         await setDoc(newGroupRef, {
@@ -95,11 +93,9 @@ export default function NewUserPage() {
         finalGroupId = newGroupRef.id;
       }
 
-      // 2. Créer le compte Auth
       const userCredential = await createUserWithEmailAndPassword(secondaryAuth, formData.email, formData.password);
       const newUid = userCredential.user.uid;
 
-      // 3. Calculer la validité
       let expiresAt: Date | null = null;
       if (validityType === 'days') {
         const days = Number(formData.validityDays) || 30;
@@ -109,7 +105,6 @@ export default function NewUserPage() {
         expiresAt = new Date(formData.fixedDate);
       }
 
-      // 4. Créer le profil Firestore
       await setDoc(doc(db, 'users', newUid), {
         id: newUid,
         email: formData.email,
@@ -117,7 +112,7 @@ export default function NewUserPage() {
         lastName: formData.lastName,
         role: formData.role,
         accessType: formData.accessType,
-        groupId: finalGroupId || null,
+        groupId: finalGroupId,
         status: 'active',
         password: formData.password,
         validityType,
@@ -131,7 +126,6 @@ export default function NewUserPage() {
         totalTimeSpent: 0
       });
 
-      // 5. Ajouter aux rôles admin si nécessaire
       if (formData.role === 'admin' || formData.role === 'super_admin') {
         await setDoc(doc(db, 'roles_admin', newUid), { 
           createdAt: serverTimestamp(), 
@@ -191,7 +185,7 @@ export default function NewUserPage() {
                   <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Email Professionnel</Label>
                   <div className="relative">
                     <Mail className="absolute left-4 top-4 h-4 w-4 text-slate-300" />
-                    <Input type="email" placeholder="email@pmp.com" className="pl-12 h-12 rounded-xl font-bold italic border-2" required value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
+                    <Input type="email" placeholder="votre@email.com" className="pl-12 h-12 rounded-xl font-bold italic border-2" required value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -255,10 +249,10 @@ export default function NewUserPage() {
                         <SelectValue placeholder="Choisir un groupe..." />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="none">Sans groupe</SelectItem>
                         {groups?.map(g => (
                           <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
                         ))}
-                        {(!groups || groups.length === 0) && <SelectItem value="" disabled>Aucun groupe disponible</SelectItem>}
                       </SelectContent>
                     </Select>
                   )}
