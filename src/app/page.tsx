@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Mail, Lock, Play, ShieldCheck } from 'lucide-react';
 import { useAuth, useFirestore } from '@/firebase';
-import { signInWithEmailAndPassword, signInAnonymously, createUserWithEmailAndPassword, updatePassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInAnonymously, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { SimuLuxLogo } from '@/components/dashboard/Sidebar';
@@ -28,29 +28,30 @@ export default function Home() {
     e.preventDefault();
     setIsLoading(true);
 
-    const ADMIN_EMAIL = 'slim.besbes@yahoo.fr';
+    const ADMIN_EMAIL = 'slim.besbes@yahoo.fr'.toLowerCase();
     const ADMIN_PASS = '147813';
-    const trimmedEmail = email.trim();
+    const trimmedEmail = email.trim().toLowerCase();
 
     try {
       let userCredential;
       
       try {
+        // Tentative de connexion standard
         userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, password);
       } catch (signInError: any) {
-        // Logique de secours pour le Super Admin
+        // Logique de secours spécifique au Super Admin
         const isAuthAdmin = trimmedEmail === ADMIN_EMAIL && password === ADMIN_PASS;
         
         if (isAuthAdmin) {
-          // Si le compte n'existe pas ou si le mot de passe a changé, on tente de recréer/réparer
+          // Si le compte n'existe pas dans Auth, on le crée à la volée avec le mot de passe 147813
           try {
             userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
-            toast({ title: "Bienvenue", description: "Initialisation de votre compte Super Admin." });
+            toast({ title: "Bienvenue", description: "Initialisation de votre accès Super Admin." });
           } catch (createError: any) {
+            // Si l'erreur est 'email-already-in-use', cela signifie que le compte existe 
+            // mais que le mot de passe stocké dans Firebase Auth est différent de 147813.
             if (createError.code === 'auth/email-already-in-use') {
-              // L'utilisateur existe mais le mot de passe est différent. 
-              // Dans un environnement de prototype, on affiche une erreur explicite.
-              throw new Error("Compte admin existant avec un mot de passe différent. Veuillez utiliser le mot de passe enregistré.");
+              throw new Error("Accès Admin : Le mot de passe 147813 ne correspond pas au compte existant. Veuillez utiliser le mot de passe que vous avez défini ou le réinitialiser dans la console Firebase.");
             }
             throw createError;
           }
@@ -61,18 +62,16 @@ export default function Home() {
 
       const user = userCredential.user;
 
-      // Initialisation/Mise à jour forcée des données Admin
+      // Synchronisation forcée des droits Firestore pour le Super Admin
       if (trimmedEmail === ADMIN_EMAIL) {
-        const adminUserRef = doc(db, 'users', user.uid);
         const now = serverTimestamp();
-
         await Promise.all([
           setDoc(doc(db, 'roles_admin', user.uid), { 
-            createdAt: serverTimestamp(),
+            createdAt: now,
             email: ADMIN_EMAIL,
             isSuperAdmin: true
           }, { merge: true }),
-          setDoc(adminUserRef, {
+          setDoc(doc(db, 'users', user.uid), {
             id: user.uid,
             email: trimmedEmail,
             firstName: 'Slim',
@@ -87,7 +86,7 @@ export default function Home() {
         toast({ title: "Accès Super Admin", description: "Connexion réussie au panel Simu-lux." });
         router.push('/admin/dashboard');
       } else {
-        // Vérifier si c'est un autre admin
+        // Vérification du rôle pour les autres utilisateurs
         const adminDoc = await getDoc(doc(db, 'roles_admin', user.uid));
         if (adminDoc.exists()) {
           router.push('/admin/dashboard');
@@ -121,14 +120,10 @@ export default function Home() {
     setIsDemoLoading(true);
     try {
       await signInAnonymously(auth);
-      toast({ title: "Mode DÉMO", description: "Accès aux fonctionnalités de démonstration." });
+      toast({ title: "Mode DÉMO", description: "Accès temporaire activé." });
       router.push('/dashboard');
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Erreur",
-        description: "Impossible d'accéder au mode démo."
-      });
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible d'accéder au mode démo." });
     } finally {
       setIsDemoLoading(false);
     }

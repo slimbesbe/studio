@@ -46,7 +46,7 @@ export interface FirebaseServicesAndUser {
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
 const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1'];
-const ADMIN_EMAIL = 'slim.besbes@yahoo.fr';
+const ADMIN_EMAIL = 'slim.besbes@yahoo.fr'.toLowerCase();
 
 export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   children,
@@ -68,7 +68,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const isSA = ADMIN_UIDS.includes(firebaseUser.uid) || (firebaseUser.email === ADMIN_EMAIL);
+        const isSA = ADMIN_UIDS.includes(firebaseUser.uid) || (firebaseUser.email?.toLowerCase() === ADMIN_EMAIL);
         
         if (isSA) {
           setDoc(doc(firestore, 'roles_admin', firebaseUser.uid), { 
@@ -101,15 +101,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               isUserLoading: false 
             }));
 
-            const sessionKey = `session_track_v2_${firebaseUser.uid}`;
-            if (!sessionStorage.getItem(sessionKey)) {
-              const now = serverTimestamp();
-              const updateData: any = { lastLoginAt: now, id: firebaseUser.uid };
-              if (!profileData.firstLoginAt) updateData.firstLoginAt = now;
-              setDoc(userDocRef, updateData, { merge: true }).catch(() => {});
-              sessionStorage.setItem(sessionKey, 'true');
-            }
-
             // --- PROTECTIONS DE SÉCURITÉ ---
             
             // 1. Accès expiré ou désactivé (ne s'applique pas aux admins)
@@ -122,6 +113,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
                router.push('/dashboard');
             }
           } else if (isSA) {
+            // Création automatique du profil Firestore si c'est l'admin et que le doc n'existe pas
             const now = serverTimestamp();
             const initialData = {
               id: firebaseUser.uid,
@@ -131,25 +123,13 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               role: 'super_admin',
               status: 'active',
               createdAt: now,
-              firstLoginAt: now,
+              updatedAt: now,
               lastLoginAt: now
             };
             setDoc(userDocRef, initialData, { merge: true }).catch(() => {});
             setUserAuthState(prev => ({ ...prev, user: firebaseUser, profile: initialData, isUserLoading: false }));
           } else {
             setUserAuthState(prev => ({ ...prev, user: firebaseUser, isUserLoading: false }));
-          }
-        }, (err) => {
-          console.error("Profile listen error:", err);
-          if (isSA) {
-            setUserAuthState(prev => ({ 
-              ...prev, 
-              user: firebaseUser, 
-              profile: { id: firebaseUser.uid, role: 'super_admin', email: firebaseUser.email || ADMIN_EMAIL, status: 'active' }, 
-              isUserLoading: false 
-            }));
-          } else {
-            setUserAuthState(prev => ({ ...prev, isUserLoading: false }));
           }
         });
 
@@ -165,6 +145,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     return () => unsubscribeAuth();
   }, [auth, firestore, pathname, router]);
 
+  // Track time spent only for registered users
   useEffect(() => {
     if (!auth || !firestore || !userAuthState.user || userAuthState.user.isAnonymous) return;
     const interval = setInterval(() => {
