@@ -16,7 +16,7 @@ import {
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
+  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
 import { cn } from '@/lib/utils';
 
@@ -175,7 +175,7 @@ export default function DashboardPage() {
           <div className="h-[400px] w-full">
             {stats?.progressionData && stats.progressionData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%" key={chartKey}>
-                <BarChart data={stats.progressionData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
+                <ComposedChart data={stats.progressionData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="0" vertical={false} stroke="#f1f5f9" />
                   <XAxis 
                     dataKey="date" 
@@ -202,7 +202,6 @@ export default function DashboardPage() {
                     dataKey="score" 
                     radius={[10, 10, 0, 0]}
                     barSize={60}
-                    fill="#3b82f6"
                   >
                     {stats.progressionData.map((entry, index) => (
                       <Cell 
@@ -211,7 +210,16 @@ export default function DashboardPage() {
                       />
                     ))}
                   </Bar>
-                </BarChart>
+                  <Line 
+                    type="monotone" 
+                    dataKey="score" 
+                    stroke="#f43f5e" 
+                    strokeWidth={3} 
+                    dot={{ r: 6, fill: '#f43f5e', strokeWidth: 2, stroke: '#fff' }}
+                    activeDot={{ r: 8, fill: '#f43f5e' }}
+                    animationDuration={1500}
+                  />
+                </ComposedChart>
               </ResponsiveContainer>
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 border-4 border-dashed border-slate-50 rounded-[32px]">
