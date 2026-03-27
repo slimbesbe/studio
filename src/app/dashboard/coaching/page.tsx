@@ -1,8 +1,7 @@
-
 'use client';
 
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { GraduationCap, ArrowRight, Video, FileQuestion, CheckCircle2, Lock, Loader2 } from 'lucide-react';
@@ -15,23 +14,15 @@ export default function CoachingSelectionPage() {
 
   const isAdminUser = profile?.role === 'super_admin' || profile?.role === 'admin';
 
+  // Simplification de la requête : On récupère tout et on filtre côté client 
+  // pour éviter les erreurs de permission liées aux filtres complexes sur coachingSessions
   const sessionsQuery = useMemoFirebase(() => {
     if (isUserLoading || !user || !profile || !db) return null;
-    
     const baseRef = collection(db, 'coachingSessions');
-    
-    if (isAdminUser) {
-      return query(baseRef, orderBy('index', 'asc'));
-    }
-    
-    return query(
-      baseRef, 
-      where('isPublished', '==', true),
-      orderBy('index', 'asc')
-    );
-  }, [db, user, profile, isUserLoading, isAdminUser]);
+    return query(baseRef, orderBy('index', 'asc'));
+  }, [db, user, profile, isUserLoading]);
 
-  const { data: sessions, isLoading: isSessionsLoading } = useCollection(sessionsQuery);
+  const { data: rawSessions, isLoading: isSessionsLoading } = useCollection(sessionsQuery);
 
   const attemptsQuery = useMemoFirebase(() => {
     if (isUserLoading || !user?.uid || !profile || !db) return null;
@@ -51,7 +42,8 @@ export default function CoachingSelectionPage() {
     );
   }
 
-  const displaySessions = sessions || [];
+  // Filtrage côté client : les élèves ne voient que les sessions publiées
+  const displaySessions = (rawSessions || []).filter(s => isAdminUser || s.isPublished);
   
   const latestAttempts = rawAttempts ? rawAttempts.reduce((acc: any, curr: any) => {
     if (!acc[curr.sessionId] || (curr.submittedAt?.seconds || 0) > (acc[curr.sessionId].submittedAt?.seconds || 0)) {
@@ -74,7 +66,7 @@ export default function CoachingSelectionPage() {
 
       {displaySessions.length === 0 ? (
         <div className="py-20 text-center space-y-4">
-          <p className="text-slate-400 font-bold italic">Aucune séance publiée pour le moment.</p>
+          <p className="text-slate-400 font-bold italic">Aucune séance disponible pour le moment.</p>
           {isAdminUser && (
             <Button asChild variant="outline">
               <Link href="/admin/coaching/sessions">Configurer les séances</Link>
@@ -85,12 +77,13 @@ export default function CoachingSelectionPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {displaySessions.map((session) => {
             const attempt = latestAttempts[session.id];
-            const isLocked = !session.isPublished;
+            // Pour l'interface élève, si c'est affiché c'est que c'est publié (via notre filtre client)
+            const isAccessible = session.isPublished || isAdminUser;
 
             return (
               <Card key={session.id} className={cn(
                 "rounded-[40px] border-4 transition-all relative overflow-hidden group",
-                isLocked && !isAdminUser ? "bg-slate-50 border-slate-100 opacity-60" : "bg-white border-white shadow-xl hover:shadow-2xl hover:scale-[1.02]"
+                !isAccessible ? "bg-slate-50 border-slate-100 opacity-60" : "bg-white border-white shadow-xl hover:shadow-2xl hover:scale-[1.02]"
               )}>
                 <CardHeader className="p-8 pb-4">
                   <div className="flex justify-between items-start mb-4">
@@ -98,7 +91,7 @@ export default function CoachingSelectionPage() {
                       "h-14 w-14 rounded-2xl flex items-center justify-center shadow-inner",
                       session.type === 'MEET' ? "bg-emerald-50 text-emerald-600" : "bg-indigo-50 text-indigo-600"
                     )}>
-                      {isLocked && !isAdminUser ? <Lock className="h-6 w-6" /> : session.type === 'MEET' ? <Video className="h-7 w-7" /> : <FileQuestion className="h-7 w-7" />}
+                      {!isAccessible ? <Lock className="h-6 w-6" /> : session.type === 'MEET' ? <Video className="h-7 w-7" /> : <FileQuestion className="h-7 w-7" />}
                     </div>
                     {attempt && (
                       <div className="bg-emerald-500 text-white px-4 py-1.5 rounded-full font-black italic uppercase text-[10px] tracking-widest flex items-center gap-2">
@@ -125,14 +118,14 @@ export default function CoachingSelectionPage() {
                   
                   <Button 
                     asChild 
-                    disabled={isLocked && !isAdminUser}
+                    disabled={!isAccessible}
                     className={cn(
                       "w-full h-14 rounded-2xl mt-8 font-black uppercase tracking-widest text-sm shadow-lg group",
-                      (isLocked && !isAdminUser) ? "bg-slate-200" : "bg-primary hover:bg-primary/90"
+                      !isAccessible ? "bg-slate-200" : "bg-primary hover:bg-primary/90"
                     )}
                   >
-                    <Link href={(isLocked && !isAdminUser) ? "#" : `/dashboard/coaching/session/${session.index}`}>
-                      {isLocked && !isAdminUser ? "À venir" : attempt ? "Refaire la session" : "Démarrer"} <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    <Link href={!isAccessible ? "#" : `/dashboard/coaching/session/${session.index}`}>
+                      {!isAccessible ? "À venir" : attempt ? "Refaire la session" : "Démarrer"} <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                     </Link>
                   </Button>
                 </CardContent>

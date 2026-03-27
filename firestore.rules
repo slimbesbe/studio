@@ -8,7 +8,6 @@ service cloud.firestore {
     }
     
     // ACCÈS PRIORITAIRE ABSOLU POUR L'ADMINISTRATEUR PRINCIPAL
-    // On retire Jed de la liste admin matérielle dans les règles
     function isSuperAdmin() {
       return isSignedIn() && (
         request.auth.token.email.lower() == "slim.besbes@yahoo.fr" ||
@@ -58,8 +57,8 @@ service cloud.firestore {
     }
     
     match /coachingSessions/{sessionId} {
-      // Tout élève peut lire les sessions (get et list)
-      allow get, list: if isSignedIn();
+      // Lecture simplifiée pour éviter les erreurs de listes complexes
+      allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 

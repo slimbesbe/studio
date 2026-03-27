@@ -14,8 +14,7 @@ import {
   Trophy,
   Brain,
   BookOpen,
-  User,
-  ChevronRight
+  User
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useAuth } from '@/firebase';
@@ -59,7 +58,7 @@ export function Sidebar() {
   }
 
   const isDemo = user?.isAnonymous;
-  // Vérification de rôle admin basée sur le profil forcé par le provider
+  // Vérification de rôle admin stricte
   const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
 
   const handleSignOut = async () => {
@@ -74,7 +73,8 @@ export function Sidebar() {
       : user?.email?.[0].toUpperCase() || '?';
 
   return (
-    <div className="flex flex-col h-full bg-white text-slate-600 w-64 fixed left-0 top-0 z-40 shadow-[1px_0_0_rgba(0,0,0,0.05)] border-none">
+    <div className="flex flex-col h-full bg-white text-slate-600 w-64 fixed left-0 top-0 z-40 shadow-sm border-r border-slate-100">
+      {/* Header Logo */}
       <div className="h-24 flex items-center px-8 border-b border-slate-50 bg-white">
         <Link className="flex items-center gap-3 group" href={isAdmin ? "/admin/dashboard" : "/dashboard"}>
           <div className="bg-primary/5 p-2 rounded-2xl group-hover:scale-105 transition-transform text-primary">
@@ -87,8 +87,9 @@ export function Sidebar() {
         </Link>
       </div>
 
+      {/* Navigation */}
       <div className="flex-1 py-8 px-5 space-y-1.5 overflow-y-auto bg-white">
-        {/* Navigation Admin */}
+        {/* Navigation Admin (Visible uniquement pour les admins) */}
         {isAdmin && (
           <>
             <Link
@@ -131,7 +132,7 @@ export function Sidebar() {
           </>
         )}
 
-        {/* Navigation Utilisateur */}
+        {/* Navigation Utilisateur (Elève) */}
         {!isAdmin && (
           <>
             <Link
@@ -161,6 +162,7 @@ export function Sidebar() {
         )}
       </div>
 
+      {/* Profile & Logout */}
       <div className="p-8 border-t border-slate-50 space-y-6 bg-white">
         <div className="flex items-center gap-4">
           <div className="h-11 w-11 rounded-2xl flex items-center justify-center text-white font-black bg-gradient-to-br from-primary to-indigo-600 shadow-lg text-lg italic">

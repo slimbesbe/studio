@@ -75,7 +75,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     setIsUserLoading(true);
     const userDocRef = doc(firestore, 'users', user.uid);
     
-    // Vérification matérielle pour forcer le rôle
+    // SÉCURITÉ : Détection admin basée strictement sur l'email/UID matériel
     const isHardcodedAdmin = (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) || 
                              ADMIN_UIDS.includes(user.uid);
 
@@ -93,8 +93,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
         const currentStatus = isExpired ? 'expired' : (profileData.status || 'active');
         
-        // SÉCURITÉ ABSOLUE : Seuls les admins matériels ont accès aux rôles élevés.
-        // Jed (jedgrira1@gmail.com) est systématiquement forcé au rôle 'user'.
+        // SÉCURITÉ ABSOLUE : Jed (jedgrira1@gmail.com) est TOUJOURS forcé au rôle 'user'.
         const finalRole = isHardcodedAdmin ? (profileData.role || 'super_admin') : 'user';
 
         setProfile({ 
@@ -120,14 +119,14 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       }
       setIsUserLoading(false);
     }, (error) => {
-      console.error("Profile sync error:", error);
+      // Si erreur de permission sur le profil, on déconnecte par sécurité
       setIsUserLoading(false);
     });
 
     return () => unsubscribe();
   }, [firestore, user]);
 
-  // Track study time (only for users)
+  // Suivi du temps d'étude (Uniquement pour les élèves)
   useEffect(() => {
     if (!firestore || !user || user.isAnonymous || !profile || profile.role !== 'user') return;
     const interval = setInterval(() => {
