@@ -16,7 +16,7 @@ import {
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { 
-  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
 import { cn } from '@/lib/utils';
 
@@ -30,7 +30,7 @@ export default function DashboardPage() {
   useEffect(() => {
     setMounted(true);
     // Force Recharts layout calculation after animation frame
-    const timer = setTimeout(() => setChartKey(prev => prev + 1), 500);
+    const timer = setTimeout(() => setChartKey(prev => prev + 1), 200);
     return () => clearTimeout(timer);
   }, []);
 
@@ -53,27 +53,36 @@ export default function DashboardPage() {
         totalQuestions: 540,
         studyTime: 82020, // 22h 47m
         progressionData: [
-          { date: '11 Mars', score: 62 },
-          { date: '11 Mars', score: 91 },
-          { date: '11 Mars', score: 99 }
+          { date: 'Examen 1', score: 62 },
+          { date: 'Examen 2', score: 91 },
+          { date: 'Examen 3', score: 99 }
         ]
       };
     }
 
     if (!attempts || attempts.length === 0) return null;
 
-    const sorted = [...attempts].sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
-    const latest = sorted[0];
-    
+    const sorted = [...attempts].sort((a, b) => {
+      const timeA = a.submittedAt?.seconds || 0;
+      const timeB = b.submittedAt?.seconds || 0;
+      return timeA - timeB;
+    });
+
+    const latest = sorted[sorted.length - 1];
     const avgScore = Math.round(attempts.reduce((acc, a) => acc + (a.scorePercent || 0), 0) / attempts.length);
     const totalQuestions = attempts.reduce((acc, a) => acc + (a.totalQuestions || 0), 0);
     
-    const progressionData = [...attempts]
-      .sort((a, b) => (a.submittedAt?.seconds || 0) - (b.submittedAt?.seconds || 0))
-      .map((a, i) => ({
-        date: a.submittedAt ? new Date(a.submittedAt.seconds * 1000).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : `S${i+1}`,
+    const progressionData = sorted.map((a, i) => {
+      let dateStr = `Session ${i + 1}`;
+      if (a.submittedAt) {
+        const date = a.submittedAt.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
+        dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+      }
+      return {
+        date: dateStr,
         score: a.scorePercent
-      }));
+      };
+    });
 
     return {
       latestScore: latest.scorePercent,
@@ -149,75 +158,68 @@ export default function DashboardPage() {
               </div>
               <p className="text-6xl font-black italic tracking-tighter text-slate-900 leading-none">{stats?.avgScore || 0}%</p>
             </div>
-            <div className="h-16 w-24">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={stats?.progressionData || []}>
-                  <Line type="monotone" dataKey="score" stroke="#06b6d4" strokeWidth={2} dot={false} />
-                </ComposedChart>
-              </ResponsiveContainer>
+            <div className="bg-blue-50/50 h-16 w-24 rounded-lg flex items-center justify-center">
+              <TrendingUp className="h-8 w-8 text-blue-400" />
             </div>
           </div>
         </Card>
       </div>
 
       {/* Middle: Progression du Score (Main Chart) */}
-      <Card className="rounded-[32px] shadow-lg border-none bg-white p-10 flex flex-col min-h-[550px]">
+      <Card className="rounded-[32px] shadow-lg border-none bg-white p-10 flex flex-col">
         <CardHeader className="p-0 pb-10">
           <CardTitle className="text-2xl font-black text-slate-900 uppercase italic tracking-tighter">PROGRESSION DU SCORE</CardTitle>
           <CardDescription className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic mt-1">Analyse de performance par session</CardDescription>
         </CardHeader>
-        <CardContent className="p-0 flex-1 h-[400px]">
-          {mounted && stats?.progressionData && stats.progressionData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%" key={chartKey}>
-              <ComposedChart data={stats.progressionData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="0" vertical={false} stroke="#f1f5f9" />
-                <XAxis 
-                  dataKey="date" 
-                  stroke="#94a3b8" 
-                  fontSize={11} 
-                  fontWeight="800" 
-                  tickLine={false} 
-                  axisLine={false}
-                  dy={10}
-                />
-                <YAxis 
-                  domain={[0, 100]} 
-                  stroke="#94a3b8" 
-                  fontSize={11} 
-                  fontWeight="800" 
-                  tickLine={false} 
-                  axisLine={false}
-                />
-                <Tooltip 
-                  cursor={{ fill: '#f8fafc' }}
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontWeight: 'bold' }} 
-                />
-                <Bar 
-                  dataKey="score" 
-                  radius={[4, 4, 0, 0]}
-                  barSize={80}
-                  fill="#7dd3fc"
-                >
-                  {stats.progressionData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill="#7dd3fc" fillOpacity={0.8} />
-                  ))}
-                </Bar>
-                <Line 
-                  type="monotone" 
-                  dataKey="score" 
-                  stroke="#7f1d1d" 
-                  strokeWidth={4} 
-                  dot={{ fill: '#7f1d1d', r: 6, strokeWidth: 0 }}
-                  activeDot={{ r: 8, strokeWidth: 4, stroke: '#fff' }}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 border-4 border-dashed border-slate-50 rounded-[32px]">
-              <Target className="h-16 w-16 opacity-20" />
-              <p className="font-black uppercase tracking-widest text-xs italic">Réalisez une simulation pour voir votre courbe de réussite</p>
-            </div>
-          )}
+        <CardContent className="p-0 flex-1">
+          <div className="h-[400px] w-full">
+            {stats?.progressionData && stats.progressionData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%" key={chartKey}>
+                <BarChart data={stats.progressionData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="0" vertical={false} stroke="#f1f5f9" />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="#94a3b8" 
+                    fontSize={11} 
+                    fontWeight="800" 
+                    tickLine={false} 
+                    axisLine={false}
+                    dy={10}
+                  />
+                  <YAxis 
+                    domain={[0, 100]} 
+                    stroke="#94a3b8" 
+                    fontSize={11} 
+                    fontWeight="800" 
+                    tickLine={false} 
+                    axisLine={false}
+                  />
+                  <Tooltip 
+                    cursor={{ fill: '#f8fafc' }}
+                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontWeight: 'bold' }} 
+                  />
+                  <Bar 
+                    dataKey="score" 
+                    radius={[10, 10, 0, 0]}
+                    barSize={60}
+                    fill="#3b82f6"
+                  >
+                    {stats.progressionData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={entry.score >= 75 ? "#10b981" : entry.score >= 50 ? "#3b82f6" : "#f43f5e"} 
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 border-4 border-dashed border-slate-50 rounded-[32px]">
+                <Target className="h-16 w-16 opacity-20" />
+                <p className="font-black uppercase tracking-widest text-xs italic">Réalisez une simulation pour voir votre courbe de réussite</p>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
