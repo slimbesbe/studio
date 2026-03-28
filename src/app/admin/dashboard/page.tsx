@@ -34,12 +34,17 @@ export default function SuperAdminDashboard() {
   const [chartKey, setChartKey] = useState(0);
 
   // VÉRIFICATION DE SÉCURITÉ MATÉRIELLE STRICTE
-  const isAuthorizedAdmin = user && (
-    (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) || 
-    ADMIN_UIDS.includes(user.uid)
-  );
+  const isAuthorizedAdmin = useMemo(() => {
+    if (!user) return false;
+    return (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) || 
+           ADMIN_UIDS.includes(user.uid);
+  }, [user]);
 
-  const isAdmin = isAuthorizedAdmin && (profile?.role === 'super_admin' || profile?.role === 'admin');
+  // isAdmin n'est vrai que si l'utilisateur est autorisé ET que son profil confirme le rôle
+  const isAdmin = useMemo(() => {
+    if (!isAuthorizedAdmin || !profile) return false;
+    return profile.role === 'super_admin' || profile.role === 'admin';
+  }, [isAuthorizedAdmin, profile]);
 
   // FETCH DATA - Protected by strict isAdmin check
   const usersQuery = useMemoFirebase(() => {

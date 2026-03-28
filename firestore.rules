@@ -8,11 +8,12 @@ service cloud.firestore {
     }
     
     // ACCÈS PRIORITAIRE ABSOLU POUR L'ADMINISTRATEUR PRINCIPAL
+    // Utilisation des UIDs en priorité car ils sont immuables et toujours présents
     function isSuperAdmin() {
       return isSignedIn() && (
-        request.auth.token.email.lower() == "slim.besbes@yahoo.fr" ||
         request.auth.uid == "vwyrAnNtQkSojYSEEK2qkRB5feh2" || 
-        request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1"
+        request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1" ||
+        (request.auth.token.email != null && request.auth.token.email.lower() == "slim.besbes@yahoo.fr")
       );
     }
 
@@ -20,22 +21,23 @@ service cloud.firestore {
       return isSuperAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
     }
 
-    // L'admin peut tout faire partout
+    // L'admin reconnu a un accès total et immédiat partout
     match /{document=**} {
       allow read, write: if isAdmin();
     }
 
+    // Règles spécifiques pour les utilisateurs (sécurité élève)
     match /users/{userId} {
-      // Autoriser la lecture du profil propre
+      // Un élève lit son propre profil, l'admin lit tout
       allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      // Autoriser la détection de synchronisation par email (limité aux admins réels)
+      // Seul l'admin peut lister la collection complète
       allow list: if isAdmin();
       
       allow create: if isSignedIn();
       allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow delete: if isAdmin();
       
-      // Sous-collections privées
+      // Sous-collections privées (tentatives, erreurs, etc.)
       match /{allSubcollections=**} {
         allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       }
@@ -57,14 +59,13 @@ service cloud.firestore {
     }
     
     match /coachingSessions/{sessionId} {
-      // Lecture simplifiée pour éviter les erreurs de listes complexes
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
     match /coachingAttempts/{attemptId} {
-      // Un élève ne lit que ses propres scores
-      allow read: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
+      // Un élève ne lit que ses propres scores, l'admin voit tout le groupe
+      allow read: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid));
       allow create: if isSignedIn();
       allow update, delete: if isAdmin();
     }

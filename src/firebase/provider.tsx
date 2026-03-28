@@ -36,7 +36,7 @@ export interface FirebaseServicesAndUser {
 
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
-// LISTE BLANCHE MATÉRIELLE STRICTE - SEULE SOURCE DE VÉRITÉ
+// LISTE BLANCHE MATÉRIELLE STRICTE - SEULE SOURCE DE VÉRITÉ POUR LES PRIVILÈGES
 const ADMIN_EMAILS = ['slim.besbes@yahoo.fr'];
 const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1'];
 
@@ -93,8 +93,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
         const currentStatus = isExpired ? 'expired' : (profileData.status || 'active');
         
-        // SÉCURITÉ ABSOLUE : Jed (jedgrira1@gmail.com) est TOUJOURS forcé au rôle 'user'.
-        const finalRole = isHardcodedAdmin ? (profileData.role || 'super_admin') : 'user';
+        // SÉCURITÉ ABSOLUE : Si hardcoded admin, on force le rôle super_admin même si non spécifié
+        const finalRole = isHardcodedAdmin ? (profileData.role || 'super_admin') : (profileData.role || 'user');
 
         setProfile({ 
           ...profileData, 
@@ -103,6 +103,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
           role: finalRole 
         });
       } else if (isHardcodedAdmin) {
+        // Création automatique du document profil si admin reconnu mais inexistant
         const initialAdmin = {
           id: user.uid,
           email: user.email,
@@ -119,7 +120,10 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       }
       setIsUserLoading(false);
     }, (error) => {
-      // Si erreur de permission sur le profil, on déconnecte par sécurité
+      // En cas d'erreur de lecture du profil, si on est admin matériel, on se donne quand même les droits minimaux
+      if (isHardcodedAdmin) {
+        setProfile({ id: user.uid, email: user.email, role: 'super_admin', status: 'active' });
+      }
       setIsUserLoading(false);
     });
 
