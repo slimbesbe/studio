@@ -8,14 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Mail, Lock, Play, ShieldCheck, MailWarning, RefreshCw } from 'lucide-react';
 import { useAuth, useFirestore } from '@/firebase';
-import { signInWithEmailAndPassword, signInAnonymously, sendPasswordResetEmail } from 'firebase/auth';
-import { doc, getDoc, getDocs, collection, query, where, limit } from 'firebase/firestore';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { SimuLuxLogo } from '@/components/dashboard/Sidebar';
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
-  const [isDemoLoading, setIsDemoLoading] = useState(false);
   const [isResetLoading, setIsResetLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -43,7 +42,6 @@ export default function Home() {
         const uid = userCredential.user.uid;
         
         // SECURITÉ : Seul l'email de Slim Besbes redirige vers l'admin.
-        // Jed et les autres sont envoyés vers le dashboard élève.
         const isSA = ADMIN_EMAILS.includes(trimmedEmail);
         
         if (isSA) {
@@ -102,16 +100,8 @@ export default function Home() {
     }
   };
 
-  const handleDemoAccess = async () => {
-    setIsDemoLoading(true);
-    try {
-      await signInAnonymously(auth);
-      router.push('/dashboard');
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Erreur", description: "Mode démo indisponible." });
-    } finally {
-      setIsDemoLoading(false);
-    }
+  const handleDemoRedirect = () => {
+    window.location.href = 'https://www.simu-lux.com/fr/signup';
   };
 
   return (
@@ -176,8 +166,12 @@ export default function Home() {
             <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-4 text-slate-300 font-black italic text-[9px] tracking-widest">OU</span></div>
           </div>
 
-          <Button variant="outline" className="w-full h-12 border-2 border-accent text-accent hover:bg-accent/5 font-black uppercase italic text-xs tracking-widest rounded-xl" onClick={handleDemoAccess} disabled={isLoading || isDemoLoading}>
-            {isDemoLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4 fill-accent" />}
+          <Button 
+            variant="outline" 
+            className="w-full h-12 border-2 border-accent text-accent hover:bg-accent/5 font-black uppercase italic text-xs tracking-widest rounded-xl" 
+            onClick={handleDemoRedirect}
+          >
+            <Play className="mr-2 h-4 w-4 fill-accent" />
             Explorer en mode DÉMO
           </Button>
         </CardContent>
