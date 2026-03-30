@@ -19,7 +19,7 @@ import {
   Clock
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, limit } from 'firebase/firestore';
 import { 
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
@@ -40,19 +40,19 @@ export default function DashboardPage() {
   }, []);
 
   const attemptsQuery = useMemoFirebase(() => {
-    if (isUserLoading || !user?.uid) return null;
+    if (isUserLoading || !user?.uid || !db) return null;
+    // Suppression de orderBy pour éviter les erreurs de permission/index lors du premier chargement
     return query(
       collection(db, 'coachingAttempts'), 
       where('userId', '==', user.uid),
-      orderBy('submittedAt', 'desc'),
-      limit(10)
+      limit(20)
     );
   }, [db, user?.uid, isUserLoading]);
 
-  const { data: attempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
+  const { data: rawAttempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
 
   const stats = useMemo(() => {
-    if (!attempts || attempts.length === 0) {
+    if (!rawAttempts || rawAttempts.length === 0) {
       return {
         readiness: 15,
         status: 'Beginner',
@@ -61,19 +61,27 @@ export default function DashboardPage() {
         strongDomain: 'N/A',
         weakDomain: 'N/A',
         recommendation: 'Commencez par explorer les concepts de base.',
-        progressionData: []
+        progressionData: [],
+        sortedAttempts: []
       };
     }
 
-    const latest = attempts[0];
-    const avgScore = Math.round(attempts.reduce((acc, a) => acc + (a.scorePercent || 0), 0) / attempts.length);
-    const totalQuestions = attempts.reduce((acc, a) => acc + (a.totalQuestions || 0), 0);
+    // Tri côté client pour garantir la stabilité de l'affichage
+    const sorted = [...rawAttempts].sort((a, b) => {
+      const timeA = a.submittedAt?.seconds || 0;
+      const timeB = b.submittedAt?.seconds || 0;
+      return timeB - timeA;
+    });
+
+    const latest = sorted[0];
+    const avgScore = Math.round(sorted.reduce((acc, a) => acc + (a.scorePercent || 0), 0) / sorted.length);
+    const totalQuestions = sorted.reduce((acc, a) => acc + (a.totalQuestions || 0), 0);
     
     let status = 'Beginner';
     if (avgScore >= 75) status = 'Ready';
     else if (avgScore >= 50) status = 'Intermediate';
 
-    const progressionData = [...attempts].reverse().map((a, i) => {
+    const progressionData = [...sorted].reverse().map((a) => {
       const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
       return {
         name: date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
@@ -90,9 +98,10 @@ export default function DashboardPage() {
       strongDomain: 'Processus',
       weakDomain: 'Agile',
       recommendation: 'Concentrez-vous sur le mindset Agile pour passer le cap des 80%.',
-      progressionData
+      progressionData,
+      sortedAttempts: sorted.slice(0, 5)
     };
-  }, [attempts]);
+  }, [rawAttempts]);
 
   if (isUserLoading || !mounted) {
     return <div className="h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
@@ -193,7 +202,7 @@ export default function DashboardPage() {
         <Card className="lg:col-span-2 rounded-[40px] border-none shadow-xl bg-white p-10 space-y-8">
           <div className="flex items-center justify-between">
             <h3 className="font-black text-slate-900 text-xs uppercase tracking-widest italic flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-indigo-500" /> Progression du Score
+              <TrendingUp className="h-4 w-4 text-indigo-500" /> PROGRESSION DU SCORE
             </h3>
             <span className="text-[10px] font-black text-slate-400 uppercase italic">Trait rouge : Tendance</span>
           </div>
@@ -263,7 +272,7 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="divide-y divide-slate-100">
-            {attempts?.map((a) => (
+            {stats.sortedAttempts.map((a) => (
               <div key={a.id} className="p-6 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
                 <div className="flex items-center gap-6">
                   <div className={cn(
@@ -273,7 +282,7 @@ export default function DashboardPage() {
                     {a.scorePercent >= 75 ? <CheckCircle2 className="h-6 w-6" /> : <Zap className="h-6 w-6" />}
                   </div>
                   <div>
-                    <p className="font-black text-sm text-slate-800 italic uppercase">{a.examId ? a.examId.replace('exam', 'Simulation ') : 'Pratique Libre'}</p>
+                    <p className="font-black text-sm text-slate-800 italic uppercase">{a.examId ? a.examId.replace('exam', 'Simulation ') : (a.sessionId || 'Pratique Libre')}</p>
                     <p className="text-[10px] font-bold text-slate-400 uppercase italic">
                       {a.submittedAt?.toDate ? a.submittedAt.toDate().toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : 'Récemment'}
                     </p>
@@ -288,7 +297,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             ))}
-            {(!attempts || attempts.length === 0) && (
+            {(stats.sortedAttempts.length === 0) && (
               <div className="p-20 text-center space-y-4">
                 <p className="font-black text-slate-300 uppercase italic tracking-widest">Aucune donnée d'activité</p>
                 <Button asChild variant="outline" className="rounded-xl font-black uppercase text-[10px] border-2">

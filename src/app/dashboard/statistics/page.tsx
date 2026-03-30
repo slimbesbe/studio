@@ -20,7 +20,7 @@ import {
   Activity
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import { 
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell, PieChart, Pie
@@ -38,16 +38,17 @@ export default function StatisticsV2Page() {
   }, []);
 
   const attemptsQuery = useMemoFirebase(() => {
-    if (isUserLoading || !user?.uid) return null;
-    return query(collection(db, 'coachingAttempts'), where('userId', '==', user.uid), orderBy('submittedAt', 'desc'));
+    if (isUserLoading || !user?.uid || !db) return null;
+    // Suppression de orderBy pour éviter les erreurs de permission
+    return query(collection(db, 'coachingAttempts'), where('userId', '==', user.uid));
   }, [db, user?.uid, isUserLoading]);
 
-  const { data: attempts, isLoading } = useCollection(attemptsQuery);
+  const { data: rawAttempts, isLoading } = useCollection(attemptsQuery);
 
   const stats = useMemo(() => {
-    if (!attempts || attempts.length === 0) return null;
+    if (!rawAttempts || rawAttempts.length === 0) return null;
 
-    const avgScore = Math.round(attempts.reduce((acc, a) => acc + (a.scorePercent || 0), 0) / attempts.length);
+    const avgScore = Math.round(rawAttempts.reduce((acc, a) => acc + (a.scorePercent || 0), 0) / rawAttempts.length);
     
     // Simulation Radar Data
     const radarData = [
@@ -78,9 +79,9 @@ export default function StatisticsV2Page() {
       confidenceData,
       performanceByDomain,
       readiness: avgScore,
-      totalQuestions: attempts.reduce((acc, a) => acc + (a.totalQuestions || 0), 0)
+      totalQuestions: rawAttempts.reduce((acc, a) => acc + (a.totalQuestions || 0), 0)
     };
-  }, [attempts]);
+  }, [rawAttempts]);
 
   if (isUserLoading || !mounted || isLoading) {
     return <div className="h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-12 w-12 animate-spin text-indigo-600" /></div>;
