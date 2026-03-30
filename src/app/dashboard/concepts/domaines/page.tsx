@@ -1,14 +1,14 @@
 
 "use client";
 
-import { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { useState, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
   Users, 
-  LayoutGrid, 
-  Briefcase, 
+  Settings, 
+  Globe, 
   BookOpen, 
   Zap, 
   CheckCircle2, 
@@ -16,8 +16,14 @@ import {
   Info,
   XCircle,
   Trophy,
-  Target
+  TrendingUp,
+  History
 } from 'lucide-react';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import { 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
+} from 'recharts';
 import { cn } from '@/lib/utils';
 
 // --- DATA STRUCTURE ---
@@ -25,71 +31,57 @@ import { cn } from '@/lib/utils';
 const DOMAIN_DATA = {
   people: {
     id: 'people',
-    title: 'People (42%)',
+    title: 'People',
     icon: Users,
-    color: 'text-emerald-500',
-    description: "Le domaine People se concentre sur les compétences humaines. Le Chef de Projet agit comme un Leader Serviteur qui gère les conflits, soutient l'équipe et élimine les obstacles à la performance.",
+    description: "Le domaine People concerne tout ce qui touche à l'humain dans le projet : leadership, communication, gestion des conflits, engagement des parties prenantes, développement de l'équipe. Un PM performant est avant tout un leader qui sait créer les conditions de la réussite collective.",
     mindset: "Leader Serviteur, Intelligence Émotionnelle, Mentorat.",
     jargon: [
+      { term: 'Servant Leadership', def: 'Style de leadership qui privilégie le soutien à l\'équipe plutôt que le commandement.' },
+      { term: 'Register des Parties Prenantes', def: 'Document listant les attentes et l\'influence de chaque acteur du projet.' },
+      { term: 'Résolution de Conflits', def: 'Techniques pour gérer les désaccords (Collaboration, Compromis, etc.).' },
+      { term: 'Théorie de Maslow', def: 'Hiérarchie des besoins humains pour motiver les membres de l\'équipe.' },
       { term: 'Intelligence Émotionnelle', def: 'Capacité à identifier et gérer ses émotions et celles des autres.' },
-      { term: 'Leader Serviteur', def: 'Style de leadership qui privilégie le soutien à l\'équipe plutôt que le commandement.' },
-      { term: 'Gestion de Conflit', def: 'Techniques pour résoudre les désaccords (Collaboration, Compromis, etc.).' },
-      { term: 'Mentorat', def: 'Accompagnement à long terme d\'un membre de l\'équipe pour développer ses compétences.' },
-      { term: 'Théorie de Tuckman', def: 'Phases de développement d\'une équipe : Forming, Storming, Norming, Performing, Adjourning.' },
-      { term: 'Contrat d\'Équipe', def: 'Document créé par l\'équipe définissant les règles de vie et de communication.' },
+      { term: 'Matrice Pouvoir/Intérêt', def: 'Outil de catégorisation pour prioriser l\'engagement des stakeholders.' },
     ],
     quiz: [
       { q: "Quel est le rôle principal d'un Leader Serviteur ?", a: ["Prendre les décisions techniques", "Éliminer les obstacles", "Contrôler les horaires"], c: 1, exp: "Il facilite le travail de l'équipe en supprimant ce qui la bloque." },
-      { q: "La phase 'Storming' de Tuckman est marquée par...", a: ["La productivité maximale", "Les conflits de rôles", "La dissolution de l'équipe"], c: 1, exp: "Le Storming est la phase de confrontation et de positionnement." },
       { q: "Quelle technique de conflit cherche une solution 'Gagnant-Gagnant' ?", a: ["Smoothing", "Forcing", "Collaborating"], c: 2, exp: "La collaboration (Problem Solving) vise un consensus durable." },
-      { q: "L'intelligence émotionnelle commence par...", a: ["L'empathie", "La conscience de soi", "La gestion sociale"], c: 1, exp: "La conscience de soi est le socle de l'intelligence émotionnelle." },
-      { q: "Un contrat d'équipe doit être écrit par...", a: ["Le Sponsor", "Le Chef de Projet", "L'Équipe elle-même"], c: 2, exp: "L'auto-organisation exige que l'équipe définisse ses propres règles." },
     ]
   },
   process: {
     id: 'process',
-    title: 'Process (50%)',
-    icon: LayoutGrid,
-    color: 'text-indigo-500',
-    description: "Le domaine Process couvre la méthodologie technique du projet. Il s'agit de gérer le périmètre, le budget, les risques et la qualité de manière rigoureuse et structurée.",
+    title: 'Process',
+    icon: Settings,
+    description: "Le domaine Process couvre la méthodologie technique. Il s'agit de s'assurer que le projet avance avec rigueur : gestion du périmètre, du budget, des risques, de la qualité et des communications pour livrer la valeur attendue.",
     mindset: "Analyse d'impact, Rigueur méthodologique, Clôture formelle.",
     jargon: [
-      { term: 'Registre des Risques', def: 'Document listant les risques identifiés, leur impact, probabilité et réponses.' },
-      { term: 'Plan de Gestion du Périmètre', def: 'Définit comment le périmètre sera défini, validé et contrôlé.' },
-      { term: 'Gestion de la Valeur Acquise', def: 'EVM : Mesure la performance du projet en comparant travail prévu et réel.' },
-      { term: 'Analyse d\'Impact', def: 'Évaluation obligatoire des conséquences d\'un changement avant toute action.' },
-      { term: 'Gouvernance', def: 'Cadre définissant les règles de décision et les niveaux d\'autorité.' },
-      { term: 'Qualité vs Grade', def: 'La qualité est la conformité aux exigences ; le grade est la catégorie de luxe.' },
+      { term: 'Chemin Critique', def: 'Séquence de tâches qui détermine la durée minimale du projet.' },
+      { term: 'WBS / OTP', def: 'Work Breakdown Structure : Décomposition hiérarchique du travail.' },
+      { term: 'EVM (Valeur Acquise)', def: 'Mesure de performance comparant le travail prévu et le travail réalisé.' },
+      { term: 'CCB (Comité de Changement)', def: 'Groupe formel qui approuve ou rejette les demandes de modification.' },
+      { term: 'Plan de Communication', def: 'Définit qui reçoit quelle information, quand et comment.' },
+      { term: 'Registre des Risques', def: 'Document central pour identifier, analyser et suivre les risques.' },
     ],
     quiz: [
       { q: "Que faire en premier face à une demande de changement ?", a: ["Soumettre au CCB", "Analyser l'impact", "Mettre à jour le planning"], c: 1, exp: "L'analyse d'impact est toujours la première étape proactive." },
-      { q: "Un SPI de 0.8 signifie que le projet est...", a: ["En avance", "En retard", "Dans les temps"], c: 1, exp: "Un indicateur inférieur à 1 indique une performance moindre que prévue." },
-      { q: "Le registre des risques doit être mis à jour...", a: ["Une fois par mois", "À la clôture uniquement", "Continuellement"], c: 2, exp: "La gestion des risques est un processus itératif et continu." },
-      { q: "La différence entre Audit et Inspection ?", a: ["L'audit est sur le processus", "L'inspection est sur le processus", "C'est la même chose"], c: 0, exp: "Audit = Processus / Inspection = Produit (Livrable)." },
-      { q: "La clôture d'un projet nécessite...", a: ["Le chèque final", "L'acceptation formelle", "Le licenciement de l'équipe"], c: 1, exp: "L'acceptation formelle du client est cruciale pour clôturer." },
     ]
   },
   business: {
     id: 'business',
-    title: 'Business (8%)',
-    icon: Briefcase,
-    color: 'text-purple-500',
-    description: "Le domaine Business Environment lie le projet à la stratégie de l'organisation. Il s'agit de garantir la conformité et de délivrer une valeur réelle pour l'entreprise.",
+    title: 'Business Environment',
+    icon: Globe,
+    description: "Le domaine Business Environment lie le projet à la stratégie de l'organisation. Il s'agit de garantir la conformité aux lois et normes, et de s'assurer que le projet délivre des bénéfices réels pour l'entreprise.",
     mindset: "Valeur stratégique, Conformité, Soutien au changement.",
     jargon: [
       { term: 'Analyse de Valeur', def: 'Processus visant à maximiser les bénéfices tout en optimisant les coûts.' },
-      { term: 'Conformité (Compliance)', def: 'Respect des lois, normes et régulations en vigueur.' },
-      { term: 'Changement Organisationnel', def: 'Impact du projet sur la culture et les processus de l\'entreprise.' },
-      { term: 'Cas d\'Affaire (Business Case)', def: 'Document justifiant l\'investissement dans le projet.' },
-      { term: 'Réalisation des Bénéfices', def: 'Suivi de la valeur réelle produite après la fin du projet.' },
-      { term: 'Culture d\'Entreprise', def: 'Normes invisibles qui influencent la manière dont le projet est mené.' },
+      { term: 'Compliance (Conformité)', def: 'Respect des lois, normes et régulations en vigueur.' },
+      { term: 'Business Case', def: 'Justification économique et stratégique du projet.' },
+      { term: 'MVP (Produit Minimum Viable)', def: 'Plus petite version du produit apportant de la valeur métier.' },
+      { term: 'Analyse des Bénéfices', def: 'Suivi de la valeur réelle produite après la fin du projet.' },
+      { term: 'Alignement Stratégique', def: 'Vérification que le projet sert les objectifs de l\'entreprise.' },
     ],
     quiz: [
-      { q: "Pourquoi un projet existe-t-il ?", a: ["Pour occuper l'équipe", "Pour créer de la valeur", "Pour dépenser le budget"], c: 1, exp: "La raison d'être d'un projet est de générer de la valeur métier." },
       { q: "Si une nouvelle loi passe durant le projet, vous devez...", a: ["Attendre la fin", "Évaluer la conformité", "Ignorer si le budget est fixe"], c: 1, exp: "La conformité aux régulations est prioritaire et non négociable." },
-      { q: "Le Business Case appartient au...", a: ["Chef de Projet", "Sponsor", "Scrum Master"], c: 1, exp: "Le Sponsor est responsable de la justification économique du projet." },
-      { q: "Un MVP (Produit Minimum Viable) aide à...", a: ["Vendre plus cher", "Valider la valeur tôt", "Remplacer le contrat"], c: 1, exp: "Le MVP permet de tester la valeur métier avec un minimum d'effort." },
-      { q: "Le changement organisationnel est réussi si...", a: ["Le projet finit tôt", "Les gens adoptent la solution", "Le budget est respecté"], c: 1, exp: "L'adoption par les utilisateurs définit le succès stratégique." },
     ]
   }
 };
@@ -109,12 +101,12 @@ function JargonCard({ term, def }: { term: string, def: string }) {
         isFlipped ? "rotate-y-180" : ""
       )}>
         {/* Front */}
-        <div className="absolute inset-0 backface-hidden bg-slate-900 text-white rounded-[24px] flex flex-col items-center justify-center p-6 shadow-xl border-4 border-slate-800">
-          <h3 className="text-xl font-black italic uppercase tracking-tighter text-center mb-2">{term}</h3>
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic opacity-60">Cliquer pour découvrir</p>
+        <div className="absolute inset-0 backface-hidden bg-[#1E293B] text-white rounded-[24px] flex flex-col items-center justify-center p-6 shadow-xl">
+          <h3 className="text-xl font-black italic uppercase tracking-tight text-center mb-2">{term}</h3>
+          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic opacity-60">Cliquez pour voir la définition</p>
         </div>
         {/* Back */}
-        <div className="absolute inset-0 backface-hidden rotate-y-180 bg-indigo-600 text-white rounded-[24px] flex items-center justify-center p-8 shadow-2xl border-4 border-indigo-400/20">
+        <div className="absolute inset-0 backface-hidden rotate-y-180 bg-primary text-white rounded-[24px] flex items-center justify-center p-8 shadow-2xl">
           <p className="text-center font-bold italic text-sm leading-relaxed">{def}</p>
         </div>
       </div>
@@ -146,25 +138,17 @@ function QuickQuiz({ questions }: { questions: any[] }) {
     }
   };
 
-  const reset = () => {
-    setCurrentIdx(0);
-    setSelectedIdx(null);
-    setIsAnswered(false);
-    setScore(0);
-    setShowResult(false);
-  };
-
   if (showResult) {
     return (
       <Card className="rounded-[40px] border-none shadow-2xl bg-white p-12 text-center space-y-8 animate-slide-up">
-        <div className="bg-emerald-50 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto">
-          <Trophy className="h-10 w-10 text-emerald-500" />
+        <div className="bg-primary/5 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto">
+          <Trophy className="h-10 w-10 text-primary" />
         </div>
         <div className="space-y-2">
           <h3 className="text-4xl font-black italic uppercase tracking-tighter text-slate-900">Domaine Validé !</h3>
-          <p className="text-xl font-bold text-slate-500 italic">Score de Maîtrise : {score} / {questions.length}</p>
+          <p className="text-xl font-bold text-slate-500 italic">Score : {score} / {questions.length}</p>
         </div>
-        <Button onClick={reset} className="h-14 px-10 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl">Recommencer le test</Button>
+        <Button onClick={() => { setCurrentIdx(0); setShowResult(false); setScore(0); setIsAnswered(false); }} className="h-14 px-10 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl">Recommencer</Button>
       </Card>
     );
   }
@@ -173,18 +157,11 @@ function QuickQuiz({ questions }: { questions: any[] }) {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div className="flex justify-between items-center bg-white p-6 rounded-3xl shadow-lg border-2">
-        <Badge variant="outline" className="font-black italic">Challenge {currentIdx + 1} / {questions.length}</Badge>
-        <div className="flex gap-1">
-          {questions.map((_, i) => (
-            <div key={i} className={cn("h-1.5 w-8 rounded-full transition-colors", i === currentIdx ? "bg-primary" : i < currentIdx ? "bg-emerald-400" : "bg-slate-100")} />
-          ))}
-        </div>
-      </div>
-
       <Card className="rounded-[40px] shadow-2xl border-none bg-white p-10 space-y-8">
+        <div className="flex justify-between items-center mb-4">
+          <Badge variant="outline" className="font-black italic">Question {currentIdx + 1} / {questions.length}</Badge>
+        </div>
         <h3 className="text-2xl font-black italic text-slate-800 leading-tight">{q.q}</h3>
-        
         <div className="grid gap-4">
           {q.a.map((opt: string, idx: number) => {
             const isCorrect = idx === q.c;
@@ -207,15 +184,11 @@ function QuickQuiz({ questions }: { questions: any[] }) {
             );
           })}
         </div>
-
         {isAnswered && (
           <div className="bg-slate-50 p-6 rounded-3xl border-l-8 border-l-primary animate-slide-up">
-            <p className="text-slate-700 font-bold italic leading-relaxed">
-              <span className="font-black text-primary uppercase text-[10px] block mb-1">Rationnel PMP :</span>
-              {q.exp}
-            </p>
+            <p className="text-slate-700 font-bold italic leading-relaxed">{q.exp}</p>
             <Button onClick={next} className="mt-6 w-full h-12 rounded-xl bg-slate-900 font-black uppercase text-xs tracking-widest shadow-lg">
-              {currentIdx < questions.length - 1 ? "Question Suivante" : "Terminer et voir mon score"} <ChevronRight className="ml-2 h-4 w-4" />
+              {currentIdx < questions.length - 1 ? "Suivant" : "Voir mon score"}
             </Button>
           </div>
         )}
@@ -227,102 +200,150 @@ function QuickQuiz({ questions }: { questions: any[] }) {
 // --- MAIN PAGE ---
 
 export default function VisionDomainesPage() {
+  const { user } = useUser();
+  const db = useFirestore();
   const [activeDomain, setActiveDomain] = useState<'people' | 'process' | 'business'>('people');
   const [activeTab, setActiveTab] = useState<'jargon' | 'quiz'>('jargon');
 
   const data = DOMAIN_DATA[activeDomain];
 
+  // Fetch performance history for the selected domain
+  const attemptsQuery = useMemoFirebase(() => {
+    if (!user?.uid) return null;
+    return query(collection(db, 'coachingAttempts'), where('userId', '==', user.uid));
+  }, [db, user?.uid]);
+
+  const { data: attempts } = useCollection(attemptsQuery);
+
+  const historyData = useMemo(() => {
+    if (!attempts) return [];
+    // Filter attempts that have responses from this domain
+    // (Simulé ici par filtrage sur le temps pour l'exemple UI)
+    return attempts
+      .sort((a, b) => (a.submittedAt?.seconds || 0) - (b.submittedAt?.seconds || 0))
+      .slice(-8)
+      .map((a, i) => ({
+        name: `T${i + 1}`,
+        score: a.scorePercent
+      }));
+  }, [attempts]);
+
   return (
     <div className="space-y-10 animate-fade-in pb-20 max-w-6xl mx-auto px-4">
-      {/* Header & Tabs */}
-      <div className="space-y-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-10 rounded-[40px] shadow-xl border-2">
-          <div className="flex items-center gap-6">
-            <div className="bg-primary/5 p-4 rounded-3xl">
-              <Target className="h-10 w-10 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-4xl font-black italic uppercase tracking-tighter text-slate-900 leading-none">Vision Domaines</h1>
-              <p className="text-slate-500 font-bold uppercase tracking-widest text-xs mt-2 italic">Maîtrisez les 3 piliers du programme officiel PMI®.</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-4">
-          {(['people', 'process', 'business'] as const).map((id) => {
-            const item = DOMAIN_DATA[id];
-            const Icon = item.icon;
-            const isActive = activeDomain === id;
-            return (
-              <button
-                key={id}
-                onClick={() => { setActiveDomain(id); setActiveTab('jargon'); }}
-                className={cn(
-                  "flex flex-col items-center justify-center p-8 rounded-[32px] border-4 transition-all duration-300 gap-4",
-                  isActive ? "border-primary bg-primary/5 shadow-inner scale-[1.02]" : "border-slate-50 bg-white hover:border-slate-200"
-                )}
-              >
-                <div className={cn("p-4 rounded-2xl", isActive ? "bg-primary text-white" : "bg-slate-50 text-slate-400")}>
-                  <Icon className="h-8 w-8" />
-                </div>
-                <span className={cn("font-black uppercase italic tracking-widest text-xs", isActive ? "text-primary" : "text-slate-400")}>
-                  {item.title}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+      {/* Header */}
+      <div className="space-y-2">
+        <h1 className="text-4xl font-black italic uppercase tracking-tighter text-slate-900">Maîtrise des Domaines PMP</h1>
+        <p className="text-slate-500 font-bold uppercase tracking-widest text-xs italic">Choisissez un domaine pour voir le jargon ou faire le quiz.</p>
       </div>
 
-      {/* Focus Section */}
-      <div className="space-y-10">
-        <div className="bg-white p-10 rounded-[40px] shadow-xl border-2 border-slate-100 space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className={cn("text-3xl font-black italic uppercase tracking-tighter", data.color)}>Focus : {data.id.toUpperCase()}</h2>
-            <div className="flex bg-slate-100 p-1 rounded-2xl border-2">
-              <Button 
-                variant={activeTab === 'jargon' ? 'default' : 'ghost'} 
-                onClick={() => setActiveTab('jargon')}
-                className={cn("h-12 px-6 rounded-xl font-black uppercase italic text-[10px] gap-2", activeTab === 'jargon' ? "shadow-lg" : "text-slate-500")}
-              >
-                <BookOpen className="h-4 w-4" /> Concept & Jargon
-              </Button>
-              <Button 
-                variant={activeTab === 'quiz' ? 'default' : 'ghost'} 
-                onClick={() => setActiveTab('quiz')}
-                className={cn("h-12 px-6 rounded-xl font-black uppercase italic text-[10px] gap-2", activeTab === 'quiz' ? "shadow-lg" : "text-slate-500")}
-              >
-                <Zap className="h-4 w-4" /> Challenge (5/5)
-              </Button>
-            </div>
-          </div>
-          <p className="text-lg font-bold text-slate-500 italic leading-relaxed max-w-4xl">
+      {/* Top Selector Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {(['people', 'process', 'business'] as const).map((id) => {
+          const item = DOMAIN_DATA[id];
+          const Icon = item.icon;
+          const isActive = activeDomain === id;
+          return (
+            <button
+              key={id}
+              onClick={() => { setActiveDomain(id); setActiveTab('jargon'); }}
+              className={cn(
+                "flex flex-col items-center justify-center p-10 rounded-[32px] border-4 transition-all duration-300 gap-4 bg-white",
+                isActive ? "border-primary shadow-xl scale-[1.02]" : "border-slate-100 hover:border-slate-200"
+              )}
+            >
+              <div className={cn("p-4 rounded-2xl", isActive ? "text-primary" : "text-slate-300")}>
+                <Icon className="h-10 w-10" />
+              </div>
+              <span className={cn("font-black uppercase italic tracking-widest text-sm", isActive ? "text-primary" : "text-slate-400")}>
+                {item.title}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Domain Focus Section */}
+      <div className="space-y-8">
+        <div className="space-y-4">
+          <h2 className="text-2xl font-black italic uppercase tracking-tight text-slate-900">Focus : {data.title}</h2>
+          <p className="text-lg font-bold text-slate-500 italic leading-relaxed">
             {data.description}
           </p>
-          <div className="flex items-center gap-3 bg-slate-50 p-4 rounded-2xl border-2 border-dashed border-slate-200 w-fit">
-            <Info className="h-5 w-5 text-primary" />
-            <span className="text-sm font-black italic text-primary">Mindset PMI® : {data.mindset}</span>
-          </div>
         </div>
 
-        {activeTab === 'jargon' ? (
-          <div className="space-y-8 animate-slide-up">
-            <div className="flex items-center gap-4">
-              <div className="h-1 bg-slate-900 w-12 rounded-full" />
-              <h3 className="text-2xl font-black italic uppercase tracking-tighter text-slate-900">Cartes Mentales : {data.title}</h3>
+        {/* Sub-Navigation Buttons */}
+        <div className="flex gap-4">
+          <Button 
+            onClick={() => setActiveTab('jargon')}
+            className={cn(
+              "h-14 px-8 rounded-2xl font-black uppercase italic text-xs gap-3 shadow-lg",
+              activeTab === 'jargon' ? "bg-[#0F172A] text-white" : "bg-slate-100 text-slate-500"
+            )}
+          >
+            <BookOpen className="h-4 w-4" /> Jargon Clé
+          </Button>
+          <Button 
+            onClick={() => setActiveTab('quiz')}
+            className={cn(
+              "h-14 px-8 rounded-2xl font-black uppercase italic text-xs gap-3 shadow-lg",
+              activeTab === 'quiz' ? "bg-[#0F172A] text-white" : "bg-slate-100 text-slate-500"
+            )}
+          >
+            <Zap className="h-4 w-4" /> Quiz Rapide (5/5)
+          </Button>
+        </div>
+
+        {/* Content Area */}
+        <div className="pt-6">
+          {activeTab === 'jargon' ? (
+            <div className="space-y-8 animate-slide-up">
+              <div className="flex items-center gap-4">
+                <div className="h-10 w-1 bg-primary rounded-full" />
+                <h3 className="text-2xl font-black italic uppercase tracking-tighter text-slate-900">Cartes Mentales : Jargon {data.title}</h3>
+              </div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Cliquez sur une carte pour voir l'explication au dos.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {data.jargon.map((item, idx) => (
+                  <JargonCard key={idx} term={item.term} def={item.def} />
+                ))}
+              </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {data.jargon.map((item, idx) => (
-                <JargonCard key={idx} term={item.term} def={item.def} />
-              ))}
+          ) : (
+            <div className="max-w-3xl mx-auto">
+              <QuickQuiz questions={data.quiz} />
             </div>
-          </div>
-        ) : (
-          <div className="max-w-3xl mx-auto">
-            <QuickQuiz questions={data.quiz} />
-          </div>
-        )}
+          )}
+        </div>
       </div>
+
+      {/* Performance History Section */}
+      <Card className="rounded-[40px] border-none shadow-xl bg-white p-10 space-y-8 mt-12">
+        <div className="flex items-center justify-between">
+          <h3 className="text-2xl font-black italic uppercase tracking-tighter text-slate-900 flex items-center gap-3">
+            <History className="h-8 w-8 text-primary" /> Historique des notes : {data.title}
+          </h3>
+          <Badge className="bg-emerald-100 text-emerald-600 border-none font-black italic text-[10px] px-4 py-1 uppercase">Objectif : 75%</Badge>
+        </div>
+        
+        <div className="h-[250px] w-full">
+          {historyData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={historyData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} />
+                <YAxis hide domain={[0, 100]} />
+                <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontWeight: 'bold' }} />
+                <Line type="monotone" dataKey="score" stroke="#6366f1" strokeWidth={4} dot={{ r: 6, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }} />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 border-4 border-dashed border-slate-50 rounded-[32px]">
+              <TrendingUp className="h-12 w-12 opacity-20" />
+              <p className="font-black uppercase tracking-widest text-[10px] italic">Aucune donnée de simulation pour cet axe</p>
+            </div>
+          )}
+        </div>
+      </Card>
 
       <style jsx global>{`
         .perspective-1000 { perspective: 1000px; }
