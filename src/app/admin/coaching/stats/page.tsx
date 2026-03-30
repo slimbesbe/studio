@@ -5,28 +5,27 @@ import { collection, query, orderBy, where } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Users, Loader2, ChevronLeft, ArrowRight, BarChart3, Target, Clock, TrendingUp, Filter } from 'lucide-react';
+import { Users, Loader2, ChevronLeft, ArrowRight, BarChart3, Clock, Filter } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 export default function CoachingStatsGroups() {
   const { profile, user } = useUser();
   const db = useFirestore();
   const [filterPartner, setFilterPartner] = useState('all');
   
-  // SÉCURITÉ MATÉRIELLE STRICTE
+  // SÉCURITÉ MATÉRIELLE STRICTE - DOUBLE VÉRIFICATION
   const ADMIN_EMAILS = ['slim.besbes@yahoo.fr'];
   const isAuthorizedAdmin = user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
 
   const isSA = isAuthorizedAdmin && profile?.role === 'super_admin';
-  const isAdmin = isAuthorizedAdmin || profile?.role === 'admin';
   const isCoach = profile?.role === 'coach';
   const isPartner = profile?.role === 'partner';
 
   // Verrouillage des requêtes : Si l'utilisateur n'est pas authentiquement admin, on ne renvoie rien.
-  // Cela empêche l'erreur "Missing or insufficient permissions" lors de la tentative de listage global.
   const groupsQuery = useMemoFirebase(() => {
     if (!isAuthorizedAdmin && !isCoach && !isPartner) return null;
     const base = collection(db, 'coachingGroups');
@@ -45,7 +44,7 @@ export default function CoachingStatsGroups() {
   const { data: allUsers } = useCollection(usersQuery);
 
   const attemptsQuery = useMemoFirebase(() => {
-    // SÉCURITÉ CRITIQUE : Seul l'administrateur peut lister TOUTES les tentatives
+    // SÉCURITÉ CRITIQUE : Seul l'administrateur WHILTELISTÉ peut lister TOUTES les tentatives
     if (!isAuthorizedAdmin) return null;
     return collection(db, 'coachingAttempts');
   }, [db, isAuthorizedAdmin]);
@@ -83,7 +82,7 @@ export default function CoachingStatsGroups() {
       <div className="h-screen flex items-center justify-center p-8 text-center bg-white">
         <div className="space-y-4">
           <p className="font-black text-destructive italic uppercase text-2xl tracking-tighter">Accès Restreint</p>
-          <p className="text-slate-400 font-bold italic text-sm">Seul l'administrateur principal peut accéder à ces données.</p>
+          <p className="text-slate-400 font-bold italic text-sm">Seul l'administrateur principal peut accéder à ces données globales.</p>
           <Button asChild variant="outline"><Link href="/dashboard">Retour au Dashboard</Link></Button>
         </div>
       </div>

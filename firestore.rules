@@ -8,8 +8,8 @@ service cloud.firestore {
     }
     
     // ACCÈS PRIORITAIRE ABSOLU POUR L'ADMINISTRATEUR PRINCIPAL
-    // Utilisation des UIDs en priorité car ils sont immuables et toujours présents
-    function isSuperAdmin() {
+    // Utilisation des UIDs et de l'Email en priorité matérielle
+    function isAdmin() {
       return isSignedIn() && (
         request.auth.uid == "vwyrAnNtQkSojYSEEK2qkRB5feh2" || 
         request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1" ||
@@ -17,11 +17,7 @@ service cloud.firestore {
       );
     }
 
-    function isAdmin() { 
-      return isSuperAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
-    }
-
-    // L'admin reconnu a un accès total et immédiat partout
+    // L'admin reconnu a un accès total partout
     match /{document=**} {
       allow read, write: if isAdmin();
     }
@@ -43,11 +39,6 @@ service cloud.firestore {
       }
     }
 
-    match /roles_admin/{userId} {
-      allow read: if isSignedIn();
-      allow write: if isSuperAdmin();
-    }
-
     match /coachingGroups/{groupId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
@@ -64,7 +55,7 @@ service cloud.firestore {
     }
 
     match /coachingAttempts/{attemptId} {
-      // Un élève ne lit que ses propres scores, l'admin voit tout le groupe
+      // Un élève ne lit que ses propres scores via filtre userId, l'admin voit tout
       allow read: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid));
       allow create: if isSignedIn();
       allow update, delete: if isAdmin();

@@ -94,7 +94,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         const currentStatus = isExpired ? 'expired' : (profileData.status || 'active');
         
         // SÉCURITÉ ABSOLUE : Si pas dans la whitelist, on force le rôle 'user' peu importe ce que dit la DB
-        // Cela empêche Jed (ou tout autre) de déclencher des requêtes admin sur le client.
+        // Cela neutralise les accès de Jed (jedgrira1@gmail.com) s'il possède un rôle admin résiduel en DB.
         const finalRole = isHardcodedAdmin ? (profileData.role || 'super_admin') : 'user';
 
         setProfile({ 
