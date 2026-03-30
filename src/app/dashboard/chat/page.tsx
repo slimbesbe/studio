@@ -1,0 +1,122 @@
+
+"use client";
+
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { MessageSquare, Send, Loader2, User, Sparkles, Brain, Info } from 'lucide-react';
+import { useUser } from '@/firebase';
+import { cn } from '@/lib/utils';
+
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
+export default function ChatPage() {
+  const { profile } = useUser();
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: 'welcome',
+      role: 'assistant',
+      content: `Bonjour ${profile?.firstName || 'Candidat'} ! Je suis votre coach intelligent Simu-lux. Posez-moi vos questions sur le mindset PMP, une approche spécifique ou un concept du PMBOK.`,
+      timestamp: new Date()
+    }
+  ]);
+
+  const handleSend = async () => {
+    if (!input.trim() || isLoading) return;
+
+    const userMsg: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: input,
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMsg]);
+    setInput('');
+    setIsLoading(true);
+
+    // Simulation de réponse IA
+    setTimeout(() => {
+      const assistantMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: "C'est une excellente question sur le Mindset PMP. En tant que Chef de Projet, vous devez toujours privilégier l'analyse d'impact avant toute action corrective. Selon le PMBOK®, la proactivité est la clé : ne demandez pas au sponsor de décider, proposez-lui des solutions basées sur des données réelles.",
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, assistantMsg]);
+      setIsLoading(false);
+    }, 1500);
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-8 animate-fade-in h-[calc(100vh-140px)] flex flex-col">
+      <div className="flex items-center gap-4 bg-white p-6 rounded-[32px] shadow-xl border-2 shrink-0">
+        <div className="bg-indigo-500/10 p-3 rounded-2xl">
+          <MessageSquare className="h-8 w-8 text-indigo-600" />
+        </div>
+        <div>
+          <h1 className="text-3xl font-black italic uppercase tracking-tighter text-slate-900 leading-none">Chat Assistant PMP</h1>
+          <p className="text-slate-500 font-bold uppercase tracking-widest text-[9px] mt-1 italic">Votre coach IA personnel disponible 24/7.</p>
+        </div>
+      </div>
+
+      <Card className="flex-1 rounded-[40px] shadow-2xl border-none overflow-hidden bg-white flex flex-col min-h-0">
+        <CardContent className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar">
+          {messages.map((m) => (
+            <div key={m.id} className={cn(
+              "flex items-start gap-4 animate-slide-up",
+              m.role === 'user' ? "flex-row-reverse" : "flex-row"
+            )}>
+              <div className={cn(
+                "h-10 w-10 rounded-2xl flex items-center justify-center shrink-0 shadow-lg",
+                m.role === 'user' ? "bg-slate-900" : "bg-indigo-500"
+              )}>
+                {m.role === 'user' ? <User className="h-5 w-5 text-white" /> : <Sparkles className="h-5 w-5 text-white" />}
+              </div>
+              <div className={cn(
+                "max-w-[80%] p-6 rounded-[32px] text-sm font-bold italic leading-relaxed",
+                m.role === 'user' ? "bg-slate-50 text-slate-800 rounded-tr-none" : "bg-indigo-50 text-indigo-900 rounded-tl-none border-2 border-indigo-100"
+              )}>
+                {m.content}
+              </div>
+            </div>
+          ))}
+          {isLoading && (
+            <div className="flex items-center gap-4 animate-pulse">
+              <div className="h-10 w-10 rounded-2xl bg-indigo-100 flex items-center justify-center"><Loader2 className="h-5 w-5 text-indigo-400 animate-spin" /></div>
+              <div className="h-12 w-32 bg-slate-50 rounded-full" />
+            </div>
+          )}
+        </CardContent>
+        <CardFooter className="p-8 border-t bg-slate-50/50 shrink-0">
+          <form 
+            onSubmit={(e) => { e.preventDefault(); handleSend(); }}
+            className="w-full relative"
+          >
+            <Input 
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Posez votre question PMP ici..."
+              className="h-16 pl-8 pr-20 rounded-[24px] border-4 border-white shadow-xl bg-white font-bold italic text-slate-700 focus-visible:ring-indigo-500"
+            />
+            <Button 
+              type="submit" 
+              disabled={!input.trim() || isLoading}
+              className="absolute right-3 top-3 h-10 w-10 rounded-xl bg-indigo-500 hover:bg-indigo-600 shadow-lg"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </form>
+        </CardFooter>
+      </Card>
+    </div>
+  );
+}

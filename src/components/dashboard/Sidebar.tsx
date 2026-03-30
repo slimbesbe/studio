@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from 'next/link';
@@ -14,18 +15,31 @@ import {
   Trophy,
   Brain,
   BookOpen,
-  User
+  User,
+  LayoutGrid,
+  MessageSquare,
+  BarChart3,
+  ChevronDown,
+  BookMarked,
+  Layers,
+  Globe
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
+import { useState } from 'react';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 export const SimuLuxLogo = ({ className = "h-8 w-8" }: { className?: string }) => (
   <svg viewBox="0 0 200 200" className={className} xmlns="http://www.w3.org/2000/svg">
     <defs>
       <linearGradient id="shieldGrad" x1="0" x2="1" x2="1">
-        <stop offset="0%" stopColor="#3b82f6" />
-        <stop offset="100%" stopColor="#1d4ed8" />
+        <stop offset="0%" stopColor="#6366f1" />
+        <stop offset="100%" stopColor="#4f46e5" />
       </linearGradient>
     </defs>
     <path 
@@ -42,7 +56,7 @@ export const SimuLuxLogo = ({ className = "h-8 w-8" }: { className?: string }) =
     />
     <path 
       d="M140,20 L195,5 L180,60 L160,40 Z" 
-      fill="#FFD700" 
+      fill="#fbbf24" 
     />
   </svg>
 );
@@ -52,13 +66,13 @@ export function Sidebar() {
   const router = useRouter();
   const { user, isUserLoading, profile } = useUser();
   const auth = useAuth();
+  const [conceptsOpen, setConceptsOpen] = useState(pathname.includes('/concepts'));
 
-  if (isUserLoading || !user || pathname === '/' || pathname === '/login') {
+  if (isUserLoading || !user || pathname === '/' || pathname === '/login' || pathname === '/access-denied') {
     return null;
   }
 
   const isDemo = user?.isAnonymous;
-  // Vérification de rôle admin stricte
   const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
 
   const handleSignOut = async () => {
@@ -73,108 +87,109 @@ export function Sidebar() {
       : user?.email?.[0].toUpperCase() || '?';
 
   return (
-    <div className="flex flex-col h-full bg-white text-slate-600 w-64 fixed left-0 top-0 z-40 shadow-sm border-r border-slate-100">
+    <div className="flex flex-col h-full bg-[#0F172A] text-slate-300 w-64 fixed left-0 top-0 z-40 border-r border-slate-800 shadow-2xl">
       {/* Header Logo */}
-      <div className="h-24 flex items-center px-8 border-b border-slate-50 bg-white">
+      <div className="h-24 flex items-center px-8 border-b border-slate-800/50 bg-[#0F172A]">
         <Link className="flex items-center gap-3 group" href={isAdmin ? "/admin/dashboard" : "/dashboard"}>
-          <div className="bg-primary/5 p-2 rounded-2xl group-hover:scale-105 transition-transform text-primary">
+          <div className="bg-indigo-500/10 p-2 rounded-2xl group-hover:scale-105 transition-transform">
             <SimuLuxLogo className="h-9 w-9" />
           </div>
           <div className="flex flex-col">
-            <span className="font-black text-xl italic tracking-tighter text-slate-900 leading-none">Simu-lux</span>
-            <span className="text-[9px] font-black text-primary uppercase tracking-[0.3em] mt-1.5">{isAdmin ? 'PILOTAGE' : 'ESPACE ÉLÈVE'}</span>
+            <span className="font-black text-xl italic tracking-tighter text-white leading-none">Simu-lux</span>
+            <span className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.3em] mt-1.5">{isAdmin ? 'PILOTAGE' : 'COACH PMP'}</span>
           </div>
         </Link>
       </div>
 
       {/* Navigation */}
-      <div className="flex-1 py-8 px-5 space-y-1.5 overflow-y-auto bg-white">
-        {/* Navigation Admin (Visible uniquement pour les admins) */}
-        {isAdmin && (
+      <div className="flex-1 py-8 px-4 space-y-1 overflow-y-auto custom-scrollbar">
+        
+        {/* SECTION NAVIGATION PRINCIPALE */}
+        {!isAdmin && (
           <>
-            <Link
-              href="/admin/dashboard"
-              className={cn(
-                "flex items-center gap-3 px-5 py-3.5 rounded-2xl text-[13px] font-black italic uppercase transition-all",
-                pathname === '/admin/dashboard' 
-                  ? "bg-primary/10 text-primary" 
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-              )}
-            >
-              <LayoutDashboard className="h-5 w-5" />
-              Cockpit Admin
-            </Link>
-
-            <Link
-              href="/dashboard"
-              className={cn(
-                "flex items-center gap-3 px-5 py-3.5 rounded-2xl text-[13px] font-black italic uppercase transition-all mt-2 border-2 border-dashed border-slate-100",
-                pathname === '/dashboard' 
-                  ? "bg-slate-50 text-indigo-600 border-indigo-100" 
-                  : "text-slate-400 hover:bg-slate-50 hover:text-slate-900"
-              )}
-            >
-              <User className="h-5 w-5" />
-              Vue Élève
-            </Link>
-
-            <div className="pt-8 pb-3 px-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 italic">Pilotage</div>
+            <div className="px-4 mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 italic">Navigation</div>
             
-            <NavItem href="/admin/coaching" icon={GraduationCap} label="COACHING & GROUPES" active={pathname.startsWith('/admin/coaching')} />
-            <NavItem href="/admin/questions" icon={BookCopy} label="BANQUE QUESTIONS" active={pathname.startsWith('/admin/questions')} />
-            <NavItem href="/admin/users" icon={Users} label="UTILISATEURS" active={pathname.startsWith('/admin/users')} />
-
-            <div className="pt-8 pb-3 px-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 italic">Maintenance</div>
+            <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" active={pathname === '/dashboard'} />
             
-            <Link href="/admin/maintenance" className={cn("flex items-center gap-3 px-5 py-3.5 rounded-2xl text-[13px] font-black italic uppercase transition-all hover:bg-red-50 text-slate-400 hover:text-red-600", pathname.startsWith('/admin/maintenance') ? "text-red-600 bg-red-50" : "")}>
-              <Database className="h-5 w-5" /> Maintenance
-            </Link>
+            <Collapsible open={conceptsOpen} onOpenChange={setConceptsOpen} className="w-full">
+              <CollapsibleTrigger asChild>
+                <button className={cn(
+                  "flex items-center justify-between w-full px-4 py-3 rounded-xl text-[13px] font-bold transition-all hover:bg-white/5 group",
+                  pathname.includes('/concepts') ? "text-white" : "text-slate-400"
+                )}>
+                  <div className="flex items-center gap-3">
+                    <BookMarked className={cn("h-5 w-5", pathname.includes('/concepts') ? "text-indigo-400" : "text-slate-500 group-hover:text-slate-300")} />
+                    <span>Concepts de base</span>
+                  </div>
+                  <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", conceptsOpen && "rotate-180")} />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-1 mt-1 ml-4 border-l border-slate-800 pl-2">
+                <Link href="/dashboard/concepts/approches" className={cn(
+                  "flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-medium transition-all hover:text-white",
+                  pathname === '/dashboard/concepts/approches' ? "text-indigo-400 font-bold" : "text-slate-500"
+                )}>
+                  <Globe className="h-3.5 w-3.5" /> Vision Approches
+                </Link>
+                <Link href="/dashboard/concepts/domaines" className={cn(
+                  "flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-medium transition-all hover:text-white",
+                  pathname === '/dashboard/concepts/domaines' ? "text-indigo-400 font-bold" : "text-slate-500"
+                )}>
+                  <Layers className="h-3.5 w-3.5" /> Vision Domaines
+                </Link>
+              </CollapsibleContent>
+            </Collapsible>
+
+            <NavItem href="/dashboard/matrice" icon={LayoutGrid} label="Matrice Magique" active={pathname === '/dashboard/matrice'} />
+
+            {/* SECTION ENTRAÎNEMENT */}
+            <div className="px-4 mt-8 mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 italic">Entraînement</div>
+            <NavItem href="/dashboard/practice" icon={BookOpen} label="Pratique Libre" active={pathname === '/dashboard/practice'} />
+            <NavItem href="/dashboard/exam" icon={Trophy} label="Simulation Examen" active={pathname === '/dashboard/exam'} />
+            <NavItem href="/dashboard/history" icon={History} label="Historique" active={pathname === '/dashboard/history'} />
+
+            {/* SECTION ANALYSE */}
+            <div className="px-4 mt-8 mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 italic">Analyse</div>
+            <NavItem href="/dashboard/statistics" icon={BarChart3} label="Statistiques" active={pathname === '/dashboard/statistics'} />
+
+            {/* SECTION USER */}
+            <div className="px-4 mt-8 mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 italic">User</div>
+            <NavItem href="/dashboard/chat" icon={MessageSquare} label="Chat Assistant" active={pathname === '/dashboard/chat'} />
           </>
         )}
 
-        {/* Navigation Utilisateur (Elève) */}
-        {!isAdmin && (
+        {/* Navigation Admin */}
+        {isAdmin && (
           <>
-            <Link
-              href="/dashboard"
-              className={cn(
-                "flex items-center gap-3 px-5 py-3.5 rounded-2xl text-[13px] font-black italic uppercase transition-all",
-                pathname === '/dashboard' 
-                  ? "bg-primary/10 text-primary shadow-sm" 
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-              )}
-            >
-              <LayoutDashboard className="h-5 w-5" />
-              Ma Progression
-            </Link>
-
-            <div className="pt-8 pb-3 px-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 italic">Entraînement</div>
-            
-            <NavItem href="/dashboard/exam" icon={Trophy} label="SIMULATIONS EXAMEN" active={pathname.startsWith('/dashboard/exam')} />
-            <NavItem href="/dashboard/coaching" icon={GraduationCap} label="PROGRAMME COACHING" active={pathname.startsWith('/dashboard/coaching')} />
-            <NavItem href="/dashboard/practice" icon={BookOpen} label="PRATIQUE LIBRE" active={pathname.startsWith('/dashboard/practice')} />
-            <NavItem href="/dashboard/kill-mistake-selection" icon={Brain} label="KILL MISTAKE" active={pathname.startsWith('/dashboard/kill-mistake')} />
-
-            <div className="pt-8 pb-3 px-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 italic">Données</div>
-            
-            <NavItem href="/dashboard/history" icon={History} label="HISTORIQUE COMPLET" active={pathname.startsWith('/dashboard/history')} />
+            <div className="px-4 mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 italic">Pilotage Admin</div>
+            <NavItem href="/admin/dashboard" icon={LayoutDashboard} label="Cockpit Admin" active={pathname === '/admin/dashboard'} />
+            <NavItem href="/admin/coaching" icon={GraduationCap} label="Sessions Coaching" active={pathname.startsWith('/admin/coaching')} />
+            <NavItem href="/admin/questions" icon={BookCopy} label="Banque Questions" active={pathname.startsWith('/admin/questions')} />
+            <NavItem href="/admin/users" icon={Users} label="Utilisateurs" active={pathname.startsWith('/admin/users')} />
+            <div className="pt-4">
+              <NavItem href="/admin/maintenance" icon={Database} label="Maintenance" active={pathname.startsWith('/admin/maintenance')} />
+            </div>
           </>
         )}
       </div>
 
       {/* Profile & Logout */}
-      <div className="p-8 border-t border-slate-50 space-y-6 bg-white">
-        <div className="flex items-center gap-4">
-          <div className="h-11 w-11 rounded-2xl flex items-center justify-center text-white font-black bg-gradient-to-br from-primary to-indigo-600 shadow-lg text-lg italic">
+      <div className="p-6 border-t border-slate-800 bg-[#0F172A]">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="h-10 w-10 rounded-xl flex items-center justify-center text-white font-black bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg italic">
             {initials}
           </div>
           <div className="flex-1 overflow-hidden">
-            <p className="text-sm font-black text-slate-900 truncate italic leading-tight">{profile?.firstName || 'Utilisateur'}</p>
-            <p className="text-[9px] text-emerald-500 font-black uppercase tracking-widest truncate mt-0.5">Session Active</p>
+            <p className="text-xs font-bold text-white truncate italic leading-tight">{profile?.firstName || 'Utilisateur'}</p>
+            <p className="text-[9px] text-emerald-400 font-black uppercase tracking-widest truncate mt-1">Prêt pour le PMP</p>
           </div>
         </div>
-        <Button variant="ghost" className="w-full justify-start text-slate-400 hover:text-red-600 hover:bg-red-50 h-12 rounded-2xl font-black uppercase text-[11px] italic tracking-widest transition-all" onClick={handleSignOut}>
-          <LogOut className="mr-3 h-5 w-5" /> Déconnexion
+        <Button 
+          variant="ghost" 
+          className="w-full justify-start text-slate-500 hover:text-red-400 hover:bg-red-400/10 h-10 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all" 
+          onClick={handleSignOut}
+        >
+          <LogOut className="mr-3 h-4 w-4" /> Déconnexion
         </Button>
       </div>
     </div>
@@ -186,17 +201,14 @@ function NavItem({ href, icon: Icon, label, active }: any) {
     <Link
       href={href}
       className={cn(
-        "flex items-center justify-between px-5 py-3.5 rounded-2xl text-[13px] font-black italic uppercase transition-all group",
+        "flex items-center gap-3 px-4 py-3 rounded-xl text-[13px] font-bold transition-all group",
         active 
-          ? "bg-primary/5 text-primary" 
-          : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+          ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/20" 
+          : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
       )}
     >
-      <div className="flex items-center gap-3">
-        <Icon className={cn("h-5 w-5 transition-transform group-hover:scale-110", active ? "text-primary" : "text-slate-300 group-hover:text-slate-600")} />
-        {label}
-      </div>
-      {active && <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />}
+      <Icon className={cn("h-5 w-5 transition-transform group-hover:scale-110", active ? "text-white" : "text-slate-500 group-hover:text-slate-300")} />
+      {label}
     </Link>
   );
 }
