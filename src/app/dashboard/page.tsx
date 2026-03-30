@@ -4,6 +4,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { 
   Loader2, 
   TrendingUp, 
@@ -198,7 +199,7 @@ export default function DashboardPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={stats.progressionData}>
                   <defs>
-                    <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="colorScore" x1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
                       <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
                     </linearGradient>
