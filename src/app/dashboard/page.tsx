@@ -3,6 +3,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { 
   Loader2, 
   TrendingUp, 
