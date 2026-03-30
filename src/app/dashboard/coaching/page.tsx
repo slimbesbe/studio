@@ -1,7 +1,8 @@
+
 'use client';
 
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, where } from 'firebase/firestore';
+import { collection, query, where, orderBy } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { GraduationCap, ArrowRight, Video, FileQuestion, CheckCircle2, Lock, Loader2 } from 'lucide-react';
@@ -14,18 +15,17 @@ export default function CoachingSelectionPage() {
 
   const isAdminUser = profile?.role === 'super_admin' || profile?.role === 'admin';
 
-  // Simplification de la requête : On récupère tout et on filtre côté client 
-  // pour éviter les erreurs de permission liées aux filtres complexes sur coachingSessions
+  // Requête simplifiée pour éviter les erreurs de permission et d'index
   const sessionsQuery = useMemoFirebase(() => {
     if (isUserLoading || !user || !profile || !db) return null;
-    const baseRef = collection(db, 'coachingSessions');
-    return query(baseRef, orderBy('index', 'asc'));
+    return query(collection(db, 'coachingSessions'), orderBy('index', 'asc'));
   }, [db, user, profile, isUserLoading]);
 
   const { data: rawSessions, isLoading: isSessionsLoading } = useCollection(sessionsQuery);
 
   const attemptsQuery = useMemoFirebase(() => {
     if (isUserLoading || !user?.uid || !profile || !db) return null;
+    // Filtrage strict par userId pour respecter les règles de sécurité
     return query(
       collection(db, 'coachingAttempts'), 
       where('userId', '==', user.uid)
@@ -42,7 +42,7 @@ export default function CoachingSelectionPage() {
     );
   }
 
-  // Filtrage côté client : les élèves ne voient que les sessions publiées
+  // Filtrage côté client pour garantir la fluidité et la sécurité
   const displaySessions = (rawSessions || []).filter(s => isAdminUser || s.isPublished);
   
   const latestAttempts = rawAttempts ? rawAttempts.reduce((acc: any, curr: any) => {
@@ -54,30 +54,24 @@ export default function CoachingSelectionPage() {
 
   return (
     <div className="max-w-6xl mx-auto py-8 space-y-10 animate-fade-in">
-      <div className="bg-white p-10 rounded-[40px] shadow-xl border-2 border-primary/5 flex items-center gap-8">
-        <div className="bg-primary/10 p-5 rounded-3xl">
-          < GraduationCap className="h-12 w-12 text-primary" />
+      <div className="bg-white p-10 rounded-[40px] shadow-xl border-2 border-slate-100 flex items-center gap-8">
+        <div className="bg-primary/5 p-5 rounded-3xl">
+          <GraduationCap className="h-12 w-12 text-primary" />
         </div>
         <div>
-          <h1 className="text-4xl font-black italic uppercase tracking-tighter text-primary">Programme Coaching PMP®</h1>
-          <p className="text-slate-500 font-bold uppercase tracking-widest text-sm mt-1">Accédez à vos séances en direct et validez vos acquis par simulation.</p>
+          <h1 className="text-4xl font-black italic uppercase tracking-tighter text-slate-900">Programme Coaching</h1>
+          <p className="text-slate-500 font-bold uppercase tracking-widest text-xs mt-1 italic">Validez vos acquis par micro-simulations ciblées.</p>
         </div>
       </div>
 
       {displaySessions.length === 0 ? (
         <div className="py-20 text-center space-y-4">
           <p className="text-slate-400 font-bold italic">Aucune séance disponible pour le moment.</p>
-          {isAdminUser && (
-            <Button asChild variant="outline">
-              <Link href="/admin/coaching/sessions">Configurer les séances</Link>
-            </Button>
-          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {displaySessions.map((session) => {
             const attempt = latestAttempts[session.id];
-            // Pour l'interface élève, si c'est affiché c'est que c'est publié (via notre filtre client)
             const isAccessible = session.isPublished || isAdminUser;
 
             return (
@@ -99,20 +93,20 @@ export default function CoachingSelectionPage() {
                       </div>
                     )}
                   </div>
-                  <CardTitle className="text-2xl font-black uppercase italic tracking-tight">{session.title || `Session ${session.index}`}</CardTitle>
-                  <CardDescription className="font-bold text-slate-400 uppercase tracking-widest text-[10px] mt-1">
-                    {session.type === 'MEET' ? 'Visioconférence en direct' : 'Validation par simulation (35 Q)'}
+                  <CardTitle className="text-2xl font-black uppercase italic tracking-tight text-slate-800">{session.title || `Session ${session.index}`}</CardTitle>
+                  <CardDescription className="font-bold text-slate-400 uppercase tracking-widest text-[9px] mt-1 italic">
+                    {session.type === 'MEET' ? 'Live visioconférence' : 'Simulation 35 Questions'}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-8 pt-0">
                   {attempt ? (
                     <div className="bg-slate-50 rounded-2xl p-4 border-2 border-dashed border-slate-200">
-                      <p className="text-xs font-black uppercase italic text-slate-400 mb-1">Dernier Score</p>
+                      <p className="text-[9px] font-black uppercase italic text-slate-400 mb-1">Dernier Score</p>
                       <p className="text-3xl font-black italic text-emerald-500">{attempt.scorePercent}%</p>
                     </div>
                   ) : (
                     <p className="text-sm font-bold italic text-slate-500 leading-relaxed">
-                      {session.type === 'MEET' ? "Rejoignez votre formateur pour une session interactive sur le Mindset PMI." : "Plongez dans 35 questions d'entraînement pour ancrer vos réflexes."}
+                      Préparez-vous à valider les concepts clés de cette session.
                     </p>
                   )}
                   
@@ -125,7 +119,7 @@ export default function CoachingSelectionPage() {
                     )}
                   >
                     <Link href={!isAccessible ? "#" : `/dashboard/coaching/session/${session.index}`}>
-                      {!isAccessible ? "À venir" : attempt ? "Refaire la session" : "Démarrer"} <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                      {attempt ? "Refaire la session" : "Démarrer"} <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                     </Link>
                   </Button>
                 </CardContent>

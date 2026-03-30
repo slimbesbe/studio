@@ -2,14 +2,13 @@
 "use client";
 
 import { useMemo, useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
   Loader2, 
   TrendingUp, 
   Award, 
-  BookOpen,
   Target,
   ChevronRight,
   Zap,
@@ -22,7 +21,7 @@ import {
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy, limit } from 'firebase/firestore';
 import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell
+  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -31,9 +30,13 @@ export default function DashboardPage() {
   const { user, profile, isUserLoading } = useUser();
   const db = useFirestore();
   const [mounted, setMounted] = useState(false);
+  const [chartKey, setChartKey] = useState(0);
 
   useEffect(() => {
     setMounted(true);
+    // Forcer le rendu du graphique après le montage pour éviter les problèmes de ResponsiveContainer
+    const timer = setTimeout(() => setChartKey(prev => prev + 1), 500);
+    return () => clearTimeout(timer);
   }, []);
 
   const attemptsQuery = useMemoFirebase(() => {
@@ -70,10 +73,14 @@ export default function DashboardPage() {
     if (avgScore >= 75) status = 'Ready';
     else if (avgScore >= 50) status = 'Intermediate';
 
-    const progressionData = [...attempts].reverse().map((a, i) => ({
-      name: `S${i+1}`,
-      score: a.scorePercent
-    }));
+    const progressionData = [...attempts].reverse().map((a, i) => {
+      const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
+      return {
+        name: date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
+        score: a.scorePercent,
+        fullScore: 100
+      };
+    });
 
     return {
       readiness: avgScore,
@@ -88,12 +95,11 @@ export default function DashboardPage() {
   }, [attempts]);
 
   if (isUserLoading || !mounted) {
-    return <div className="h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-12 w-12 animate-spin text-indigo-600" /></div>;
+    return <div className="h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
   return (
     <div className="space-y-8 animate-fade-in pb-20">
-      {/* Header Breadcrumb */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase tracking-widest">
           <span>Plateforme</span>
@@ -101,11 +107,10 @@ export default function DashboardPage() {
           <span className="text-slate-900">Dashboard Intelligence</span>
         </div>
         <div className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full uppercase italic">
-          Coach Actif • V2.0
+          Coach Actif • V2.5
         </div>
       </div>
 
-      {/* Hero: Readiness Score */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <Card className="lg:col-span-2 rounded-[40px] border-none shadow-2xl bg-gradient-to-br from-[#0F172A] to-[#1E293B] text-white overflow-hidden relative group">
           <div className="absolute top-0 right-0 p-12 opacity-10 group-hover:scale-110 transition-transform duration-700">
@@ -133,15 +138,15 @@ export default function DashboardPage() {
                   </Badge>
                   <h1 className="text-4xl font-black italic uppercase tracking-tighter leading-none mb-2">Analyse de Préparation</h1>
                   <p className="text-slate-400 font-bold italic text-sm max-w-md">
-                    Votre niveau actuel indique une compréhension {stats.status.toLowerCase()} des principes PMI. Suivez le parcours recommandé.
+                    Votre niveau actuel indique une compréhension {stats.status.toLowerCase()} des principes PMI.
                   </p>
                 </div>
                 <div className="flex flex-wrap justify-center md:justify-start gap-4">
-                  <Button asChild className="h-14 px-8 rounded-2xl bg-indigo-500 hover:bg-indigo-600 font-black uppercase tracking-widest text-xs shadow-xl">
+                  <Button asChild className="h-14 px-8 rounded-2xl bg-indigo-500 hover:bg-indigo-600 font-black uppercase tracking-widest text-xs shadow-xl border-none">
                     <Link href="/dashboard/exam">Lancer une simulation <ChevronRight className="ml-2 h-4 w-4" /></Link>
                   </Button>
                   <Button asChild variant="outline" className="h-14 px-8 rounded-2xl border-white/10 hover:bg-white/5 font-black uppercase tracking-widest text-xs">
-                    <Link href="/dashboard/statistics">Voir mes stats détaillées</Link>
+                    <Link href="/dashboard/statistics">Analytique V2</Link>
                   </Button>
                 </div>
               </div>
@@ -149,7 +154,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Smart Insights */}
         <Card className="rounded-[40px] border-none shadow-xl bg-white p-8 space-y-8 flex flex-col justify-between">
           <div className="space-y-6">
             <h3 className="font-black text-slate-900 text-xs uppercase tracking-widest flex items-center gap-2 italic">
@@ -157,15 +161,15 @@ export default function DashboardPage() {
             </h3>
             
             <div className="space-y-4">
-              <div className="bg-emerald-50 p-4 rounded-2xl flex items-center gap-4">
-                <div className="bg-emerald-500 p-2 rounded-xl text-white"><Zap className="h-4 w-4" /></div>
+              <div className="bg-emerald-50 p-4 rounded-2xl flex items-center gap-4 border border-emerald-100/50">
+                <div className="bg-emerald-500 p-2 rounded-xl text-white shadow-sm"><Zap className="h-4 w-4" /></div>
                 <div>
                   <p className="text-[9px] font-black text-emerald-600 uppercase italic">Point Fort</p>
                   <p className="text-sm font-black text-slate-800 italic">{stats.strongDomain}</p>
                 </div>
               </div>
-              <div className="bg-red-50 p-4 rounded-2xl flex items-center gap-4">
-                <div className="bg-red-500 p-2 rounded-xl text-white"><Target className="h-4 w-4" /></div>
+              <div className="bg-red-50 p-4 rounded-2xl flex items-center gap-4 border border-red-100/50">
+                <div className="bg-red-500 p-2 rounded-xl text-white shadow-sm"><Target className="h-4 w-4" /></div>
                 <div>
                   <p className="text-[9px] font-black text-red-600 uppercase italic">Point Faible</p>
                   <p className="text-sm font-black text-slate-800 italic">{stats.weakDomain}</p>
@@ -186,78 +190,74 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Progression Rapide */}
         <Card className="lg:col-span-2 rounded-[40px] border-none shadow-xl bg-white p-10 space-y-8">
           <div className="flex items-center justify-between">
             <h3 className="font-black text-slate-900 text-xs uppercase tracking-widest italic flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-indigo-500" /> Progression du Score
             </h3>
-            <span className="text-[10px] font-black text-slate-400 uppercase italic">10 dernières sessions</span>
+            <span className="text-[10px] font-black text-slate-400 uppercase italic">Trait rouge : Tendance</span>
           </div>
-          <div className="h-64 w-full">
+          <div className="h-[400px] w-full" key={chartKey}>
             {stats.progressionData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={stats.progressionData}>
-                  <defs>
-                    <linearGradient id="colorScore" x1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
+                <ComposedChart data={stats.progressionData} margin={{ top: 20, right: 20, bottom: 20, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} dy={10} />
                   <YAxis hide domain={[0, 100]} />
                   <Tooltip 
                     contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontWeight: 'bold' }}
                   />
-                  <Area type="monotone" dataKey="score" stroke="#6366f1" strokeWidth={4} fillOpacity={1} fill="url(#colorScore)" />
-                </AreaChart>
+                  <Bar dataKey="score" radius={[8, 8, 0, 0]} barSize={40}>
+                    {stats.progressionData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.score >= 75 ? '#10b981' : entry.score >= 50 ? '#6366f1' : '#f43f5e'} />
+                    ))}
+                  </Bar>
+                  <Line type="monotone" dataKey="score" stroke="#f43f5e" strokeWidth={3} dot={{ r: 6, fill: '#f43f5e', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8 }} animationDuration={1000} />
+                </ComposedChart>
               </ResponsiveContainer>
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 border-4 border-dashed border-slate-50 rounded-[32px]">
                 <Clock className="h-12 w-12 opacity-20" />
-                <p className="font-black uppercase tracking-widest text-[10px] italic">Aucune donnée disponible</p>
+                <p className="font-black uppercase tracking-widest text-[10px] italic">Aucune donnée de simulation</p>
               </div>
             )}
           </div>
         </Card>
 
-        {/* Matrice Couverture (Mini) */}
         <Card className="rounded-[40px] border-none shadow-xl bg-white p-10 space-y-8">
           <div className="flex items-center justify-between">
-            <h3 className="font-black text-slate-900 text-xs uppercase tracking-widest italic">Couverture Matrice</h3>
+            <h3 className="font-black text-slate-900 text-xs uppercase tracking-widest italic">Maîtrise Matrice</h3>
             <ArrowUpRight className="h-4 w-4 text-slate-300" />
           </div>
           <div className="grid grid-cols-3 gap-2">
             {Array.from({ length: 9 }).map((_, i) => (
               <div key={i} className={cn(
-                "aspect-square rounded-xl border-2 flex items-center justify-center",
-                i % 3 === 0 ? "bg-emerald-50 border-emerald-100" : "bg-slate-50 border-slate-100"
+                "aspect-square rounded-xl border-2 flex items-center justify-center transition-all",
+                i < (stats.readiness / 10) ? "bg-emerald-50 border-emerald-100" : "bg-slate-50 border-slate-100"
               )}>
                 <div className={cn(
                   "h-2 w-2 rounded-full",
-                  i % 3 === 0 ? "bg-emerald-500" : "bg-slate-200"
+                  i < (stats.readiness / 10) ? "bg-emerald-500 scale-125 shadow-[0_0_10px_rgba(16,185,129,0.4)]" : "bg-slate-200"
                 )} />
               </div>
             ))}
           </div>
           <div className="pt-4 space-y-4">
             <div className="flex justify-between items-center text-[10px] font-black uppercase italic">
-              <span className="text-slate-400">Total Items Traités</span>
+              <span className="text-slate-400">Items Traités</span>
               <span className="text-slate-900">{stats.totalQuestions}</span>
             </div>
             <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-              <div className="bg-indigo-500 h-full rounded-full" style={{ width: '45%' }} />
+              <div className="bg-indigo-500 h-full rounded-full transition-all duration-1000" style={{ width: `${Math.min(stats.readiness, 100)}%` }} />
             </div>
-            <p className="text-[9px] font-bold text-slate-400 italic text-center uppercase tracking-widest">45% du programme couvert</p>
+            <p className="text-[9px] font-bold text-slate-400 italic text-center uppercase tracking-widest">Capacité de réussite calculée</p>
           </div>
         </Card>
       </div>
 
-      {/* Activité Récente */}
       <Card className="rounded-[40px] border-none shadow-xl bg-white overflow-hidden">
-        <CardHeader className="p-10 border-b bg-slate-50/50">
-          <CardTitle className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-3">
+        <CardHeader className="p-10 border-b bg-slate-50/30">
+          <CardTitle className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-3 text-slate-800">
             <Clock className="h-6 w-6 text-slate-400" /> Activité Récente
           </CardTitle>
         </CardHeader>
@@ -270,7 +270,7 @@ export default function DashboardPage() {
                     "h-12 w-12 rounded-2xl flex items-center justify-center text-white shadow-lg",
                     a.scorePercent >= 75 ? "bg-emerald-500" : a.scorePercent >= 50 ? "bg-indigo-500" : "bg-red-500"
                   )}>
-                    {a.scorePercent >= 75 ? <CheckCircle2 className="h-6 w-6" /> : <BookOpen className="h-6 w-6" />}
+                    {a.scorePercent >= 75 ? <CheckCircle2 className="h-6 w-6" /> : <Zap className="h-6 w-6" />}
                   </div>
                   <div>
                     <p className="font-black text-sm text-slate-800 italic uppercase">{a.examId ? a.examId.replace('exam', 'Simulation ') : 'Pratique Libre'}</p>
@@ -290,9 +290,9 @@ export default function DashboardPage() {
             ))}
             {(!attempts || attempts.length === 0) && (
               <div className="p-20 text-center space-y-4">
-                <p className="font-black text-slate-300 uppercase italic tracking-widest">Aucune activité enregistrée</p>
-                <Button asChild variant="outline" className="rounded-xl font-black uppercase text-xs">
-                  <Link href="/dashboard/practice">Lancer mon premier quiz</Link>
+                <p className="font-black text-slate-300 uppercase italic tracking-widest">Aucune donnée d'activité</p>
+                <Button asChild variant="outline" className="rounded-xl font-black uppercase text-[10px] border-2">
+                  <Link href="/dashboard/practice">Lancer un quiz d'entraînement</Link>
                 </Button>
               </div>
             )}

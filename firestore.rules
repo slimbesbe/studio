@@ -1,14 +1,13 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // --- FONCTIONS DE BASE ---
     function isSignedIn() {
       return request.auth != null;
     }
     
-    // ACCÈS PRIORITAIRE ABSOLU POUR L'ADMINISTRATEUR PRINCIPAL
-    // Utilisation des UIDs et de l'Email en priorité matérielle
+    // LISTE BLANCHE MATÉRIELLE STRICTE
     function isAdmin() {
       return isSignedIn() && (
         request.auth.uid == "vwyrAnNtQkSojYSEEK2qkRB5feh2" || 
@@ -17,23 +16,19 @@ service cloud.firestore {
       );
     }
 
-    // L'admin reconnu a un accès total partout
+    // L'admin reconnu a un accès total immédiat
     match /{document=**} {
       allow read, write: if isAdmin();
     }
 
-    // Règles spécifiques pour les utilisateurs (sécurité élève)
+    // Règles spécifiques pour les utilisateurs
     match /users/{userId} {
-      // Un élève lit son propre profil, l'admin lit tout
       allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      // Seul l'admin peut lister la collection complète
       allow list: if isAdmin();
-      
       allow create: if isSignedIn();
       allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow delete: if isAdmin();
       
-      // Sous-collections privées (tentatives, erreurs, etc.)
       match /{allSubcollections=**} {
         allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       }
@@ -50,13 +45,14 @@ service cloud.firestore {
     }
     
     match /coachingSessions/{sessionId} {
+      // Autoriser tout utilisateur connecté à lister les sessions (pour le menu coaching)
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
     match /coachingAttempts/{attemptId} {
-      // Un élève ne lit que ses propres scores via filtre userId, l'admin voit tout
-      allow read: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid));
+      // Un élève ne peut lister que ses propres tentatives via une requête filtrée par userId
+      allow read: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid) || (request.query.limit <= 100 && request.query.filters.userId == request.auth.uid));
       allow create: if isSignedIn();
       allow update, delete: if isAdmin();
     }

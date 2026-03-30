@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
@@ -94,7 +95,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         const currentStatus = isExpired ? 'expired' : (profileData.status || 'active');
         
         // SÉCURITÉ ABSOLUE : Si pas dans la whitelist, on force le rôle 'user' peu importe ce que dit la DB
-        // Cela neutralise les accès de Jed (jedgrira1@gmail.com) s'il possède un rôle admin résiduel en DB.
+        // Cela neutralise les accès non autorisés qui pourraient déclencher des requêtes d'administration.
         const finalRole = isHardcodedAdmin ? (profileData.role || 'super_admin') : 'user';
 
         setProfile({ 
@@ -104,7 +105,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
           role: finalRole 
         });
       } else if (isHardcodedAdmin) {
-        // Création automatique du document profil si admin reconnu mais inexistant
         const initialAdmin = {
           id: user.uid,
           email: user.email,
@@ -121,7 +121,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       }
       setIsUserLoading(false);
     }, (error) => {
-      // En cas d'erreur de lecture du profil, si on est admin matériel, on se donne quand même les droits minimaux
       if (isHardcodedAdmin) {
         setProfile({ id: user.uid, email: user.email, role: 'super_admin', status: 'active' });
       }
@@ -131,7 +130,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     return () => unsubscribe();
   }, [firestore, user]);
 
-  // Suivi du temps d'étude (Uniquement pour les élèves)
+  // Suivi du temps d'étude (Uniquement pour les élèves authentiques)
   useEffect(() => {
     if (!firestore || !user || user.isAnonymous || !profile || profile.role !== 'user') return;
     const interval = setInterval(() => {
