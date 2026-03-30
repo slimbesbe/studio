@@ -26,6 +26,7 @@ export default function CoachingStatsGroups() {
   const isPartner = profile?.role === 'partner';
 
   // Verrouillage des requêtes : Si l'utilisateur n'est pas authentiquement admin, on ne renvoie rien.
+  // Cela empêche l'erreur "Missing or insufficient permissions" lors de la tentative de listage global.
   const groupsQuery = useMemoFirebase(() => {
     if (!isAuthorizedAdmin && !isCoach && !isPartner) return null;
     const base = collection(db, 'coachingGroups');
@@ -44,9 +45,10 @@ export default function CoachingStatsGroups() {
   const { data: allUsers } = useCollection(usersQuery);
 
   const attemptsQuery = useMemoFirebase(() => {
-    if (!isAuthorizedAdmin && !isCoach && !isPartner) return null;
+    // SÉCURITÉ CRITIQUE : Seul l'administrateur peut lister TOUTES les tentatives
+    if (!isAuthorizedAdmin) return null;
     return collection(db, 'coachingAttempts');
-  }, [db, isAuthorizedAdmin, isCoach, isPartner]);
+  }, [db, isAuthorizedAdmin]);
   const { data: allAttempts } = useCollection(attemptsQuery);
 
   const partners = useMemo(() => allUsers?.filter(u => u.role === 'partner') || [], [allUsers]);
