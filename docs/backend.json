@@ -71,6 +71,19 @@
         "submittedAt": { "type": "string", "format": "date-time" }
       }
     },
+    "QuickQuizAttempt": {
+      "title": "QuickQuizAttempt",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "axisId": { "type": "string" },
+        "category": { "type": "string", "enum": ["approach", "domain"] },
+        "score": { "type": "number" },
+        "correctCount": { "type": "number" },
+        "totalQuestions": { "type": "number" },
+        "submittedAt": { "type": "string", "format": "date-time" }
+      }
+    },
     "Question": {
       "title": "Question",
       "type": "object",
@@ -113,7 +126,11 @@
       },
       {
         "path": "/coachingAttempts/{attemptId}",
-        "definition": { "schema": { "$ref": "#/backend/entities/CoachingAttempt" }, "description": "Scores coaching" }
+        "definition": { "schema": { "$ref": "#/backend/entities/CoachingAttempt" }, "description": "Scores coaching et simulations" }
+      },
+      {
+        "path": "/quickQuizAttempts/{attemptId}",
+        "definition": { "schema": { "$ref": "#/backend/entities/QuickQuizAttempt" }, "description": "Scores des quiz rapides par axe" }
       },
       {
         "path": "/users/{userId}",

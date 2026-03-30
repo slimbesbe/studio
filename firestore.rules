@@ -45,14 +45,17 @@ service cloud.firestore {
     }
     
     match /coachingSessions/{sessionId} {
-      // Autoriser tout utilisateur connecté à lister les sessions (pour le menu coaching)
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
     match /coachingAttempts/{attemptId} {
-      // Un élève ne peut lister que ses propres tentatives via une requête filtrée par userId
-      // Suppression de la contrainte de limite trop restrictive
+      allow read: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid) || (request.query.filters != null && request.query.filters.userId == request.auth.uid));
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    match /quickQuizAttempts/{attemptId} {
       allow read: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid) || (request.query.filters != null && request.query.filters.userId == request.auth.uid));
       allow create: if isSignedIn();
       allow update, delete: if isAdmin();
