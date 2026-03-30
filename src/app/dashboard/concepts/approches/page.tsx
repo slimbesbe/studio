@@ -22,7 +22,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, addDoc, serverTimestamp, orderBy } from 'firebase/firestore';
+import { collection, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
@@ -239,11 +239,11 @@ export default function VisionApprochesPage() {
 
   const attemptsQuery = useMemoFirebase(() => {
     if (!user?.uid) return null;
+    // Suppression de orderBy pour éviter le besoin d'index composite et les erreurs de permission
     return query(
       collection(db, 'quickQuizAttempts'), 
       where('userId', '==', user.uid),
-      where('axisId', '==', activeApproach),
-      orderBy('submittedAt', 'asc')
+      where('axisId', '==', activeApproach)
     );
   }, [db, user?.uid, activeApproach]);
 
@@ -251,7 +251,14 @@ export default function VisionApprochesPage() {
 
   const historyData = useMemo(() => {
     if (!attempts) return [];
-    return attempts.map((a, i) => {
+    // Tri côté client pour garantir la fluidité sans erreur Firestore
+    const sorted = [...attempts].sort((a, b) => {
+      const timeA = a.submittedAt?.seconds || 0;
+      const timeB = b.submittedAt?.seconds || 0;
+      return timeA - timeB;
+    });
+
+    return sorted.map((a, i) => {
       const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
       return {
         id: a.id,

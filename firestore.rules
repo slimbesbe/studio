@@ -50,13 +50,17 @@ service cloud.firestore {
     }
 
     match /coachingAttempts/{attemptId} {
+      // Autoriser la lecture si l'utilisateur est admin ou si le document lui appartient
       allow read: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      // Autoriser la création seulement pour soi-même
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
     }
 
     match /quickQuizAttempts/{attemptId} {
+      // Autoriser la lecture si l'utilisateur est admin ou si le document lui appartient
       allow read: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      // Autoriser la création seulement pour soi-même
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
     }
