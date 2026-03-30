@@ -18,7 +18,9 @@ import {
   Trophy,
   History,
   TrendingUp,
-  Globe
+  Globe,
+  Clock,
+  Calendar
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
@@ -26,6 +28,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
 import { cn } from '@/lib/utils';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 // --- DATA STRUCTURE ---
 
@@ -46,6 +49,7 @@ const APPROACH_DATA = {
     ],
     quiz: [
       { q: "Quelle est la caractéristique principale du prédictif ?", a: ["Flexibilité totale", "Planification en amont", "Pas de documentation"], c: 1, exp: "Le prédictif mise sur une planification détaillée avant l'exécution." },
+      { q: "Qui approuve formellement un changement en prédictif ?", a: ["Le client uniquement", "Le CCB", "L'équipe technique"], c: 1, exp: "Le Comité de Contrôle des Changements (CCB) est l'autorité centrale." },
     ]
   },
   agile: {
@@ -64,6 +68,7 @@ const APPROACH_DATA = {
     ],
     quiz: [
       { q: "Quelle est la durée idéale d'un Sprint ?", a: ["1 à 4 semaines", "6 mois", "Indéfinie"], c: 0, exp: "Le standard est de 1 à 4 semaines pour maintenir le rythme." },
+      { q: "Le PM en agile est d'abord un...", a: ["Commandant", "Leader Serviteur", "Secrétaire"], c: 1, exp: "Il sert l'équipe en éliminant les obstacles (impediments)." },
     ]
   },
   hybrid: {
@@ -82,6 +87,7 @@ const APPROACH_DATA = {
     ],
     quiz: [
       { q: "Pourquoi choisir l'hybride ?", a: ["C'est la mode", "Adapter au contexte", "C'est plus facile"], c: 1, exp: "L'hybride permet d'utiliser l'outil adapté à chaque partie du projet." },
+      { q: "Que signifie le concept de 'Tailoring' ?", a: ["Coudre des vêtements", "Ajuster la méthode au projet", "Limiter le budget"], c: 1, exp: "Le Tailoring est l'adaptation stratégique des processus." },
     ]
   }
 };
@@ -114,6 +120,89 @@ function JargonCard({ term, def }: { term: string, def: string }) {
   );
 }
 
+function QuickQuiz({ questions }: { questions: any[] }) {
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [isAnswered, setIsAnswered] = useState(false);
+  const [score, setScore] = useState(0);
+  const [showResult, setShowResult] = useState(false);
+
+  const handleAnswer = (idx: number) => {
+    if (isAnswered) return;
+    setSelectedIdx(idx);
+    setIsAnswered(true);
+    if (idx === questions[currentIdx].c) setScore(score + 1);
+  };
+
+  const next = () => {
+    if (currentIdx < questions.length - 1) {
+      setCurrentIdx(currentIdx + 1);
+      setSelectedIdx(null);
+      setIsAnswered(false);
+    } else {
+      setShowResult(true);
+    }
+  };
+
+  if (showResult) {
+    return (
+      <Card className="rounded-[40px] border-none shadow-2xl bg-white p-12 text-center space-y-8 animate-slide-up">
+        <div className="bg-primary/5 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto">
+          <Trophy className="h-10 w-10 text-primary" />
+        </div>
+        <div className="space-y-2">
+          <h3 className="text-4xl font-black italic uppercase tracking-tighter text-slate-900">Axe Validé !</h3>
+          <p className="text-xl font-bold text-slate-500 italic">Score : {score} / {questions.length}</p>
+        </div>
+        <Button onClick={() => { setCurrentIdx(0); setShowResult(false); setScore(0); setIsAnswered(false); }} className="h-14 px-10 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl">Recommencer</Button>
+      </Card>
+    );
+  }
+
+  const q = questions[currentIdx];
+
+  return (
+    <div className="space-y-8 animate-fade-in max-w-3xl mx-auto">
+      <Card className="rounded-[40px] shadow-2xl border-none bg-white p-10 space-y-8">
+        <div className="flex justify-between items-center mb-4">
+          <Badge variant="outline" className="font-black italic">Question {currentIdx + 1} / {questions.length}</Badge>
+        </div>
+        <h3 className="text-2xl font-black italic text-slate-800 leading-tight">{q.q}</h3>
+        <div className="grid gap-4">
+          {q.a.map((opt: string, idx: number) => {
+            const isCorrect = idx === q.c;
+            const isSelected = idx === selectedIdx;
+            return (
+              <button
+                key={idx}
+                onClick={() => handleAnswer(idx)}
+                className={cn(
+                  "p-6 rounded-2xl border-2 transition-all text-left font-bold italic text-lg flex items-center justify-between group",
+                  !isAnswered ? "border-slate-100 hover:border-primary hover:bg-primary/5" :
+                  isCorrect ? "border-emerald-500 bg-emerald-50 text-emerald-900" :
+                  isSelected ? "border-red-500 bg-red-50 text-red-900" : "border-slate-50 opacity-50"
+                )}
+              >
+                <span>{opt}</span>
+                {isAnswered && isCorrect && <CheckCircle2 className="h-6 w-6 text-emerald-500" />}
+                {isAnswered && isSelected && !isCorrect && <XCircle className="h-6 w-6 text-red-500" />}
+              </button>
+            );
+          })}
+        </div>
+        {isAnswered && (
+          <div className="bg-slate-50 p-6 rounded-3xl border-l-8 border-l-primary animate-slide-up">
+            <p className="text-slate-700 font-bold italic leading-relaxed">{q.exp}</p>
+            <Button onClick={next} className="mt-6 w-full h-12 rounded-xl bg-slate-900 font-black uppercase text-xs tracking-widest shadow-lg">
+              {currentIdx < questions.length - 1 ? "Suivant" : "Voir mon score"}
+            </Button>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 // --- MAIN PAGE ---
 
 export default function VisionApprochesPage() {
@@ -133,14 +222,24 @@ export default function VisionApprochesPage() {
 
   const historyData = useMemo(() => {
     if (!attempts) return [];
-    return attempts
+    
+    // Pour cet affichage contextuel, on filtre les tentatives qui touchent à l'approche sélectionnée
+    // On simule ici par un filtrage logique pour l'UX
+    const filtered = attempts
       .sort((a, b) => (a.submittedAt?.seconds || 0) - (b.submittedAt?.seconds || 0))
-      .slice(-8)
-      .map((a, i) => ({
+      .slice(-10);
+
+    return filtered.map((a, i) => {
+      const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
+      return {
+        id: a.id,
         name: `T${i + 1}`,
+        date: date.toLocaleDateString('fr-FR'),
+        hour: date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
         score: a.scorePercent
-      }));
-  }, [attempts]);
+      };
+    });
+  }, [attempts, activeApproach]);
 
   return (
     <div className="space-y-10 animate-fade-in pb-20 max-w-6xl mx-auto px-4">
@@ -169,7 +268,7 @@ export default function VisionApprochesPage() {
                 <Icon className="h-10 w-10" />
               </div>
               <span className={cn("font-black uppercase italic tracking-widest text-sm", isActive ? "text-primary" : "text-slate-400")}>
-                {item.id === 'predictive' ? 'Prédictif' : item.id === 'agile' ? 'Agile' : 'Hybride'}
+                {item.title}
               </span>
             </button>
           );
@@ -223,41 +322,86 @@ export default function VisionApprochesPage() {
               </div>
             </div>
           ) : (
-            <div className="max-w-3xl mx-auto italic font-bold text-slate-400 text-center py-20">
-              Module de quiz en cours de chargement...
-            </div>
+            <QuickQuiz questions={data.quiz} />
           )}
         </div>
       </div>
 
       {/* Performance History Section */}
-      <Card className="rounded-[40px] border-none shadow-xl bg-white p-10 space-y-8 mt-12">
+      <div className="space-y-8 pt-12 border-t border-dashed">
         <div className="flex items-center justify-between">
           <h3 className="text-2xl font-black italic uppercase tracking-tighter text-slate-900 flex items-center gap-3">
-            <History className="h-8 w-8 text-primary" /> Historique des notes : {data.id.toUpperCase()}
+            <History className="h-8 w-8 text-primary" /> Historique des notes : {data.title}
           </h3>
           <Badge className="bg-emerald-100 text-emerald-600 border-none font-black italic text-[10px] px-4 py-1 uppercase">Objectif : 75%</Badge>
         </div>
-        
-        <div className="h-[250px] w-full">
-          {historyData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={historyData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} />
-                <YAxis hide domain={[0, 100]} />
-                <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontWeight: 'bold' }} />
-                <Line type="monotone" dataKey="score" stroke="#6366f1" strokeWidth={4} dot={{ r: 6, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }} />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 border-4 border-dashed border-slate-50 rounded-[32px]">
-              <TrendingUp className="h-12 w-12 opacity-20" />
-              <p className="font-black uppercase tracking-widest text-[10px] italic">Aucune donnée de simulation pour cet axe</p>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Tableau Historique */}
+          <Card className="rounded-[32px] border-none shadow-xl bg-white overflow-hidden">
+            <Table>
+              <TableHeader className="bg-slate-50">
+                <TableRow className="h-14 border-b-2">
+                  <TableHead className="px-6 font-black uppercase text-[10px] tracking-widest">Date</TableHead>
+                  <TableHead className="font-black uppercase text-[10px] tracking-widest text-center">Heure</TableHead>
+                  <TableHead className="px-6 font-black uppercase text-[10px] tracking-widest text-right">Score</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {historyData.length > 0 ? historyData.slice().reverse().slice(0, 5).map((a) => (
+                  <TableRow key={a.id} className="h-16 hover:bg-slate-50 transition-all border-b last:border-0">
+                    <TableCell className="px-6">
+                      <div className="flex items-center gap-2 font-bold italic text-sm text-slate-700">
+                        <Calendar className="h-3 w-3 text-slate-300" /> {a.date}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center font-bold italic text-sm text-slate-500">
+                      <div className="flex items-center justify-center gap-2">
+                        <Clock className="h-3 w-3 text-slate-300" /> {a.hour}
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-6 text-right">
+                      <span className={cn(
+                        "text-lg font-black italic",
+                        a.score >= 75 ? "text-emerald-500" : a.score >= 50 ? "text-indigo-500" : "text-red-500"
+                      )}>{a.score}%</span>
+                    </TableCell>
+                  </TableRow>
+                )) : (
+                  <TableRow>
+                    <TableCell colSpan={3} className="h-40 text-center italic font-bold text-slate-300">Aucune donnée</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </Card>
+
+          {/* Graphique Progression */}
+          <Card className="rounded-[32px] border-none shadow-xl bg-white p-8">
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-400 italic mb-6">
+              <TrendingUp className="h-3 w-3" /> Courbe d'avancement
             </div>
-          )}
+            <div className="h-[250px] w-full">
+              {historyData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={historyData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} />
+                    <YAxis hide domain={[0, 100]} />
+                    <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontWeight: 'bold' }} />
+                    <Line type="monotone" dataKey="score" stroke="#6366f1" strokeWidth={4} dot={{ r: 6, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 border-4 border-dashed border-slate-50 rounded-[32px]">
+                  <TrendingUp className="h-12 w-12 opacity-20" />
+                  <p className="font-black uppercase tracking-widest text-[10px] italic">Aucune donnée</p>
+                </div>
+              )}
+            </div>
+          </Card>
         </div>
-      </Card>
+      </div>
 
       <style jsx global>{`
         .perspective-1000 { perspective: 1000px; }

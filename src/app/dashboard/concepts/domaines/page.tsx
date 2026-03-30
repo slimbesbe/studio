@@ -17,7 +17,9 @@ import {
   XCircle,
   Trophy,
   TrendingUp,
-  History
+  History,
+  Clock,
+  Calendar
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
@@ -25,6 +27,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
 import { cn } from '@/lib/utils';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 // --- DATA STRUCTURE ---
 
@@ -64,6 +67,7 @@ const DOMAIN_DATA = {
     ],
     quiz: [
       { q: "Que faire en premier face à une demande de changement ?", a: ["Soumettre au CCB", "Analyser l'impact", "Mettre à jour le planning"], c: 1, exp: "L'analyse d'impact est toujours la première étape proactive." },
+      { q: "Quel document décompose le travail en lots gérables ?", a: ["Charte projet", "WBS (OTP)", "Registre des risques"], c: 1, exp: "Le WBS est la base de la planification du périmètre." },
     ]
   },
   business: {
@@ -82,6 +86,7 @@ const DOMAIN_DATA = {
     ],
     quiz: [
       { q: "Si une nouvelle loi passe durant le projet, vous devez...", a: ["Attendre la fin", "Évaluer la conformité", "Ignorer si le budget est fixe"], c: 1, exp: "La conformité aux régulations est prioritaire et non négociable." },
+      { q: "Quel document justifie l'investissement dans le projet ?", a: ["Rapport de performance", "Business Case", "Plan de gestion"], c: 1, exp: "Le Business Case explique le 'Pourquoi' économique et stratégique." },
     ]
   }
 };
@@ -156,7 +161,7 @@ function QuickQuiz({ questions }: { questions: any[] }) {
   const q = questions[currentIdx];
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-fade-in max-w-3xl mx-auto">
       <Card className="rounded-[40px] shadow-2xl border-none bg-white p-10 space-y-8">
         <div className="flex justify-between items-center mb-4">
           <Badge variant="outline" className="font-black italic">Question {currentIdx + 1} / {questions.length}</Badge>
@@ -207,7 +212,6 @@ export default function VisionDomainesPage() {
 
   const data = DOMAIN_DATA[activeDomain];
 
-  // Fetch performance history for the selected domain
   const attemptsQuery = useMemoFirebase(() => {
     if (!user?.uid) return null;
     return query(collection(db, 'coachingAttempts'), where('userId', '==', user.uid));
@@ -217,16 +221,23 @@ export default function VisionDomainesPage() {
 
   const historyData = useMemo(() => {
     if (!attempts) return [];
-    // Filter attempts that have responses from this domain
-    // (Simulé ici par filtrage sur le temps pour l'exemple UI)
-    return attempts
+    
+    // On filtre les tentatives (simulation pour l'UI contextuelle)
+    const filtered = attempts
       .sort((a, b) => (a.submittedAt?.seconds || 0) - (b.submittedAt?.seconds || 0))
-      .slice(-8)
-      .map((a, i) => ({
+      .slice(-10);
+
+    return filtered.map((a, i) => {
+      const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
+      return {
+        id: a.id,
         name: `T${i + 1}`,
+        date: date.toLocaleDateString('fr-FR'),
+        hour: date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
         score: a.scorePercent
-      }));
-  }, [attempts]);
+      };
+    });
+  }, [attempts, activeDomain]);
 
   return (
     <div className="space-y-10 animate-fade-in pb-20 max-w-6xl mx-auto px-4">
@@ -309,41 +320,86 @@ export default function VisionDomainesPage() {
               </div>
             </div>
           ) : (
-            <div className="max-w-3xl mx-auto">
-              <QuickQuiz questions={data.quiz} />
-            </div>
+            <QuickQuiz questions={data.quiz} />
           )}
         </div>
       </div>
 
       {/* Performance History Section */}
-      <Card className="rounded-[40px] border-none shadow-xl bg-white p-10 space-y-8 mt-12">
+      <div className="space-y-8 pt-12 border-t border-dashed">
         <div className="flex items-center justify-between">
           <h3 className="text-2xl font-black italic uppercase tracking-tighter text-slate-900 flex items-center gap-3">
             <History className="h-8 w-8 text-primary" /> Historique des notes : {data.title}
           </h3>
           <Badge className="bg-emerald-100 text-emerald-600 border-none font-black italic text-[10px] px-4 py-1 uppercase">Objectif : 75%</Badge>
         </div>
-        
-        <div className="h-[250px] w-full">
-          {historyData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={historyData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} />
-                <YAxis hide domain={[0, 100]} />
-                <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontWeight: 'bold' }} />
-                <Line type="monotone" dataKey="score" stroke="#6366f1" strokeWidth={4} dot={{ r: 6, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }} />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 border-4 border-dashed border-slate-50 rounded-[32px]">
-              <TrendingUp className="h-12 w-12 opacity-20" />
-              <p className="font-black uppercase tracking-widest text-[10px] italic">Aucune donnée de simulation pour cet axe</p>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Tableau Historique */}
+          <Card className="rounded-[32px] border-none shadow-xl bg-white overflow-hidden">
+            <Table>
+              <TableHeader className="bg-slate-50">
+                <TableRow className="h-14 border-b-2">
+                  <TableHead className="px-6 font-black uppercase text-[10px] tracking-widest">Date</TableHead>
+                  <TableHead className="font-black uppercase text-[10px] tracking-widest text-center">Heure</TableHead>
+                  <TableHead className="px-6 font-black uppercase text-[10px] tracking-widest text-right">Score</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {historyData.length > 0 ? historyData.slice().reverse().slice(0, 5).map((a) => (
+                  <TableRow key={a.id} className="h-16 hover:bg-slate-50 transition-all border-b last:border-0">
+                    <TableCell className="px-6">
+                      <div className="flex items-center gap-2 font-bold italic text-sm text-slate-700">
+                        <Calendar className="h-3 w-3 text-slate-300" /> {a.date}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center font-bold italic text-sm text-slate-500">
+                      <div className="flex items-center justify-center gap-2">
+                        <Clock className="h-3 w-3 text-slate-300" /> {a.hour}
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-6 text-right">
+                      <span className={cn(
+                        "text-lg font-black italic",
+                        a.score >= 75 ? "text-emerald-500" : a.score >= 50 ? "text-indigo-500" : "text-red-500"
+                      )}>{a.score}%</span>
+                    </TableCell>
+                  </TableRow>
+                )) : (
+                  <TableRow>
+                    <TableCell colSpan={3} className="h-40 text-center italic font-bold text-slate-300">Aucune donnée</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </Card>
+
+          {/* Graphique Progression */}
+          <Card className="rounded-[32px] border-none shadow-xl bg-white p-8">
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-400 italic mb-6">
+              <TrendingUp className="h-3 w-3" /> Courbe d'avancement
             </div>
-          )}
+            <div className="h-[250px] w-full">
+              {historyData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={historyData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} />
+                    <YAxis hide domain={[0, 100]} />
+                    <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontWeight: 'bold' }} />
+                    <Line type="monotone" dataKey="score" stroke="#6366f1" strokeWidth={4} dot={{ r: 6, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 border-4 border-dashed border-slate-50 rounded-[32px]">
+                  <TrendingUp className="h-12 w-12 opacity-20" />
+                  <p className="font-black uppercase tracking-widest text-[10px] italic">Aucune donnée</p>
+                </div>
+              )}
+            </div>
+          </Card>
         </div>
-      </Card>
+      </div>
 
       <style jsx global>{`
         .perspective-1000 { perspective: 1000px; }
