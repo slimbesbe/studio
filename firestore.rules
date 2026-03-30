@@ -50,13 +50,13 @@ service cloud.firestore {
     }
 
     match /coachingAttempts/{attemptId} {
-      allow read: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid) || (request.query.filters != null && request.query.filters.userId == request.auth.uid));
+      allow read: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid));
       allow create: if isSignedIn();
       allow update, delete: if isAdmin();
     }
 
     match /quickQuizAttempts/{attemptId} {
-      allow read: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid) || (request.query.filters != null && request.query.filters.userId == request.auth.uid));
+      allow read: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid));
       allow create: if isSignedIn();
       allow update, delete: if isAdmin();
     }
