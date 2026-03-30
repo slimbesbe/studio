@@ -239,7 +239,6 @@ export default function VisionDomainesPage() {
 
   const attemptsQuery = useMemoFirebase(() => {
     if (!user?.uid) return null;
-    // Suppression de orderBy pour éviter le besoin d'index composite et les erreurs de permission
     return query(
       collection(db, 'quickQuizAttempts'), 
       where('userId', '==', user.uid),
@@ -251,7 +250,6 @@ export default function VisionDomainesPage() {
 
   const historyData = useMemo(() => {
     if (!attempts) return [];
-    // Tri côté client pour garantir la fluidité sans erreur Firestore
     const sorted = [...attempts].sort((a, b) => {
       const timeA = a.submittedAt?.seconds || 0;
       const timeB = b.submittedAt?.seconds || 0;
@@ -265,7 +263,8 @@ export default function VisionDomainesPage() {
         name: `Q${i + 1}`,
         date: date.toLocaleDateString('fr-FR'),
         hour: date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-        score: a.score
+        score: a.score,
+        responses: `${a.correctCount || 0} / ${a.totalQuestions || 5}`
       };
     });
   }, [attempts]);
@@ -364,6 +363,7 @@ export default function VisionDomainesPage() {
                   <TableRow className="h-14 border-b-2">
                     <TableHead className="px-6 font-black uppercase text-[10px] tracking-widest">Date</TableHead>
                     <TableHead className="font-black uppercase text-[10px] tracking-widest text-center">Heure</TableHead>
+                    <TableHead className="font-black uppercase text-[10px] tracking-widest text-center">Réponses</TableHead>
                     <TableHead className="px-6 font-black uppercase text-[10px] tracking-widest text-right">Score</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -379,6 +379,9 @@ export default function VisionDomainesPage() {
                         <div className="flex items-center justify-center gap-2">
                           <Clock className="h-3 w-3 text-slate-300" /> {a.hour}
                         </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span className="font-black italic text-slate-400 text-sm">{a.responses}</span>
                       </TableCell>
                       <TableCell className="px-6 text-right">
                         <span className={cn(
