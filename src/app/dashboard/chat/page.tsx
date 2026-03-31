@@ -1,11 +1,10 @@
-
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MessageSquare, Send, Loader2, User, Sparkles, Brain, Info } from 'lucide-react';
+import { MessageSquare, Send, Loader2, User, Sparkles } from 'lucide-react';
 import { useUser } from '@/firebase';
 import { cn } from '@/lib/utils';
 
@@ -20,14 +19,21 @@ export default function ChatPage() {
   const { profile } = useUser();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'welcome',
-      role: 'assistant',
-      content: `Bonjour ${profile?.firstName || 'Candidat'} ! Je suis votre coach intelligent Simu-lux. Posez-moi vos questions sur le mindset PMP, une approche spécifique ou un concept du PMBOK.`,
-      timestamp: new Date()
+  const [messages, setMessages] = useState<Message[]>([]);
+
+  // Initialisation du message de bienvenue avec le nom dynamique
+  useEffect(() => {
+    if (profile && messages.length === 0) {
+      setMessages([
+        {
+          id: 'welcome',
+          role: 'assistant',
+          content: `Bonjour ${profile?.firstName || 'Candidat'} ! Je suis votre coach Simu-lux. Prêt à dominer l'examen ? Posez-moi vos questions sur le Mindset PMP, les processus du PMBOK ou les approches Agiles.`,
+          timestamp: new Date()
+        }
+      ]);
     }
-  ]);
+  }, [profile, messages.length]);
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -40,20 +46,20 @@ export default function ChatPage() {
     };
 
     setMessages(prev => [...prev, userMsg]);
-    setInput('');
+    setInput(''); // Vider le champ immédiatement
     setIsLoading(true);
 
-    // Simulation de réponse IA
+    // Simulation de réflexion (1 seconde) puis réponse automatique
     setTimeout(() => {
       const assistantMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: "C'est une excellente question sur le Mindset PMP. En tant que Chef de Projet, vous devez toujours privilégier l'analyse d'impact avant toute action corrective. Selon le PMBOK®, la proactivité est la clé : ne demandez pas au sponsor de décider, proposez-lui des solutions basées sur des données réelles.",
+        content: "Merci pour votre question ! Le service de chat interactif n'est pas encore disponible. Nous finalisons la configuration pour vous offrir une expérience optimale. Revenez vers moi ultérieurement pour un coaching complet.",
         timestamp: new Date()
       };
       setMessages(prev => [...prev, assistantMsg]);
       setIsLoading(false);
-    }, 1500);
+    }, 1000);
   };
 
   return (
@@ -82,17 +88,24 @@ export default function ChatPage() {
                 {m.role === 'user' ? <User className="h-5 w-5 text-white" /> : <Sparkles className="h-5 w-5 text-white" />}
               </div>
               <div className={cn(
-                "max-w-[80%] p-6 rounded-[32px] text-sm font-bold italic leading-relaxed",
+                "max-w-[80%] p-6 rounded-[32px] text-sm font-bold italic leading-relaxed shadow-sm",
                 m.role === 'user' ? "bg-slate-50 text-slate-800 rounded-tr-none" : "bg-indigo-50 text-indigo-900 rounded-tl-none border-2 border-indigo-100"
               )}>
                 {m.content}
               </div>
             </div>
           ))}
+          
           {isLoading && (
-            <div className="flex items-center gap-4 animate-pulse">
-              <div className="h-10 w-10 rounded-2xl bg-indigo-100 flex items-center justify-center"><Loader2 className="h-5 w-5 text-indigo-400 animate-spin" /></div>
-              <div className="h-12 w-32 bg-slate-50 rounded-full" />
+            <div className="flex items-start gap-4 animate-pulse">
+              <div className="h-10 w-10 rounded-2xl bg-indigo-500 flex items-center justify-center shrink-0 shadow-lg">
+                <Sparkles className="h-5 w-5 text-white" />
+              </div>
+              <div className="bg-indigo-50 border-2 border-indigo-100 p-4 rounded-[24px] rounded-tl-none flex items-center gap-1.5">
+                <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce"></div>
+              </div>
             </div>
           )}
         </CardContent>
@@ -104,13 +117,13 @@ export default function ChatPage() {
             <Input 
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Posez votre question PMP ici..."
+              placeholder="Décrivez une situation ou posez votre question ici..."
               className="h-16 pl-8 pr-20 rounded-[24px] border-4 border-white shadow-xl bg-white font-bold italic text-slate-700 focus-visible:ring-indigo-500"
             />
             <Button 
               type="submit" 
               disabled={!input.trim() || isLoading}
-              className="absolute right-3 top-3 h-10 w-10 rounded-xl bg-indigo-500 hover:bg-indigo-600 shadow-lg"
+              className="absolute right-3 top-3 h-10 w-10 rounded-xl bg-indigo-500 hover:bg-indigo-600 shadow-lg transition-transform active:scale-95"
             >
               <Send className="h-4 w-4" />
             </Button>
