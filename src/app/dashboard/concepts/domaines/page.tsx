@@ -24,7 +24,7 @@ import {
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
+  ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell 
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -386,7 +386,7 @@ export default function VisionDomainesPage() {
                       <TableCell className="px-6 text-right">
                         <span className={cn(
                           "text-lg font-black italic",
-                          a.score >= 80 ? "text-emerald-500" : a.score >= 60 ? "text-indigo-500" : "text-red-500"
+                          a.score >= 80 ? "text-emerald-500" : a.score >= 60 ? "text-[#f59e0b]" : "text-red-500"
                         )}>{a.score}%</span>
                       </TableCell>
                     </TableRow>
@@ -401,13 +401,21 @@ export default function VisionDomainesPage() {
               </div>
               <div className="h-[250px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={historyData}>
+                  <ComposedChart data={historyData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} />
                     <YAxis hide domain={[0, 100]} />
                     <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontWeight: 'bold' }} />
+                    <Bar dataKey="score" radius={[4, 4, 0, 0]} barSize={30}>
+                      {historyData.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={entry.score >= 80 ? '#10b981' : entry.score >= 60 ? '#f59e0b' : '#ef4444'} 
+                        />
+                      ))}
+                    </Bar>
                     <Line type="monotone" dataKey="score" stroke="#6366f1" strokeWidth={4} dot={{ r: 6, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }} />
-                  </LineChart>
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
             </Card>
