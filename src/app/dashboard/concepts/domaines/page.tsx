@@ -158,7 +158,7 @@ export default function VisionDomainesPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={historyData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontStyle: 'italic', fontWeight: 800, fill: '#94a3b8' }} />
                   <YAxis hide domain={[0, 100]} />
                   <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontWeight: 'bold' }} />
                   <Bar dataKey="score" radius={[4, 4, 0, 0]} barSize={30}>
@@ -181,8 +181,8 @@ function JargonCard({ term, def }: { term: string, def: string }) {
   return (
     <div className="perspective-1000 h-48 w-full cursor-pointer group" onClick={() => setIsFlipped(!isFlipped)}>
       <div className={cn("relative w-full h-full transition-transform duration-500 preserve-3d", isFlipped ? "rotate-y-180" : "")}>
-        {/* RECTO : Bleu Royal (#004aad) */}
-        <div className="absolute inset-0 backface-hidden bg-[#004aad] text-white rounded-[24px] flex flex-col items-center justify-center p-6 shadow-xl">
+        {/* RECTO : Vert très clair et doux */}
+        <div className="absolute inset-0 backface-hidden bg-[#f0fdf4] text-[#1e293b] rounded-[24px] flex flex-col items-center justify-center p-6 shadow-xl border-2 border-emerald-100/50">
           <h3 className="text-xl font-black italic uppercase tracking-tight text-center">{term}</h3>
         </div>
         {/* VERSO : Gris Anthracite (#1e293b) */}
