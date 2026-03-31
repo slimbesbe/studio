@@ -50,11 +50,8 @@ service cloud.firestore {
     }
 
     match /coachingAttempts/{attemptId} {
-      // Autoriser la lecture si l'utilisateur est admin ou si le document lui appartient
       allow read: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid));
-      // Autoriser la création seulement pour soi-même
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      // Autoriser la suppression pour soi-même (nécessaire pour la réinitialisation de la matrice)
       allow delete: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid));
       allow update: if isAdmin();
     }
@@ -64,6 +61,19 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow delete: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid));
       allow update: if isAdmin();
+    }
+
+    // Autoriser la lecture des contenus de formation pour tous les membres
+    match /mindsets/{mindsetId} {
+      allow read: if isSignedIn();
+    }
+    
+    match /concepts_approaches/{approachId} {
+      allow read: if isSignedIn();
+    }
+    
+    match /concepts_domains/{domainId} {
+      allow read: if isSignedIn();
     }
   }
 }
