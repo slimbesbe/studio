@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
@@ -265,19 +266,15 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
   const q = activeQuestions[currentIdx];
   if (!q) return null;
 
-  // Extraction ultra-robuste des choix (Vrai/Faux, Options, etc.)
   const getRawChoices = (item: any) => {
-    // 1. Priorité aux tableaux explicites
     if (Array.isArray(item.a) && item.a.length > 0) return item.a;
     if (Array.isArray(item.choices) && item.choices.length > 0) return item.choices;
     if (Array.isArray(item.options) && item.options.length > 0) return item.options;
     
-    // 2. Scan manuel des clés de type option (colonnes Excel typiques)
     const standardKeys = ["a1", "a2", "a3", "a4", "option1", "option2", "option3", "option4", "Vrai", "Faux", "A", "B", "C", "D"];
     const found = standardKeys.map(k => item[k]).filter(v => v !== undefined && v !== null && String(v).trim() !== "");
     if (found.length > 0) return found;
 
-    // 3. Fallback agressif : scanne toutes les clés qui ne sont pas de la métadonnée
     const metadata = ["q", "text", "statement", "exp", "explanation", "c", "correct", "id", "updatedAt", "title", "description", "jargon", "quiz", "index", "tags"];
     const candidates = Object.keys(item)
       .filter(k => !metadata.includes(k.toLowerCase()))
@@ -307,9 +304,9 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
         {rawChoices.map((opt: any, idx: number) => {
           const isCorrect = idx === correctIdx;
           const isSelected = idx === selectedIdx;
-          const text = String(opt?.text || opt || '');
+          const textValue = String(opt?.text || opt || '');
           
-          if (!text || text.trim() === "") return null;
+          if (!textValue || textValue.trim() === "") return null;
 
           return (
             <button 
@@ -343,7 +340,7 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
                 "flex-1 text-xl font-black italic pt-1",
                 !isAnswered ? "text-black" : (isCorrect ? "text-emerald-900" : isSelected ? "text-red-900" : "text-slate-400")
               )}>
-                {text}
+                {textValue}
               </span>
               {isAnswered && isCorrect && <CheckCircle2 className="h-6 w-6 text-emerald-500 absolute right-6 top-8" />}
             </button>

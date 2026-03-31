@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -16,7 +17,8 @@ import {
   Download,
   Upload,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  Minus
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -113,7 +115,6 @@ export default function ManageDomains() {
         const bstr = evt.target?.result;
         const wb = XLSX.read(bstr, { type: 'binary' });
         
-        // 1. Jargon
         const jargonSheet = wb.Sheets["Jargon"];
         const jargonData = jargonSheet ? XLSX.utils.sheet_to_json(jargonSheet) : [];
         const parsedJargon = jargonData.map((row: any) => ({
@@ -121,13 +122,11 @@ export default function ManageDomains() {
           def: String(row.def || row.Définition || row.Definition || Object.values(row)[1] || "").trim()
         })).filter(j => j.term.length > 0);
 
-        // 2. Quiz - Extraction Standardisée
         const quizSheet = wb.Sheets["Quiz"];
         const quizData = quizSheet ? XLSX.utils.sheet_to_json(quizSheet) : [];
         
         const parsedQuiz = quizData.map((row: any) => {
           const q = String(row.q || row.Question || row.Énoncé || Object.values(row)[0] || "").trim();
-          
           const a: string[] = [];
           
           if (row.Vrai !== undefined || row.Faux !== undefined) {
@@ -160,7 +159,6 @@ export default function ManageDomains() {
           }
 
           const exp = String(row.exp || row.Explication || row.Justification || "").trim();
-
           return { q, a, c, exp };
         }).filter(item => item.q.length > 2);
 
@@ -188,14 +186,33 @@ export default function ManageDomains() {
 
   const addQuiz = () => setData({...data, quiz: [...data.quiz, { q: '', a: ['Vrai', 'Faux'], c: 0, exp: '' }]});
   const removeQuiz = (idx: number) => setData({...data, quiz: data.quiz.filter((_:any, i:number) => i !== idx)});
-  const updateQuiz = (idx: number, field: string, val: any) => {
+  
+  const updateQuizChoice = (quizIdx: number, choiceIdx: number, val: string) => {
     const next = [...data.quiz];
-    if (field.startsWith('a.')) {
-      const optIdx = parseInt(field.split('.')[1]);
-      next[idx].a[optIdx] = val;
-    } else {
-      next[idx][field] = val;
+    next[quizIdx].a[choiceIdx] = val;
+    setData({...data, quiz: next});
+  };
+
+  const addQuizChoice = (quizIdx: number) => {
+    const next = [...data.quiz];
+    if (next[quizIdx].a.length < 4) {
+      next[quizIdx].a.push('');
+      setData({...data, quiz: next});
     }
+  };
+
+  const removeQuizChoice = (quizIdx: number, choiceIdx: number) => {
+    const next = [...data.quiz];
+    if (next[quizIdx].a.length > 2) {
+      next[quizIdx].a.splice(choiceIdx, 1);
+      if (next[quizIdx].c >= next[quizIdx].a.length) next[quizIdx].c = 0;
+      setData({...data, quiz: next});
+    }
+  };
+
+  const updateQuizField = (quizIdx: number, field: string, val: any) => {
+    const next = [...data.quiz];
+    next[quizIdx][field] = val;
     setData({...data, quiz: next});
   };
 
@@ -267,7 +284,7 @@ export default function ManageDomains() {
               <div className="space-y-4 flex-1">
                 {data.jargon?.map((j:any, idx:number) => (
                   <div key={idx} className="p-6 bg-slate-50 rounded-2xl border-2 border-dashed relative group">
-                    <Button variant="ghost" size="icon" onClick={() => removeJargon(idx)} className="absolute -top-2 -right-2 h-8 w-8 rounded-full bg-white border-2 text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"><Trash2 className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => removeJargon(idx)} className="absolute -top-2 -right-2 h-8 w-8 rounded-full bg-white border-2 text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity shadow-md z-10"><Trash2 className="h-4 w-4" /></Button>
                     <div className="space-y-4">
                       <Input placeholder="Terme..." value={j.term} onChange={(e) => updateJargon(idx, 'term', e.target.value)} className="h-10 bg-white rounded-lg font-black italic border-2" />
                       <Textarea placeholder="Définition..." value={j.def} onChange={(e) => updateJargon(idx, 'def', e.target.value)} className="h-20 bg-white rounded-lg font-bold italic border-2" />
@@ -280,22 +297,38 @@ export default function ManageDomains() {
             <Card className="rounded-[40px] shadow-xl border-none p-10 bg-white flex flex-col h-full">
               <div className="flex items-center justify-between mb-8">
                 <h3 className="text-xl font-black italic uppercase text-emerald-600 flex items-center gap-3"><Zap className="h-6 w-6" /> Quiz Rapide</h3>
-                <Button variant="outline" size="sm" onClick={addQuiz} className="rounded-xl border-2 font-black uppercase text-[10px] italic"><Plus className="h-3 w-3 mr-1" /> Ajouter</Button>
+                <Button variant="outline" size="sm" onClick={addQuiz} className="rounded-xl border-2 font-black uppercase text-[10px] italic"><Plus className="h-3 w-3 mr-1" /> Ajouter Question</Button>
               </div>
               <div className="space-y-6 flex-1">
                 {data.quiz?.map((q:any, idx:number) => (
                   <div key={idx} className="p-6 bg-emerald-50/30 rounded-3xl border-2 border-emerald-100 relative group space-y-4">
-                    <Button variant="ghost" size="icon" onClick={() => removeQuiz(idx)} className="absolute -top-2 -right-2 h-8 w-8 rounded-full bg-white border-2 text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"><Trash2 className="h-4 w-4" /></Button>
-                    <Input placeholder="Question ?" value={q.q} onChange={(e) => updateQuiz(idx, 'q', e.target.value)} className="h-10 bg-white rounded-lg font-black italic border-2 border-emerald-200" />
-                    <div className="grid grid-cols-1 gap-2">
-                      {Array.isArray(q.a) && q.a.map((opt:string, optIdx:number) => (
-                        <div key={optIdx} className="flex items-center gap-2">
-                          <button onClick={() => updateQuiz(idx, 'c', optIdx)} className={cn("h-6 w-6 rounded-full border-2 flex items-center justify-center font-black text-[10px]", q.c === optIdx ? "bg-black border-black text-white" : "bg-white border-slate-200 text-slate-300")}>{String.fromCharCode(65 + optIdx)}</button>
-                          <Input placeholder={`Option ${String.fromCharCode(65 + optIdx)}`} value={opt} onChange={(e) => updateQuiz(idx, `a.${optIdx}`, e.target.value)} className="h-9 bg-white rounded-lg font-bold italic text-xs border-2 border-emerald-100" />
-                        </div>
-                      ))}
+                    <Button variant="ghost" size="icon" onClick={() => removeQuiz(idx)} className="absolute -top-2 -right-2 h-8 w-8 rounded-full bg-white border-2 text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity shadow-md z-10"><Trash2 className="h-4 w-4" /></Button>
+                    
+                    <div className="space-y-2">
+                      <Label className="text-[9px] font-black uppercase text-emerald-600 italic">Question ?</Label>
+                      <Input placeholder="Votre question..." value={q.q} onChange={(e) => updateQuizField(idx, 'q', e.target.value)} className="h-10 bg-white rounded-lg font-black italic border-2 border-emerald-200" />
                     </div>
-                    <Textarea placeholder="Justification..." value={q.exp} onChange={(e) => updateQuiz(idx, 'exp', e.target.value)} className="h-20 bg-white rounded-lg font-bold italic text-xs border-2 border-emerald-100" />
+
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-[9px] font-black uppercase text-emerald-600 italic">Choix possibles</Label>
+                        {q.a.length < 4 && <Button variant="ghost" size="sm" onClick={() => addQuizChoice(idx)} className="h-6 text-[8px] font-black uppercase italic bg-white border"><Plus className="h-3 w-3 mr-1" /> Ajouter Choix</Button>}
+                      </div>
+                      <div className="grid gap-2">
+                        {q.a.map((opt:string, optIdx:number) => (
+                          <div key={optIdx} className="flex items-center gap-2 group/choice">
+                            <button onClick={() => updateQuizField(idx, 'c', optIdx)} className={cn("h-8 w-8 rounded-full border-2 flex items-center justify-center font-black text-xs shrink-0 transition-all shadow-sm", q.c === optIdx ? "bg-black border-black text-white" : "bg-white border-slate-200 text-slate-300 hover:border-black/30")}>{String.fromCharCode(65 + optIdx)}</button>
+                            <Input placeholder={`Option ${String.fromCharCode(65 + optIdx)}`} value={opt} onChange={(e) => updateQuizChoice(idx, optIdx, e.target.value)} className={cn("h-10 bg-white rounded-lg font-bold italic text-sm border-2", q.c === optIdx ? "border-emerald-400" : "border-emerald-100")} />
+                            {q.a.length > 2 && <Button variant="ghost" size="icon" onClick={() => removeQuizChoice(idx, optIdx)} className="h-8 w-8 text-red-400 hover:bg-red-50 opacity-0 group-hover/choice:opacity-100"><Minus className="h-3 w-3" /></Button>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-[9px] font-black uppercase text-emerald-600 italic">Justification Mindset</Label>
+                      <Textarea placeholder="Justification..." value={q.exp} onChange={(e) => updateQuizField(idx, 'exp', e.target.value)} className="h-20 bg-white rounded-lg font-bold italic text-xs border-2 border-emerald-100" />
+                    </div>
                   </div>
                 ))}
               </div>
