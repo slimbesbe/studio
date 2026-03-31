@@ -113,6 +113,7 @@ export default function ManageDomains() {
         const bstr = evt.target?.result;
         const wb = XLSX.read(bstr, { type: 'binary' });
         
+        // 1. Jargon
         const jargonSheet = wb.Sheets["Jargon"];
         const jargonData = jargonSheet ? XLSX.utils.sheet_to_json(jargonSheet) : [];
         const parsedJargon = jargonData.map((row: any) => ({
@@ -120,6 +121,7 @@ export default function ManageDomains() {
           def: String(row.def || row.Définition || row.Definition || Object.values(row)[1] || "").trim()
         })).filter(j => j.term.length > 0);
 
+        // 2. Quiz - Extraction intelligente
         const quizSheet = wb.Sheets["Quiz"];
         const quizData = quizSheet ? XLSX.utils.sheet_to_json(quizSheet) : [];
         
@@ -127,23 +129,22 @@ export default function ManageDomains() {
           const q = String(row.q || row.Question || row.Énoncé || Object.values(row)[0] || "").trim();
           
           const a: string[] = [];
-          // Extraction gourmande des colonnes de réponses
-          Object.keys(row).forEach(key => {
+          // Colonnes candidates pour les choix
+          const choiceKeys = Object.keys(row).filter(key => {
             const k = key.toLowerCase();
-            const val = row[key];
+            return k.startsWith('a') || k.startsWith('opt') || k.startsWith('choix') || k.startsWith('choice') || k.startsWith('r') || k === 'vrai' || k === 'faux';
+          }).filter(k => !['index', 'explication', 'justification', 'explanation', 'correct', 'c', 'id'].includes(k.toLowerCase()));
+
+          choiceKeys.forEach(k => {
+            const val = row[k];
             if (val !== undefined && val !== null && String(val).trim() !== "") {
-              if (k.startsWith('a') || k.startsWith('opt') || k.startsWith('choix') || k.startsWith('choice') || k.startsWith('r') || k === 'vrai' || k === 'faux') {
-                if (!['index', 'explication', 'justification', 'explanation', 'correct', 'c'].includes(k)) {
-                  a.push(String(val).trim());
-                }
-              }
+              a.push(String(val).trim());
             }
           });
 
-          // Fallback colonnes standard
           if (a.length === 0) {
-            const standard = [row.a1, row.a2, row.a3, row.a4, row.option1, row.option2, row.Vrai, row.Faux].filter(v => v !== undefined && v !== null);
-            standard.forEach(v => a.push(String(v).trim()));
+            if (row.Vrai !== undefined) a.push("Vrai");
+            if (row.Faux !== undefined) a.push("Faux");
           }
 
           let cVal = row.c || row.correct_idx || row.index_correct || row.correct || "1";
@@ -153,9 +154,9 @@ export default function ManageDomains() {
             if (['A','B','C','D'].includes(firstChar)) c = firstChar.charCodeAt(0) - 65;
             else if (firstChar === "VRAI") c = 0;
             else if (firstChar === "FAUX") c = 1;
-            else c = Math.max(0, parseInt(cVal) - 1);
+            else c = Math.max(0, (parseInt(cVal) || 1) - 1);
           } else {
-            c = Math.max(0, Number(cVal) - 1);
+            c = Math.max(0, (Number(cVal) || 1) - 1);
           }
 
           const exp = String(row.exp || row.Explication || row.Justification || row.Explanation || "").trim();
@@ -200,7 +201,7 @@ export default function ManageDomains() {
 
   const exportModel = () => {
     const jargonWs = XLSX.utils.json_to_sheet([{ term: "Conflit", def: "Désaccord entre deux parties." }]);
-    const quizWs = XLSX.utils.json_to_sheet([{ q: "Domaine People ?", a1: "Choix 1", a2: "Choix 2", a3: "", correct: 1, exp: "Explication" }]);
+    const quizWs = XLSX.utils.json_to_sheet([{ q: "Domaine People ?", a1: "Choix 1", a2: "Choix 2", correct: 1, exp: "Explication" }]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, jargonWs, "Jargon");
     XLSX.utils.book_append_sheet(wb, quizWs, "Quiz");

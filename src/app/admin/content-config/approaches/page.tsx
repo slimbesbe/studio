@@ -118,6 +118,7 @@ export default function ManageApproaches() {
         const bstr = evt.target?.result;
         const wb = XLSX.read(bstr, { type: 'binary' });
         
+        // 1. Parsing Jargon
         const jargonSheet = wb.Sheets["Jargon"];
         const jargonData = jargonSheet ? XLSX.utils.sheet_to_json(jargonSheet) : [];
         const parsedJargon = jargonData.map((row: any) => ({
@@ -125,6 +126,7 @@ export default function ManageApproaches() {
           def: String(row.def || row.Définition || row.Definition || Object.values(row)[1] || "").trim()
         })).filter(j => j.term.length > 0);
 
+        // 2. Parsing Quiz - Ultra flexible
         const quizSheet = wb.Sheets["Quiz"];
         const quizData = quizSheet ? XLSX.utils.sheet_to_json(quizSheet) : [];
         
@@ -132,23 +134,23 @@ export default function ManageApproaches() {
           const q = String(row.q || row.Question || row.Énoncé || Object.values(row)[0] || "").trim();
           
           const a: string[] = [];
-          // Extraction gourmande des colonnes de réponses
-          Object.keys(row).forEach(key => {
+          // Colonnes candidates pour les choix
+          const choiceKeys = Object.keys(row).filter(key => {
             const k = key.toLowerCase();
-            const val = row[key];
+            return k.startsWith('a') || k.startsWith('opt') || k.startsWith('choix') || k.startsWith('choice') || k.startsWith('r') || k === 'vrai' || k === 'faux';
+          }).filter(k => !['index', 'explication', 'justification', 'explanation', 'correct', 'c', 'id'].includes(k.toLowerCase()));
+
+          choiceKeys.forEach(k => {
+            const val = row[k];
             if (val !== undefined && val !== null && String(val).trim() !== "") {
-              if (k.startsWith('a') || k.startsWith('opt') || k.startsWith('choix') || k.startsWith('choice') || k.startsWith('r') || k === 'vrai' || k === 'faux') {
-                if (!['index', 'explication', 'justification', 'explanation', 'correct', 'c'].includes(k)) {
-                  a.push(String(val).trim());
-                }
-              }
+              a.push(String(val).trim());
             }
           });
 
-          // Si rien n'a été trouvé par pattern, on prend les colonnes standard
+          // Si on n'a rien trouvé, on prend Vrai/Faux s'ils existent
           if (a.length === 0) {
-            const standard = [row.a1, row.a2, row.a3, row.a4, row.option1, row.option2, row.Vrai, row.Faux].filter(v => v !== undefined && v !== null);
-            standard.forEach(v => a.push(String(v).trim()));
+            if (row.Vrai !== undefined) a.push("Vrai");
+            if (row.Faux !== undefined) a.push("Faux");
           }
 
           let cVal = row.c || row.correct_idx || row.index_correct || row.correct || "1";
@@ -158,9 +160,9 @@ export default function ManageApproaches() {
             if (['A','B','C','D'].includes(firstChar)) c = firstChar.charCodeAt(0) - 65;
             else if (firstChar === "VRAI") c = 0;
             else if (firstChar === "FAUX") c = 1;
-            else c = Math.max(0, parseInt(cVal) - 1);
+            else c = Math.max(0, (parseInt(cVal) || 1) - 1);
           } else {
-            c = Math.max(0, Number(cVal) - 1);
+            c = Math.max(0, (Number(cVal) || 1) - 1);
           }
 
           const exp = String(row.exp || row.Explication || row.Justification || row.Explanation || "").trim();
@@ -174,7 +176,7 @@ export default function ManageApproaches() {
           quiz: parsedQuiz.length > 0 ? parsedQuiz : prev.quiz
         }));
 
-        toast({ title: "Import réussi", description: `${parsedQuiz.length} questions chargées.` });
+        toast({ title: "Import réussi", description: `${parsedQuiz.length} questions de quiz chargées.` });
       } catch (err) {
         toast({ variant: "destructive", title: "Erreur import" });
       }
@@ -205,7 +207,7 @@ export default function ManageApproaches() {
 
   const exportModel = () => {
     const jargonWs = XLSX.utils.json_to_sheet([{ term: "WBS", def: "Work Breakdown Structure" }]);
-    const quizWs = XLSX.utils.json_to_sheet([{ q: "Le sponsor gère le planning ?", a1: "Vrai", a2: "Faux", a3: "", a4: "", correct: 2, exp: "Le sponsor est responsable business, pas planning." }]);
+    const quizWs = XLSX.utils.json_to_sheet([{ q: "Le sponsor gère le planning ?", a1: "Vrai", a2: "Faux", correct: 2, exp: "Le sponsor est responsable business." }]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, jargonWs, "Jargon");
     XLSX.utils.book_append_sheet(wb, quizWs, "Quiz");

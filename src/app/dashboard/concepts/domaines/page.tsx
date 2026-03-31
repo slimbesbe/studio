@@ -14,7 +14,8 @@ import {
   Info,
   Trophy,
   Loader2,
-  ChevronRight
+  ChevronRight,
+  ChevronLeft
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
@@ -250,7 +251,7 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
   const q = activeQuestions[currentIdx];
   if (!q) return null;
 
-  // Extraction ultra-robuste des choix (Vrai/Faux, A/B/C, etc.)
+  // Extraction ultra-robuste des choix pour éviter les cases vides
   const getRawChoices = (item: any) => {
     // 1. Priorité aux tableaux explicites
     if (Array.isArray(item.a) && item.a.length > 0) return item.a;
@@ -274,12 +275,12 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
 
   const rawChoices = getRawChoices(q);
   const correctIdx = q.c !== undefined ? Number(q.c) : 0;
-  const explanation = q.exp || q.explanation || "Analysez cette situation selon le mindset PMI.";
+  const explanation = q.exp || q.explanation || "Analyse Coach : Priorisez toujours l'analyse d'impact et la communication proactive selon le mindset PMI.";
 
   return (
     <Card className="rounded-[40px] bg-white p-12 space-y-10 max-w-3xl mx-auto shadow-2xl animate-slide-up border-none overflow-hidden relative">
       <div className="flex justify-between items-center relative z-10">
-        <Badge variant="outline" className="font-black italic px-6 py-2 rounded-xl border-2 text-slate-400">
+        <Badge variant="outline" className="font-black italic px-6 py-2 rounded-xl border-4 text-slate-400">
           Question {currentIdx + 1} / {activeQuestions.length}
         </Badge>
       </div>
@@ -292,7 +293,7 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
         {rawChoices.map((opt: any, idx: number) => {
           const isCorrect = idx === correctIdx;
           const isSelected = idx === selectedIdx;
-          // Conversion forcée en string
+          // Conversion forcée en string pour éviter les rendus vides
           const text = String(opt?.text || opt || '');
           
           if (!text || text.trim() === "") return null;
@@ -314,7 +315,7 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
               )}
             >
               <div className={cn(
-                "h-10 w-10 flex items-center justify-center font-black text-sm shrink-0 border-2 rounded-full shadow-md",
+                "h-10 w-10 flex items-center justify-center font-black text-sm shrink-0 border-2 rounded-full shadow-md transition-colors",
                 !isAnswered 
                   ? "bg-black text-white border-black" 
                   : isCorrect 
@@ -340,13 +341,13 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
       {isAnswered && (
         <div className="bg-[#F8FAFC] p-8 rounded-[32px] border-l-8 border-l-primary animate-slide-up shadow-inner space-y-4">
           <div className="flex items-center gap-2 text-primary font-black uppercase italic text-[10px] tracking-widest">
-            <Info className="h-4 w-4" /> Justification Mindset
+            <Info className="h-4 w-4" /> Justification du Coach
           </div>
-          <p className="text-slate-900 font-bold italic text-lg leading-relaxed whitespace-pre-wrap">
+          <p className="text-black font-black italic text-lg leading-relaxed whitespace-pre-wrap">
             {explanation}
           </p>
-          <Button onClick={next} className="mt-6 w-full h-14 rounded-2xl bg-[#0F172A] hover:bg-slate-800 text-white font-black uppercase italic tracking-widest">
-            {currentIdx < activeQuestions.length - 1 ? "SUIVANT" : "VOIR LE RÉSULTAT"} <ChevronRight className="ml-2 h-4 w-4" />
+          <Button onClick={next} className="mt-6 w-full h-14 rounded-2xl bg-black hover:bg-slate-800 text-white font-black uppercase italic tracking-widest shadow-xl">
+            {currentIdx < activeQuestions.length - 1 ? "QUESTION SUIVANTE" : "VOIR LE RÉSULTAT"} <ChevronRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
       )}
