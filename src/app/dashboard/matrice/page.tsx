@@ -51,7 +51,9 @@ export default function MatriceMagiquePage() {
         let a = resp.tags?.approach;
         
         // Normalisation pour assurer la correspondance avec les IDs des lignes/colonnes
-        if (d === 'Processus') d = 'Process';
+        if (d === 'Processus' || d === 'Process') d = 'Process';
+        if (d === 'People') d = 'People';
+        if (d === 'Business' || d === 'Business Environment') d = 'Business';
         
         if (d && a) {
           const key = `${d}-${a}`;
@@ -77,15 +79,28 @@ export default function MatriceMagiquePage() {
     
     setIsResetting(true);
     try {
-      const batch = writeBatch(db);
-      attempts.forEach((a) => {
-        batch.delete(doc(db, 'coachingAttempts', a.id));
-      });
-      await batch.commit();
+      // Les lots (batches) Firestore sont limités à 500 documents.
+      // On traite par paquets pour éviter l'erreur si l'utilisateur a beaucoup de données.
+      const batchSize = 400;
+      const total = attempts.length;
+      
+      for (let i = 0; i < total; i += batchSize) {
+        const batch = writeBatch(db);
+        const chunk = attempts.slice(i, i + batchSize);
+        chunk.forEach((a) => {
+          batch.delete(doc(db, 'coachingAttempts', a.id));
+        });
+        await batch.commit();
+      }
+      
       toast({ title: "La matrice a été réinitialisée avec succès." });
-    } catch (e) {
+    } catch (e: any) {
       console.error("Reset error:", e);
-      toast({ variant: "destructive", title: "Erreur lors de la réinitialisation" });
+      toast({ 
+        variant: "destructive", 
+        title: "Erreur lors de la réinitialisation", 
+        description: e.message || "Vérifiez vos permissions réseau." 
+      });
     } finally {
       setIsResetting(false);
     }
