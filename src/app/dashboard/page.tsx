@@ -7,75 +7,44 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
   Loader2, 
-  TrendingUp, 
-  Award, 
   Target,
   ChevronRight,
   Zap,
   Brain,
-  RotateCcw,
-  Lightbulb,
   Check,
   Clock,
   History,
   Trophy,
   FileQuestion,
-  Activity
+  Users,
+  LayoutGrid,
+  GraduationCap,
+  Briefcase,
+  Activity,
+  MoreHorizontal,
+  Info,
+  Edit2,
+  Trash2
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, limit } from 'firebase/firestore';
 import { 
-  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
+  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
+  ResponsiveContainer, Cell, PieChart, Pie, AreaChart, Area
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-
-const DEFAULT_MINDSETS = [
-  "Si la loi ou la régulation change, adaptez le projet immédiatement. C'est non négociable.",
-  "Un Leader Serviteur protège l'équipe des interruptions externes pour maintenir la vélocité.",
-  "Face à un conflit, privilégiez toujours la collaboration et la résolution de problèmes.",
-  "Analysez toujours l'impact d'un changement avant de le soumettre au CCB.",
-  "Le Product Owner est le seul responsable de la priorité du Backlog en Agile.",
-  "En cas de risque identifié, mettez d'abord à jour le registre des risques."
-];
+import { Progress } from '@/components/ui/progress';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export default function DashboardPage() {
   const { user, profile, isUserLoading } = useUser();
   const db = useFirestore();
   const [mounted, setMounted] = useState(false);
-  const [chartKey, setChartKey] = useState(0);
-  const [mindsetIdx, setMindsetIdx] = useState(0);
-
-  // Read Mindsets from Firestore
-  const mindsetsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return collection(db, 'mindsets');
-  }, [db, user]);
-  const { data: dbMindsets } = useCollection(mindsetsQuery);
-
-  const displayMindsets = useMemo(() => {
-    if (dbMindsets && dbMindsets.length > 0) return dbMindsets.map(m => m.text);
-    return DEFAULT_MINDSETS;
-  }, [dbMindsets]);
 
   useEffect(() => {
     setMounted(true);
-    if (displayMindsets.length > 0) {
-      setMindsetIdx(Math.floor(Math.random() * displayMindsets.length));
-    }
-    const timer = setTimeout(() => setChartKey(prev => prev + 1), 500);
-    const interval = setInterval(() => {
-      setMindsetIdx((prev) => (prev + 1) % displayMindsets.length);
-    }, 30000);
-    return () => {
-      clearTimeout(timer);
-      clearInterval(interval);
-    };
-  }, [displayMindsets.length]);
-
-  const handleNextMindset = () => {
-    setMindsetIdx((prev) => (prev + 1) % displayMindsets.length);
-  };
+  }, []);
 
   const attemptsQuery = useMemoFirebase(() => {
     if (isUserLoading || !user?.uid || !db) return null;
@@ -92,7 +61,6 @@ export default function DashboardPage() {
     if (!rawAttempts || rawAttempts.length === 0) {
       return {
         readiness: 0,
-        status: 'Débutant',
         lastScore: 0,
         examCount: 0,
         avgScore: 0,
@@ -108,188 +76,294 @@ export default function DashboardPage() {
     const examCount = rawAttempts.filter(a => a.examId && a.examId.startsWith('exam')).length;
     const questionsCount = rawAttempts.reduce((acc, a) => acc + (a.totalQuestions || 0), 0);
     
-    const progressionData = [...sorted].reverse().slice(-7).map((a) => {
+    const progressionData = [...sorted].reverse().slice(-7).map((a, i) => {
       const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
       return {
         name: date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
-        score: a.scorePercent,
+        val: a.scorePercent,
       };
     });
 
     return {
       readiness: avgScore,
-      status: avgScore >= 75 ? 'Ready' : avgScore >= 50 ? 'En Progression' : 'Débutant',
       lastScore,
       examCount,
       avgScore,
       questionsCount,
       progressionData,
-      sortedAttempts: sorted.slice(0, 4)
+      sortedAttempts: sorted.slice(0, 5)
     };
   }, [rawAttempts]);
 
-  const formatStudyTime = (seconds: number) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    if (h > 0) return `${h}h ${m}m`;
-    return `${m}m`;
-  };
-
   if (isUserLoading || !mounted) {
-    return <div className="h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
+    return <div className="h-screen flex items-center justify-center bg-[#f8fafc]"><Loader2 className="h-12 w-12 animate-spin text-[#1d4ed8]" /></div>;
   }
 
   return (
-    <div className="space-y-8 animate-fade-in pb-20 max-w-7xl mx-auto px-4">
+    <div className="min-h-screen bg-[#f8fafc] p-4 md:p-8 space-y-8 animate-fade-in pb-20">
       
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b pb-6">
-        <div>
-          <h1 className="text-4xl font-black italic uppercase tracking-tighter text-slate-900 leading-tight">Votre progression.</h1>
-          <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-1 italic">
-            Tableau de bord — {stats.readiness}% de préparation globale
-          </p>
-        </div>
-        <Button asChild className="h-12 px-8 rounded-xl bg-[#0F172A] hover:bg-slate-800 text-white font-black uppercase text-xs italic gap-2 shadow-xl">
-          <Link href="/dashboard/practice"><Zap className="h-4 w-4 fill-white" /> Start Sprint <ChevronRight className="h-4 w-4" /></Link>
-        </Button>
-      </div>
-
-      {/* Top Indicators */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="rounded-[32px] border-none shadow-xl bg-white p-6 h-[200px] flex flex-col items-center justify-center">
-          <div className="w-full flex items-center gap-3 mb-2">
-            <div className="bg-primary/5 p-2 rounded-lg text-primary"><Target className="h-5 w-5" /></div>
-            <h3 className="font-black text-slate-800 text-[10px] uppercase tracking-tight italic">Score de Préparation</h3>
-          </div>
-          <SemiCircleGauge value={stats.readiness} label={stats.status} />
-        </Card>
-
-        <Card className="rounded-[32px] border-none shadow-xl bg-white p-6 h-[200px] flex flex-col">
-          <div className="w-full flex items-center gap-3 mb-2">
-            <div className="bg-orange-50 p-2 rounded-lg text-orange-500"><Award className="h-5 w-5" /></div>
-            <h3 className="font-black text-slate-800 text-[10px] uppercase tracking-tight italic">Zone de focus</h3>
-          </div>
-          <div className="bg-orange-50/50 rounded-2xl p-4 border-2 border-dashed border-orange-100 flex-1 flex flex-col justify-center">
-            <span className="text-[8px] font-black text-orange-500 uppercase tracking-widest italic mb-1">Amélioration suggérée</span>
-            <h4 className="text-lg font-black text-slate-900 italic uppercase">Business Environment</h4>
-            <Button asChild variant="link" className="mt-2 text-primary p-0 h-auto font-black uppercase text-[9px] tracking-widest w-fit">
-              <Link href="/dashboard/practice?domain=Business">Lancer ce sprint <ChevronRight className="ml-1 h-3 w-3" /></Link>
-            </Button>
-          </div>
-        </Card>
-
-        <Card className="rounded-[32px] border-none shadow-xl bg-[#1E293B] text-white p-6 h-[200px] flex flex-col justify-between overflow-hidden relative">
-          <div className="absolute top-0 right-0 p-4 opacity-5"><Brain className="h-20 w-20" /></div>
-          <div className="flex items-center gap-3 relative z-10">
-            <div className="bg-white/10 p-2 rounded-lg"><Lightbulb className="h-5 w-5 text-orange-400" /></div>
-            <h3 className="font-black text-white text-[10px] uppercase tracking-tight italic">Le Mindset du jour</h3>
-          </div>
-          <div className="relative z-10 flex-1 flex flex-col justify-center">
-            <p className="text-xs font-bold italic leading-relaxed text-slate-200 animate-slide-up line-clamp-3" key={mindsetIdx}>
-              "{displayMindsets[mindsetIdx]}"
-            </p>
-          </div>
-          <Button onClick={handleNextMindset} variant="ghost" className="relative z-10 w-fit h-7 px-3 rounded-lg bg-white/5 border border-white/10 text-slate-300 font-black uppercase text-[8px] tracking-widest italic gap-2 hover:bg-white/10">
-            <RotateCcw className="h-3 w-3" /> Changer
+      {/* Page Title */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Tableau de Bord - {profile?.firstName || 'Candidat'}</h1>
+        <div className="flex items-center gap-2">
+          <Button asChild className="bg-[#1d4ed8] hover:bg-[#1e40af] text-white font-bold rounded-xl h-10 px-6">
+            <Link href="/dashboard/practice" className="flex items-center gap-2">
+              <Zap className="h-4 w-4" /> Start Sprint
+            </Link>
           </Button>
-        </Card>
+        </div>
       </div>
 
-      {/* New Row of 5 Indicators */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <MiniStatCard icon={Trophy} label="Dernier Score" val={`${stats.lastScore}%`} color="text-emerald-500" />
-        <MiniStatCard icon={History} label="Examens Passés" val={stats.examCount} color="text-indigo-500" />
-        <MiniStatCard icon={TrendingUp} label="Score Moyen" val={`${stats.avgScore}%`} color="text-primary" />
-        <MiniStatCard icon={Clock} label="Temps d'étude" val={formatStudyTime(profile?.totalTimeSpent || 0)} color="text-amber-500" />
-        <MiniStatCard icon={FileQuestion} label="Questions" val={stats.questionsCount} color="text-slate-600" />
-      </div>
+      {/* Bento Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+        
+        {/* 1. Vue d'ensemble (KPIs) */}
+        <div className="md:col-span-4">
+          <Card className="rounded-2xl border-none shadow-sm p-6 space-y-6 bg-white h-full">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-500 text-sm">1. Vue d'ensemble</h3>
+              <MoreHorizontal className="h-4 w-4 text-slate-300" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <KPICard icon={Trophy} label="Dernier Score" val={`${stats.lastScore}%`} color="text-[#1d4ed8] bg-blue-50" />
+              <KPICard icon={History} label="Examens" val={stats.examCount} color="text-[#22c55e] bg-emerald-50" />
+              <KPICard icon={TrendingUp} label="Score Moyen" val={`${stats.avgScore}%`} color="text-indigo-600 bg-indigo-50" />
+              <KPICard icon={FileQuestion} label="Questions" val={stats.questionsCount} color="text-amber-600 bg-amber-50" />
+            </div>
+          </Card>
+        </div>
 
-      {/* Charts Row - Height Reduced */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card className="rounded-[32px] border-none shadow-xl bg-white p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-black text-slate-900 text-[10px] uppercase tracking-widest italic flex items-center gap-2">
-              <Activity className="h-4 w-4 text-indigo-500" /> PROGRESSION DU SCORE
-            </h3>
-          </div>
-          <div className="h-[150px] w-full" key={chartKey}>
-            {stats.progressionData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={stats.progressionData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 800, fill: '#94a3b8' }} dy={5} />
-                  <YAxis hide domain={[0, 100]} />
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontWeight: 'bold', fontSize: '10px' }} />
-                  <Bar dataKey="score" radius={[4, 4, 0, 0]} barSize={30}>
-                    {stats.progressionData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.score >= 75 ? '#10b981' : entry.score >= 50 ? '#6366f1' : '#f43f5e'} />
-                    ))}
-                  </Bar>
-                  <Line type="monotone" dataKey="score" stroke="#f43f5e" strokeWidth={2} dot={{ r: 4, fill: '#f43f5e', strokeWidth: 2, stroke: '#fff' }} />
-                </ComposedChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-2 border-2 border-dashed border-slate-50 rounded-2xl">
-                <p className="font-black uppercase tracking-widest text-[8px] italic">En attente de données</p>
-              </div>
-            )}
-          </div>
-        </Card>
-
-        <Card className="rounded-[32px] border-none shadow-xl bg-white p-6 space-y-4">
-          <h3 className="font-black text-slate-800 text-[10px] uppercase tracking-tight italic">Dernières Activités</h3>
-          <div className="space-y-3">
-            {stats.sortedAttempts.length > 0 ? stats.sortedAttempts.map((a, i) => (
-              <div key={i} className="flex items-center justify-between group hover:bg-slate-50 rounded-xl transition-colors p-2 border border-slate-50">
-                <div className="flex flex-col">
-                  <span className="font-black text-slate-800 italic text-xs truncate max-w-[180px]">
-                    {a.examId ? a.examId.replace('exam', 'Simu ') : a.sessionId || 'Entraînement'}
-                  </span>
-                  <span className="text-[8px] font-bold text-slate-400 italic">Score : {a.scorePercent}%</span>
-                </div>
-                <div className="h-7 w-7 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500 shadow-sm">
-                  <Check className="h-3 w-3" strokeWidth={4} />
+        {/* 2. Activité (Charts) */}
+        <div className="md:col-span-4">
+          <Card className="rounded-2xl border-none shadow-sm p-6 h-full space-y-6 bg-white">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-500 text-sm">2. Activité</h3>
+              <Info className="h-4 w-4 text-slate-300" />
+            </div>
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Simulations</p>
+                <p className="text-2xl font-bold text-slate-900">{stats.progressionData.length}</p>
+                <div className="h-32 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={stats.progressionData}>
+                      <Bar dataKey="val" fill="#1d4ed8" radius={[2, 2, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
-            )) : (
-              <div className="h-[120px] flex items-center justify-center text-slate-300 font-bold italic text-[10px] uppercase">Aucun historique</div>
-            )}
-          </div>
-        </Card>
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Progression</p>
+                <p className="text-2xl font-bold text-slate-900">{stats.readiness}%</p>
+                <div className="h-32 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={stats.progressionData}>
+                      <Area type="monotone" dataKey="val" stroke="#1d4ed8" fill="#1d4ed8" fillOpacity={0.1} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* 3. Performance (Gauges) */}
+        <div className="md:col-span-4">
+          <Card className="rounded-2xl border-none shadow-sm p-6 h-full space-y-6 bg-white">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-500 text-sm">3. Performance</h3>
+              <MoreHorizontal className="h-4 w-4 text-slate-300" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col items-center">
+                <p className="text-[10px] font-bold text-slate-400 uppercase mb-4">Prêt pour l'examen</p>
+                <RadialGauge value={stats.readiness} color="#1d4ed8" />
+              </div>
+              <div className="flex flex-col items-center">
+                <p className="text-[10px] font-bold text-slate-400 uppercase mb-4">Taux de réussite</p>
+                <RadialGauge value={Math.min(100, stats.avgScore + 5)} color="#22c55e" />
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* 4. Gestion (Alerts) */}
+        <div className="md:col-span-4">
+          <Card className="rounded-2xl border-none shadow-sm p-6 bg-white space-y-6">
+            <h3 className="font-bold text-slate-500 text-sm">4. Statut</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-red-50 p-4 rounded-xl border border-red-100">
+                <p className="text-[10px] font-bold text-red-400 uppercase">Alertes erreurs</p>
+                <p className="text-3xl font-bold text-red-600">12</p>
+              </div>
+              <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
+                <p className="text-[10px] font-bold text-amber-400 uppercase">En attente</p>
+                <p className="text-3xl font-bold text-amber-600">3</p>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* 5. Temps d'étude (Donut) */}
+        <div className="md:col-span-4">
+          <Card className="rounded-2xl border-none shadow-sm p-6 bg-white space-y-6">
+            <h3 className="font-bold text-slate-500 text-sm">5. Temps d'étude</h3>
+            <div className="flex items-center gap-8">
+              <div className="h-32 w-32 shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[{ name: 'Used', value: profile?.totalTimeSpent || 0 }, { name: 'Free', value: 36000 }]}
+                      cx="50%" cy="50%" innerRadius={35} outerRadius={50} paddingAngle={5} dataKey="value"
+                    >
+                      <Cell fill="#1d4ed8" />
+                      <Cell fill="#e2e8f0" />
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="space-y-1">
+                <p className="text-2xl font-bold text-slate-900">{Math.floor((profile?.totalTimeSpent || 0) / 3600)} hrs</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Temps cumulé</p>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Mindset Card */}
+        <div className="md:col-span-4">
+          <Card className="rounded-2xl border-none shadow-sm p-6 bg-[#1e293b] text-white h-full flex flex-col justify-between">
+            <div className="flex items-center gap-2">
+              <Brain className="h-4 w-4 text-amber-400" />
+              <h3 className="font-bold text-[10px] uppercase tracking-widest text-slate-400">Le Mindset du Coach</h3>
+            </div>
+            <p className="text-sm font-medium italic text-slate-200 mt-4 leading-relaxed">
+              "Analysez toujours l'impact d'un changement avant de le soumettre au CCB."
+            </p>
+            <div className="mt-6">
+              <Button asChild variant="link" className="p-0 text-[#1d4ed8] font-bold text-[10px] uppercase tracking-widest">
+                <Link href="/dashboard/chat">Parler au coach <ChevronRight className="h-3 w-3" /></Link>
+              </Button>
+            </div>
+          </Card>
+        </div>
+
+        {/* 6. Analyse groupe / Activités (Table) */}
+        <div className="md:col-span-12">
+          <Card className="rounded-2xl border-none shadow-sm bg-white overflow-hidden">
+            <CardHeader className="p-6 border-b">
+              <CardTitle className="text-sm font-bold text-slate-500">6. Dernières activités</CardTitle>
+            </CardHeader>
+            <Table>
+              <TableHeader className="bg-slate-50">
+                <TableRow className="border-none">
+                  <TableHead className="font-bold text-[10px] uppercase text-slate-400">Nom de la Session</TableHead>
+                  <TableHead className="font-bold text-[10px] uppercase text-slate-400">Type</TableHead>
+                  <TableHead className="font-bold text-[10px] uppercase text-slate-400">Progression</TableHead>
+                  <TableHead className="font-bold text-[10px] uppercase text-slate-400">Score</TableHead>
+                  <TableHead className="font-bold text-[10px] uppercase text-slate-400">Date</TableHead>
+                  <TableHead className="text-right font-bold text-[10px] uppercase text-slate-400">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {stats.sortedAttempts.map((a, i) => (
+                  <TableRow key={i} className="border-b border-slate-50">
+                    <TableCell className="font-bold text-slate-700 text-sm">{a.examId ? a.examId.replace('exam', 'Simulation ') : a.sessionId || 'Entraînement'}</TableCell>
+                    <TableCell className="text-slate-500 text-xs">{a.examId ? 'Examen' : 'Micro-simulation'}</TableCell>
+                    <TableCell className="w-[200px]">
+                      <div className="flex items-center gap-3">
+                        <Progress value={a.scorePercent} className="h-1.5" />
+                        <span className="text-[10px] font-bold text-slate-400">{a.scorePercent}%</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-bold text-slate-900">{a.scorePercent}%</TableCell>
+                    <TableCell className="text-slate-400 text-[10px]">{a.submittedAt?.toDate ? a.submittedAt.toDate().toLocaleDateString() : 'Récemment'}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" asChild>
+                          <Link href={`/dashboard/history/${a.id}`}><Edit2 className="h-3.5 w-3.5 text-slate-400" /></Link>
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
+                          <Trash2 className="h-3.5 w-3.5 text-slate-400" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        </div>
+
       </div>
     </div>
   );
 }
 
-function MiniStatCard({ icon: Icon, label, val, color }: any) {
+function KPICard({ icon: Icon, label, val, color }: any) {
   return (
-    <Card className="rounded-3xl border-none shadow-lg bg-white p-4 space-y-1 hover:scale-[1.02] transition-transform">
-      <div className={cn("bg-slate-50 p-1.5 rounded-lg w-fit mb-1", color)}>
-        <Icon className="h-3.5 w-3.5" />
+    <div className="p-4 rounded-xl bg-white border border-slate-50 flex items-center gap-4 group hover:shadow-md transition-all">
+      <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center shrink-0", color)}>
+        <Icon className="h-5 w-5" />
       </div>
-      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest italic">{label}</p>
-      <p className="text-lg font-black text-slate-900 italic tracking-tighter">{val}</p>
-    </Card>
+      <div className="overflow-hidden">
+        <p className="text-[9px] font-bold text-slate-400 uppercase truncate">{label}</p>
+        <p className="text-lg font-bold text-slate-900">{val}</p>
+      </div>
+    </div>
   );
 }
 
-function SemiCircleGauge({ value, label }: { value: number, label: string }) {
-  const radius = 50;
-  const strokeWidth = 10;
-  const normalizedRadius = radius - strokeWidth / 2;
-  const circumference = normalizedRadius * Math.PI;
-  const strokeDashoffset = circumference - (value / 100) * circumference;
+function RadialGauge({ value, color }: { value: number, color: string }) {
+  const data = [
+    { name: 'score', value: value },
+    { name: 'rest', value: 100 - value }
+  ];
 
   return (
-    <div className="relative flex flex-col items-center">
-      <svg height={radius + strokeWidth} width={radius * 2}>
-        <path d={`M ${strokeWidth/2},${radius + strokeWidth/2} A ${normalizedRadius},${normalizedRadius} 0 0,1 ${radius * 2 - strokeWidth/2},${radius + strokeWidth/2}`} fill="none" stroke="#f1f5f9" strokeWidth={strokeWidth} strokeLinecap="round" />
-        <path d={`M ${strokeWidth/2},${radius + strokeWidth/2} A ${normalizedRadius},${normalizedRadius} 0 0,1 ${radius * 2 - strokeWidth/2},${radius + strokeWidth/2}`} fill="none" stroke="url(#gaugeGradient)" strokeWidth={strokeWidth} strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} strokeLinecap="round" className="transition-all duration-1000 ease-out" />
-        <defs><linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#2563eb" /><stop offset="100%" stopColor="#6366f1" /></linearGradient></defs>
-      </svg>
-      <div className="absolute top-[25px] text-center"><span className="text-3xl font-black italic tracking-tighter text-slate-900">{value}%</span></div>
-      <div className="mt-1"><Badge className="bg-primary/10 text-primary border-none font-black italic uppercase text-[7px] tracking-widest px-2 py-0.5">{label}</Badge></div>
+    <div className="relative h-24 w-40">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="100%"
+            startAngle={180}
+            endAngle={0}
+            innerRadius={50}
+            outerRadius={70}
+            paddingAngle={0}
+            dataKey="value"
+            stroke="none"
+          >
+            <Cell fill={color} />
+            <Cell fill="#f1f5f9" />
+          </Pie>
+        </PieChart>
+      </ResponsiveContainer>
+      <div className="absolute bottom-0 left-0 w-full text-center">
+        <span className="text-xl font-bold text-slate-900">{value}%</span>
+      </div>
     </div>
   );
+}
+
+function TrendingUp(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+      <polyline points="17 6 23 6 23 12" />
+    </svg>
+  )
 }
