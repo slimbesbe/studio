@@ -152,19 +152,22 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* 3. Mindset Card - Couleur ajustée (#8b9dfa) */}
+        {/* 3. Mindset Card - Nouveau Bleu Royal Vibrant */}
         <div className="md:col-span-4 h-[220px]">
-          <Card className="rounded-2xl border-none shadow-sm p-4 bg-[#8b9dfa] h-full flex flex-col justify-between">
-            <div className="flex items-center gap-2">
-              <Brain className="h-3.5 w-3.5 text-indigo-900" />
-              <h3 className="font-bold text-[9px] uppercase tracking-widest text-indigo-950/60">Le Mindset du Coach</h3>
+          <Card className="rounded-2xl border-none shadow-sm p-4 bg-[#004aad] h-full flex flex-col justify-between relative overflow-hidden group transition-all hover:shadow-lg">
+            <div className="absolute -top-6 -right-6 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Brain className="h-32 w-32 text-white" />
             </div>
-            <p className="text-xs font-black italic text-indigo-950 mt-2 leading-relaxed">
+            <div className="relative z-10 flex items-center gap-2">
+              <Brain className="h-3.5 w-3.5 text-blue-100" />
+              <h3 className="font-bold text-[9px] uppercase tracking-widest text-blue-100/80">Le Mindset du Coach</h3>
+            </div>
+            <p className="relative z-10 text-xs font-black italic text-white mt-2 leading-relaxed">
               "Analysez toujours l'impact d'un changement avant de le soumettre au CCB."
             </p>
-            <div className="mt-2">
-              <Button asChild variant="link" className="p-0 text-indigo-950 font-black text-[9px] h-auto uppercase tracking-widest hover:text-white transition-colors">
-                <Link href="/dashboard/coach">Parler au coach <ChevronRight className="h-2.5 w-2.5" /></Link>
+            <div className="relative z-10 mt-2">
+              <Button asChild variant="link" className="p-0 text-white font-black text-[9px] h-auto uppercase tracking-widest hover:text-blue-200 transition-colors">
+                <Link href="/dashboard/coach">Parler au coach <ChevronRight className="h-2.5 w-2.5 ml-1" /></Link>
               </Button>
             </div>
           </Card>
