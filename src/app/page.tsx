@@ -106,9 +106,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 animate-fade-in overflow-y-auto">
-      <div className="flex items-center gap-3 mb-8">
-        <SimuLuxLogo className="h-12 w-12" />
-        <span className="font-headline font-black text-3xl italic tracking-tighter text-primary">
+      <div className="flex flex-col items-center gap-4 mb-8 text-center">
+        <SimuLuxLogo className="h-24 w-24 shadow-xl rounded-2xl border-4 border-white bg-white" />
+        <span className="font-headline font-black text-4xl italic tracking-tighter text-primary">
           Simu-lux <span className="text-accent">PMP</span>
         </span>
       </div>
