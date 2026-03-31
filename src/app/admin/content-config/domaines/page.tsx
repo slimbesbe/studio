@@ -2,8 +2,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { useUser, useFirestore } from '@/firebase';
-import { doc, setDoc, serverTimestamp, getDoc, deleteDoc } from 'firebase/firestore';
+import { useFirestore, useUser } from '@/firebase';
+import { doc, setDoc, getDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -29,13 +29,13 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
 
-export default function ManageApproaches() {
+export default function ManageDomains() {
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const [activeTab, setActiveTab] = useState('predictive');
+
+  const [activeTab, setActiveTab] = useState('people');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   
@@ -47,6 +47,7 @@ export default function ManageApproaches() {
   const [data, setData] = useState<any>({
     title: '',
     description: '',
+    mindset: '',
     jargon: [],
     quiz: []
   });
@@ -55,19 +56,13 @@ export default function ManageApproaches() {
     async function load() {
       if (!user) return;
       setIsLoading(true);
-      try {
-        const docRef = doc(db, 'concepts_approaches', activeTab);
-        const d = await getDoc(docRef);
-        if (d.exists()) {
-          setData(d.data());
-        } else {
-          setData({ title: activeTab.toUpperCase(), description: '', jargon: [], quiz: [] });
-        }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setIsLoading(false);
+      const snap = await getDoc(doc(db, 'concepts_domains', activeTab));
+      if (snap.exists()) {
+        setData(snap.data());
+      } else {
+        setData({ title: activeTab.toUpperCase(), description: '', mindset: '', jargon: [], quiz: [] });
       }
+      setIsLoading(false);
     }
     load();
   }, [db, activeTab, user]);
@@ -75,13 +70,13 @@ export default function ManageApproaches() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await setDoc(doc(db, 'concepts_approaches', activeTab), {
+      await setDoc(doc(db, 'concepts_domains', activeTab), {
         ...data,
         updatedAt: serverTimestamp()
       }, { merge: true });
-      toast({ title: "Configuration sauvegardée" });
+      toast({ title: "Domaine sauvegardé" });
     } catch (e) {
-      toast({ variant: "destructive", title: "Erreur sauvegarde" });
+      toast({ variant: "destructive", title: "Erreur" });
     } finally {
       setIsSaving(false);
     }
@@ -98,12 +93,12 @@ export default function ManageApproaches() {
     if (userInputCode !== securityCode) return;
     setIsResetting(true);
     try {
-      await deleteDoc(doc(db, 'concepts_approaches', activeTab));
-      setData({ title: activeTab.toUpperCase(), description: '', jargon: [], quiz: [] });
-      toast({ title: `Approche ${activeTab} réinitialisée` });
+      await deleteDoc(doc(db, 'concepts_domains', activeTab));
+      setData({ title: activeTab.toUpperCase(), description: '', mindset: '', jargon: [], quiz: [] });
+      toast({ title: `Domaine ${activeTab} réinitialisé` });
       setIsResetModalOpen(false);
     } catch (e) {
-      toast({ variant: "destructive", title: "Erreur réinitialisation" });
+      toast({ variant: "destructive", title: "Erreur" });
     } finally {
       setIsResetting(false);
     }
@@ -132,18 +127,9 @@ export default function ManageApproaches() {
         const parsedQuiz = quizData.map((row: any) => {
           const q = String(row.q || row.Question || row.Énoncé || Object.values(row)[0] || "").trim();
           
-          // Recherche exhaustive de colonnes d'options
-          const optionsKeys = [
-            "a1", "option1", "Choice 1", "R1", "Choix 1", "A", "Vrai",
-            "a2", "option2", "Choice 2", "R2", "Choix 2", "B", "Faux",
-            "a3", "option3", "Choice 3", "R3", "Choix 3", "C",
-            "a4", "option4", "Choice 4", "R4", "Choix 4", "D"
-          ];
-
-          // On extrait les valeurs de manière séquentielle pour construire l'array 'a'
           const a: string[] = [];
           
-          // Méthode 1: Par noms de colonnes connus
+          // Méthode 1: Noms explicites
           const foundA1 = row.a1 || row.option1 || row["Choice 1"] || row["Choix 1"] || row["A"] || row["Vrai"];
           const foundA2 = row.a2 || row.option2 || row["Choice 2"] || row["Choix 2"] || row["B"] || row["Faux"];
           const foundA3 = row.a3 || row.option3 || row["Choice 3"] || row["Choix 3"] || row["C"];
@@ -154,7 +140,7 @@ export default function ManageApproaches() {
           if (foundA3 !== undefined) a.push(String(foundA3).trim());
           if (foundA4 !== undefined) a.push(String(foundA4).trim());
 
-          // Si on n'a rien trouvé, on prend tout ce qui n'est pas Q, C ou EXP
+          // Méthode 2: Fallback
           if (a.length === 0) {
             Object.keys(row).forEach(key => {
               const k = key.toLowerCase();
@@ -218,12 +204,12 @@ export default function ManageApproaches() {
   };
 
   const exportModel = () => {
-    const jargonWs = XLSX.utils.json_to_sheet([{ term: "WBS", def: "Work Breakdown Structure" }]);
-    const quizWs = XLSX.utils.json_to_sheet([{ q: "Le sponsor gère le planning ?", a1: "Vrai", a2: "Faux", a3: "", a4: "", correct: 2, exp: "Le sponsor est responsable business, pas planning." }]);
+    const jargonWs = XLSX.utils.json_to_sheet([{ term: "Conflit", def: "Désaccord entre deux parties." }]);
+    const quizWs = XLSX.utils.json_to_sheet([{ q: "Domaine People ?", a1: "Choix 1", a2: "Choix 2", a3: "", correct: 1, exp: "Explication" }]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, jargonWs, "Jargon");
     XLSX.utils.book_append_sheet(wb, quizWs, "Quiz");
-    XLSX.writeFile(wb, `modele_${activeTab}.xlsx`);
+    XLSX.writeFile(wb, `modele_domaine_${activeTab}.xlsx`);
   };
 
   if (isLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
@@ -234,8 +220,8 @@ export default function ManageApproaches() {
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild className="h-14 w-14 rounded-2xl border-2 shadow-sm"><Link href="/admin/content-config"><ChevronLeft /></Link></Button>
           <div>
-            <h1 className="text-3xl font-black italic uppercase tracking-tighter text-primary">Vision Approches</h1>
-            <p className="text-muted-foreground mt-1 uppercase tracking-widest text-[10px] font-bold italic">Configurez les cycles de vie projet.</p>
+            <h1 className="text-3xl font-black italic uppercase tracking-tighter text-primary">Vision Domaines</h1>
+            <p className="text-muted-foreground mt-1 uppercase tracking-widest text-[10px] font-bold italic">Configurez les 3 piliers du PMP.</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -253,9 +239,9 @@ export default function ManageApproaches() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid grid-cols-3 h-16 bg-white p-2 rounded-[24px] shadow-lg border-2">
-          <TabsTrigger value="predictive" className="rounded-xl font-black italic uppercase text-xs">Waterfall</TabsTrigger>
-          <TabsTrigger value="agile" className="rounded-xl font-black italic uppercase text-xs">Agile</TabsTrigger>
-          <TabsTrigger value="hybrid" className="rounded-xl font-black italic uppercase text-xs">Hybride</TabsTrigger>
+          <TabsTrigger value="people" className="rounded-xl font-black italic uppercase text-xs">People</TabsTrigger>
+          <TabsTrigger value="process" className="rounded-xl font-black italic uppercase text-xs">Processus</TabsTrigger>
+          <TabsTrigger value="business" className="rounded-xl font-black italic uppercase text-xs">Business</TabsTrigger>
         </TabsList>
 
         <div className="mt-10 space-y-8">
@@ -265,8 +251,12 @@ export default function ManageApproaches() {
                 <Label className="font-black uppercase text-[10px] text-slate-400 italic">Titre affiché</Label>
                 <Input value={data.title} onChange={(e) => setData({...data, title: e.target.value})} className="h-14 rounded-xl border-2 font-black italic" />
               </div>
+              <div className="space-y-3">
+                <Label className="font-black uppercase text-[10px] text-slate-400 italic">Mindset principal (Accroche)</Label>
+                <Input value={data.mindset} onChange={(e) => setData({...data, mindset: e.target.value})} className="h-14 rounded-xl border-2 font-black italic text-emerald-600" placeholder="Ex: Leader Serviteur..." />
+              </div>
               <div className="md:col-span-2 space-y-3">
-                <Label className="font-black uppercase text-[10px] text-slate-400 italic">Description du Focus (Texte d'introduction)</Label>
+                <Label className="font-black uppercase text-[10px] text-slate-400 italic">Description Focus</Label>
                 <Textarea value={data.description} onChange={(e) => setData({...data, description: e.target.value})} className="min-h-[120px] rounded-xl border-2 font-bold italic" />
               </div>
             </div>
@@ -293,23 +283,23 @@ export default function ManageApproaches() {
 
             <Card className="rounded-[40px] shadow-xl border-none p-10 bg-white flex flex-col h-full">
               <div className="flex items-center justify-between mb-8">
-                <h3 className="text-xl font-black italic uppercase text-amber-600 flex items-center gap-3"><Zap className="h-6 w-6" /> Quiz Rapide</h3>
+                <h3 className="text-xl font-black italic uppercase text-emerald-600 flex items-center gap-3"><Zap className="h-6 w-6" /> Quiz Rapide</h3>
                 <Button variant="outline" size="sm" onClick={addQuiz} className="rounded-xl border-2 font-black uppercase text-[10px] italic"><Plus className="h-3 w-3 mr-1" /> Ajouter</Button>
               </div>
               <div className="space-y-6 flex-1">
                 {data.quiz?.map((q:any, idx:number) => (
-                  <div key={idx} className="p-6 bg-amber-50/30 rounded-3xl border-2 border-amber-100 relative group space-y-4">
+                  <div key={idx} className="p-6 bg-emerald-50/30 rounded-3xl border-2 border-emerald-100 relative group space-y-4">
                     <Button variant="ghost" size="icon" onClick={() => removeQuiz(idx)} className="absolute -top-2 -right-2 h-8 w-8 rounded-full bg-white border-2 text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"><Trash2 className="h-4 w-4" /></Button>
-                    <Input placeholder="Question ?" value={q.q} onChange={(e) => updateQuiz(idx, 'q', e.target.value)} className="h-10 bg-white rounded-lg font-black italic border-2 border-amber-200" />
+                    <Input placeholder="Question ?" value={q.q} onChange={(e) => updateQuiz(idx, 'q', e.target.value)} className="h-10 bg-white rounded-lg font-black italic border-2 border-emerald-200" />
                     <div className="grid grid-cols-1 gap-2">
                       {q.a?.map((opt:string, optIdx:number) => (
                         <div key={optIdx} className="flex items-center gap-2">
                           <button onClick={() => updateQuiz(idx, 'c', optIdx)} className={cn("h-6 w-6 rounded-full border-2 flex items-center justify-center font-black text-[10px]", q.c === optIdx ? "bg-black border-black text-white" : "bg-white border-slate-200 text-slate-300")}>{String.fromCharCode(65 + optIdx)}</button>
-                          <Input placeholder={`Option ${String.fromCharCode(65 + optIdx)}`} value={opt} onChange={(e) => updateQuiz(idx, `a.${optIdx}`, e.target.value)} className="h-9 bg-white rounded-lg font-bold italic text-xs border-2 border-amber-100" />
+                          <Input placeholder={`Option ${String.fromCharCode(65 + optIdx)}`} value={opt} onChange={(e) => updateQuiz(idx, `a.${optIdx}`, e.target.value)} className="h-9 bg-white rounded-lg font-bold italic text-xs border-2 border-emerald-100" />
                         </div>
                       ))}
                     </div>
-                    <Textarea placeholder="Justification..." value={q.exp} onChange={(e) => updateQuiz(idx, 'exp', e.target.value)} className="h-20 bg-white rounded-lg font-bold italic text-xs border-2 border-amber-100" />
+                    <Textarea placeholder="Justification..." value={q.exp} onChange={(e) => updateQuiz(idx, 'exp', e.target.value)} className="h-20 bg-white rounded-lg font-bold italic text-xs border-2 border-emerald-100" />
                   </div>
                 ))}
               </div>
@@ -323,7 +313,7 @@ export default function ManageApproaches() {
           <DialogHeader className="flex flex-col items-center text-center space-y-4">
             <div className="bg-destructive p-4 rounded-full shadow-lg"><AlertTriangle className="h-12 w-12 text-white" /></div>
             <DialogTitle className="text-4xl font-black uppercase italic text-destructive tracking-tighter">Réinitialisation</DialogTitle>
-            <DialogDescription className="text-lg font-bold text-slate-600 leading-relaxed uppercase italic">Voulez-vous vider l'approche <span className="text-destructive">{activeTab}</span> ?</DialogDescription>
+            <DialogDescription className="text-lg font-bold text-slate-600 leading-relaxed uppercase italic">Voulez-vous vider le domaine <span className="text-destructive">{activeTab}</span> ?</DialogDescription>
           </DialogHeader>
           <div className="py-10 space-y-8">
             <div className="bg-slate-50 p-8 rounded-3xl border-4 border-dashed text-center space-y-4">

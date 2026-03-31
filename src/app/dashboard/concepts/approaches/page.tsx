@@ -7,13 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
   ArrowDown, RotateCcw, Layers, BookOpen, Zap, 
-  CheckCircle2, Info, Trophy, Loader2, ChevronRight
+  CheckCircle2, Info, Trophy, Loader2, ChevronRight,
+  ChevronLeft
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import Link from 'next/link';
 
 const DEFAULT_APPROACH_DATA: Record<string, any> = {
   predictive: {
@@ -25,7 +27,7 @@ const DEFAULT_APPROACH_DATA: Record<string, any> = {
       { term: 'Chemin Critique', def: 'Séquence de tâches minimale pour finir le projet.' }
     ],
     quiz: [
-      { q: "Quand utiliser le prédictif ?", a: ["Besoins stables", "Projet inconnu", "Haute incertitude"], c: 0, exp: "Le prédictif excelle quand les besoins sont clairs dès le début." },
+      { q: "Quand utiliser le prédictif ?", a: ["Besoins stables", "Projet inconnu"], c: 0, exp: "Le prédictif excelle quand les besoins sont clairs dès le début." },
     ]
   },
   agile: {
@@ -37,7 +39,7 @@ const DEFAULT_APPROACH_DATA: Record<string, any> = {
       { term: 'Sprint', def: 'Bloc de temps fixe (2-4 sem) pour livrer un incrément.' }
     ],
     quiz: [
-      { q: "Qui définit les priorités ?", a: ["Scrum Master", "Product Owner", "Equipe"], c: 1, exp: "Le PO est responsable du ROI et des priorités du backlog." },
+      { q: "Qui définit les priorités ?", a: ["Scrum Master", "Product Owner"], c: 1, exp: "Le PO est responsable du ROI et des priorités du backlog." },
     ]
   },
   hybrid: {
@@ -49,7 +51,7 @@ const DEFAULT_APPROACH_DATA: Record<string, any> = {
       { term: 'Approche Hybride', def: 'Utilisation simultanée du prédictif et de l\'agile.' }
     ],
     quiz: [
-      { q: "Pourquoi l'hybride ?", a: ["Rigidité", "Adaptabilité ciblée", "Moins cher"], c: 1, exp: "Permet de garder du contrôle sur le budget tout en étant flexible sur le produit." },
+      { q: "Pourquoi l'hybride ?", a: ["Rigidité", "Adaptabilité ciblée"], c: 1, exp: "Permet de garder du contrôle sur le budget tout en étant flexible sur le produit." },
     ]
   }
 };
@@ -64,6 +66,7 @@ export default function VisionApprochesPage() {
 
   useEffect(() => {
     async function load() {
+      if (!user) return;
       setIsDataLoading(true);
       try {
         const snap = await getDoc(doc(db, 'concepts_approaches', activeApproach));
@@ -79,7 +82,7 @@ export default function VisionApprochesPage() {
       }
     }
     load();
-  }, [db, activeApproach]);
+  }, [db, activeApproach, user]);
 
   const attemptsQuery = useMemoFirebase(() => {
     if (!user?.uid) return null;
@@ -108,7 +111,7 @@ export default function VisionApprochesPage() {
 
   if (isDataLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
 
-  const data = approachData;
+  const data = approachData || DEFAULT_APPROACH_DATA[activeApproach];
 
   return (
     <div className="space-y-10 animate-fade-in pb-20 max-w-6xl mx-auto px-4">
@@ -263,7 +266,18 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
   const q = activeQuestions[currentIdx];
   if (!q) return null;
 
-  const choices = Array.isArray(q.a) ? q.a : (q.choices || []);
+  // Extraction ultra-robuste des choix
+  const getRawChoices = (item: any) => {
+    if (Array.isArray(item.a)) return item.a;
+    if (Array.isArray(item.choices)) return item.choices;
+    if (Array.isArray(item.options)) return item.options;
+    // Si stocké en colonnes séparées dans l'objet lui-même
+    const fromKeys = [item.a1, item.a2, item.a3, item.a4, item.option1, item.option2].filter(v => v !== undefined && v !== null && String(v).trim() !== "");
+    if (fromKeys.length > 0) return fromKeys;
+    return [];
+  };
+
+  const rawChoices = getRawChoices(q);
   const correctIdx = q.c !== undefined ? Number(q.c) : 0;
   const explanation = q.exp || q.explanation || "Analysez cette situation selon le mindset PMI.";
 
@@ -280,11 +294,14 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
       </h3>
 
       <div className="grid gap-4 relative z-10">
-        {choices.map((opt: any, idx: number) => {
+        {rawChoices.map((opt: any, idx: number) => {
           const isCorrect = idx === correctIdx;
           const isSelected = idx === selectedIdx;
-          const text = String(opt);
+          // Conversion forcée en string, gère les objets {text: "..."}
+          const text = typeof opt === 'string' ? opt : (opt?.text || opt?.value || String(opt || ''));
           
+          if (!text || text.trim() === "") return null;
+
           return (
             <button 
               key={idx} 

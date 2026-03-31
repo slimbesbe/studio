@@ -251,7 +251,18 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
   const q = activeQuestions[currentIdx];
   if (!q) return null;
 
-  const choices = Array.isArray(q.a) ? q.a : (q.choices || []);
+  // Extraction ultra-robuste des choix
+  const getRawChoices = (item: any) => {
+    if (Array.isArray(item.a)) return item.a;
+    if (Array.isArray(item.choices)) return item.choices;
+    if (Array.isArray(item.options)) return item.options;
+    // Si stocké en colonnes séparées dans l'objet lui-même
+    const fromKeys = [item.a1, item.a2, item.a3, item.a4, item.option1, item.option2].filter(v => v !== undefined && v !== null && String(v).trim() !== "");
+    if (fromKeys.length > 0) return fromKeys;
+    return [];
+  };
+
+  const rawChoices = getRawChoices(q);
   const correctIdx = q.c !== undefined ? Number(q.c) : 0;
   const explanation = q.exp || q.explanation || "Analysez cette situation selon le mindset PMI.";
 
@@ -268,11 +279,14 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
       </h3>
 
       <div className="grid gap-4 relative z-10">
-        {choices.map((opt: any, idx: number) => {
+        {rawChoices.map((opt: any, idx: number) => {
           const isCorrect = idx === correctIdx;
           const isSelected = idx === selectedIdx;
-          const text = String(opt);
+          // Conversion forcée en string, gère les objets {text: "..."}
+          const text = typeof opt === 'string' ? opt : (opt?.text || opt?.value || String(opt || ''));
           
+          if (!text || text.trim() === "") return null;
+
           return (
             <button 
               key={idx} 
