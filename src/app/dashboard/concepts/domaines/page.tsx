@@ -31,27 +31,8 @@ const DEFAULT_DOMAIN_DATA: Record<string, any> = {
     title: 'People',
     icon: Users,
     description: "Le domaine People concerne tout ce qui touche à l'humain.",
-    mindset: "Leader Serviteur.",
     jargon: [{ term: 'Servant Leadership', def: 'Style de leadership qui privilégie le soutien.' }],
-    quiz: [{ q: "Rôle du Leader Serviteur ?", a: ["Décider seul", "Éliminer les obstacles"], c: 1, exp: "Il facilite le travail." }]
-  },
-  process: {
-    id: 'process',
-    title: 'Process',
-    icon: Settings,
-    description: "Le domaine Process couvre la méthodologie technique.",
-    mindset: "Analyse d'impact.",
-    jargon: [{ term: 'Critical Path', def: 'Le chemin le plus long.' }],
-    quiz: [{ q: "CCB ?", a: ["Change Control Board", "Comité de Budget"], c: 0, exp: "Approuve les changements." }]
-  },
-  business: {
-    id: 'business',
-    title: 'Business Environment',
-    icon: Globe,
-    description: "Liaison entre le projet et la stratégie.",
-    mindset: "Valeur stratégique.",
-    jargon: [{ term: 'Business Case', def: 'Justification du projet.' }],
-    quiz: [{ q: "Utilité du Business Case ?", a: ["Justifier l'investissement", "Recruter"], c: 0, exp: "Explique le pourquoi." }]
+    quiz: [{ q: "Rôle du Leader Serviteur ?", a: ["Éliminer les obstacles", "Contrôler"], c: 0, exp: "Il facilite le travail." }]
   }
 };
 
@@ -72,10 +53,10 @@ export default function VisionDomainesPage() {
         if (snap.exists()) {
           setDomainData(snap.data());
         } else {
-          setDomainData(DEFAULT_DOMAIN_DATA[activeDomain]);
+          setDomainData(null);
         }
       } catch (e) {
-        setDomainData(DEFAULT_DOMAIN_DATA[activeDomain]);
+        setDomainData(null);
       } finally {
         setIsDataLoading(false);
       }
@@ -111,7 +92,12 @@ export default function VisionDomainesPage() {
 
   if (isDataLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
 
-  const data = domainData || DEFAULT_DOMAIN_DATA[activeDomain];
+  const currentData = domainData || DEFAULT_DOMAIN_DATA[activeDomain] || { 
+    title: activeDomain.toUpperCase(), 
+    description: "Contenu en cours de rédaction.", 
+    jargon: [], 
+    quiz: [] 
+  };
 
   return (
     <div className="space-y-10 animate-fade-in pb-20 max-w-6xl mx-auto px-4">
@@ -122,13 +108,12 @@ export default function VisionDomainesPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {(['people', 'process', 'business'] as const).map((id) => {
-          const item = DEFAULT_DOMAIN_DATA[id];
-          const Ico = item.icon;
           const isActive = activeDomain === id;
+          const Ico = id === 'people' ? Users : id === 'process' ? Settings : Globe;
           return (
             <button key={id} onClick={() => { setActiveDomain(id); setActiveTab('jargon'); }} className={cn("flex flex-col items-center justify-center p-10 rounded-[32px] border-4 transition-all duration-300 gap-4 bg-white", isActive ? "border-primary shadow-xl scale-[1.02]" : "border-slate-100 hover:border-slate-200")}>
               <div className={cn("p-4 rounded-2xl", isActive ? "text-primary" : "text-slate-300")}><Ico className="h-10 w-10" /></div>
-              <span className={cn("font-black uppercase italic tracking-widest text-sm", isActive ? "text-primary" : "text-slate-400")}>{item.title}</span>
+              <span className={cn("font-black uppercase italic tracking-widest text-sm", isActive ? "text-primary" : "text-slate-400")}>{id.toUpperCase()}</span>
             </button>
           );
         })}
@@ -136,8 +121,8 @@ export default function VisionDomainesPage() {
 
       <div className="space-y-8">
         <div className="space-y-4">
-          <h2 className="text-2xl font-black italic uppercase tracking-tight text-slate-900">Focus : {data.title}</h2>
-          <p className="text-lg font-bold text-slate-500 italic leading-relaxed">{data.description}</p>
+          <h2 className="text-2xl font-black italic uppercase tracking-tight text-slate-900">Focus : {currentData.title}</h2>
+          <p className="text-lg font-bold text-slate-500 italic leading-relaxed">{currentData.description}</p>
         </div>
 
         <div className="flex gap-4">
@@ -148,12 +133,12 @@ export default function VisionDomainesPage() {
         <div className="pt-6">
           {activeTab === 'jargon' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-slide-up">
-              {(data.jargon || []).map((item:any, idx:number) => (
+              {(currentData.jargon || []).map((item:any, idx:number) => (
                 <JargonCard key={idx} term={item.term} def={item.def} />
               ))}
             </div>
           ) : (
-            <QuickQuiz questions={data.quiz || []} axisId={activeDomain} userId={user?.uid || ''} db={db} />
+            <QuickQuiz questions={currentData.quiz || []} axisId={activeDomain} userId={user?.uid || ''} db={db} />
           )}
         </div>
       </div>
@@ -222,7 +207,7 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
     setSelectedIdx(idx); 
     setIsAnswered(true); 
     const q = activeQuestions[currentIdx];
-    const correctIdx = typeof q.c !== 'undefined' ? parseInt(q.c) : (parseInt(q.correctChoice) || 0);
+    const correctIdx = q.c !== undefined ? Number(q.c) : 0;
     if (idx === correctIdx) setScore(score + 1); 
   };
 
@@ -257,18 +242,18 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
       </div>
       <div className="space-y-2">
         <h3 className="text-5xl font-black italic uppercase tracking-tighter text-slate-900">Score : {score} / {activeQuestions.length}</h3>
-        <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] italic">Session de révision validée</p>
+        <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] italic">Session validée</p>
       </div>
-      <Button onClick={() => window.location.reload()} className="h-16 px-12 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl scale-105 transition-transform">TERMINER</Button>
+      <Button onClick={() => window.location.reload()} className="h-16 px-12 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl scale-105 transition-transform text-white">REFAIRE</Button>
     </Card>
   );
   
   const q = activeQuestions[currentIdx];
   if (!q) return null;
 
-  const choiceList = q.a || q.choices || [];
-  const correctIdx = typeof q.c !== 'undefined' ? parseInt(q.c) : (parseInt(q.correctChoice) || 0);
-  const explanation = q.exp || q.explanation || "Analysez cette situation selon le mindset PMI pour comprendre la meilleure réponse.";
+  const choices = Array.isArray(q.a) ? q.a : (q.choices || []);
+  const correctIdx = q.c !== undefined ? Number(q.c) : 0;
+  const explanation = q.exp || q.explanation || "Analysez cette situation selon le mindset PMI.";
 
   return (
     <Card className="rounded-[40px] bg-white p-12 space-y-10 max-w-3xl mx-auto shadow-2xl animate-slide-up border-none overflow-hidden relative">
@@ -279,21 +264,14 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
       </div>
       
       <h3 className="text-3xl font-black italic text-slate-900 leading-tight relative z-10">
-        {q.q || q.text || q.statement}
+        {q.q || q.text || "Question sans énoncé"}
       </h3>
 
       <div className="grid gap-4 relative z-10">
-        {choiceList.map((opt: any, idx: number) => {
+        {choices.map((opt: any, idx: number) => {
           const isCorrect = idx === correctIdx;
           const isSelected = idx === selectedIdx;
-          
-          // Conversion robuste en chaîne de caractères
-          let choiceText = "";
-          if (typeof opt === 'object' && opt !== null) {
-            choiceText = String(opt.text || opt.label || JSON.stringify(opt));
-          } else {
-            choiceText = String(opt);
-          }
+          const text = String(opt);
           
           return (
             <button 
@@ -324,10 +302,10 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
                 {String.fromCharCode(65 + idx)}
               </div>
               <span className={cn(
-                "flex-1 text-lg font-bold italic pt-1",
-                !isAnswered ? "text-slate-900" : isCorrect ? "text-emerald-900" : isSelected ? "text-red-900" : "text-slate-400"
+                "flex-1 text-lg font-bold italic pt-1 text-slate-900",
+                isAnswered && (isCorrect ? "text-emerald-900" : isSelected ? "text-red-900" : "text-slate-400")
               )}>
-                {choiceText}
+                {text}
               </span>
               {isAnswered && isCorrect && <CheckCircle2 className="h-6 w-6 text-emerald-500 absolute right-6 top-8" />}
             </button>

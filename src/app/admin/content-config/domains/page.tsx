@@ -117,30 +117,45 @@ export default function ManageDomains() {
         const jargonSheet = wb.Sheets["Jargon"];
         const jargonData = jargonSheet ? XLSX.utils.sheet_to_json(jargonSheet) : [];
         const parsedJargon = jargonData.map((row: any) => ({
-          term: row.term || row.Terme || row.Term || Object.values(row)[0] || "",
-          def: row.def || row.Définition || row.Definition || Object.values(row)[1] || ""
+          term: String(row.term || row.Terme || row.Term || Object.values(row)[0] || ""),
+          def: String(row.def || row.Définition || row.Definition || Object.values(row)[1] || "")
         }));
 
         const quizSheet = wb.Sheets["Quiz"];
         const quizData = quizSheet ? XLSX.utils.sheet_to_json(quizSheet) : [];
+        
         const parsedQuiz = quizData.map((row: any) => {
-          const q = row.q || row.Question || row.Énoncé || Object.values(row)[0] || "";
+          const q = String(row.q || row.Question || row.Énoncé || Object.values(row)[0] || "");
           
+          const getOpt = (...keys: string[]) => {
+            for (const key of keys) {
+              if (row[key] !== undefined && row[key] !== null && row[key] !== "") return row[key];
+            }
+            return undefined;
+          };
+
           const a = [
-            row.a1 || row.option1 || row["Option 1"] || row["Réponse 1"],
-            row.a2 || row.option2 || row["Option 2"] || row["Réponse 2"],
-            row.a3 || row.option3 || row["Option 3"] || row["Réponse 3"],
-            row.a4 || row.option4 || row["Option 4"] || row["Réponse 4"],
-          ].filter(x => x !== undefined && x !== null && x !== "");
+            getOpt("a1", "option1", "Option 1", "Réponse 1", "A"),
+            getOpt("a2", "option2", "Option 2", "Réponse 2", "B"),
+            getOpt("a3", "option3", "Option 3", "Réponse 3", "C"),
+            getOpt("a4", "option4", "Option 4", "Réponse 4", "D"),
+          ].filter(x => x !== undefined).map(x => String(x));
 
-          let c = parseInt(row.correct_idx || row.index_correct || row.correct || "1");
-          // Convert 1-based to 0-based if necessary
-          if (c > 0) c = c - 1;
+          let cVal = row.correct_idx || row.index_correct || row.correct || "1";
+          let c = 0;
+          if (typeof cVal === 'string') {
+            const firstChar = cVal.trim().toUpperCase();
+            if (['A','B','C','D'].includes(firstChar)) c = firstChar.charCodeAt(0) - 65;
+            else c = parseInt(cVal) - 1;
+          } else {
+            c = Number(cVal) - 1;
+          }
+          if (isNaN(c) || c < 0) c = 0;
 
-          const exp = row.exp || row.Explication || row.Justification || row.Explanation || "";
+          const exp = String(row.exp || row.Explication || row.Justification || row.Explanation || "");
 
           return { q, a, c, exp };
-        });
+        }).filter(item => item.q.length > 2);
 
         setData((prev: any) => ({
           ...prev,
@@ -148,7 +163,7 @@ export default function ManageDomains() {
           quiz: parsedQuiz.length > 0 ? parsedQuiz : prev.quiz
         }));
 
-        toast({ title: "Import réussi", description: "Données chargées. N'oubliez pas d'enregistrer." });
+        toast({ title: "Import réussi", description: `${parsedQuiz.length} questions chargées.` });
       } catch (err) {
         toast({ variant: "destructive", title: "Erreur import" });
       }
@@ -164,7 +179,7 @@ export default function ManageDomains() {
     setData({...data, jargon: next});
   };
 
-  const addQuiz = () => setData({...data, quiz: [...data.quiz, { q: '', a: ['', '', ''], c: 0, exp: '' }]});
+  const addQuiz = () => setData({...data, quiz: [...data.quiz, { q: '', a: ['Vrai', 'Faux'], c: 0, exp: '' }]});
   const removeQuiz = (idx: number) => setData({...data, quiz: data.quiz.filter((_:any, i:number) => i !== idx)});
   const updateQuiz = (idx: number, field: string, val: any) => {
     const next = [...data.quiz];
@@ -179,7 +194,7 @@ export default function ManageDomains() {
 
   const exportModel = () => {
     const jargonWs = XLSX.utils.json_to_sheet([{ term: "Conflit", def: "Désaccord entre deux parties." }]);
-    const quizWs = XLSX.utils.json_to_sheet([{ q: "Domaine ?", a1: "O1", a2: "O2", a3: "O3", correct_idx: 1, exp: "Explication" }]);
+    const quizWs = XLSX.utils.json_to_sheet([{ q: "Domaine ?", a1: "Choix 1", a2: "Choix 2", a3: "", correct: 1, exp: "Explication" }]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, jargonWs, "Jargon");
     XLSX.utils.book_append_sheet(wb, quizWs, "Quiz");
@@ -273,7 +288,7 @@ export default function ManageDomains() {
                         </div>
                       ))}
                     </div>
-                    <Textarea placeholder="Justification Mindset..." value={q.exp} onChange={(e) => updateQuiz(idx, 'exp', e.target.value)} className="h-20 bg-white rounded-lg font-bold italic text-xs border-2 border-emerald-100" />
+                    <Textarea placeholder="Justification..." value={q.exp} onChange={(e) => updateQuiz(idx, 'exp', e.target.value)} className="h-20 bg-white rounded-lg font-bold italic text-xs border-2 border-emerald-100" />
                   </div>
                 ))}
               </div>
@@ -287,7 +302,7 @@ export default function ManageDomains() {
           <DialogHeader className="flex flex-col items-center text-center space-y-4">
             <div className="bg-destructive p-4 rounded-full shadow-lg"><AlertTriangle className="h-12 w-12 text-white" /></div>
             <DialogTitle className="text-4xl font-black uppercase italic text-destructive tracking-tighter">Réinitialisation</DialogTitle>
-            <DialogDescription className="text-lg font-bold text-slate-600 leading-relaxed uppercase italic">Voulez-vous vider intégralement le contenu du domaine <span className="text-destructive">{activeTab}</span> ?</DialogDescription>
+            <DialogDescription className="text-lg font-bold text-slate-600 leading-relaxed uppercase italic">Voulez-vous vider le domaine <span className="text-destructive">{activeTab}</span> ?</DialogDescription>
           </DialogHeader>
           <div className="py-10 space-y-8">
             <div className="bg-slate-50 p-8 rounded-3xl border-4 border-dashed text-center space-y-4">

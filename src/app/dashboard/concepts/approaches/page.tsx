@@ -22,34 +22,10 @@ const DEFAULT_APPROACH_DATA: Record<string, any> = {
     icon: ArrowDown,
     description: "L'approche prédictive repose sur une planification détaillée en amont.",
     jargon: [
-      { term: 'Chemin Critique', def: 'Séquence de tâches minimale pour finir le projet.' }
+      { term: 'Chemin Critique', def: 'Séquence de tâches minimale pour livrer le projet.' }
     ],
     quiz: [
-      { q: "Quand utiliser le prédictif ?", a: ["Besoins stables", "Projet inconnu", "Haute incertitude"], c: 0, exp: "Le prédictif excelle quand les besoins sont clairs dès le début." },
-    ]
-  },
-  agile: {
-    id: 'agile',
-    title: 'Agile',
-    icon: RotateCcw,
-    description: "L'agilité privilégie l'itération et le feedback continu.",
-    jargon: [
-      { term: 'Sprint', def: 'Bloc de temps fixe (2-4 sem) pour livrer un incrément.' }
-    ],
-    quiz: [
-      { q: "Qui définit les priorités ?", a: ["Scrum Master", "Product Owner", "Equipe"], c: 1, exp: "Le PO est responsable du ROI et des priorités du backlog." },
-    ]
-  },
-  hybrid: {
-    id: 'hybrid',
-    title: 'Hybride',
-    icon: Layers,
-    description: "Mélange le meilleur des deux mondes pour s'adapter au contexte.",
-    jargon: [
-      { term: 'Approche Hybride', def: 'Utilisation simultanée du prédictif et de l\'agile.' }
-    ],
-    quiz: [
-      { q: "Pourquoi l'hybride ?", a: ["Rigidité", "Adaptabilité ciblée", "Moins cher"], c: 1, exp: "Permet de garder du contrôle sur le budget tout en étant flexible sur le produit." },
+      { q: "Quand utiliser le prédictif ?", a: ["Besoins stables", "Projet inconnu"], c: 0, exp: "Le prédictif excelle quand les besoins sont clairs." },
     ]
   }
 };
@@ -71,10 +47,10 @@ export default function VisionApprochesPage() {
         if (snap.exists()) {
           setApproachData(snap.data());
         } else {
-          setApproachData(DEFAULT_APPROACH_DATA[activeApproach]);
+          setApproachData(null);
         }
       } catch (e) {
-        setApproachData(DEFAULT_APPROACH_DATA[activeApproach]);
+        setApproachData(null);
       } finally {
         setIsDataLoading(false);
       }
@@ -109,7 +85,13 @@ export default function VisionApprochesPage() {
 
   if (isDataLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
 
-  const data = approachData || DEFAULT_APPROACH_DATA[activeApproach];
+  // Utilisation des données DB ou Mock si vide
+  const currentData = approachData || DEFAULT_APPROACH_DATA[activeApproach] || { 
+    title: activeApproach.toUpperCase(), 
+    description: "Contenu en cours de rédaction.", 
+    jargon: [], 
+    quiz: [] 
+  };
 
   return (
     <div className="space-y-10 animate-fade-in pb-20 max-w-6xl mx-auto px-4">
@@ -120,13 +102,13 @@ export default function VisionApprochesPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {(['predictive', 'agile', 'hybrid'] as const).map((id) => {
-          const item = DEFAULT_APPROACH_DATA[id];
-          const Ico = item.icon;
           const isActive = activeApproach === id;
+          const Ico = id === 'predictive' ? ArrowDown : id === 'agile' ? RotateCcw : Layers;
+          const label = id === 'predictive' ? 'Waterfall' : id === 'agile' ? 'Agile' : 'Hybride';
           return (
             <button key={id} onClick={() => { setActiveApproach(id); setActiveTab('jargon'); }} className={cn("flex flex-col items-center justify-center p-10 rounded-[32px] border-4 transition-all duration-300 gap-4 bg-white", isActive ? "border-primary shadow-xl scale-[1.02]" : "border-slate-100 hover:border-slate-200")}>
               <div className={cn("p-4 rounded-2xl", isActive ? "text-primary" : "text-slate-300")}><Ico className="h-10 w-10" /></div>
-              <span className={cn("font-black uppercase italic tracking-widest text-sm", isActive ? "text-primary" : "text-slate-400")}>{item.title}</span>
+              <span className={cn("font-black uppercase italic tracking-widest text-sm", isActive ? "text-primary" : "text-slate-400")}>{label}</span>
             </button>
           );
         })}
@@ -134,8 +116,8 @@ export default function VisionApprochesPage() {
 
       <div className="space-y-8">
         <div className="space-y-4">
-          <h2 className="text-2xl font-black italic uppercase tracking-tight text-slate-900">Focus : {data.title}</h2>
-          <p className="text-lg font-bold text-slate-500 italic leading-relaxed">{data.description}</p>
+          <h2 className="text-2xl font-black italic uppercase tracking-tight text-slate-900">Focus : {currentData.title}</h2>
+          <p className="text-lg font-bold text-slate-500 italic leading-relaxed">{currentData.description}</p>
         </div>
 
         <div className="flex gap-4">
@@ -146,12 +128,12 @@ export default function VisionApprochesPage() {
         <div className="pt-6">
           {activeTab === 'jargon' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-slide-up">
-              {(data.jargon || []).map((item:any, idx:number) => (
+              {(currentData.jargon || []).map((item:any, idx:number) => (
                 <JargonCard key={idx} term={item.term} def={item.def} />
               ))}
             </div>
           ) : (
-            <QuickQuiz questions={data.quiz || []} axisId={activeApproach} userId={user?.uid || ''} db={db} />
+            <QuickQuiz questions={currentData.quiz || []} axisId={activeApproach} userId={user?.uid || ''} db={db} />
           )}
         </div>
       </div>
@@ -220,7 +202,7 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
     setSelectedIdx(idx); 
     setIsAnswered(true); 
     const q = activeQuestions[currentIdx];
-    const correctIdx = typeof q.c !== 'undefined' ? parseInt(q.c) : (parseInt(q.correctChoice) || 0);
+    const correctIdx = q.c !== undefined ? Number(q.c) : 0;
     if (idx === correctIdx) setScore(score + 1); 
   };
 
@@ -255,18 +237,18 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
       </div>
       <div className="space-y-2">
         <h3 className="text-5xl font-black italic uppercase tracking-tighter text-slate-900">Score : {score} / {activeQuestions.length}</h3>
-        <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] italic">Session de révision validée</p>
+        <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] italic">Session validée</p>
       </div>
-      <Button onClick={() => window.location.reload()} className="h-16 px-12 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl scale-105 transition-transform">TERMINER</Button>
+      <Button onClick={() => window.location.reload()} className="h-16 px-12 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl scale-105 transition-transform text-white">REFAIRE</Button>
     </Card>
   );
   
   const q = activeQuestions[currentIdx];
   if (!q) return null;
 
-  const choiceList = q.a || q.choices || [];
-  const correctIdx = typeof q.c !== 'undefined' ? parseInt(q.c) : (parseInt(q.correctChoice) || 0);
-  const explanation = q.exp || q.explanation || "Analysez cette situation selon le mindset PMI pour comprendre la meilleure réponse.";
+  const choices = Array.isArray(q.a) ? q.a : (q.choices || []);
+  const correctIdx = q.c !== undefined ? Number(q.c) : 0;
+  const explanation = q.exp || q.explanation || "Analysez cette situation selon le mindset PMI.";
 
   return (
     <Card className="rounded-[40px] bg-white p-12 space-y-10 max-w-3xl mx-auto shadow-2xl animate-slide-up border-none overflow-hidden relative">
@@ -277,21 +259,14 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
       </div>
       
       <h3 className="text-3xl font-black italic text-slate-900 leading-tight relative z-10">
-        {q.q || q.text || q.statement}
+        {q.q || q.text || "Question sans énoncé"}
       </h3>
 
       <div className="grid gap-4 relative z-10">
-        {choiceList.map((opt: any, idx: number) => {
+        {choices.map((opt: any, idx: number) => {
           const isCorrect = idx === correctIdx;
           const isSelected = idx === selectedIdx;
-          
-          // Conversion robuste en chaîne de caractères
-          let choiceText = "";
-          if (typeof opt === 'object' && opt !== null) {
-            choiceText = String(opt.text || opt.label || JSON.stringify(opt));
-          } else {
-            choiceText = String(opt);
-          }
+          const text = String(opt);
           
           return (
             <button 
@@ -322,10 +297,10 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
                 {String.fromCharCode(65 + idx)}
               </div>
               <span className={cn(
-                "flex-1 text-lg font-bold italic pt-1",
-                !isAnswered ? "text-slate-900" : isCorrect ? "text-emerald-900" : isSelected ? "text-red-900" : "text-slate-400"
+                "flex-1 text-lg font-bold italic pt-1 text-slate-900",
+                isAnswered && (isCorrect ? "text-emerald-900" : isSelected ? "text-red-900" : "text-slate-400")
               )}>
-                {choiceText}
+                {text}
               </span>
               {isAnswered && isCorrect && <CheckCircle2 className="h-6 w-6 text-emerald-500 absolute right-6 top-8" />}
             </button>
