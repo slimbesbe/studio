@@ -152,18 +152,18 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* 3. Mindset Card */}
+        {/* 3. Mindset Card - Couleur ajustée (#8b9dfa) */}
         <div className="md:col-span-4 h-[220px]">
-          <Card className="rounded-2xl border-none shadow-sm p-4 bg-[#b2bdfc] h-full flex flex-col justify-between">
+          <Card className="rounded-2xl border-none shadow-sm p-4 bg-[#8b9dfa] h-full flex flex-col justify-between">
             <div className="flex items-center gap-2">
-              <Brain className="h-3.5 w-3.5 text-indigo-700" />
-              <h3 className="font-bold text-[9px] uppercase tracking-widest text-indigo-800/60">Le Mindset du Coach</h3>
+              <Brain className="h-3.5 w-3.5 text-indigo-900" />
+              <h3 className="font-bold text-[9px] uppercase tracking-widest text-indigo-950/60">Le Mindset du Coach</h3>
             </div>
             <p className="text-xs font-black italic text-indigo-950 mt-2 leading-relaxed">
               "Analysez toujours l'impact d'un changement avant de le soumettre au CCB."
             </p>
             <div className="mt-2">
-              <Button asChild variant="link" className="p-0 text-indigo-800 font-bold text-[9px] h-auto uppercase tracking-widest">
+              <Button asChild variant="link" className="p-0 text-indigo-950 font-black text-[9px] h-auto uppercase tracking-widest hover:text-white transition-colors">
                 <Link href="/dashboard/coach">Parler au coach <ChevronRight className="h-2.5 w-2.5" /></Link>
               </Button>
             </div>
