@@ -282,9 +282,16 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
 
       <div className="grid gap-4 relative z-10">
         {choiceList.map((opt: any, idx: number) => {
-          const choiceText = typeof opt === 'string' ? opt : opt.text;
           const isCorrect = idx === correctIdx;
           const isSelected = idx === selectedIdx;
+          
+          // Conversion robuste en chaîne de caractères
+          let choiceText = "";
+          if (typeof opt === 'object' && opt !== null) {
+            choiceText = String(opt.text || opt.label || JSON.stringify(opt));
+          } else {
+            choiceText = String(opt);
+          }
           
           return (
             <button 
