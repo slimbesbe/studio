@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
@@ -266,15 +265,26 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
   const q = activeQuestions[currentIdx];
   if (!q) return null;
 
-  // Extraction ultra-robuste des choix
+  // Extraction ultra-robuste des choix (Vrai/Faux, A/B/C, etc.)
   const getRawChoices = (item: any) => {
-    if (Array.isArray(item.a)) return item.a;
-    if (Array.isArray(item.choices)) return item.choices;
-    if (Array.isArray(item.options)) return item.options;
-    // Si stocké en colonnes séparées dans l'objet lui-même
-    const fromKeys = [item.a1, item.a2, item.a3, item.a4, item.option1, item.option2].filter(v => v !== undefined && v !== null && String(v).trim() !== "");
-    if (fromKeys.length > 0) return fromKeys;
-    return [];
+    // 1. Priorité aux tableaux explicites
+    if (Array.isArray(item.a) && item.a.length > 0) return item.a;
+    if (Array.isArray(item.choices) && item.choices.length > 0) return item.choices;
+    if (Array.isArray(item.options) && item.options.length > 0) return item.options;
+    
+    // 2. Scan direct de l'objet pour trouver des clés de type "choix"
+    const standardKeys = ["a1", "a2", "a3", "a4", "option1", "option2", "Vrai", "Faux", "R1", "R2", "Choice 1", "Choice 2"];
+    const foundStandard = standardKeys.map(k => item[k]).filter(v => v !== undefined && v !== null && String(v).trim() !== "");
+    if (foundStandard.length > 0) return foundStandard;
+
+    // 3. Scan agressif : toute clé qui n'est pas de la metadata et qui a une valeur string/bool
+    const metadata = ["q", "text", "statement", "exp", "explanation", "c", "correct", "id", "updatedAt", "title", "description", "jargon", "quiz", "index", "tags"];
+    const candidates = Object.keys(item)
+      .filter(k => !metadata.includes(k.toLowerCase()))
+      .map(k => item[k])
+      .filter(v => v !== undefined && v !== null && String(v).trim().length > 0);
+    
+    return candidates;
   };
 
   const rawChoices = getRawChoices(q);
@@ -290,15 +300,15 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
       </div>
       
       <h3 className="text-3xl font-black italic text-slate-900 leading-tight relative z-10">
-        {q.q || q.text || "Question sans énoncé"}
+        {q.q || q.text || q.statement || "Question sans énoncé"}
       </h3>
 
       <div className="grid gap-4 relative z-10">
         {rawChoices.map((opt: any, idx: number) => {
           const isCorrect = idx === correctIdx;
           const isSelected = idx === selectedIdx;
-          // Conversion forcée en string, gère les objets {text: "..."}
-          const text = typeof opt === 'string' ? opt : (opt?.text || opt?.value || String(opt || ''));
+          // Conversion forcée en string
+          const text = String(opt?.text || opt || '');
           
           if (!text || text.trim() === "") return null;
 
@@ -319,7 +329,7 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
               )}
             >
               <div className={cn(
-                "h-10 w-10 flex items-center justify-center font-black text-sm shrink-0 border-2 rounded-full",
+                "h-10 w-10 flex items-center justify-center font-black text-sm shrink-0 border-2 rounded-full shadow-md",
                 !isAnswered 
                   ? "bg-black text-white border-black" 
                   : isCorrect 
@@ -331,8 +341,8 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
                 {String.fromCharCode(65 + idx)}
               </div>
               <span className={cn(
-                "flex-1 text-lg font-black italic pt-1 text-black",
-                isAnswered && (isCorrect ? "text-emerald-900" : isSelected ? "text-red-900" : "text-slate-400")
+                "flex-1 text-lg font-black italic pt-1",
+                !isAnswered ? "text-black" : (isCorrect ? "text-emerald-900" : isSelected ? "text-red-900" : "text-slate-400")
               )}>
                 {text}
               </span>

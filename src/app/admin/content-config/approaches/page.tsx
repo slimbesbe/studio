@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -132,36 +131,24 @@ export default function ManageApproaches() {
         const parsedQuiz = quizData.map((row: any) => {
           const q = String(row.q || row.Question || row.Énoncé || Object.values(row)[0] || "").trim();
           
-          // Recherche exhaustive de colonnes d'options
-          const optionsKeys = [
-            "a1", "option1", "Choice 1", "R1", "Choix 1", "A", "Vrai",
-            "a2", "option2", "Choice 2", "R2", "Choix 2", "B", "Faux",
-            "a3", "option3", "Choice 3", "R3", "Choix 3", "C",
-            "a4", "option4", "Choice 4", "R4", "Choix 4", "D"
-          ];
-
-          // On extrait les valeurs de manière séquentielle pour construire l'array 'a'
           const a: string[] = [];
-          
-          // Méthode 1: Par noms de colonnes connus
-          const foundA1 = row.a1 || row.option1 || row["Choice 1"] || row["Choix 1"] || row["A"] || row["Vrai"];
-          const foundA2 = row.a2 || row.option2 || row["Choice 2"] || row["Choix 2"] || row["B"] || row["Faux"];
-          const foundA3 = row.a3 || row.option3 || row["Choice 3"] || row["Choix 3"] || row["C"];
-          const foundA4 = row.a4 || row.option4 || row["Choice 4"] || row["Choix 4"] || row["D"];
-
-          if (foundA1 !== undefined) a.push(String(foundA1).trim());
-          if (foundA2 !== undefined) a.push(String(foundA2).trim());
-          if (foundA3 !== undefined) a.push(String(foundA3).trim());
-          if (foundA4 !== undefined) a.push(String(foundA4).trim());
-
-          // Si on n'a rien trouvé, on prend tout ce qui n'est pas Q, C ou EXP
-          if (a.length === 0) {
-            Object.keys(row).forEach(key => {
-              const k = key.toLowerCase();
-              if (!["q", "question", "énoncé", "c", "correct", "index", "exp", "justification", "explanation"].includes(k)) {
-                if (row[key] !== undefined && row[key] !== null) a.push(String(row[key]).trim());
+          // Extraction gourmande des colonnes de réponses
+          Object.keys(row).forEach(key => {
+            const k = key.toLowerCase();
+            const val = row[key];
+            if (val !== undefined && val !== null && String(val).trim() !== "") {
+              if (k.startsWith('a') || k.startsWith('opt') || k.startsWith('choix') || k.startsWith('choice') || k.startsWith('r') || k === 'vrai' || k === 'faux') {
+                if (!['index', 'explication', 'justification', 'explanation', 'correct', 'c'].includes(k)) {
+                  a.push(String(val).trim());
+                }
               }
-            });
+            }
+          });
+
+          // Si rien n'a été trouvé par pattern, on prend les colonnes standard
+          if (a.length === 0) {
+            const standard = [row.a1, row.a2, row.a3, row.a4, row.option1, row.option2, row.Vrai, row.Faux].filter(v => v !== undefined && v !== null);
+            standard.forEach(v => a.push(String(v).trim()));
           }
 
           let cVal = row.c || row.correct_idx || row.index_correct || row.correct || "1";
@@ -171,11 +158,10 @@ export default function ManageApproaches() {
             if (['A','B','C','D'].includes(firstChar)) c = firstChar.charCodeAt(0) - 65;
             else if (firstChar === "VRAI") c = 0;
             else if (firstChar === "FAUX") c = 1;
-            else c = parseInt(cVal) - 1;
+            else c = Math.max(0, parseInt(cVal) - 1);
           } else {
-            c = Number(cVal) - 1;
+            c = Math.max(0, Number(cVal) - 1);
           }
-          if (isNaN(c) || c < 0) c = 0;
 
           const exp = String(row.exp || row.Explication || row.Justification || row.Explanation || "").trim();
 
