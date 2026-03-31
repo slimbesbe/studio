@@ -144,9 +144,9 @@ export default function HistoryPage() {
                             </div>
                             <div className="overflow-hidden">
                               <div className="font-black text-sm text-slate-800 uppercase italic tracking-tighter truncate">
-                                {res.examId ? res.examId.replace('exam', 'Examen ') : res.sessionId || 'Pratique'}
+                                {res.examId ? res.examId.replace('exam', 'Examen ') : res.sessionId || 'Simulation'}
                               </div>
-                              <div className="text-[8px] font-bold text-slate-400 uppercase">Détails dispos</div>
+                              <div className="text-[8px] font-bold text-slate-400 uppercase">Analyse disponible</div>
                             </div>
                           </div>
                         </TableCell>
@@ -160,7 +160,7 @@ export default function HistoryPage() {
                           <div className="flex flex-col items-center">
                             <span className={cn(
                               "text-xl font-black italic tracking-tighter",
-                              res.scorePercent >= 80 ? 'text-emerald-500' : res.scorePercent >= 60 ? 'text-[#f59e0b]' : 'text-red-500'
+                              res.scorePercent >= 75 ? 'text-emerald-500' : res.scorePercent >= 50 ? 'text-[#6366f1]' : 'text-red-500'
                             )}>
                               {res.scorePercent}%
                             </span>
@@ -227,16 +227,16 @@ export default function HistoryPage() {
                       {chartData.map((entry, index) => (
                         <Cell 
                           key={`cell-${index}`} 
-                          fill={entry.score >= 80 ? '#10b981' : entry.score >= 60 ? '#f59e0b' : '#ef4444'} 
+                          fill={entry.score >= 75 ? '#10b981' : entry.score >= 50 ? '#6366f1' : '#ef4444'} 
                         />
                       ))}
                     </Bar>
                     <Line 
                       type="monotone" 
                       dataKey="score" 
-                      stroke="#6366f1" 
+                      stroke="#f43f5e" 
                       strokeWidth={4} 
-                      dot={{ r: 6, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }} 
+                      dot={{ r: 6, fill: '#f43f5e', strokeWidth: 2, stroke: '#fff' }} 
                       activeDot={{ r: 8 }}
                       animationDuration={1500}
                     />
@@ -252,7 +252,7 @@ export default function HistoryPage() {
 
             <div className="bg-slate-50 p-6 rounded-3xl border-2 border-dashed border-slate-100">
               <p className="text-xs font-bold italic text-slate-500 leading-relaxed">
-                <span className="text-primary font-black">Analyse :</span> Les barres reflètent votre niveau immédiat tandis que la courbe montre la tendance globale de votre préparation.
+                <span className="text-primary font-black">Analyse :</span> Les barres colorées reflètent votre niveau immédiat tandis que la courbe rouge montre la tendance globale de votre préparation.
               </p>
             </div>
           </Card>
