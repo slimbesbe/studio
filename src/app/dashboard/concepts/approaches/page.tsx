@@ -195,8 +195,14 @@ function JargonCard({ term, def }: { term: string, def: string }) {
   return (
     <div className="perspective-1000 h-48 w-full cursor-pointer group" onClick={() => setIsFlipped(!isFlipped)}>
       <div className={cn("relative w-full h-full transition-transform duration-500 preserve-3d", isFlipped ? "rotate-y-180" : "")}>
-        <div className="absolute inset-0 backface-hidden bg-[#1E293B] text-white rounded-[24px] flex flex-col items-center justify-center p-6 shadow-xl"><h3 className="text-xl font-black italic uppercase tracking-tight text-center">{term}</h3></div>
-        <div className="absolute inset-0 backface-hidden rotate-y-180 bg-primary text-white rounded-[24px] flex items-center justify-center p-8 shadow-2xl"><p className="text-center font-bold italic text-sm">{def}</p></div>
+        {/* RECTO : Maintenant Bleu Simu-lux */}
+        <div className="absolute inset-0 backface-hidden bg-primary text-white rounded-[24px] flex flex-col items-center justify-center p-6 shadow-xl">
+          <h3 className="text-xl font-black italic uppercase tracking-tight text-center">{term}</h3>
+        </div>
+        {/* VERSO : Maintenant Gris Anthracite */}
+        <div className="absolute inset-0 backface-hidden rotate-y-180 bg-[#1E293B] text-white rounded-[24px] flex items-center justify-center p-8 shadow-2xl">
+          <p className="text-center font-bold italic text-sm">{def}</p>
+        </div>
       </div>
     </div>
   );
