@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { useFirestore, useUser } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { doc, setDoc, serverTimestamp, getDoc, deleteDoc } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -123,18 +123,30 @@ export default function ManageApproaches() {
         const jargonSheet = wb.Sheets["Jargon"];
         const jargonData = jargonSheet ? XLSX.utils.sheet_to_json(jargonSheet) : [];
         const parsedJargon = jargonData.map((row: any) => ({
-          term: row.term || row.Terme || "",
-          def: row.def || row.Définition || ""
+          term: row.term || row.Terme || row.Term || Object.values(row)[0] || "",
+          def: row.def || row.Définition || row.Definition || Object.values(row)[1] || ""
         }));
 
         const quizSheet = wb.Sheets["Quiz"];
         const quizData = quizSheet ? XLSX.utils.sheet_to_json(quizSheet) : [];
-        const parsedQuiz = quizData.map((row: any) => ({
-          q: row.q || row.Question || "",
-          a: [row.a1 || "", row.a2 || "", row.a3 || "", row.a4 || ""].filter(x => x !== ""),
-          c: parseInt(row.correct_idx || row.index_correct || "0"),
-          exp: row.exp || row.Explication || ""
-        }));
+        const parsedQuiz = quizData.map((row: any) => {
+          const q = row.q || row.Question || row.Énoncé || Object.values(row)[0] || "";
+          
+          const a = [
+            row.a1 || row.option1 || row["Option 1"] || row["Réponse 1"],
+            row.a2 || row.option2 || row["Option 2"] || row["Réponse 2"],
+            row.a3 || row.option3 || row["Option 3"] || row["Réponse 3"],
+            row.a4 || row.option4 || row["Option 4"] || row["Réponse 4"],
+          ].filter(x => x !== undefined && x !== null && x !== "");
+
+          let c = parseInt(row.correct_idx || row.index_correct || row.correct || "1");
+          // Convert 1-based to 0-based if necessary
+          if (c > 0) c = c - 1;
+
+          const exp = row.exp || row.Explication || row.Justification || row.Explanation || "";
+
+          return { q, a, c, exp };
+        });
 
         setData((prev: any) => ({
           ...prev,
@@ -173,7 +185,7 @@ export default function ManageApproaches() {
 
   const exportModel = () => {
     const jargonWs = XLSX.utils.json_to_sheet([{ term: "WBS", def: "Work Breakdown Structure" }]);
-    const quizWs = XLSX.utils.json_to_sheet([{ q: "Ma question ?", a1: "Opt 1", a2: "Opt 2", a3: "Opt 3", a4: "Opt 4", correct_idx: 0, exp: "Justification" }]);
+    const quizWs = XLSX.utils.json_to_sheet([{ q: "Ma question ?", a1: "Opt 1", a2: "Opt 2", a3: "Opt 3", a4: "Opt 4", correct_idx: 1, exp: "Justification" }]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, jargonWs, "Jargon");
     XLSX.utils.book_append_sheet(wb, quizWs, "Quiz");
