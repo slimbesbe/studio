@@ -102,7 +102,7 @@ export default function ManageApproaches() {
         const quizData = quizSheet ? XLSX.utils.sheet_to_json(quizSheet) : [];
         const parsedQuiz = quizData.map((row: any) => ({
           q: row.q || row.Question || "",
-          a: [row.a1 || "", row.a2 || "", row.a3 || ""],
+          a: [row.a1 || "", row.a2 || "", row.a3 || "", row.a4 || ""].filter(x => x !== ""),
           c: parseInt(row.correct_idx || row.index_correct || "0"),
           exp: row.exp || row.Explication || ""
         }));
@@ -144,7 +144,7 @@ export default function ManageApproaches() {
 
   const exportModel = () => {
     const jargonWs = XLSX.utils.json_to_sheet([{ term: "WBS", def: "Work Breakdown Structure" }]);
-    const quizWs = XLSX.utils.json_to_sheet([{ q: "Ma question ?", a1: "Opt 1", a2: "Opt 2", a3: "Opt 3", correct_idx: 0, exp: "Justification" }]);
+    const quizWs = XLSX.utils.json_to_sheet([{ q: "Ma question ?", a1: "Opt 1", a2: "Opt 2", a3: "Opt 3", a4: "Opt 4", correct_idx: 0, exp: "Justification" }]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, jargonWs, "Jargon");
     XLSX.utils.book_append_sheet(wb, quizWs, "Quiz");
@@ -230,8 +230,8 @@ export default function ManageApproaches() {
                     <div className="grid grid-cols-1 gap-2">
                       {q.a.map((opt:string, optIdx:number) => (
                         <div key={optIdx} className="flex items-center gap-2">
-                          <button onClick={() => updateQuiz(idx, 'c', optIdx)} className={cn("h-6 w-6 rounded-full border-2 flex items-center justify-center font-black text-[10px]", q.c === optIdx ? "bg-amber-500 border-amber-500 text-white" : "bg-white border-amber-200 text-amber-200")}>{optIdx + 1}</button>
-                          <Input placeholder={`Option ${optIdx + 1}`} value={opt} onChange={(e) => updateQuiz(idx, `a.${optIdx}`, e.target.value)} className="h-9 bg-white rounded-lg font-bold italic text-xs border-2 border-amber-100" />
+                          <button onClick={() => updateQuiz(idx, 'c', optIdx)} className={cn("h-6 w-6 rounded-full border-2 flex items-center justify-center font-black text-[10px]", q.c === optIdx ? "bg-amber-500 border-amber-500 text-white" : "bg-white border-amber-200 text-amber-200")}>{String.fromCharCode(65 + optIdx)}</button>
+                          <Input placeholder={`Option ${String.fromCharCode(65 + optIdx)}`} value={opt} onChange={(e) => updateQuiz(idx, `a.${optIdx}`, e.target.value)} className="h-9 bg-white rounded-lg font-bold italic text-xs border-2 border-amber-100" />
                         </div>
                       ))}
                     </div>

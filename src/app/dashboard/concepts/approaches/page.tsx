@@ -6,66 +6,61 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Users, 
-  Settings, 
-  Globe, 
-  BookOpen, 
-  Zap, 
-  CheckCircle2, 
-  Info,
-  XCircle,
-  Trophy,
-  TrendingUp,
-  History,
-  Clock,
-  Calendar,
-  Loader2,
-  ChevronRight
+  ArrowDown, RotateCcw, Layers, BookOpen, Zap, 
+  CheckCircle2, Info, XCircle, Trophy, History, 
+  TrendingUp, Clock, Calendar, Loader2
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
-import { 
-  ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell 
-} from 'recharts';
+import { ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-const DEFAULT_DOMAIN_DATA: Record<string, any> = {
-  people: {
-    id: 'people',
-    title: 'People',
-    icon: Users,
-    description: "Le domaine People concerne tout ce qui touche à l'humain.",
-    mindset: "Leader Serviteur.",
-    jargon: [{ term: 'Servant Leadership', def: 'Style de leadership qui privilégie le soutien.' }],
-    quiz: [{ q: "Rôle du Leader Serviteur ?", a: ["Décider seul", "Éliminer les obstacles"], c: 1, exp: "Il facilite le travail." }]
+const DEFAULT_APPROACH_DATA: Record<string, any> = {
+  predictive: {
+    id: 'predictive',
+    title: 'Prédictif (Waterfall)',
+    icon: ArrowDown,
+    description: "L'approche prédictive repose sur une planification détaillée en amont.",
+    jargon: [
+      { term: 'Chemin Critique', def: 'Séquence de tâches minimale pour finir le projet.' }
+    ],
+    quiz: [
+      { q: "Quand utiliser le prédictif ?", a: ["Besoins stables", "Projet inconnu", "Haute incertitude"], c: 0, exp: "Le prédictif excelle quand les besoins sont clairs dès le début." },
+    ]
   },
-  process: {
-    id: 'process',
-    title: 'Process',
-    icon: Settings,
-    description: "Le domaine Process couvre la méthodologie technique.",
-    mindset: "Analyse d'impact.",
-    jargon: [{ term: 'Critical Path', def: 'Le chemin le plus long.' }],
-    quiz: [{ q: "CCB ?", a: ["Change Control Board", "Comité de Budget"], c: 0, exp: "Approuve les changements." }]
+  agile: {
+    id: 'agile',
+    title: 'Agile',
+    icon: RotateCcw,
+    description: "L'agilité privilégie l'itération et le feedback continu.",
+    jargon: [
+      { term: 'Sprint', def: 'Bloc de temps fixe (2-4 sem) pour livrer un incrément.' }
+    ],
+    quiz: [
+      { q: "Qui définit les priorités ?", a: ["Scrum Master", "Product Owner", "Equipe"], c: 1, exp: "Le PO est responsable du ROI et des priorités du backlog." },
+    ]
   },
-  business: {
-    id: 'business',
-    title: 'Business Environment',
-    icon: Globe,
-    description: "Liaison entre le projet et la stratégie.",
-    mindset: "Valeur stratégique.",
-    jargon: [{ term: 'Business Case', def: 'Justification du projet.' }],
-    quiz: [{ q: "Utilité du Business Case ?", a: ["Justifier l'investissement", "Recruter"], c: 0, exp: "Explique le pourquoi." }]
+  hybrid: {
+    id: 'hybrid',
+    title: 'Hybride',
+    icon: Layers,
+    description: "Mélange le meilleur des deux mondes pour s'adapter au contexte.",
+    jargon: [
+      { term: 'Approche Hybride', def: 'Utilisation simultanée du prédictif et de l\'agile.' }
+    ],
+    quiz: [
+      { q: "Pourquoi l'hybride ?", a: ["Rigidité", "Adaptabilité ciblée", "Moins cher"], c: 1, exp: "Permet de garder du contrôle sur le budget tout en étant flexible sur le produit." },
+    ]
   }
 };
 
-export default function VisionDomainesPage() {
+export default function VisionApprochesPage() {
   const { user } = useUser();
   const db = useFirestore();
-  const [activeDomain, setActiveDomain] = useState<'people' | 'process' | 'business'>('people');
+  const [activeApproach, setActiveApproach] = useState<'predictive' | 'agile' | 'hybrid'>('predictive');
   const [activeTab, setActiveTab] = useState<'jargon' | 'quiz'>('jargon');
-  const [domainData, setDomainData] = useState<any>(null);
+  const [approachData, setApproachData] = useState<any>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
 
   useEffect(() => {
@@ -73,29 +68,29 @@ export default function VisionDomainesPage() {
       if (!user) return;
       setIsDataLoading(true);
       try {
-        const snap = await getDoc(doc(db, 'concepts_domains', activeDomain));
+        const snap = await getDoc(doc(db, 'concepts_approaches', activeApproach));
         if (snap.exists()) {
-          setDomainData(snap.data());
+          setApproachData(snap.data());
         } else {
-          setDomainData(DEFAULT_DOMAIN_DATA[activeDomain]);
+          setApproachData(DEFAULT_APPROACH_DATA[activeApproach]);
         }
       } catch (e) {
-        setDomainData(DEFAULT_DOMAIN_DATA[activeDomain]);
+        setApproachData(DEFAULT_APPROACH_DATA[activeApproach]);
       } finally {
         setIsDataLoading(false);
       }
     }
     load();
-  }, [db, activeDomain, user]);
+  }, [db, activeApproach, user]);
 
   const attemptsQuery = useMemoFirebase(() => {
     if (!user?.uid) return null;
     return query(
       collection(db, 'quickQuizAttempts'), 
       where('userId', '==', user.uid),
-      where('axisId', '==', activeDomain)
+      where('axisId', '==', activeApproach)
     );
-  }, [db, user?.uid, activeDomain]);
+  }, [db, user?.uid, activeApproach]);
 
   const { data: attempts } = useCollection(attemptsQuery);
 
@@ -105,9 +100,8 @@ export default function VisionDomainesPage() {
       const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
       return {
         id: a.id,
-        name: `Q${i + 1}`,
+        name: `T${i + 1}`,
         date: date.toLocaleDateString('fr-FR'),
-        hour: date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
         score: a.score,
         responses: `${a.correctCount || 0} / ${a.totalQuestions || 5}`
       };
@@ -116,22 +110,22 @@ export default function VisionDomainesPage() {
 
   if (isDataLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
 
-  const data = domainData || DEFAULT_DOMAIN_DATA[activeDomain];
+  const data = approachData || DEFAULT_APPROACH_DATA[activeApproach];
 
   return (
     <div className="space-y-10 animate-fade-in pb-20 max-w-6xl mx-auto px-4">
       <div className="space-y-2">
-        <h1 className="text-4xl font-black italic uppercase tracking-tighter text-slate-900">Maîtrise des Domaines PMP</h1>
-        <p className="text-slate-500 font-bold uppercase tracking-widest text-xs italic">Explorez les 3 piliers de l'examen PMP®.</p>
+        <h1 className="text-4xl font-black italic uppercase tracking-tighter text-slate-900 leading-none">Vision Approches</h1>
+        <p className="text-slate-500 font-bold uppercase tracking-widest text-xs italic">Maîtrisez le cycle de vie de vos projets.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {(['people', 'process', 'business'] as const).map((id) => {
-          const item = DEFAULT_DOMAIN_DATA[id];
+        {(['predictive', 'agile', 'hybrid'] as const).map((id) => {
+          const item = DEFAULT_APPROACH_DATA[id];
           const Ico = item.icon;
-          const isActive = activeDomain === id;
+          const isActive = activeApproach === id;
           return (
-            <button key={id} onClick={() => { setActiveDomain(id); setActiveTab('jargon'); }} className={cn("flex flex-col items-center justify-center p-10 rounded-[32px] border-4 transition-all duration-300 gap-4 bg-white", isActive ? "border-primary shadow-xl scale-[1.02]" : "border-slate-100 hover:border-slate-200")}>
+            <button key={id} onClick={() => { setActiveApproach(id); setActiveTab('jargon'); }} className={cn("flex flex-col items-center justify-center p-10 rounded-[32px] border-4 transition-all duration-300 gap-4 bg-white", isActive ? "border-primary shadow-xl scale-[1.02]" : "border-slate-100 hover:border-slate-200")}>
               <div className={cn("p-4 rounded-2xl", isActive ? "text-primary" : "text-slate-300")}><Ico className="h-10 w-10" /></div>
               <span className={cn("font-black uppercase italic tracking-widest text-sm", isActive ? "text-primary" : "text-slate-400")}>{item.title}</span>
             </button>
@@ -158,7 +152,7 @@ export default function VisionDomainesPage() {
               ))}
             </div>
           ) : (
-            <QuickQuiz questions={data.quiz || []} axisId={activeDomain} userId={user?.uid || ''} db={db} />
+            <QuickQuiz questions={data.quiz || []} axisId={activeApproach} userId={user?.uid || ''} db={db} />
           )}
         </div>
       </div>
@@ -240,7 +234,7 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
         await addDoc(collection(db, 'quickQuizAttempts'), { 
           userId, 
           axisId, 
-          category: 'domain', 
+          category: 'approach', 
           score: percent, 
           correctCount: score, 
           totalQuestions: activeQuestions.length, 
