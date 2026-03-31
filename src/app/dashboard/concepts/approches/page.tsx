@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,48 +11,46 @@ import {
   TrendingUp, Clock, Calendar, Loader2
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-// --- STRUCTURE DE DONNÉES À REMPLIR ---
-const APPROACH_DATA = {
+const DEFAULT_APPROACH_DATA: Record<string, any> = {
   predictive: {
     id: 'predictive',
     title: 'Prédictif (Waterfall)',
     icon: ArrowDown,
-    description: "Insérez ici votre texte de focus pour l'approche prédictive.",
+    description: "L'approche prédictive repose sur une planification détaillée en amont.",
     jargon: [
-      { term: 'Terme 1', def: 'Définition du terme 1.' },
-      { term: 'Terme 2', def: 'Définition du terme 2.' },
+      { term: 'Chemin Critique', def: 'Séquence de tâches minimale pour finir le projet.' }
     ],
     quiz: [
-      { q: "Question de test ?", a: ["Option A", "Option B", "Option C"], c: 1, exp: "Explication du mindset." },
+      { q: "Quand utiliser le prédictif ?", a: ["Besoins stables", "Projet inconnu", "Haute incertitude"], c: 0, exp: "Le prédictif excelle quand les besoins sont clairs dès le début." },
     ]
   },
   agile: {
     id: 'agile',
     title: 'Agile',
     icon: RotateCcw,
-    description: "Insérez ici votre texte de focus pour l'approche agile.",
+    description: "L'agilité privilégie l'itération et le feedback continu.",
     jargon: [
-      { term: 'Terme Agile 1', def: 'Définition.' },
+      { term: 'Sprint', def: 'Bloc de temps fixe (2-4 sem) pour livrer un incrément.' }
     ],
     quiz: [
-      { q: "Question Agile ?", a: ["A", "B", "C"], c: 0, exp: "Explication." },
+      { q: "Qui définit les priorités ?", a: ["Scrum Master", "Product Owner", "Equipe"], c: 1, exp: "Le PO est responsable du ROI et des priorités du backlog." },
     ]
   },
   hybrid: {
     id: 'hybrid',
     title: 'Hybride',
     icon: Layers,
-    description: "Insérez ici votre texte de focus pour l'approche hybride.",
+    description: "Mélange le meilleur des deux mondes pour s'adapter au contexte.",
     jargon: [
-      { term: 'Terme Hybride 1', def: 'Définition.' },
+      { term: 'Approche Hybride', def: 'Utilisation simultanée du prédictif et de l\'agile.' }
     ],
     quiz: [
-      { q: "Question Hybride ?", a: ["A", "B", "C"], c: 2, exp: "Explication." },
+      { q: "Pourquoi l'hybride ?", a: ["Rigidité", "Adaptabilité ciblée", "Moins cher"], c: 1, exp: "Permet de garder du contrôle sur le budget tout en étant flexible sur le produit." },
     ]
   }
 };
@@ -62,8 +60,27 @@ export default function VisionApprochesPage() {
   const db = useFirestore();
   const [activeApproach, setActiveApproach] = useState<'predictive' | 'agile' | 'hybrid'>('predictive');
   const [activeTab, setActiveTab] = useState<'jargon' | 'quiz'>('jargon');
+  const [approachData, setApproachData] = useState<any>(null);
+  const [isDataLoading, setIsDataLoading] = useState(true);
 
-  const data = APPROACH_DATA[activeApproach];
+  useEffect(() => {
+    async function load() {
+      setIsDataLoading(true);
+      try {
+        const snap = await getDoc(doc(db, 'concepts_approaches', activeApproach));
+        if (snap.exists()) {
+          setApproachData(snap.data());
+        } else {
+          setApproachData(DEFAULT_APPROACH_DATA[activeApproach]);
+        }
+      } catch (e) {
+        setApproachData(DEFAULT_APPROACH_DATA[activeApproach]);
+      } finally {
+        setIsDataLoading(false);
+      }
+    }
+    load();
+  }, [db, activeApproach]);
 
   const attemptsQuery = useMemoFirebase(() => {
     if (!user?.uid) return null;
@@ -90,6 +107,12 @@ export default function VisionApprochesPage() {
     });
   }, [attempts]);
 
+  if (isDataLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
+
+  const data = approachData;
+  const icons: Record<string, any> = { predictive: ArrowDown, agile: RotateCcw, hybrid: Layers };
+  const Icon = icons[activeApproach];
+
   return (
     <div className="space-y-10 animate-fade-in pb-20 max-w-6xl mx-auto px-4">
       <div className="space-y-2">
@@ -99,12 +122,12 @@ export default function VisionApprochesPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {(['predictive', 'agile', 'hybrid'] as const).map((id) => {
-          const item = APPROACH_DATA[id];
-          const Icon = item.icon;
+          const item = DEFAULT_APPROACH_DATA[id];
+          const Ico = item.icon;
           const isActive = activeApproach === id;
           return (
             <button key={id} onClick={() => { setActiveApproach(id); setActiveTab('jargon'); }} className={cn("flex flex-col items-center justify-center p-10 rounded-[32px] border-4 transition-all duration-300 gap-4 bg-white", isActive ? "border-primary shadow-xl scale-[1.02]" : "border-slate-100 hover:border-slate-200")}>
-              <div className={cn("p-4 rounded-2xl", isActive ? "text-primary" : "text-slate-300")}><Icon className="h-10 w-10" /></div>
+              <div className={cn("p-4 rounded-2xl", isActive ? "text-primary" : "text-slate-300")}><Ico className="h-10 w-10" /></div>
               <span className={cn("font-black uppercase italic tracking-widest text-sm", isActive ? "text-primary" : "text-slate-400")}>{item.title}</span>
             </button>
           );
@@ -125,7 +148,7 @@ export default function VisionApprochesPage() {
         <div className="pt-6">
           {activeTab === 'jargon' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-slide-up">
-              {data.jargon.map((item, idx) => (
+              {data.jargon.map((item:any, idx:number) => (
                 <JargonCard key={idx} term={item.term} def={item.def} />
               ))}
             </div>
@@ -193,6 +216,7 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
   }};
   if (showResult) return <Card className="rounded-[40px] bg-white p-12 text-center space-y-8"><Trophy className="h-12 w-12 text-primary mx-auto" /><h3 className="text-3xl font-black italic uppercase">Score : {score} / {questions.length}</h3><Button onClick={() => window.location.reload()} className="h-14 px-10 rounded-2xl bg-primary font-black uppercase">Terminer</Button></Card>;
   const q = questions[currentIdx];
+  if (!q) return null;
   return (
     <Card className="rounded-[40px] bg-white p-10 space-y-8 max-w-3xl mx-auto shadow-2xl">
       <Badge variant="outline" className="font-black italic px-4 py-1">Question {currentIdx + 1} / {questions.length}</Badge>

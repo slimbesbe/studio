@@ -21,7 +21,8 @@ import {
   ChevronDown,
   BookMarked,
   Layers,
-  Globe
+  Globe,
+  Settings2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useAuth } from '@/firebase';
@@ -71,7 +72,7 @@ export function Sidebar() {
 
   return (
     <div className="flex flex-col h-full bg-white text-slate-600 w-64 fixed left-0 top-0 z-40 border-r border-slate-100 shadow-[10px_0_30px_rgba(0,0,0,0.02)]">
-      {/* Header Logo - Adjusted for full rectangular logo */}
+      {/* Header Logo */}
       <div className="h-24 flex items-center justify-center px-6 border-b border-slate-50 bg-white">
         <Link className="flex flex-col items-center group w-full" href={isAdmin ? "/admin/dashboard" : "/dashboard"}>
           <SimuLuxLogo className="h-12 w-full group-hover:scale-105 transition-transform" />
@@ -136,6 +137,7 @@ export function Sidebar() {
           <>
             <div className="px-4 mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 italic">Pilotage Admin</div>
             <NavItem href="/admin/dashboard" icon={LayoutDashboard} label="Cockpit Admin" active={pathname === '/admin/dashboard'} />
+            <NavItem href="/admin/content-config" icon={Settings2} label="Configuration contenu" active={pathname.startsWith('/admin/content-config')} />
             <NavItem href="/admin/coaching" icon={GraduationCap} label="Sessions Coaching" active={pathname.startsWith('/admin/coaching')} />
             <NavItem href="/admin/questions" icon={BookCopy} label="Banque Questions" active={pathname.startsWith('/admin/questions')} />
             <NavItem href="/admin/users" icon={Users} label="Utilisateurs" active={pathname.startsWith('/admin/users')} />

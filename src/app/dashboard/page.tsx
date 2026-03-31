@@ -26,8 +26,7 @@ import {
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
-// LISTE DES MINDSETS PMI (À REMPLIR AVEC VOS TEXTES)
-const PMI_MINDSETS = [
+const DEFAULT_MINDSETS = [
   "Si la loi ou la régulation change, adaptez le projet immédiatement. C'est non négociable.",
   "Un Leader Serviteur protège l'équipe des interruptions externes pour maintenir la vélocité.",
   "Face à un conflit, privilégiez toujours la collaboration et la résolution de problèmes.",
@@ -43,21 +42,29 @@ export default function DashboardPage() {
   const [chartKey, setChartKey] = useState(0);
   const [mindsetIdx, setMindsetIdx] = useState(0);
 
+  // Read Mindsets from Firestore
+  const mindsetsQuery = useMemoFirebase(() => collection(db, 'mindsets'), [db]);
+  const { data: dbMindsets } = useCollection(mindsetsQuery);
+
+  const displayMindsets = useMemo(() => {
+    if (dbMindsets && dbMindsets.length > 0) return dbMindsets.map(m => m.text);
+    return DEFAULT_MINDSETS;
+  }, [dbMindsets]);
+
   useEffect(() => {
     setMounted(true);
     const timer = setTimeout(() => setChartKey(prev => prev + 1), 500);
-    // Rotation automatique toutes les 30 secondes
     const interval = setInterval(() => {
-      setMindsetIdx((prev) => (prev + 1) % PMI_MINDSETS.length);
+      setMindsetIdx((prev) => (prev + 1) % displayMindsets.length);
     }, 30000);
     return () => {
       clearTimeout(timer);
       clearInterval(interval);
     };
-  }, []);
+  }, [displayMindsets.length]);
 
   const handleNextMindset = () => {
-    setMindsetIdx((prev) => (prev + 1) % PMI_MINDSETS.length);
+    setMindsetIdx((prev) => (prev + 1) % displayMindsets.length);
   };
 
   const attemptsQuery = useMemoFirebase(() => {
@@ -158,7 +165,7 @@ export default function DashboardPage() {
           </div>
           <div className="relative z-10 flex-1 flex flex-col justify-center">
             <p className="text-lg font-bold italic leading-relaxed text-slate-200 animate-slide-up" key={mindsetIdx}>
-              "{PMI_MINDSETS[mindsetIdx]}"
+              "{displayMindsets[mindsetIdx]}"
             </p>
           </div>
           <Button onClick={handleNextMindset} variant="ghost" className="relative z-10 w-fit h-10 px-4 rounded-lg bg-white/5 border border-white/10 text-slate-300 font-black uppercase text-[10px] tracking-widest italic gap-2 hover:bg-white/10">
