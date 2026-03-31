@@ -118,7 +118,7 @@ export default function DashboardPage() {
       {/* Bento Grid */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
         
-        {/* 1. Vue d'ensemble (KPIs) - Compacted */}
+        {/* 1. Vue d'ensemble (KPIs) */}
         <div className="md:col-span-4">
           <Card className="rounded-2xl border-none shadow-sm p-4 space-y-4 bg-white h-full">
             <div className="flex items-center justify-between">
@@ -134,7 +134,7 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* 2. Activité (Charts) - Height reduced 30% */}
+        {/* 2. Activité (Charts) */}
         <div className="md:col-span-4">
           <Card className="rounded-2xl border-none shadow-sm p-4 h-full space-y-4 bg-white">
             <div className="flex items-center justify-between">
@@ -168,7 +168,7 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* 3. Performance (Gauges) - Height reduced 30% */}
+        {/* 3. Performance (Gauges) */}
         <div className="md:col-span-4">
           <Card className="rounded-2xl border-none shadow-sm p-4 h-full space-y-4 bg-white">
             <div className="flex items-center justify-between">
@@ -205,7 +205,7 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* 5. Temps d'étude (Donut) - Reduced height */}
+        {/* 5. Temps d'étude (Donut) */}
         <div className="md:col-span-4">
           <Card className="rounded-2xl border-none shadow-sm p-4 bg-white space-y-4">
             <h3 className="font-bold text-slate-500 text-[11px] uppercase">5. Temps d'étude</h3>
@@ -231,18 +231,18 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Mindset Card */}
+        {/* Mindset Card - Updated with Light Purple background */}
         <div className="md:col-span-4">
-          <Card className="rounded-2xl border-none shadow-sm p-4 bg-[#1e293b] text-white h-full flex flex-col justify-between">
+          <Card className="rounded-2xl border-none shadow-sm p-4 bg-[#b2bdfc] h-full flex flex-col justify-between">
             <div className="flex items-center gap-2">
-              <Brain className="h-3.5 w-3.5 text-amber-400" />
-              <h3 className="font-bold text-[9px] uppercase tracking-widest text-slate-400">Le Mindset du Coach</h3>
+              <Brain className="h-3.5 w-3.5 text-indigo-700" />
+              <h3 className="font-bold text-[9px] uppercase tracking-widest text-indigo-800/60">Le Mindset du Coach</h3>
             </div>
-            <p className="text-xs font-medium italic text-slate-200 mt-2 leading-relaxed">
+            <p className="text-xs font-black italic text-indigo-950 mt-2 leading-relaxed">
               "Analysez toujours l'impact d'un changement avant de le soumettre au CCB."
             </p>
             <div className="mt-2">
-              <Button asChild variant="link" className="p-0 text-[#1d4ed8] font-bold text-[9px] h-auto uppercase tracking-widest">
+              <Button asChild variant="link" className="p-0 text-indigo-800 font-bold text-[9px] h-auto uppercase tracking-widest">
                 <Link href="/dashboard/coach">Parler au coach <ChevronRight className="h-2.5 w-2.5" /></Link>
               </Button>
             </div>
