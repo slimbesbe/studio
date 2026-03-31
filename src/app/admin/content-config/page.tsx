@@ -1,6 +1,6 @@
+
 "use client";
 
-import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -11,33 +11,18 @@ import {
   BookCopy, 
   ArrowRight, 
   ChevronLeft,
-  Trash2,
-  AlertTriangle,
-  Loader2,
-  CheckCircle2,
-  ShieldAlert
+  ShieldCheck,
+  RotateCcw
 } from 'lucide-react';
 import Link from 'next/link';
-import { useUser, useFirestore } from '@/firebase';
+import { useUser } from '@/firebase';
 import { cn } from '@/lib/utils';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogFooter, 
-  DialogDescription 
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { collection, getDocs, writeBatch } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
 
 const CONFIG_SECTIONS = [
   {
     id: 'mindsets',
     title: 'Mindsets PMI®',
-    description: 'Configurez les conseils et astuces qui défilent sur le Dashboard élève.',
+    description: 'Gérez les conseils et astuces qui défilent sur le Dashboard élève.',
     icon: Brain,
     href: '/admin/content-config/mindsets',
     color: 'bg-amber-500',
@@ -46,7 +31,7 @@ const CONFIG_SECTIONS = [
   {
     id: 'approaches',
     title: 'Vision Approches',
-    description: 'Modifiez le focus, le jargon et les quiz rapides (Agile, Waterfall, Hybride).',
+    description: 'Waterfall, Agile, Hybride : Focus, Jargon et Quiz par approche.',
     icon: Globe,
     href: '/admin/content-config/approaches',
     color: 'bg-indigo-500',
@@ -55,7 +40,7 @@ const CONFIG_SECTIONS = [
   {
     id: 'domains',
     title: 'Vision Domaines',
-    description: 'Gérez le contenu des 3 piliers : People, Process et Business Environment.',
+    description: 'People, Process et Business : Configuration des 3 piliers.',
     icon: Layers,
     href: '/admin/content-config/domains',
     color: 'bg-emerald-500',
@@ -74,58 +59,7 @@ const CONFIG_SECTIONS = [
 
 export default function ContentConfigHub() {
   const { profile } = useUser();
-  const db = useFirestore();
-  const { toast } = useToast();
   const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
-
-  // State pour la réinitialisation
-  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
-  const [securityCode, setSecurityCode] = useState('');
-  const [userInputCode, setUserInputCode] = useState('');
-  const [isResetting, setIsResetting] = useState(false);
-
-  const handleOpenReset = () => {
-    // Génère un code à 8 chiffres aléatoires
-    const code = Math.floor(10000000 + Math.random() * 90000000).toString();
-    setSecurityCode(code);
-    setUserInputCode('');
-    setIsResetModalOpen(true);
-  };
-
-  const performReset = async () => {
-    if (!db || userInputCode !== securityCode) return;
-    
-    setIsResetting(true);
-    try {
-      const collectionsToClear = ['mindsets', 'concepts_approaches', 'concepts_domains', 'questions'];
-      
-      for (const collName of collectionsToClear) {
-        const snap = await getDocs(collection(db, collName));
-        const docs = snap.docs;
-        
-        // Traitement par lots de 500 (limite Firestore) pour éviter les plantages
-        for (let i = 0; i < docs.length; i += 500) {
-          const batch = writeBatch(db);
-          docs.slice(i, i + 500).forEach(d => batch.delete(d.ref));
-          await batch.commit();
-        }
-      }
-
-      toast({ 
-        title: "Contenu réinitialisé", 
-        description: "Toutes les données pédagogiques ont été effacées avec succès." 
-      });
-      setIsResetModalOpen(false);
-    } catch (e: any) {
-      toast({ 
-        variant: "destructive", 
-        title: "Erreur critique", 
-        description: "La suppression a échoué. Vérifiez votre connexion." 
-      });
-    } finally {
-      setIsResetting(false);
-    }
-  };
 
   if (!isAdmin) return null;
 
@@ -170,87 +104,28 @@ export default function ContentConfigHub() {
         ))}
       </div>
 
-      {/* Danger Zone Section - Styled exactly like the other parts but with danger cues */}
       <div className="pt-10 space-y-6">
         <div className="flex items-center gap-3 px-2">
-          <ShieldAlert className="h-5 w-5 text-destructive" />
-          <h3 className="font-black uppercase italic tracking-widest text-destructive text-sm">Zone de Maintenance Critique</h3>
+          <ShieldCheck className="h-5 w-5 text-emerald-500" />
+          <h3 className="font-black uppercase italic tracking-widest text-slate-400 text-sm">Aide à la Maintenance</h3>
         </div>
         
-        <Card className="rounded-[40px] border-4 border-dashed border-destructive/20 bg-destructive/5 overflow-hidden">
-          <CardContent className="p-10 flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="space-y-2 text-center md:text-left">
-              <h4 className="text-xl font-black uppercase italic text-destructive tracking-tight">Remise à zéro de la base pédagogique</h4>
-              <p className="text-sm font-bold text-destructive/60 italic max-w-xl">
-                Cette action effacera instantanément TOUS les mindsets, les contenus de cours (jargon/quiz) et l'intégralité de la banque de questions.
-              </p>
+        <Card className="rounded-[40px] border-4 border-dashed border-slate-200 bg-slate-50 overflow-hidden">
+          <CardContent className="p-10">
+            <div className="flex flex-col md:flex-row items-center gap-8">
+              <div className="bg-white p-6 rounded-3xl shadow-sm border-2 border-slate-100">
+                <RotateCcw className="h-10 w-10 text-primary" />
+              </div>
+              <div className="space-y-2 text-center md:text-left">
+                <h4 className="text-xl font-black uppercase italic text-slate-800 tracking-tight">Gestion des réinitialisations</h4>
+                <p className="text-sm font-bold text-slate-500 italic max-w-2xl leading-relaxed">
+                  Pour vider le contenu d'une section ou d'un onglet spécifique (ex: Waterfall uniquement), rendez-vous directement dans la section concernée. Des boutons de maintenance ciblés y sont disponibles.
+                </p>
+              </div>
             </div>
-            <Button 
-              variant="destructive" 
-              onClick={handleOpenReset}
-              className="h-16 px-10 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:scale-105 transition-transform shrink-0 bg-red-600"
-            >
-              <Trash2 className="mr-3 h-6 w-6" /> RÉINITIALISER TOUT LE CONTENU
-            </Button>
           </CardContent>
         </Card>
       </div>
-
-      {/* Modal de confirmation de réinitialisation */}
-      <Dialog open={isResetModalOpen} onOpenChange={(val) => !isResetting && setIsResetModalOpen(val)}>
-        <DialogContent className="rounded-[40px] p-12 border-8 border-destructive shadow-3xl max-w-xl animate-in zoom-in-95 duration-200">
-          <DialogHeader className="flex flex-col items-center text-center space-y-4">
-            <div className="bg-destructive p-4 rounded-full shadow-lg">
-              <AlertTriangle className="h-12 w-12 text-white" />
-            </div>
-            <DialogTitle className="text-4xl font-black uppercase italic text-destructive tracking-tighter leading-none">
-              Attention Critique !
-            </DialogTitle>
-            <DialogDescription className="text-lg font-bold text-slate-600 leading-relaxed uppercase tracking-tight italic">
-              Vous êtes sur le point de vider intégralement le contenu pédagogique. Cette opération est irréversible.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="py-10 space-y-8">
-            <div className="bg-slate-50 p-8 rounded-3xl border-4 border-dashed border-slate-200 text-center space-y-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 italic">Veuillez recopier le code de sécurité</p>
-              <p className="text-6xl font-black tracking-[0.2em] text-primary select-none tabular-nums">
-                {securityCode}
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <Label className="font-black uppercase text-[10px] text-slate-400 italic ml-2">Confirmez par le code à 8 chiffres</Label>
-              <Input 
-                value={userInputCode}
-                onChange={(e) => setUserInputCode(e.target.value)}
-                placeholder="Entrez le code ici..."
-                maxLength={8}
-                className="h-16 rounded-2xl border-4 font-black text-center text-3xl italic tracking-widest focus-visible:ring-destructive border-slate-200"
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="gap-4 flex flex-col sm:flex-row">
-            <Button 
-              variant="outline" 
-              className="h-16 rounded-2xl font-black uppercase flex-1 border-4" 
-              onClick={() => setIsResetModalOpen(false)}
-              disabled={isResetting}
-            >
-              Annuler
-            </Button>
-            <Button 
-              variant="destructive"
-              disabled={userInputCode !== securityCode || isResetting}
-              onClick={performReset}
-              className="h-16 rounded-2xl font-black uppercase flex-1 shadow-2xl tracking-widest text-lg italic bg-red-600"
-            >
-              {isResetting ? <Loader2 className="animate-spin h-6 w-6" /> : <><CheckCircle2 className="mr-2 h-6 w-6" /> CONFIRMER</>}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

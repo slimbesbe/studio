@@ -3,7 +3,7 @@
 
 import { useState, useMemo, Suspense } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, orderBy, deleteDoc, doc, limit, where } from 'firebase/firestore';
+import { collection, query, orderBy, deleteDoc, doc, limit, getDocs, writeBatch } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -17,11 +17,15 @@ import {
   Loader2, 
   BookCopy, 
   ChevronLeft,
-  Filter
+  Filter,
+  AlertTriangle,
+  CheckCircle2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { ImportQuestionsModal } from '@/components/admin/ImportQuestionsModal';
@@ -35,6 +39,12 @@ function QuestionsList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterExam, setFilterExam] = useState('all');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  // States pour réinitialisation
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [securityCode, setSecurityCode] = useState('');
+  const [userInputCode, setUserInputCode] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
 
   const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
 
@@ -70,6 +80,30 @@ function QuestionsList() {
     }
   };
 
+  const handleOpenReset = () => {
+    const code = Math.floor(10000000 + Math.random() * 90000000).toString();
+    setSecurityCode(code);
+    setUserInputCode('');
+    setIsResetModalOpen(true);
+  };
+
+  const performReset = async () => {
+    if (userInputCode !== securityCode) return;
+    setIsResetting(true);
+    try {
+      const snap = await getDocs(collection(db, 'questions'));
+      const batch = writeBatch(db);
+      snap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+      toast({ title: "La banque de questions a été vidée." });
+      setIsResetModalOpen(false);
+    } catch (e) {
+      toast({ variant: "destructive", title: "Erreur" });
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   const downloadTemplate = () => {
     const template = [
       {
@@ -90,7 +124,7 @@ function QuestionsList() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Questions");
     XLSX.writeFile(wb, "modele_import_pmp.xlsx");
-    toast({ title: "Modèle téléchargé", description: "Remplissez ce fichier et uploadez-le via le bouton Importer." });
+    toast({ title: "Modèle téléchargé" });
   };
 
   if (isLoading) return <div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
@@ -111,13 +145,14 @@ function QuestionsList() {
         </div>
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" onClick={downloadTemplate} className="h-14 px-6 rounded-2xl font-black uppercase tracking-widest text-xs italic border-2 hover:bg-slate-50">
-            <Download className="mr-2 h-4 w-4" /> Modèle Excel
+            <Download className="mr-2 h-4 w-4" /> Modèle
           </Button>
-          <Button onClick={() => setIsImportModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 h-14 px-8 rounded-2xl font-black uppercase tracking-widest shadow-xl transition-transform hover:scale-105">
+          <Button variant="outline" onClick={handleOpenReset} className="h-14 px-6 rounded-2xl font-black uppercase text-xs italic border-2 text-destructive border-destructive/20 hover:bg-destructive/5"><Trash2 className="mr-2 h-4 w-4" /> Vider la banque</Button>
+          <Button onClick={() => setIsImportModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 h-14 px-8 rounded-2xl font-black uppercase tracking-widest shadow-xl transition-transform">
             <Upload className="mr-2 h-5 w-5" /> Importer Excel
           </Button>
-          <Button asChild className="bg-primary h-14 px-8 rounded-2xl font-black uppercase tracking-widest shadow-xl transition-transform hover:scale-105">
-            <Link href="/admin/manage-question/general/new"><Plus className="mr-2 h-5 w-5" /> Créer Question</Link>
+          <Button asChild className="bg-primary h-14 px-8 rounded-2xl font-black uppercase tracking-widest shadow-xl transition-transform">
+            <Link href="/admin/manage-question/general/new"><Plus className="mr-2 h-5 w-5" /> Créer</Link>
           </Button>
         </div>
       </div>
@@ -186,9 +221,6 @@ function QuestionsList() {
                           {s === 'general' ? 'PRATIQUE' : s.replace('exam', 'E')}
                         </Badge>
                       ))}
-                      {(!q.sourceIds || q.sourceIds.length === 0) && (
-                        <Badge className="bg-slate-100 text-slate-400 border-none font-black text-[7px] uppercase italic">NON ASSIGNÉ</Badge>
-                      )}
                     </div>
                   </TableCell>
                   <TableCell className="text-right px-10">
@@ -203,17 +235,6 @@ function QuestionsList() {
                   </TableCell>
                 </TableRow>
               ))}
-              {filteredQuestions.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={4} className="h-64 text-center">
-                    <div className="flex flex-col items-center justify-center text-slate-300 gap-4">
-                      <BookCopy className="h-16 w-16 opacity-20" />
-                      <p className="font-black uppercase italic tracking-widest">Aucune question trouvée</p>
-                      <p className="text-[10px] font-bold text-slate-400">Ajustez vos filtres ou importez des données.</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -224,6 +245,32 @@ function QuestionsList() {
         onClose={() => setIsImportModalOpen(false)} 
         examId={filterExam !== 'all' ? filterExam : 'general'} 
       />
+
+      <Dialog open={isResetModalOpen} onOpenChange={(val) => !isResetting && setIsResetModalOpen(val)}>
+        <DialogContent className="rounded-[40px] p-12 border-8 border-destructive shadow-3xl max-w-xl">
+          <DialogHeader className="flex flex-col items-center text-center space-y-4">
+            <div className="bg-destructive p-4 rounded-full shadow-lg"><AlertTriangle className="h-12 w-12 text-white" /></div>
+            <DialogTitle className="text-4xl font-black uppercase italic text-destructive tracking-tighter">Action Critique</DialogTitle>
+            <DialogDescription className="text-lg font-bold text-slate-600 leading-relaxed uppercase italic">Voulez-vous vider l'intégralité de la banque de questions ?</DialogDescription>
+          </DialogHeader>
+          <div className="py-10 space-y-8">
+            <div className="bg-slate-50 p-8 rounded-3xl border-4 border-dashed text-center space-y-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 italic">Code de sécurité</p>
+              <p className="text-6xl font-black tracking-widest text-primary tabular-nums">{securityCode}</p>
+            </div>
+            <div className="space-y-3">
+              <Label className="font-black uppercase text-[10px] text-slate-400 italic ml-2">Recopiez le code</Label>
+              <Input value={userInputCode} onChange={(e) => setUserInputCode(e.target.value)} maxLength={8} className="h-16 rounded-2xl border-4 font-black text-center text-3xl italic tracking-widest" />
+            </div>
+          </div>
+          <DialogFooter className="gap-4">
+            <Button variant="outline" className="h-16 rounded-2xl font-black uppercase flex-1 border-4" onClick={() => setIsResetModalOpen(false)} disabled={isResetting}>Annuler</Button>
+            <Button variant="destructive" disabled={userInputCode !== securityCode || isResetting} onClick={performReset} className="h-16 rounded-2xl font-black uppercase flex-1 shadow-2xl text-lg italic">
+              {isResetting ? <Loader2 className="animate-spin h-6 w-6" /> : <><CheckCircle2 className="mr-2 h-6 w-6" /> CONFIRMER</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
