@@ -265,19 +265,19 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
   const q = activeQuestions[currentIdx];
   if (!q) return null;
 
-  // Extraction ultra-robuste des choix
+  // Extraction ultra-robuste des choix (Vrai/Faux, Options, etc.)
   const getRawChoices = (item: any) => {
     // 1. Priorité aux tableaux explicites
     if (Array.isArray(item.a) && item.a.length > 0) return item.a;
     if (Array.isArray(item.choices) && item.choices.length > 0) return item.choices;
     if (Array.isArray(item.options) && item.options.length > 0) return item.options;
     
-    // 2. Scan manuel des clés de type option
+    // 2. Scan manuel des clés de type option (colonnes Excel typiques)
     const standardKeys = ["a1", "a2", "a3", "a4", "option1", "option2", "option3", "option4", "Vrai", "Faux", "A", "B", "C", "D"];
     const found = standardKeys.map(k => item[k]).filter(v => v !== undefined && v !== null && String(v).trim() !== "");
     if (found.length > 0) return found;
 
-    // 3. Fallback agressif : toute clé qui n'est pas metadata
+    // 3. Fallback agressif : scanne toutes les clés qui ne sont pas de la métadonnée
     const metadata = ["q", "text", "statement", "exp", "explanation", "c", "correct", "id", "updatedAt", "title", "description", "jargon", "quiz", "index", "tags"];
     const candidates = Object.keys(item)
       .filter(k => !metadata.includes(k.toLowerCase()))

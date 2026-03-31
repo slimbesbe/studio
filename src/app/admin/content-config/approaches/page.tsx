@@ -126,7 +126,7 @@ export default function ManageApproaches() {
           def: String(row.def || row.Définition || row.Definition || Object.values(row)[1] || "").trim()
         })).filter(j => j.term.length > 0);
 
-        // 2. Parsing Quiz - Extraction Standardisée
+        // 2. Parsing Quiz - Extraction Standardisée et Robuste
         const quizSheet = wb.Sheets["Quiz"];
         const quizData = quizSheet ? XLSX.utils.sheet_to_json(quizSheet) : [];
         
@@ -136,30 +136,38 @@ export default function ManageApproaches() {
           const a: string[] = [];
           
           // Chercher explicitement Vrai/Faux
-          if (row.Vrai !== undefined || row.Faux !== undefined) {
+          if (row.Vrai !== undefined || row.Faux !== undefined || row.vrai !== undefined || row.faux !== undefined) {
             a.push("Vrai");
             a.push("Faux");
           } else {
-            // Chercher les options standard
-            for (let i = 1; i <= 4; i++) {
-              const val = row[`option${i}`] || row[`choice${i}`] || row[`opt${i}`] || row[`R${i}`] || row[String.fromCharCode(64+i)];
-              if (val !== undefined && val !== null && String(val).trim() !== "") {
-                a.push(String(val).trim());
+            // Chercher les options standard (A, B, C, D ou 1, 2, 3, 4)
+            const optKeys = ["option1", "option2", "option3", "option4", "choice1", "choice2", "choice3", "choice4", "opt1", "opt2", "opt3", "opt4", "R1", "R2", "R3", "R4", "A", "B", "C", "D"];
+            optKeys.forEach(k => {
+              if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== "") {
+                a.push(String(row[k]).trim());
               }
-            }
+            });
           }
 
-          // Si toujours vide, chercher n'importe quoi qui ressemble à une option
+          // Si toujours vide, on tente de récupérer tout ce qui n'est pas de la métadonnée
           if (a.length === 0) {
-            const keys = Object.keys(row).filter(k => !["q", "text", "statement", "exp", "c", "correct", "id"].includes(k.toLowerCase()));
-            keys.forEach(k => a.push(String(row[k]).trim()));
+            const metadata = ["q", "text", "statement", "exp", "explanation", "c", "correct", "id"];
+            Object.keys(row).forEach(k => {
+              if (!metadata.includes(k.toLowerCase()) && row[k] !== undefined && row[k] !== null) {
+                a.push(String(row[k]).trim());
+              }
+            });
           }
 
+          // Détermination de l'index correct
           let cVal = row.c || row.correct || row.index_correct || "1";
           let c = 0;
           if (typeof cVal === 'string') {
             const first = cVal.trim().toUpperCase();
-            if (['A','B','C','D'].includes(first)) c = first.charCodeAt(0) - 65;
+            if (first === "A" || first === "1") c = 0;
+            else if (first === "B" || first === "2") c = 1;
+            else if (first === "C" || first === "3") c = 2;
+            else if (first === "D" || first === "4") c = 3;
             else if (first === "VRAI") c = 0;
             else if (first === "FAUX") c = 1;
             else c = Math.max(0, (parseInt(cVal) || 1) - 1);
@@ -167,7 +175,7 @@ export default function ManageApproaches() {
             c = Math.max(0, (Number(cVal) || 1) - 1);
           }
 
-          const exp = String(row.exp || row.Explication || row.Justification || "").trim();
+          const exp = String(row.exp || row.explanation || row.Explication || row.Justification || "").trim();
 
           return { q, a, c, exp };
         }).filter(item => item.q.length > 2);
@@ -178,7 +186,7 @@ export default function ManageApproaches() {
           quiz: parsedQuiz.length > 0 ? parsedQuiz : prev.quiz
         }));
 
-        toast({ title: "Import réussi", description: `${parsedQuiz.length} questions de quiz chargées.` });
+        toast({ title: "Import réussi", description: `${parsedQuiz.length} questions chargées.` });
       } catch (err) {
         toast({ variant: "destructive", title: "Erreur import" });
       }
