@@ -1,65 +1,84 @@
+
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MessageSquare, Send, Loader2, User, Sparkles } from 'lucide-react';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
+import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  timestamp: Date;
+  timestamp: any;
 }
 
 export default function ChatPage() {
-  const { profile } = useUser();
+  const { profile, user } = useUser();
+  const db = useFirestore();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Initialisation du message de bienvenue avec le nom dynamique
+  // Charger l'historique en temps réel
   useEffect(() => {
-    if (profile && messages.length === 0) {
-      setMessages([
-        {
-          id: 'welcome',
-          role: 'assistant',
-          content: `Bonjour ${profile?.firstName || 'Candidat'} ! Je suis votre coach Simu-lux. Prêt à dominer l'examen ? Posez-moi vos questions sur le Mindset PMP, les processus du PMBOK ou les approches Agiles.`,
-          timestamp: new Date()
-        }
-      ]);
+    if (!user || !db) return;
+    const q = query(
+      collection(db, 'chats', user.uid, 'messages'),
+      orderBy('timestamp', 'asc')
+    );
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Message));
+      setMessages(msgs);
+    });
+    return () => unsubscribe();
+  }, [user, db]);
+
+  // Auto-scroll
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [profile, messages.length]);
+  }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || !user) return;
 
-    const userMsg: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: input,
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, userMsg]);
-    setInput(''); // Vider le champ immédiatement
+    const userContent = input;
+    setInput('');
     setIsLoading(true);
 
-    // Simulation de réflexion prolongée (12 secondes) pour un rendu naturel
-    setTimeout(() => {
-      const assistantMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: "Merci pour votre question ! Le service de chat interactif n'est pas encore disponible. Nous finalisons la configuration pour vous offrir une expérience optimale. Revenez vers nous ultérieurement pour un coaching complet.",
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, assistantMsg]);
+    try {
+      // 1. Sauvegarder le message utilisateur
+      await addDoc(collection(db, 'chats', user.uid, 'messages'), {
+        userId: user.uid,
+        userName: `${profile?.firstName} ${profile?.lastName}`,
+        role: 'user',
+        content: userContent,
+        timestamp: serverTimestamp()
+      });
+
+      // 2. Simulation IA différée
+      setTimeout(async () => {
+        await addDoc(collection(db, 'chats', user.uid, 'messages'), {
+          userId: user.uid,
+          userName: 'Assistant Simu-lux',
+          role: 'assistant',
+          content: "Merci pour votre question ! Le service de chat interactif en temps réel avec IA générative est en cours de déploiement final. Vos messages sont bien enregistrés pour que nos formateurs puissent vous répondre si nécessaire.",
+          timestamp: serverTimestamp()
+        });
+        setIsLoading(false);
+      }, 2000);
+
+    } catch (e) {
+      console.error(e);
       setIsLoading(false);
-    }, 12000);
+    }
   };
 
   return (
@@ -75,7 +94,15 @@ export default function ChatPage() {
       </div>
 
       <Card className="flex-1 rounded-[40px] shadow-2xl border-none overflow-hidden bg-white flex flex-col min-h-0">
-        <CardContent className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar">
+        <CardContent 
+          ref={scrollRef}
+          className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar"
+        >
+          {messages.length === 0 && (
+            <div className="text-center py-20 text-slate-300 italic font-black uppercase tracking-widest">
+              Commencez la discussion...
+            </div>
+          )}
           {messages.map((m) => (
             <div key={m.id} className={cn(
               "flex items-start gap-4 animate-slide-up",
@@ -117,7 +144,7 @@ export default function ChatPage() {
             <Input 
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Décrivez une situation ou posez votre question ici..."
+              placeholder="Posez une question sur le PMP..."
               className="h-16 pl-8 pr-20 rounded-[24px] border-4 border-white shadow-xl bg-white font-bold italic text-slate-700 focus-visible:ring-indigo-500"
             />
             <Button 

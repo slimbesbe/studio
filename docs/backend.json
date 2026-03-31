@@ -39,6 +39,18 @@
         "createdAt": { "type": "string", "format": "date-time" }
       }
     },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "assistant"] },
+        "content": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    },
     "CoachingSession": {
       "title": "CoachingSession",
       "type": "object",
@@ -133,6 +145,10 @@
       {
         "path": "/supportMessages/{messageId}",
         "definition": { "schema": { "$ref": "#/backend/entities/SupportMessage" }, "description": "Messages utilisateurs pour l'admin" }
+      },
+      {
+        "path": "/chats/{chatId}/messages/{messageId}",
+        "definition": { "schema": { "$ref": "#/backend/entities/ChatMessage" }, "description": "Historique des chats IA" }
       },
       {
         "path": "/coachingSessions/{sessionId}",

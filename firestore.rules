@@ -34,6 +34,19 @@ service cloud.firestore {
       }
     }
 
+    match /supportMessages/{messageId} {
+      allow create: if isSignedIn();
+      allow read, write: if isAdmin();
+    }
+
+    match /chats/{chatId} {
+      allow read, write: if isAdmin();
+      match /messages/{msgId} {
+        allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+        allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      }
+    }
+
     match /coachingGroups/{groupId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
