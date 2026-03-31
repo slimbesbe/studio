@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +15,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useUser } from '@/firebase';
+import { cn } from '@/lib/utils';
 
 const CONFIG_SECTIONS = [
   {
@@ -103,7 +103,6 @@ export default function ContentConfigHub() {
         ))}
       </div>
 
-      {/* Info Card */}
       <div className="bg-primary/5 p-10 rounded-[40px] border-4 border-dashed border-primary/10 flex flex-col md:flex-row items-center gap-8 text-center md:text-left">
         <div className="bg-white p-6 rounded-3xl shadow-xl"><Sparkles className="h-12 w-12 text-primary animate-pulse" /></div>
         <div className="flex-1">
