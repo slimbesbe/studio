@@ -126,7 +126,7 @@ export default function ManageApproaches() {
           def: String(row.def || row.Définition || row.Definition || Object.values(row)[1] || "").trim()
         })).filter(j => j.term.length > 0);
 
-        // 2. Parsing Quiz - Ultra flexible
+        // 2. Parsing Quiz - Extraction Standardisée
         const quizSheet = wb.Sheets["Quiz"];
         const quizData = quizSheet ? XLSX.utils.sheet_to_json(quizSheet) : [];
         
@@ -134,41 +134,43 @@ export default function ManageApproaches() {
           const q = String(row.q || row.Question || row.Énoncé || Object.values(row)[0] || "").trim();
           
           const a: string[] = [];
-          // Colonnes candidates pour les choix
-          const choiceKeys = Object.keys(row).filter(key => {
-            const k = key.toLowerCase();
-            return k.startsWith('a') || k.startsWith('opt') || k.startsWith('choix') || k.startsWith('choice') || k.startsWith('r') || k === 'vrai' || k === 'faux';
-          }).filter(k => !['index', 'explication', 'justification', 'explanation', 'correct', 'c', 'id'].includes(k.toLowerCase()));
-
-          choiceKeys.forEach(k => {
-            const val = row[k];
-            if (val !== undefined && val !== null && String(val).trim() !== "") {
-              a.push(String(val).trim());
+          
+          // Chercher explicitement Vrai/Faux
+          if (row.Vrai !== undefined || row.Faux !== undefined) {
+            a.push("Vrai");
+            a.push("Faux");
+          } else {
+            // Chercher les options standard
+            for (let i = 1; i <= 4; i++) {
+              const val = row[`option${i}`] || row[`choice${i}`] || row[`opt${i}`] || row[`R${i}`] || row[String.fromCharCode(64+i)];
+              if (val !== undefined && val !== null && String(val).trim() !== "") {
+                a.push(String(val).trim());
+              }
             }
-          });
-
-          // Si on n'a rien trouvé, on prend Vrai/Faux s'ils existent
-          if (a.length === 0) {
-            if (row.Vrai !== undefined) a.push("Vrai");
-            if (row.Faux !== undefined) a.push("Faux");
           }
 
-          let cVal = row.c || row.correct_idx || row.index_correct || row.correct || "1";
+          // Si toujours vide, chercher n'importe quoi qui ressemble à une option
+          if (a.length === 0) {
+            const keys = Object.keys(row).filter(k => !["q", "text", "statement", "exp", "c", "correct", "id"].includes(k.toLowerCase()));
+            keys.forEach(k => a.push(String(row[k]).trim()));
+          }
+
+          let cVal = row.c || row.correct || row.index_correct || "1";
           let c = 0;
           if (typeof cVal === 'string') {
-            const firstChar = cVal.trim().toUpperCase();
-            if (['A','B','C','D'].includes(firstChar)) c = firstChar.charCodeAt(0) - 65;
-            else if (firstChar === "VRAI") c = 0;
-            else if (firstChar === "FAUX") c = 1;
+            const first = cVal.trim().toUpperCase();
+            if (['A','B','C','D'].includes(first)) c = first.charCodeAt(0) - 65;
+            else if (first === "VRAI") c = 0;
+            else if (first === "FAUX") c = 1;
             else c = Math.max(0, (parseInt(cVal) || 1) - 1);
           } else {
             c = Math.max(0, (Number(cVal) || 1) - 1);
           }
 
-          const exp = String(row.exp || row.Explication || row.Justification || row.Explanation || "").trim();
+          const exp = String(row.exp || row.Explication || row.Justification || "").trim();
 
           return { q, a, c, exp };
-        }).filter(item => item.q.length > 2 && item.a.length > 0);
+        }).filter(item => item.q.length > 2);
 
         setData((prev: any) => ({
           ...prev,
@@ -207,7 +209,7 @@ export default function ManageApproaches() {
 
   const exportModel = () => {
     const jargonWs = XLSX.utils.json_to_sheet([{ term: "WBS", def: "Work Breakdown Structure" }]);
-    const quizWs = XLSX.utils.json_to_sheet([{ q: "Le sponsor gère le planning ?", a1: "Vrai", a2: "Faux", correct: 2, exp: "Le sponsor est responsable business." }]);
+    const quizWs = XLSX.utils.json_to_sheet([{ q: "Exemple de question ?", a1: "Choix 1", a2: "Choix 2", correct: 1, exp: "Explication..." }]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, jargonWs, "Jargon");
     XLSX.utils.book_append_sheet(wb, quizWs, "Quiz");
@@ -290,7 +292,7 @@ export default function ManageApproaches() {
                     <Button variant="ghost" size="icon" onClick={() => removeQuiz(idx)} className="absolute -top-2 -right-2 h-8 w-8 rounded-full bg-white border-2 text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"><Trash2 className="h-4 w-4" /></Button>
                     <Input placeholder="Question ?" value={q.q} onChange={(e) => updateQuiz(idx, 'q', e.target.value)} className="h-10 bg-white rounded-lg font-black italic border-2 border-amber-200" />
                     <div className="grid grid-cols-1 gap-2">
-                      {q.a?.map((opt:string, optIdx:number) => (
+                      {Array.isArray(q.a) && q.a.map((opt:string, optIdx:number) => (
                         <div key={optIdx} className="flex items-center gap-2">
                           <button onClick={() => updateQuiz(idx, 'c', optIdx)} className={cn("h-6 w-6 rounded-full border-2 flex items-center justify-center font-black text-[10px]", q.c === optIdx ? "bg-black border-black text-white" : "bg-white border-slate-200 text-slate-300")}>{String.fromCharCode(65 + optIdx)}</button>
                           <Input placeholder={`Option ${String.fromCharCode(65 + optIdx)}`} value={opt} onChange={(e) => updateQuiz(idx, `a.${optIdx}`, e.target.value)} className="h-9 bg-white rounded-lg font-bold italic text-xs border-2 border-amber-100" />

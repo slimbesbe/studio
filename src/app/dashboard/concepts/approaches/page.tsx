@@ -171,7 +171,7 @@ export default function VisionApprochesPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={historyData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontStyle: 'italic', fontWeight: 800, fill: '#94a3b8' }} />
                   <YAxis hide domain={[0, 100]} />
                   <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontWeight: 'bold' }} />
                   <Bar dataKey="score" radius={[4, 4, 0, 0]} barSize={30}>
@@ -265,19 +265,19 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
   const q = activeQuestions[currentIdx];
   if (!q) return null;
 
-  // Extraction ultra-robuste des choix pour éviter les cases vides
+  // Extraction ultra-robuste des choix
   const getRawChoices = (item: any) => {
     // 1. Priorité aux tableaux explicites
     if (Array.isArray(item.a) && item.a.length > 0) return item.a;
     if (Array.isArray(item.choices) && item.choices.length > 0) return item.choices;
     if (Array.isArray(item.options) && item.options.length > 0) return item.options;
     
-    // 2. Scan direct de l'objet pour trouver des clés de type "choix"
-    const standardKeys = ["a1", "a2", "a3", "a4", "option1", "option2", "Vrai", "Faux", "R1", "R2", "Choice 1", "Choice 2"];
-    const foundStandard = standardKeys.map(k => item[k]).filter(v => v !== undefined && v !== null && String(v).trim() !== "");
-    if (foundStandard.length > 0) return foundStandard;
+    // 2. Scan manuel des clés de type option
+    const standardKeys = ["a1", "a2", "a3", "a4", "option1", "option2", "option3", "option4", "Vrai", "Faux", "A", "B", "C", "D"];
+    const found = standardKeys.map(k => item[k]).filter(v => v !== undefined && v !== null && String(v).trim() !== "");
+    if (found.length > 0) return found;
 
-    // 3. Scan agressif : toute clé qui n'est pas de la metadata et qui a une valeur string/bool
+    // 3. Fallback agressif : toute clé qui n'est pas metadata
     const metadata = ["q", "text", "statement", "exp", "explanation", "c", "correct", "id", "updatedAt", "title", "description", "jargon", "quiz", "index", "tags"];
     const candidates = Object.keys(item)
       .filter(k => !metadata.includes(k.toLowerCase()))
@@ -307,7 +307,6 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
         {rawChoices.map((opt: any, idx: number) => {
           const isCorrect = idx === correctIdx;
           const isSelected = idx === selectedIdx;
-          // Conversion forcée en string pour éviter les rendus vides
           const text = String(opt?.text || opt || '');
           
           if (!text || text.trim() === "") return null;
@@ -341,7 +340,7 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
                 {String.fromCharCode(65 + idx)}
               </div>
               <span className={cn(
-                "flex-1 text-lg font-black italic pt-1",
+                "flex-1 text-xl font-black italic pt-1",
                 !isAnswered ? "text-black" : (isCorrect ? "text-emerald-900" : isSelected ? "text-red-900" : "text-slate-400")
               )}>
                 {text}
