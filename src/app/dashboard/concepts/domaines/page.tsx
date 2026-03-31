@@ -151,12 +151,12 @@ export default function VisionDomainesPage() {
         <div className="pt-6">
           {activeTab === 'jargon' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-slide-up">
-              {data.jargon.map((item:any, idx:number) => (
+              {(data.jargon || []).map((item:any, idx:number) => (
                 <JargonCard key={idx} term={item.term} def={item.def} />
               ))}
             </div>
           ) : (
-            <QuickQuiz questions={data.quiz} axisId={activeDomain} userId={user?.uid || ''} db={db} />
+            <QuickQuiz questions={data.quiz || []} axisId={activeDomain} userId={user?.uid || ''} db={db} />
           )}
         </div>
       </div>
@@ -206,23 +206,56 @@ function JargonCard({ term, def }: { term: string, def: string }) {
 }
 
 function QuickQuiz({ questions, axisId, userId, db }: any) {
+  // Sélection aléatoire de 5 questions parmi le pool
+  const [activeQuestions, setActiveQuestions] = useState<any[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
   const [score, setScore] = useState(0);
   const [showResult, setShowResult] = useState(false);
-  const handleAnswer = (idx: number) => { if (isAnswered) return; setSelectedIdx(idx); setIsAnswered(true); if (idx === questions[currentIdx].c) setScore(score + 1); };
-  const next = async () => { if (currentIdx < questions.length - 1) { setCurrentIdx(currentIdx + 1); setSelectedIdx(null); setIsAnswered(false); } else { 
-    const percent = Math.round((score / questions.length) * 100);
-    await addDoc(collection(db, 'quickQuizAttempts'), { userId, axisId, category: 'domain', score: percent, correctCount: score, totalQuestions: questions.length, submittedAt: serverTimestamp() });
-    setShowResult(true); 
-  }};
-  if (showResult) return <Card className="rounded-[40px] bg-white p-12 text-center space-y-8"><Trophy className="h-12 w-12 text-primary mx-auto" /><h3 className="text-3xl font-black italic uppercase">Score : {score} / {questions.length}</h3><Button onClick={() => window.location.reload()} className="h-14 px-10 rounded-2xl bg-primary font-black uppercase">Terminer</Button></Card>;
-  const q = questions[currentIdx];
+
+  useEffect(() => {
+    if (questions && questions.length > 0) {
+      const shuffled = [...questions].sort(() => 0.5 - Math.random()).slice(0, 5);
+      setActiveQuestions(shuffled);
+    }
+  }, [questions]);
+
+  const handleAnswer = (idx: number) => { 
+    if (isAnswered) return; 
+    setSelectedIdx(idx); 
+    setIsAnswered(true); 
+    if (idx === activeQuestions[currentIdx].c) setScore(score + 1); 
+  };
+
+  const next = async () => { 
+    if (currentIdx < activeQuestions.length - 1) { 
+      setCurrentIdx(currentIdx + 1); 
+      setSelectedIdx(null); 
+      setIsAnswered(false); 
+    } else { 
+      const percent = Math.round((score / activeQuestions.length) * 100);
+      await addDoc(collection(db, 'quickQuizAttempts'), { 
+        userId, 
+        axisId, 
+        category: 'domain', 
+        score: percent, 
+        correctCount: score, 
+        totalQuestions: activeQuestions.length, 
+        submittedAt: serverTimestamp() 
+      });
+      setShowResult(true); 
+    }
+  };
+
+  if (showResult) return <Card className="rounded-[40px] bg-white p-12 text-center space-y-8"><Trophy className="h-12 w-12 text-primary mx-auto" /><h3 className="text-3xl font-black italic uppercase">Score : {score} / {activeQuestions.length}</h3><Button onClick={() => window.location.reload()} className="h-14 px-10 rounded-2xl bg-primary font-black uppercase">Terminer</Button></Card>;
+  
+  const q = activeQuestions[currentIdx];
   if (!q) return null;
+
   return (
     <Card className="rounded-[40px] bg-white p-10 space-y-8 max-w-3xl mx-auto shadow-2xl">
-      <Badge variant="outline" className="font-black italic px-4 py-1">Question {currentIdx + 1} / {questions.length}</Badge>
+      <Badge variant="outline" className="font-black italic px-4 py-1">Question {currentIdx + 1} / {activeQuestions.length}</Badge>
       <h3 className="text-2xl font-black italic text-slate-800">{q.q}</h3>
       <div className="grid gap-4">{q.a.map((opt: any, idx: number) => (
         <button key={idx} onClick={() => handleAnswer(idx)} className={cn("p-6 rounded-2xl border-2 transition-all text-left font-bold italic flex items-center justify-between", !isAnswered ? "border-slate-100 hover:border-primary" : idx === q.c ? "border-emerald-500 bg-emerald-50" : idx === selectedIdx ? "border-red-500 bg-red-50" : "opacity-50")}><span>{opt}</span>{isAnswered && idx === q.c && <CheckCircle2 className="h-6 w-6 text-emerald-500" />}</button>

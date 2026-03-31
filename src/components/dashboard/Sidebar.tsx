@@ -22,12 +22,14 @@ import {
   BookMarked,
   Layers,
   Globe,
-  Settings2
+  Settings2,
+  User,
+  ShieldCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import {
   Collapsible,
@@ -54,16 +56,34 @@ export function Sidebar() {
   const { user, isUserLoading, profile } = useUser();
   const auth = useAuth();
   const [conceptsOpen, setConceptsOpen] = useState(pathname.includes('/concepts'));
+  
+  // State pour permettre à l'admin de basculer sa vision
+  const [isAdminMode, setIsAdminMode] = useState(pathname.startsWith('/admin'));
+
+  useEffect(() => {
+    if (pathname.startsWith('/admin')) setIsAdminMode(true);
+    if (pathname.startsWith('/dashboard')) setIsAdminMode(false);
+  }, [pathname]);
 
   if (isUserLoading || !user || pathname === '/' || pathname === '/login' || pathname === '/access-denied') {
     return null;
   }
 
-  const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
+  const isProfileAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
 
   const handleSignOut = async () => {
     await signOut(auth);
     router.push('/');
+  };
+
+  const toggleViewMode = () => {
+    const nextMode = !isAdminMode;
+    setIsAdminMode(nextMode);
+    if (nextMode) {
+      router.push('/admin/dashboard');
+    } else {
+      router.push('/dashboard');
+    }
   };
 
   const initials = profile?.firstName && profile?.lastName 
@@ -73,17 +93,39 @@ export function Sidebar() {
   return (
     <div className="flex flex-col h-full bg-white text-slate-600 w-64 fixed left-0 top-0 z-40 border-r border-slate-100 shadow-[10px_0_30px_rgba(0,0,0,0.02)]">
       {/* Header Logo */}
-      <div className="h-24 flex items-center justify-center px-6 border-b border-slate-50 bg-white">
-        <Link className="flex flex-col items-center group w-full" href={isAdmin ? "/admin/dashboard" : "/dashboard"}>
+      <div className="h-24 flex flex-col items-center justify-center px-6 border-b border-slate-50 bg-white">
+        <Link className="flex flex-col items-center group w-full" href={isAdminMode ? "/admin/dashboard" : "/dashboard"}>
           <SimuLuxLogo className="h-12 w-full group-hover:scale-105 transition-transform" />
-          <span className="text-[8px] font-black text-primary uppercase tracking-[0.3em] mt-1">{isAdmin ? 'PILOTAGE' : 'COACH PMP'}</span>
+          <span className="text-[8px] font-black text-primary uppercase tracking-[0.3em] mt-1">
+            {isAdminMode ? 'PILOTAGE ADMIN' : 'COACH PMP'}
+          </span>
         </Link>
       </div>
 
       {/* Navigation */}
       <div className="flex-1 py-8 px-4 space-y-1 overflow-y-auto custom-scrollbar">
         
-        {!isAdmin && (
+        {/* Switcher pour l'Admin */}
+        {isProfileAdmin && (
+          <div className="mb-6 px-2">
+            <Button 
+              variant="outline" 
+              onClick={toggleViewMode}
+              className={cn(
+                "w-full justify-between h-12 rounded-2xl border-2 font-black uppercase text-[10px] tracking-widest italic transition-all shadow-sm",
+                isAdminMode ? "border-indigo-100 text-indigo-600 bg-indigo-50/30" : "border-emerald-100 text-emerald-600 bg-emerald-50/30"
+              )}
+            >
+              <div className="flex items-center gap-2">
+                {isAdminMode ? <User className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+                {isAdminMode ? "Vision Élève" : "Vision Admin"}
+              </div>
+              <RotateCcw className="h-3 w-3 opacity-40" />
+            </Button>
+          </div>
+        )}
+
+        {!isAdminMode && (
           <>
             <div className="px-4 mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 italic">Navigation</div>
             
@@ -133,7 +175,7 @@ export function Sidebar() {
           </>
         )}
 
-        {isAdmin && (
+        {isAdminMode && (
           <>
             <div className="px-4 mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 italic">Pilotage Admin</div>
             <NavItem href="/admin/dashboard" icon={LayoutDashboard} label="Cockpit Admin" active={pathname === '/admin/dashboard'} />
@@ -156,7 +198,9 @@ export function Sidebar() {
           </div>
           <div className="flex-1 overflow-hidden">
             <p className="text-xs font-black text-slate-900 truncate italic leading-tight">{profile?.firstName || 'Utilisateur'}</p>
-            <p className="text-[9px] text-emerald-500 font-black uppercase tracking-widest truncate mt-1">Prêt pour le PMP</p>
+            <p className="text-[9px] text-emerald-500 font-black uppercase tracking-widest truncate mt-1">
+              {isProfileAdmin ? 'Administrateur' : 'Prêt pour le PMP'}
+            </p>
           </div>
         </div>
         <Button 
