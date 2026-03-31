@@ -22,10 +22,34 @@ const DEFAULT_APPROACH_DATA: Record<string, any> = {
     icon: ArrowDown,
     description: "L'approche prédictive repose sur une planification détaillée en amont.",
     jargon: [
-      { term: 'Chemin Critique', def: 'Séquence de tâches minimale pour livrer le projet.' }
+      { term: 'Chemin Critique', def: 'Séquence de tâches minimale pour finir le projet.' }
     ],
     quiz: [
-      { q: "Quand utiliser le prédictif ?", a: ["Besoins stables", "Projet inconnu"], c: 0, exp: "Le prédictif excelle quand les besoins sont clairs." },
+      { q: "Quand utiliser le prédictif ?", a: ["Besoins stables", "Projet inconnu", "Haute incertitude"], c: 0, exp: "Le prédictif excelle quand les besoins sont clairs dès le début." },
+    ]
+  },
+  agile: {
+    id: 'agile',
+    title: 'Agile',
+    icon: RotateCcw,
+    description: "L'agilité privilégie l'itération et le feedback continu.",
+    jargon: [
+      { term: 'Sprint', def: 'Bloc de temps fixe (2-4 sem) pour livrer un incrément.' }
+    ],
+    quiz: [
+      { q: "Qui définit les priorités ?", a: ["Scrum Master", "Product Owner", "Equipe"], c: 1, exp: "Le PO est responsable du ROI et des priorités du backlog." },
+    ]
+  },
+  hybrid: {
+    id: 'hybrid',
+    title: 'Hybride',
+    icon: Layers,
+    description: "Mélange le meilleur des deux mondes pour s'adapter au contexte.",
+    jargon: [
+      { term: 'Approche Hybride', def: 'Utilisation simultanée du prédictif et de l\'agile.' }
+    ],
+    quiz: [
+      { q: "Pourquoi l'hybride ?", a: ["Rigidité", "Adaptabilité ciblée", "Moins cher"], c: 1, exp: "Permet de garder du contrôle sur le budget tout en étant flexible sur le produit." },
     ]
   }
 };
@@ -40,23 +64,22 @@ export default function VisionApprochesPage() {
 
   useEffect(() => {
     async function load() {
-      if (!user) return;
       setIsDataLoading(true);
       try {
         const snap = await getDoc(doc(db, 'concepts_approaches', activeApproach));
         if (snap.exists()) {
           setApproachData(snap.data());
         } else {
-          setApproachData(null);
+          setApproachData(DEFAULT_APPROACH_DATA[activeApproach]);
         }
       } catch (e) {
-        setApproachData(null);
+        setApproachData(DEFAULT_APPROACH_DATA[activeApproach]);
       } finally {
         setIsDataLoading(false);
       }
     }
     load();
-  }, [db, activeApproach, user]);
+  }, [db, activeApproach]);
 
   const attemptsQuery = useMemoFirebase(() => {
     if (!user?.uid) return null;
@@ -85,13 +108,7 @@ export default function VisionApprochesPage() {
 
   if (isDataLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
 
-  // Utilisation des données DB ou Mock si vide
-  const currentData = approachData || DEFAULT_APPROACH_DATA[activeApproach] || { 
-    title: activeApproach.toUpperCase(), 
-    description: "Contenu en cours de rédaction.", 
-    jargon: [], 
-    quiz: [] 
-  };
+  const data = approachData;
 
   return (
     <div className="space-y-10 animate-fade-in pb-20 max-w-6xl mx-auto px-4">
@@ -102,13 +119,13 @@ export default function VisionApprochesPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {(['predictive', 'agile', 'hybrid'] as const).map((id) => {
+          const item = DEFAULT_APPROACH_DATA[id];
+          const Ico = item.icon;
           const isActive = activeApproach === id;
-          const Ico = id === 'predictive' ? ArrowDown : id === 'agile' ? RotateCcw : Layers;
-          const label = id === 'predictive' ? 'Waterfall' : id === 'agile' ? 'Agile' : 'Hybride';
           return (
             <button key={id} onClick={() => { setActiveApproach(id); setActiveTab('jargon'); }} className={cn("flex flex-col items-center justify-center p-10 rounded-[32px] border-4 transition-all duration-300 gap-4 bg-white", isActive ? "border-primary shadow-xl scale-[1.02]" : "border-slate-100 hover:border-slate-200")}>
               <div className={cn("p-4 rounded-2xl", isActive ? "text-primary" : "text-slate-300")}><Ico className="h-10 w-10" /></div>
-              <span className={cn("font-black uppercase italic tracking-widest text-sm", isActive ? "text-primary" : "text-slate-400")}>{label}</span>
+              <span className={cn("font-black uppercase italic tracking-widest text-sm", isActive ? "text-primary" : "text-slate-400")}>{item.title}</span>
             </button>
           );
         })}
@@ -116,8 +133,8 @@ export default function VisionApprochesPage() {
 
       <div className="space-y-8">
         <div className="space-y-4">
-          <h2 className="text-2xl font-black italic uppercase tracking-tight text-slate-900">Focus : {currentData.title}</h2>
-          <p className="text-lg font-bold text-slate-500 italic leading-relaxed">{currentData.description}</p>
+          <h2 className="text-2xl font-black italic uppercase tracking-tight text-slate-900">Focus : {data.title}</h2>
+          <p className="text-lg font-bold text-slate-500 italic leading-relaxed">{data.description}</p>
         </div>
 
         <div className="flex gap-4">
@@ -128,12 +145,12 @@ export default function VisionApprochesPage() {
         <div className="pt-6">
           {activeTab === 'jargon' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-slide-up">
-              {(currentData.jargon || []).map((item:any, idx:number) => (
+              {(data.jargon || []).map((item:any, idx:number) => (
                 <JargonCard key={idx} term={item.term} def={item.def} />
               ))}
             </div>
           ) : (
-            <QuickQuiz questions={currentData.quiz || []} axisId={activeApproach} userId={user?.uid || ''} db={db} />
+            <QuickQuiz questions={data.quiz || []} axisId={activeApproach} userId={user?.uid || ''} db={db} />
           )}
         </div>
       </div>
@@ -276,7 +293,7 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
               className={cn(
                 "p-6 rounded-2xl border-4 transition-all text-left flex items-start gap-5 group relative",
                 !isAnswered 
-                  ? "border-slate-50 bg-slate-50 hover:border-primary/20 hover:bg-white" 
+                  ? "border-black bg-white hover:bg-slate-50" 
                   : isCorrect 
                     ? "border-emerald-500 bg-emerald-50" 
                     : isSelected 
@@ -287,7 +304,7 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
               <div className={cn(
                 "h-10 w-10 flex items-center justify-center font-black text-sm shrink-0 border-2 rounded-full",
                 !isAnswered 
-                  ? "bg-white text-slate-300 border-slate-100 group-hover:border-primary group-hover:text-primary" 
+                  ? "bg-black text-white border-black" 
                   : isCorrect 
                     ? "bg-emerald-500 text-white border-emerald-500" 
                     : isSelected 
@@ -297,7 +314,7 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
                 {String.fromCharCode(65 + idx)}
               </div>
               <span className={cn(
-                "flex-1 text-lg font-bold italic pt-1 text-slate-900",
+                "flex-1 text-lg font-black italic pt-1 text-black",
                 isAnswered && (isCorrect ? "text-emerald-900" : isSelected ? "text-red-900" : "text-slate-400")
               )}>
                 {text}

@@ -281,7 +281,7 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
               className={cn(
                 "p-6 rounded-2xl border-4 transition-all text-left flex items-start gap-5 group relative",
                 !isAnswered 
-                  ? "border-slate-50 bg-slate-50 hover:border-primary/20 hover:bg-white" 
+                  ? "border-black bg-white hover:bg-slate-50" 
                   : isCorrect 
                     ? "border-emerald-500 bg-emerald-50" 
                     : isSelected 
@@ -292,7 +292,7 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
               <div className={cn(
                 "h-10 w-10 flex items-center justify-center font-black text-sm shrink-0 border-2 rounded-full",
                 !isAnswered 
-                  ? "bg-white text-slate-300 border-slate-100 group-hover:border-primary group-hover:text-primary" 
+                  ? "bg-black text-white border-black" 
                   : isCorrect 
                     ? "bg-emerald-500 text-white border-emerald-500" 
                     : isSelected 
@@ -302,7 +302,7 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
                 {String.fromCharCode(65 + idx)}
               </div>
               <span className={cn(
-                "flex-1 text-lg font-bold italic pt-1 text-slate-900",
+                "flex-1 text-lg font-black italic pt-1 text-black",
                 isAnswered && (isCorrect ? "text-emerald-900" : isSelected ? "text-red-900" : "text-slate-400")
               )}>
                 {text}
