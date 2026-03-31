@@ -119,7 +119,60 @@ export default function DashboardPage() {
       {/* Bento Grid */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
         
-        {/* 1. Vue d'ensemble (KPIs) */}
+        {/* --- PREMIERE LIGNE (STRATÉGIQUE) --- */}
+
+        {/* 1. Target Exam Date */}
+        <div className="md:col-span-4 h-[220px]">
+          <TargetExamDateCard profile={profile} />
+        </div>
+
+        {/* 2. Temps d'étude (Donut) */}
+        <div className="md:col-span-4 h-[220px]">
+          <Card className="rounded-2xl border-none shadow-sm p-4 bg-white h-full flex flex-col justify-between">
+            <h3 className="font-bold text-slate-500 text-[11px] uppercase">5. Temps d'étude</h3>
+            <div className="flex items-center gap-6 flex-1">
+              <div className="h-24 w-24 shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[{ name: 'Used', value: profile?.totalTimeSpent || 0 }, { name: 'Free', value: 36000 }]}
+                      cx="50%" cy="50%" innerRadius={25} outerRadius={40} paddingAngle={5} dataKey="value"
+                    >
+                      <Cell fill="#1d4ed8" />
+                      <Cell fill="#e2e8f0" />
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-xl font-bold text-slate-900">{Math.floor((profile?.totalTimeSpent || 0) / 3600)} hrs</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase">Temps d'étude cumulé</p>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* 3. Mindset Card */}
+        <div className="md:col-span-4 h-[220px]">
+          <Card className="rounded-2xl border-none shadow-sm p-4 bg-[#b2bdfc] h-full flex flex-col justify-between">
+            <div className="flex items-center gap-2">
+              <Brain className="h-3.5 w-3.5 text-indigo-700" />
+              <h3 className="font-bold text-[9px] uppercase tracking-widest text-indigo-800/60">Le Mindset du Coach</h3>
+            </div>
+            <p className="text-xs font-black italic text-indigo-950 mt-2 leading-relaxed">
+              "Analysez toujours l'impact d'un changement avant de le soumettre au CCB."
+            </p>
+            <div className="mt-2">
+              <Button asChild variant="link" className="p-0 text-indigo-800 font-bold text-[9px] h-auto uppercase tracking-widest">
+                <Link href="/dashboard/coach">Parler au coach <ChevronRight className="h-2.5 w-2.5" /></Link>
+              </Button>
+            </div>
+          </Card>
+        </div>
+
+        {/* --- DEUXIÈME LIGNE (ANALYTIQUE) --- */}
+
+        {/* 4. Vue d'ensemble (KPIs) */}
         <div className="md:col-span-4">
           <Card className="rounded-2xl border-none shadow-sm p-4 space-y-4 bg-white h-full">
             <div className="flex items-center justify-between">
@@ -135,7 +188,7 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* 2. Activité (Charts) */}
+        {/* 5. Activité (Charts) */}
         <div className="md:col-span-4">
           <Card className="rounded-2xl border-none shadow-sm p-4 h-full space-y-4 bg-white">
             <div className="flex items-center justify-between">
@@ -169,7 +222,7 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* 3. Performance (Gauges) */}
+        {/* 6. Performance (Gauges) */}
         <div className="md:col-span-4">
           <Card className="rounded-2xl border-none shadow-sm p-4 h-full space-y-4 bg-white">
             <div className="flex items-center justify-between">
@@ -189,56 +242,9 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* 4. Target Exam Date - NEW CARD */}
-        <div className="md:col-span-4">
-          <TargetExamDateCard profile={profile} />
-        </div>
+        {/* --- TROISIÈME LIGNE (DÉTAILS) --- */}
 
-        {/* 5. Temps d'étude (Donut) */}
-        <div className="md:col-span-4">
-          <Card className="rounded-2xl border-none shadow-sm p-4 bg-white space-y-4">
-            <h3 className="font-bold text-slate-500 text-[11px] uppercase">5. Temps d'étude</h3>
-            <div className="flex items-center gap-6">
-              <div className="h-24 w-24 shrink-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={[{ name: 'Used', value: profile?.totalTimeSpent || 0 }, { name: 'Free', value: 36000 }]}
-                      cx="50%" cy="50%" innerRadius={25} outerRadius={40} paddingAngle={5} dataKey="value"
-                    >
-                      <Cell fill="#1d4ed8" />
-                      <Cell fill="#e2e8f0" />
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="space-y-0.5">
-                <p className="text-xl font-bold text-slate-900">{Math.floor((profile?.totalTimeSpent || 0) / 3600)} hrs</p>
-                <p className="text-[9px] font-bold text-slate-400 uppercase">Temps d'étude cumulé</p>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Mindset Card */}
-        <div className="md:col-span-4">
-          <Card className="rounded-2xl border-none shadow-sm p-4 bg-[#b2bdfc] h-full flex flex-col justify-between">
-            <div className="flex items-center gap-2">
-              <Brain className="h-3.5 w-3.5 text-indigo-700" />
-              <h3 className="font-bold text-[9px] uppercase tracking-widest text-indigo-800/60">Le Mindset du Coach</h3>
-            </div>
-            <p className="text-xs font-black italic text-indigo-950 mt-2 leading-relaxed">
-              "Analysez toujours l'impact d'un changement avant de le soumettre au CCB."
-            </p>
-            <div className="mt-2">
-              <Button asChild variant="link" className="p-0 text-indigo-800 font-bold text-[9px] h-auto uppercase tracking-widest">
-                <Link href="/dashboard/coach">Parler au coach <ChevronRight className="h-2.5 w-2.5" /></Link>
-              </Button>
-            </div>
-          </Card>
-        </div>
-
-        {/* 6. Analyse groupe / Activités (Table) */}
+        {/* 7. Analyse groupe / Activités (Table) */}
         <div className="md:col-span-12">
           <Card className="rounded-2xl border-none shadow-sm bg-white overflow-hidden">
             <CardHeader className="p-4 border-b">
