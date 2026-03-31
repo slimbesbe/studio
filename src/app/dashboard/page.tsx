@@ -42,8 +42,11 @@ export default function DashboardPage() {
   const [chartKey, setChartKey] = useState(0);
   const [mindsetIdx, setMindsetIdx] = useState(0);
 
-  // Read Mindsets from Firestore
-  const mindsetsQuery = useMemoFirebase(() => collection(db, 'mindsets'), [db]);
+  // Read Mindsets from Firestore - Ensure we wait for auth
+  const mindsetsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(db, 'mindsets');
+  }, [db, user]);
   const { data: dbMindsets } = useCollection(mindsetsQuery);
 
   const displayMindsets = useMemo(() => {

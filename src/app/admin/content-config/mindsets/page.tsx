@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from 'react';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, doc, setDoc, deleteDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,10 +27,14 @@ import Link from 'next/link';
 import * as XLSX from 'xlsx';
 
 export default function ManageMindsets() {
+  const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   
-  const mindsetsQuery = useMemoFirebase(() => collection(db, 'mindsets'), [db]);
+  const mindsetsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(db, 'mindsets');
+  }, [db, user]);
   const { data: mindsets, isLoading } = useCollection(mindsetsQuery);
 
   const [isModalOpen, setIsModalOpen] = useState(false);

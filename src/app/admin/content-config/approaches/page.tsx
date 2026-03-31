@@ -2,8 +2,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
+import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -28,9 +28,8 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
 
-const APPROACH_IDS = ['predictive', 'agile', 'hybrid'];
-
 export default function ManageApproaches() {
+  const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('predictive');
@@ -47,19 +46,24 @@ export default function ManageApproaches() {
   // Load data for active approach
   useEffect(() => {
     async function load() {
+      if (!user) return;
       setIsLoading(true);
-      const snap = await doc(db, 'concepts_approaches', activeTab);
-      // Logic would be useDoc but since it's only 3 items we do it manually for simplicity here
-      const d = await (await import('firebase/firestore')).getDoc(snap);
-      if (d.exists()) {
-        setData(d.data());
-      } else {
-        setData({ title: activeTab.toUpperCase(), description: '', jargon: [], quiz: [] });
+      try {
+        const docRef = doc(db, 'concepts_approaches', activeTab);
+        const d = await getDoc(docRef);
+        if (d.exists()) {
+          setData(d.data());
+        } else {
+          setData({ title: activeTab.toUpperCase(), description: '', jargon: [], quiz: [] });
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     }
     load();
-  }, [db, activeTab]);
+  }, [db, activeTab, user]);
 
   const handleSave = async () => {
     setIsSaving(true);
