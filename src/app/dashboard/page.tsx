@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useState, useEffect } from 'react';
@@ -242,7 +243,7 @@ export default function DashboardPage() {
             </p>
             <div className="mt-6">
               <Button asChild variant="link" className="p-0 text-[#1d4ed8] font-bold text-[10px] uppercase tracking-widest">
-                <Link href="/dashboard/chat">Parler au coach <ChevronRight className="h-3 w-3" /></Link>
+                <Link href="/dashboard/coach">Parler au coach <ChevronRight className="h-3 w-3" /></Link>
               </Button>
             </div>
           </Card>

@@ -25,7 +25,8 @@ import {
   Settings2,
   User,
   ShieldCheck,
-  RotateCcw
+  RotateCcw,
+  Inbox
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useAuth } from '@/firebase';
@@ -172,7 +173,7 @@ export function Sidebar() {
             <NavItem href="/dashboard/statistics" icon={BarChart3} label="Statistiques" active={pathname === '/dashboard/statistics'} />
 
             <div className="px-4 mt-8 mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 italic">User</div>
-            <NavItem href="/dashboard/chat" icon={MessageSquare} label="Chat Assistant" active={pathname === '/dashboard/chat'} />
+            <NavItem href="/dashboard/coach" icon={MessageSquare} label="Parler au Coach" active={pathname === '/dashboard/coach' || pathname === '/dashboard/chat' || pathname === '/dashboard/message-admin'} />
           </>
         )}
 
@@ -183,6 +184,7 @@ export function Sidebar() {
             <NavItem href="/admin/content-config" icon={Settings2} label="Configuration contenu" active={pathname.startsWith('/admin/content-config')} />
             <NavItem href="/admin/coaching" icon={GraduationCap} label="Sessions Coaching" active={pathname.startsWith('/admin/coaching')} />
             <NavItem href="/admin/questions" icon={BookCopy} label="Banque Questions" active={pathname.startsWith('/admin/questions')} />
+            <NavItem href="/admin/messages" icon={Inbox} label="Boîte Messages" active={pathname.startsWith('/admin/messages')} />
             <NavItem href="/admin/users" icon={Users} label="Utilisateurs" active={pathname.startsWith('/admin/users')} />
             <div className="pt-4">
               <NavItem href="/admin/maintenance" icon={Database} label="Maintenance" active={pathname.startsWith('/admin/maintenance')} />

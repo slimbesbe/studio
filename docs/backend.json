@@ -25,6 +25,20 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       }
     },
+    "SupportMessage": {
+      "title": "SupportMessage",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "userName": { "type": "string" },
+        "subject": { "type": "string" },
+        "message": { "type": "string" },
+        "status": { "type": "string", "enum": ["unread", "read", "replied"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
     "CoachingSession": {
       "title": "CoachingSession",
       "type": "object",
@@ -115,6 +129,10 @@
       {
         "path": "/questions/{questionId}",
         "definition": { "schema": { "$ref": "#/backend/entities/Question" }, "description": "Banque centrale" }
+      },
+      {
+        "path": "/supportMessages/{messageId}",
+        "definition": { "schema": { "$ref": "#/backend/entities/SupportMessage" }, "description": "Messages utilisateurs pour l'admin" }
       },
       {
         "path": "/coachingSessions/{sessionId}",
