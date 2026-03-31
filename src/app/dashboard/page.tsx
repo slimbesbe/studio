@@ -145,41 +145,41 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Card className="rounded-[32px] border-none shadow-xl bg-white p-8 h-[380px] flex flex-col items-center justify-center">
-          <div className="w-full flex items-center gap-3 mb-10">
+        <Card className="rounded-[32px] border-none shadow-xl bg-white p-6 h-[220px] flex flex-col items-center justify-center">
+          <div className="w-full flex items-center gap-3 mb-2">
             <div className="bg-primary/5 p-2 rounded-lg text-primary"><Target className="h-5 w-5" /></div>
             <h3 className="font-black text-slate-800 text-sm uppercase tracking-tight italic">Score de Préparation</h3>
           </div>
           <SemiCircleGauge value={stats.readiness} label={stats.status} />
         </Card>
 
-        <Card className="rounded-[32px] border-none shadow-xl bg-white p-8 h-[380px] flex flex-col">
-          <div className="w-full flex items-center gap-3 mb-8">
+        <Card className="rounded-[32px] border-none shadow-xl bg-white p-6 h-[220px] flex flex-col">
+          <div className="w-full flex items-center gap-3 mb-2">
             <div className="bg-orange-50 p-2 rounded-lg text-orange-500"><Award className="h-5 w-5" /></div>
             <h3 className="font-black text-slate-800 text-sm uppercase tracking-tight italic">Recommandation</h3>
           </div>
-          <div className="bg-orange-50/50 rounded-2xl p-6 border-2 border-dashed border-orange-100 flex-1 flex flex-col justify-center">
+          <div className="bg-orange-50/50 rounded-2xl p-4 border-2 border-dashed border-orange-100 flex-1 flex flex-col justify-center">
             <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest italic mb-1">Zone à renforcer</span>
-            <h4 className="text-2xl font-black text-slate-900 italic uppercase">Business Environment</h4>
-            <Button asChild className="mt-6 bg-[#0F172A] hover:bg-slate-800 h-12 rounded-xl font-black uppercase text-[10px] tracking-widest">
+            <h4 className="text-xl font-black text-slate-900 italic uppercase">Business Environment</h4>
+            <Button asChild className="mt-4 bg-[#0F172A] hover:bg-slate-800 h-10 rounded-xl font-black uppercase text-[10px] tracking-widest">
               <Link href="/dashboard/practice?domain=Business">Lancer ce sprint <ChevronRight className="ml-1 h-3 w-3" /></Link>
             </Button>
           </div>
         </Card>
 
-        <Card className="rounded-[32px] border-none shadow-xl bg-[#1E293B] text-white p-10 h-[380px] flex flex-col justify-between overflow-hidden relative">
-          <div className="absolute top-0 right-0 p-8 opacity-5"><Brain className="h-40 w-40" /></div>
+        <Card className="rounded-[32px] border-none shadow-xl bg-[#1E293B] text-white p-6 h-[220px] flex flex-col justify-between overflow-hidden relative">
+          <div className="absolute top-0 right-0 p-4 opacity-5"><Brain className="h-24 w-24" /></div>
           <div className="flex items-center gap-3 relative z-10">
             <div className="bg-white/10 p-2 rounded-lg"><Lightbulb className="h-5 w-5 text-orange-400" /></div>
             <h3 className="font-black text-white text-sm uppercase tracking-tight italic">Mindset PMI</h3>
           </div>
           <div className="relative z-10 flex-1 flex flex-col justify-center">
-            <p className="text-lg font-bold italic leading-relaxed text-slate-200 animate-slide-up" key={mindsetIdx}>
+            <p className="text-sm font-bold italic leading-relaxed text-slate-200 animate-slide-up line-clamp-3" key={mindsetIdx}>
               "{displayMindsets[mindsetIdx]}"
             </p>
           </div>
-          <Button onClick={handleNextMindset} variant="ghost" className="relative z-10 w-fit h-10 px-4 rounded-lg bg-white/5 border border-white/10 text-slate-300 font-black uppercase text-[10px] tracking-widest italic gap-2 hover:bg-white/10">
-            <RotateCcw className="h-3.5 w-3.5" /> Suivant
+          <Button onClick={handleNextMindset} variant="ghost" className="relative z-10 w-fit h-8 px-3 rounded-lg bg-white/5 border border-white/10 text-slate-300 font-black uppercase text-[9px] tracking-widest italic gap-2 hover:bg-white/10">
+            <RotateCcw className="h-3 w-3" /> Suivant
           </Button>
         </Card>
       </div>
@@ -238,8 +238,8 @@ export default function DashboardPage() {
 }
 
 function SemiCircleGauge({ value, label }: { value: number, label: string }) {
-  const radius = 80;
-  const strokeWidth = 16;
+  const radius = 60;
+  const strokeWidth = 12;
   const normalizedRadius = radius - strokeWidth / 2;
   const circumference = normalizedRadius * Math.PI;
   const strokeDashoffset = circumference - (value / 100) * circumference;
@@ -251,8 +251,8 @@ function SemiCircleGauge({ value, label }: { value: number, label: string }) {
         <path d={`M ${strokeWidth/2},${radius + strokeWidth/2} A ${normalizedRadius},${normalizedRadius} 0 0,1 ${radius * 2 - strokeWidth/2},${radius + strokeWidth/2}`} fill="none" stroke="url(#gaugeGradient)" strokeWidth={strokeWidth} strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} strokeLinecap="round" className="transition-all duration-1000 ease-out" />
         <defs><linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#f97316" /><stop offset="100%" stopColor="#fb923c" /></linearGradient></defs>
       </svg>
-      <div className="absolute top-[45px] text-center"><span className="text-5xl font-black italic tracking-tighter text-slate-900">{value}%</span></div>
-      <div className="mt-2"><Badge className="bg-orange-100 text-orange-600 border-none font-black italic uppercase text-[10px] tracking-widest px-4 py-1">{label}</Badge></div>
+      <div className="absolute top-[35px] text-center"><span className="text-4xl font-black italic tracking-tighter text-slate-900">{value}%</span></div>
+      <div className="mt-1"><Badge className="bg-orange-100 text-orange-600 border-none font-black italic uppercase text-[8px] tracking-widest px-3 py-0.5">{label}</Badge></div>
     </div>
   );
 }
