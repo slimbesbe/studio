@@ -11,7 +11,6 @@ import {
   BookCopy, 
   ArrowRight, 
   ChevronLeft,
-  Sparkles,
   Trash2,
   AlertTriangle,
   Loader2,
@@ -31,7 +30,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { collection, getDocs, writeBatch, doc } from 'firebase/firestore';
+import { collection, getDocs, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 const CONFIG_SECTIONS = [
@@ -86,7 +85,7 @@ export default function ContentConfigHub() {
   const [isResetting, setIsResetting] = useState(false);
 
   const handleOpenReset = () => {
-    // Génère un code à 8 chiffres
+    // Génère un code à 8 chiffres aléatoires
     const code = Math.floor(10000000 + Math.random() * 90000000).toString();
     setSecurityCode(code);
     setUserInputCode('');
@@ -94,7 +93,7 @@ export default function ContentConfigHub() {
   };
 
   const performReset = async () => {
-    if (userInputCode !== securityCode) return;
+    if (!db || userInputCode !== securityCode) return;
     
     setIsResetting(true);
     try {
@@ -104,7 +103,7 @@ export default function ContentConfigHub() {
         const snap = await getDocs(collection(db, collName));
         const docs = snap.docs;
         
-        // Traitement par lots de 500 (limite Firestore)
+        // Traitement par lots de 500 (limite Firestore) pour éviter les plantages
         for (let i = 0; i < docs.length; i += 500) {
           const batch = writeBatch(db);
           docs.slice(i, i + 500).forEach(d => batch.delete(d.ref));
@@ -114,14 +113,14 @@ export default function ContentConfigHub() {
 
       toast({ 
         title: "Contenu réinitialisé", 
-        description: "Toutes les données pédagogiques ont été effacées." 
+        description: "Toutes les données pédagogiques ont été effacées avec succès." 
       });
       setIsResetModalOpen(false);
     } catch (e: any) {
       toast({ 
         variant: "destructive", 
         title: "Erreur critique", 
-        description: "La suppression a échoué. Vérifiez vos permissions." 
+        description: "La suppression a échoué. Vérifiez votre connexion." 
       });
     } finally {
       setIsResetting(false);
@@ -171,27 +170,27 @@ export default function ContentConfigHub() {
         ))}
       </div>
 
-      {/* Danger Zone Section */}
+      {/* Danger Zone Section - Styled exactly like the other parts but with danger cues */}
       <div className="pt-10 space-y-6">
         <div className="flex items-center gap-3 px-2">
           <ShieldAlert className="h-5 w-5 text-destructive" />
-          <h3 className="font-black uppercase italic tracking-widest text-destructive text-sm">Zone de Danger</h3>
+          <h3 className="font-black uppercase italic tracking-widest text-destructive text-sm">Zone de Maintenance Critique</h3>
         </div>
         
         <Card className="rounded-[40px] border-4 border-dashed border-destructive/20 bg-destructive/5 overflow-hidden">
           <CardContent className="p-10 flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="space-y-2 text-center md:text-left">
-              <h4 className="text-xl font-black uppercase italic text-destructive tracking-tight">Réinitialisation Globale</h4>
+              <h4 className="text-xl font-black uppercase italic text-destructive tracking-tight">Remise à zéro de la base pédagogique</h4>
               <p className="text-sm font-bold text-destructive/60 italic max-w-xl">
-                Cette action supprimera instantanément TOUS les mindsets, les contenus de cours (jargon/quiz) et l'intégralité de votre banque de questions.
+                Cette action effacera instantanément TOUS les mindsets, les contenus de cours (jargon/quiz) et l'intégralité de la banque de questions.
               </p>
             </div>
             <Button 
               variant="destructive" 
               onClick={handleOpenReset}
-              className="h-16 px-10 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:scale-105 transition-transform shrink-0"
+              className="h-16 px-10 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:scale-105 transition-transform shrink-0 bg-red-600"
             >
-              <Trash2 className="mr-3 h-6 w-6" /> Remettre à 0
+              <Trash2 className="mr-3 h-6 w-6" /> RÉINITIALISER TOUT LE CONTENU
             </Button>
           </CardContent>
         </Card>
@@ -204,16 +203,20 @@ export default function ContentConfigHub() {
             <div className="bg-destructive p-4 rounded-full shadow-lg">
               <AlertTriangle className="h-12 w-12 text-white" />
             </div>
-            <DialogTitle className="text-4xl font-black uppercase italic text-destructive tracking-tighter">Action Critique</DialogTitle>
+            <DialogTitle className="text-4xl font-black uppercase italic text-destructive tracking-tighter leading-none">
+              Attention Critique !
+            </DialogTitle>
             <DialogDescription className="text-lg font-bold text-slate-600 leading-relaxed uppercase tracking-tight italic">
-              Vous allez effacer tout le contenu pédagogique de la plateforme. Cette opération est irréversible.
+              Vous êtes sur le point de vider intégralement le contenu pédagogique. Cette opération est irréversible.
             </DialogDescription>
           </DialogHeader>
 
           <div className="py-10 space-y-8">
             <div className="bg-slate-50 p-8 rounded-3xl border-4 border-dashed border-slate-200 text-center space-y-4">
               <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 italic">Veuillez recopier le code de sécurité</p>
-              <p className="text-6xl font-black tracking-[0.2em] text-primary select-none">{securityCode}</p>
+              <p className="text-6xl font-black tracking-[0.2em] text-primary select-none tabular-nums">
+                {securityCode}
+              </p>
             </div>
 
             <div className="space-y-3">
@@ -223,7 +226,7 @@ export default function ContentConfigHub() {
                 onChange={(e) => setUserInputCode(e.target.value)}
                 placeholder="Entrez le code ici..."
                 maxLength={8}
-                className="h-16 rounded-2xl border-4 font-black text-center text-3xl italic tracking-widest focus-visible:ring-destructive"
+                className="h-16 rounded-2xl border-4 font-black text-center text-3xl italic tracking-widest focus-visible:ring-destructive border-slate-200"
               />
             </div>
           </div>
@@ -241,7 +244,7 @@ export default function ContentConfigHub() {
               variant="destructive"
               disabled={userInputCode !== securityCode || isResetting}
               onClick={performReset}
-              className="h-16 rounded-2xl font-black uppercase flex-1 shadow-2xl tracking-widest text-lg italic"
+              className="h-16 rounded-2xl font-black uppercase flex-1 shadow-2xl tracking-widest text-lg italic bg-red-600"
             >
               {isResetting ? <Loader2 className="animate-spin h-6 w-6" /> : <><CheckCircle2 className="mr-2 h-6 w-6" /> CONFIRMER</>}
             </Button>
