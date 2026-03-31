@@ -27,6 +27,7 @@ import { Button } from '@/components/ui/button';
 import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useState } from 'react';
+import Image from 'next/image';
 import {
   Collapsible,
   CollapsibleContent,
@@ -34,30 +35,16 @@ import {
 } from "@/components/ui/collapsible";
 
 export const SimuLuxLogo = ({ className = "h-8 w-8" }: { className?: string }) => (
-  <svg viewBox="0 0 200 200" className={className} xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="shieldGrad" x1="0" x2="1" x2="1">
-        <stop offset="0%" stopColor="#3F51B5" />
-        <stop offset="100%" stopColor="#7E57C2" />
-      </linearGradient>
-    </defs>
-    <path 
-      d="M100,10 L30,35 L30,100 C30,155 100,190 100,190 C100,190 170,155 170,100 L170,35 Z" 
-      fill="url(#shieldGrad)" 
+  <div className={cn("relative shrink-0 overflow-hidden rounded-lg", className)}>
+    <Image 
+      src="https://firebasestorage.googleapis.com/v0/b/studio-8759607191-13325.firebasestorage.app/o/logo.jpg?alt=media&token=0a9404ad-6b89-4ba8-9107-916e30a167ae"
+      alt="Simu-lux Logo"
+      fill
+      className="object-cover"
+      sizes="100px"
+      priority
     />
-    <path 
-      d="M60,140 C60,140 140,150 140,115 C140,80 60,95 60,60 C60,25 140,35 140,35" 
-      fill="none" 
-      stroke="white" 
-      strokeWidth="24" 
-      strokeLinecap="round" 
-      strokeLinejoin="round"
-    />
-    <path 
-      d="M140,20 L195,5 L180,60 L160,40 Z" 
-      fill="#fbbf24" 
-    />
-  </svg>
+  </div>
 );
 
 export function Sidebar() {
@@ -87,8 +74,8 @@ export function Sidebar() {
       {/* Header Logo */}
       <div className="h-24 flex items-center px-8 border-b border-slate-50 bg-white">
         <Link className="flex items-center gap-3 group" href={isAdmin ? "/admin/dashboard" : "/dashboard"}>
-          <div className="bg-primary/5 p-2 rounded-2xl group-hover:scale-105 transition-transform">
-            <SimuLuxLogo className="h-9 w-9" />
+          <div className="bg-primary/5 p-1 rounded-xl group-hover:scale-105 transition-transform">
+            <SimuLuxLogo className="h-10 w-10" />
           </div>
           <div className="flex flex-col">
             <span className="font-black text-xl italic tracking-tighter text-slate-900 leading-none">Simu-lux</span>
