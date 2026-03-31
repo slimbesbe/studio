@@ -53,10 +53,17 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setMounted(true);
+    
+    // Randomize initial mindset on mount (refresh/login)
+    if (displayMindsets.length > 0) {
+      setMindsetIdx(Math.floor(Math.random() * displayMindsets.length));
+    }
+
     const timer = setTimeout(() => setChartKey(prev => prev + 1), 500);
     const interval = setInterval(() => {
       setMindsetIdx((prev) => (prev + 1) % displayMindsets.length);
     }, 30000);
+    
     return () => {
       clearTimeout(timer);
       clearInterval(interval);
