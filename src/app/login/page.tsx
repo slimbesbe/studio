@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -54,9 +55,8 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 sm:p-6 lg:p-8">
-      <Link className="flex flex-col items-center gap-4 mb-8 group text-center" href="/">
-        <SimuLuxLogo className="h-24 w-24 group-hover:scale-110 transition-transform shadow-xl rounded-2xl border-4 border-white bg-white" />
-        <span className="font-headline font-black text-4xl italic tracking-tighter text-primary">Simu-lux <span className="text-accent">PMP</span></span>
+      <Link className="flex flex-col items-center justify-center mb-8 group w-full max-w-sm" href="/">
+        <SimuLuxLogo className="h-24 w-full group-hover:scale-105 transition-transform" />
       </Link>
       
       <Card className="w-full max-w-md border-t-4 border-t-primary shadow-xl">

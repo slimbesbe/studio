@@ -34,14 +34,14 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 
-export const SimuLuxLogo = ({ className = "h-8 w-8" }: { className?: string }) => (
-  <div className={cn("relative shrink-0 overflow-hidden rounded-lg", className)}>
+export const SimuLuxLogo = ({ className = "h-8 w-32" }: { className?: string }) => (
+  <div className={cn("relative shrink-0 overflow-hidden", className)}>
     <Image 
       src="https://firebasestorage.googleapis.com/v0/b/studio-8759607191-13325.firebasestorage.app/o/logo.jpg?alt=media&token=0a9404ad-6b89-4ba8-9107-916e30a167ae"
       alt="Simu-lux Logo"
       fill
-      className="object-cover"
-      sizes="100px"
+      className="object-contain"
+      sizes="(max-width: 768px) 100vw, 400px"
       priority
     />
   </div>
@@ -71,16 +71,11 @@ export function Sidebar() {
 
   return (
     <div className="flex flex-col h-full bg-white text-slate-600 w-64 fixed left-0 top-0 z-40 border-r border-slate-100 shadow-[10px_0_30px_rgba(0,0,0,0.02)]">
-      {/* Header Logo */}
-      <div className="h-24 flex items-center px-8 border-b border-slate-50 bg-white">
-        <Link className="flex items-center gap-3 group" href={isAdmin ? "/admin/dashboard" : "/dashboard"}>
-          <div className="bg-primary/5 p-1 rounded-xl group-hover:scale-105 transition-transform">
-            <SimuLuxLogo className="h-10 w-10" />
-          </div>
-          <div className="flex flex-col">
-            <span className="font-black text-xl italic tracking-tighter text-slate-900 leading-none">Simu-lux</span>
-            <span className="text-[9px] font-black text-primary uppercase tracking-[0.3em] mt-1.5">{isAdmin ? 'PILOTAGE' : 'COACH PMP'}</span>
-          </div>
+      {/* Header Logo - Adjusted for full rectangular logo */}
+      <div className="h-24 flex items-center justify-center px-6 border-b border-slate-50 bg-white">
+        <Link className="flex flex-col items-center group w-full" href={isAdmin ? "/admin/dashboard" : "/dashboard"}>
+          <SimuLuxLogo className="h-12 w-full group-hover:scale-105 transition-transform" />
+          <span className="text-[8px] font-black text-primary uppercase tracking-[0.3em] mt-1">{isAdmin ? 'PILOTAGE' : 'COACH PMP'}</span>
         </Link>
       </div>
 

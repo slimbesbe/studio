@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -106,11 +107,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 animate-fade-in overflow-y-auto">
-      <div className="flex flex-col items-center gap-4 mb-8 text-center">
-        <SimuLuxLogo className="h-24 w-24 shadow-xl rounded-2xl border-4 border-white bg-white" />
-        <span className="font-headline font-black text-4xl italic tracking-tighter text-primary">
-          Simu-lux <span className="text-accent">PMP</span>
-        </span>
+      <div className="flex flex-col items-center justify-center mb-8 w-full max-w-sm">
+        <SimuLuxLogo className="h-24 w-full" />
       </div>
       
       <Card className="w-full max-w-md border-t-4 border-t-primary shadow-2xl overflow-hidden">
