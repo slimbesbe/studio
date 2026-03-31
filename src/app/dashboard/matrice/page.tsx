@@ -10,9 +10,10 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, where, writeBatch, doc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
 
 const DOMAINS = [
   { id: 'People', label: 'People' },
@@ -29,9 +30,12 @@ const APPROACHES = [
 export default function MatriceMagiquePage() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
+  const { toast } = useToast();
+  const [isResetting, setIsResetting] = useState(false);
 
   const attemptsQuery = useMemoFirebase(() => {
     if (isUserLoading || !user?.uid) return null;
+    // On récupère toutes les tentatives de l'utilisateur pour calculer la matrice
     return query(collection(db, 'coachingAttempts'), where('userId', '==', user.uid));
   }, [db, user?.uid, isUserLoading]);
 
@@ -46,7 +50,7 @@ export default function MatriceMagiquePage() {
         let d = resp.tags?.domain;
         let a = resp.tags?.approach;
         
-        // Normalisation
+        // Normalisation pour assurer la correspondance avec les IDs des lignes/colonnes
         if (d === 'Processus') d = 'Process';
         
         if (d && a) {
@@ -60,6 +64,32 @@ export default function MatriceMagiquePage() {
 
     return stats;
   }, [attempts]);
+
+  const handleReset = async () => {
+    if (!attempts || attempts.length === 0) {
+      toast({ title: "Aucune donnée à réinitialiser." });
+      return;
+    }
+    
+    if (!confirm("ATTENTION : Voulez-vous vraiment réinitialiser tous vos scores de la matrice ? Cette action supprimera votre historique de sprints.")) {
+      return;
+    }
+    
+    setIsResetting(true);
+    try {
+      const batch = writeBatch(db);
+      attempts.forEach((a) => {
+        batch.delete(doc(db, 'coachingAttempts', a.id));
+      });
+      await batch.commit();
+      toast({ title: "La matrice a été réinitialisée avec succès." });
+    } catch (e) {
+      console.error("Reset error:", e);
+      toast({ variant: "destructive", title: "Erreur lors de la réinitialisation" });
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   const getCellStyles = (percent: number | null) => {
     if (percent === null) return "bg-[#F8FAFC] border-[#E2E8F0] text-slate-300";
@@ -89,8 +119,14 @@ export default function MatriceMagiquePage() {
             Cliquez sur une cellule pour lancer un sprint de 5 questions. L'objectif est d'obtenir du vert partout (score &gt; 80%).
           </p>
         </div>
-        <Button variant="outline" className="h-10 px-4 rounded-xl border-2 font-black uppercase text-[10px] tracking-widest text-red-500 hover:bg-red-50 gap-2 shadow-sm">
-          <RotateCcw className="h-3 w-3" /> Réinitialiser
+        <Button 
+          variant="outline" 
+          onClick={handleReset}
+          disabled={isResetting || !attempts || attempts.length === 0}
+          className="h-10 px-4 rounded-xl border-2 font-black uppercase text-[10px] tracking-widest text-red-500 hover:bg-red-50 gap-2 shadow-sm"
+        >
+          {isResetting ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />} 
+          Réinitialiser
         </Button>
       </div>
 
