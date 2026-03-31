@@ -131,46 +131,20 @@ export default function ManageApproaches() {
         const quizData = quizSheet ? XLSX.utils.sheet_to_json(quizSheet) : [];
         
         const parsedQuiz = quizData.map((row: any) => {
-          const q = String(row.q || row.Question || row.Énoncé || Object.values(row)[0] || "").trim();
+          const q = String(row.q || "").trim();
           const a: string[] = [];
           
-          if (row.Vrai !== undefined || row.Faux !== undefined || row.vrai !== undefined || row.faux !== undefined) {
-            a.push("Vrai");
-            a.push("Faux");
-          } else {
-            const optKeys = ["option1", "option2", "option3", "option4", "choice1", "choice2", "choice3", "choice4", "opt1", "opt2", "opt3", "opt4", "R1", "R2", "R3", "R4", "A", "B", "C", "D"];
-            optKeys.forEach(k => {
-              if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== "") {
-                a.push(String(row[k]).trim());
-              }
-            });
+          for (let i = 1; i <= 4; i++) {
+            const val = row[`a${i}`];
+            if (val !== undefined && val !== null && String(val).trim() !== "") {
+              a.push(String(val).trim());
+            }
           }
 
-          if (a.length === 0) {
-            const metadata = ["q", "text", "statement", "exp", "explanation", "c", "correct", "id"];
-            Object.keys(row).forEach(k => {
-              if (!metadata.includes(k.toLowerCase()) && row[k] !== undefined && row[k] !== null) {
-                a.push(String(row[k]).trim());
-              }
-            });
-          }
+          let cVal = row.correct_idx || "1";
+          let c = Math.max(0, (parseInt(String(cVal)) || 1) - 1);
 
-          let cVal = row.c || row.correct || row.index_correct || "1";
-          let c = 0;
-          if (typeof cVal === 'string') {
-            const first = cVal.trim().toUpperCase();
-            if (first === "A" || first === "1") c = 0;
-            else if (first === "B" || first === "2") c = 1;
-            else if (first === "C" || first === "3") c = 2;
-            else if (first === "D" || first === "4") c = 3;
-            else if (first === "VRAI") c = 0;
-            else if (first === "FAUX") c = 1;
-            else c = Math.max(0, (parseInt(cVal) || 1) - 1);
-          } else {
-            c = Math.max(0, (Number(cVal) || 1) - 1);
-          }
-
-          const exp = String(row.exp || row.explanation || row.Explication || row.Justification || "").trim();
+          const exp = String(row.exp || "").trim();
           return { q, a, c, exp };
         }).filter(item => item.q.length > 2);
 
@@ -230,7 +204,14 @@ export default function ManageApproaches() {
 
   const exportModel = () => {
     const jargonWs = XLSX.utils.json_to_sheet([{ term: "WBS", def: "Work Breakdown Structure" }]);
-    const quizWs = XLSX.utils.json_to_sheet([{ q: "Exemple de question ?", a1: "Choix 1", a2: "Choix 2", correct: 1, exp: "Explication..." }]);
+    const quizWs = XLSX.utils.json_to_sheet([{ 
+      q: "Le WBS permet de :", 
+      a1: "Planifier le budget", 
+      a2: "Décomposer le projet", 
+      a3: "Gérer les risques", 
+      correct_idx: 2, 
+      exp: "Le WBS structure le projet en livrables." 
+    }]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, jargonWs, "Jargon");
     XLSX.utils.book_append_sheet(wb, quizWs, "Quiz");

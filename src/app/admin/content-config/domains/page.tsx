@@ -17,7 +17,8 @@ import {
   Download,
   Upload,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  Minus
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -125,35 +126,20 @@ export default function ManageDomains() {
         const quizData = quizSheet ? XLSX.utils.sheet_to_json(quizSheet) : [];
         
         const parsedQuiz = quizData.map((row: any) => {
-          const q = String(row.q || row.Question || row.Énoncé || Object.values(row)[0] || "");
+          const q = String(row.q || "").trim();
+          const a: string[] = [];
           
-          const getOpt = (...keys: string[]) => {
-            for (const key of keys) {
-              if (row[key] !== undefined && row[key] !== null && row[key] !== "") return row[key];
+          for (let i = 1; i <= 4; i++) {
+            const val = row[`a${i}`];
+            if (val !== undefined && val !== null && String(val).trim() !== "") {
+              a.push(String(val).trim());
             }
-            return undefined;
-          };
-
-          const a = [
-            getOpt("a1", "option1", "Option 1", "Réponse 1", "A"),
-            getOpt("a2", "option2", "Option 2", "Réponse 2", "B"),
-            getOpt("a3", "option3", "Option 3", "Réponse 3", "C"),
-            getOpt("a4", "option4", "Option 4", "Réponse 4", "D"),
-          ].filter(x => x !== undefined).map(x => String(x));
-
-          let cVal = row.correct_idx || row.index_correct || row.correct || "1";
-          let c = 0;
-          if (typeof cVal === 'string') {
-            const firstChar = cVal.trim().toUpperCase();
-            if (['A','B','C','D'].includes(firstChar)) c = firstChar.charCodeAt(0) - 65;
-            else c = parseInt(cVal) - 1;
-          } else {
-            c = Number(cVal) - 1;
           }
-          if (isNaN(c) || c < 0) c = 0;
 
-          const exp = String(row.exp || row.Explication || row.Justification || row.Explanation || "");
+          let cVal = row.correct_idx || "1";
+          let c = Math.max(0, (parseInt(String(cVal)) || 1) - 1);
 
+          const exp = String(row.exp || "").trim();
           return { q, a, c, exp };
         }).filter(item => item.q.length > 2);
 
@@ -181,20 +167,46 @@ export default function ManageDomains() {
 
   const addQuiz = () => setData({...data, quiz: [...data.quiz, { q: '', a: ['Vrai', 'Faux'], c: 0, exp: '' }]});
   const removeQuiz = (idx: number) => setData({...data, quiz: data.quiz.filter((_:any, i:number) => i !== idx)});
-  const updateQuiz = (idx: number, field: string, val: any) => {
+  
+  const updateQuizChoice = (quizIdx: number, choiceIdx: number, val: string) => {
     const next = [...data.quiz];
-    if (field.startsWith('a.')) {
-      const optIdx = parseInt(field.split('.')[1]);
-      next[idx].a[optIdx] = val;
-    } else {
-      next[idx][field] = val;
+    next[quizIdx].a[choiceIdx] = val;
+    setData({...data, quiz: next});
+  };
+
+  const addQuizChoice = (quizIdx: number) => {
+    const next = [...data.quiz];
+    if (next[quizIdx].a.length < 4) {
+      next[quizIdx].a.push('');
+      setData({...data, quiz: next});
     }
+  };
+
+  const removeQuizChoice = (quizIdx: number, choiceIdx: number) => {
+    const next = [...data.quiz];
+    if (next[quizIdx].a.length > 2) {
+      next[quizIdx].a.splice(choiceIdx, 1);
+      if (next[quizIdx].c >= next[quizIdx].a.length) next[quizIdx].c = 0;
+      setData({...data, quiz: next});
+    }
+  };
+
+  const updateQuizField = (quizIdx: number, field: string, val: any) => {
+    const next = [...data.quiz];
+    next[quizIdx][field] = val;
     setData({...data, quiz: next});
   };
 
   const exportModel = () => {
     const jargonWs = XLSX.utils.json_to_sheet([{ term: "Conflit", def: "Désaccord entre deux parties." }]);
-    const quizWs = XLSX.utils.json_to_sheet([{ q: "Domaine ?", a1: "Choix 1", a2: "Choix 2", a3: "", correct: 1, exp: "Explication" }]);
+    const quizWs = XLSX.utils.json_to_sheet([{ 
+      q: "Le WBS permet de :", 
+      a1: "Planifier le budget", 
+      a2: "Décomposer le projet", 
+      a3: "Gérer les risques", 
+      correct_idx: 2, 
+      exp: "Le WBS structure le projet en livrables." 
+    }]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, jargonWs, "Jargon");
     XLSX.utils.book_append_sheet(wb, quizWs, "Quiz");
@@ -273,22 +285,38 @@ export default function ManageDomains() {
             <Card className="rounded-[40px] shadow-xl border-none p-10 bg-white flex flex-col h-full">
               <div className="flex items-center justify-between mb-8">
                 <h3 className="text-xl font-black italic uppercase text-emerald-600 flex items-center gap-3"><Zap className="h-6 w-6" /> Quiz Rapide</h3>
-                <Button variant="outline" size="sm" onClick={addQuiz} className="rounded-xl border-2 font-black uppercase text-[10px] italic"><Plus className="h-3 w-3 mr-1" /> Ajouter</Button>
+                <Button variant="outline" size="sm" onClick={addQuiz} className="rounded-xl border-2 font-black uppercase text-[10px] italic"><Plus className="h-3 w-3 mr-1" /> Ajouter Question</Button>
               </div>
               <div className="space-y-6 flex-1">
                 {data.quiz?.map((q:any, idx:number) => (
                   <div key={idx} className="p-6 bg-emerald-50/30 rounded-3xl border-2 border-emerald-100 relative group space-y-4">
                     <Button variant="ghost" size="icon" onClick={() => removeQuiz(idx)} className="absolute -top-2 -right-2 h-8 w-8 rounded-full bg-white border-2 text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"><Trash2 className="h-4 w-4" /></Button>
-                    <Input placeholder="Question ?" value={q.q} onChange={(e) => updateQuiz(idx, 'q', e.target.value)} className="h-10 bg-white rounded-lg font-black italic border-2 border-amber-200" />
-                    <div className="grid grid-cols-1 gap-2">
-                      {q.a?.map((opt:string, optIdx:number) => (
-                        <div key={optIdx} className="flex items-center gap-2">
-                          <button onClick={() => updateQuiz(idx, 'c', optIdx)} className={cn("h-6 w-6 rounded-full border-2 flex items-center justify-center font-black text-[10px]", q.c === optIdx ? "bg-emerald-500 border-emerald-500 text-white" : "bg-white border-emerald-200 text-emerald-200")}>{optIdx + 1}</button>
-                          <Input placeholder={`Option ${optIdx + 1}`} value={opt} onChange={(e) => updateQuiz(idx, `a.${optIdx}`, e.target.value)} className="h-9 bg-white rounded-lg font-bold italic text-xs border-2 border-emerald-100" />
-                        </div>
-                      ))}
+                    
+                    <div className="space-y-2">
+                      <Label className="text-[9px] font-black uppercase text-emerald-600 italic">Question ?</Label>
+                      <Input placeholder="Votre question..." value={q.q} onChange={(e) => updateQuizField(idx, 'q', e.target.value)} className="h-10 bg-white rounded-lg font-black italic border-2 border-emerald-200" />
                     </div>
-                    <Textarea placeholder="Justification..." value={q.exp} onChange={(e) => updateQuiz(idx, 'exp', e.target.value)} className="h-20 bg-white rounded-lg font-bold italic text-xs border-2 border-emerald-100" />
+
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-[9px] font-black uppercase text-emerald-600 italic">Choix possibles</Label>
+                        {q.a.length < 4 && <Button variant="ghost" size="sm" onClick={() => addQuizChoice(idx)} className="h-6 text-[8px] font-black uppercase italic bg-white border"><Plus className="h-3 w-3 mr-1" /> Ajouter Choix</Button>}
+                      </div>
+                      <div className="grid gap-2">
+                        {q.a.map((opt:string, optIdx:number) => (
+                          <div key={optIdx} className="flex items-center gap-2 group/choice">
+                            <button onClick={() => updateQuizField(idx, 'c', optIdx)} className={cn("h-8 w-8 rounded-full border-2 flex items-center justify-center font-black text-xs shrink-0 transition-all shadow-sm", q.c === optIdx ? "bg-black border-black text-white" : "bg-white border-slate-200 text-slate-300 hover:border-black/30")}>{String.fromCharCode(65 + optIdx)}</button>
+                            <Input placeholder={`Option ${String.fromCharCode(65 + optIdx)}`} value={opt} onChange={(e) => updateQuizChoice(idx, optIdx, e.target.value)} className={cn("h-10 bg-white rounded-lg font-bold italic text-sm border-2", q.c === optIdx ? "border-emerald-400" : "border-emerald-100")} />
+                            {q.a.length > 2 && <Button variant="ghost" size="icon" onClick={() => removeQuizChoice(idx, optIdx)} className="h-8 w-8 text-red-400 hover:bg-red-50 opacity-0 group-hover/choice:opacity-100"><Minus className="h-3 w-3" /></Button>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-[9px] font-black uppercase text-emerald-600 italic">Justification Mindset</Label>
+                      <Textarea placeholder="Justification..." value={q.exp} onChange={(e) => updateQuizField(idx, 'exp', e.target.value)} className="h-20 bg-white rounded-lg font-bold italic text-xs border-2 border-emerald-100" />
+                    </div>
                   </div>
                 ))}
               </div>
