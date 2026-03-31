@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo, Suspense, useCallback } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useUser, useFirestore } from '@/firebase';
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -22,14 +22,12 @@ import {
   X,
   LayoutGrid,
   Info,
-  Save as SaveIcon,
   MoveLeft,
   MoveRight
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Calculator } from '@/components/dashboard/Calculator';
-import { saveExamState, getExamState, clearExamState } from '@/lib/services/exam-state-service';
 
 type ViewMode = 'question' | 'review' | 'break' | 'result';
 
@@ -110,15 +108,13 @@ function ExamRunContent() {
   const { toast } = useToast();
   
   const examId = searchParams.get('id');
-  const isResumeMode = searchParams.get('resume') === 'true';
   
-  // State
   const [questions, setQuestions] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string[]>>({});
   const [flagged, setFlagged] = useState<Record<string, boolean>>({});
   const [viewMode, setViewMode] = useState<ViewMode>('question');
-  const [timeLeft, setTimeLeft] = useState(-1); 
+  const [timeLeft, setTimeLeft] = useState(230 * 60); 
   const [isPaused, setIsPaused] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [showNavigator, setShowNavigator] = useState(false);
@@ -127,96 +123,43 @@ function ExamRunContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [breakTimeLeft, setBreakTimeLeft] = useState(10 * 60);
   const [currentSection, setCurrentSection] = useState(1);
-  const [isSavingState, setIsSavingState] = useState(false);
 
   // Constants
   const SECTION_SIZE = 60;
 
-  const calculateTotalTime = (numQuestions: number) => {
-    const minutes = (numQuestions * 230) / 180;
-    return Math.floor(minutes * 60);
-  };
-
-  // Sauvegarde persistante
-  const triggerSave = useCallback(async (forcedTimeLeft?: number) => {
-    if (!db || !user?.uid || !examId || viewMode === 'result') return;
-    try {
-      setIsSavingState(true);
-      await saveExamState(db, user.uid, {
-        examId,
-        currentIndex,
-        answers,
-        flagged,
-        timeLeft: forcedTimeLeft ?? timeLeft,
-        currentSection
-      });
-    } catch (e) {
-      console.error("Auto-save error", e);
-    } finally {
-      setIsSavingState(false);
-    }
-  }, [db, user?.uid, examId, currentIndex, answers, flagged, timeLeft, currentSection, viewMode]);
-
-  // Chargement des questions et restauration de l'état
   useEffect(() => {
-    async function fetchQuestionsAndState() {
+    async function fetchQuestions() {
       if (!examId || !user || !db) return;
       setIsLoading(true);
       try {
         const qRef = collection(db, 'questions');
+        // Séparation : On ne charge que les questions assignées à cet examen précis via sourceIds
+        const q = query(qRef, 
+          where('sourceIds', 'array-contains', examId), 
+          where('isActive', '==', true)
+        );
+        const snap = await getDocs(q);
         
-        // On fusionne les résultats des deux types de requêtes pour récupérer toutes les questions
-        const [snapNew, snapLegacy] = await Promise.all([
-          getDocs(query(qRef, where('sourceIds', 'array-contains', examId), where('isActive', '==', true))),
-          getDocs(query(qRef, where('examId', '==', examId), where('isActive', '==', true)))
-        ]);
-        
-        const uniqueQuestions = new Map();
-        
-        const processSnap = (snap: any) => {
-          snap.docs.forEach((d: any) => {
-            if (!uniqueQuestions.has(d.id)) {
-              const data = d.data();
-              uniqueQuestions.set(d.id, {
-                ...data,
-                id: d.id,
-                text: data.text || data.statement,
-                choices: data.choices || data.options?.map((o: any) => o.text)
-              });
-            }
-          });
-        };
-
-        processSnap(snapNew);
-        processSnap(snapLegacy);
-        
-        let fetched = Array.from(uniqueQuestions.values());
-        fetched.sort((a, b) => (a.index || 0) - (b.index || 0));
-        
-        if (fetched.length === 0) {
-          toast({ variant: "destructive", title: "Examen vide", description: "Aucune question trouvée pour cet examen." });
+        if (snap.empty) {
+          toast({ variant: "destructive", title: "Examen vide", description: "Veuillez importer des questions pour cette simulation." });
           router.push('/dashboard/exam');
           return;
         }
 
+        const fetched = snap.docs.map(d => ({ 
+          ...d.data(), 
+          id: d.id,
+          text: d.data().text || d.data().statement,
+          choices: d.data().choices || d.data().options?.map((o: any) => o.text)
+        }));
+        
+        // Trier par index si disponible, sinon stable
+        fetched.sort((a, b) => (a.index || 0) - (b.index || 0));
         setQuestions(fetched);
-
-        // Tenter de restaurer l'état
-        if (isResumeMode) {
-          const saved = await getExamState(db, user.uid);
-          if (saved && saved.examId === examId) {
-            setCurrentIndex(saved.currentIndex);
-            setAnswers(saved.answers || {});
-            setFlagged(saved.flagged || {});
-            setTimeLeft(saved.timeLeft);
-            setCurrentSection(saved.currentSection || 1);
-            toast({ title: "Simulation reprise", description: `Reprise à la question ${saved.currentIndex + 1} (${fetched.length} questions au total).` });
-          } else {
-            setTimeLeft(calculateTotalTime(fetched.length));
-          }
-        } else {
-          setTimeLeft(calculateTotalTime(fetched.length));
-        }
+        
+        // Temps total proportionnel (ratio PMP : 230m / 180 questions)
+        const totalMinutes = (fetched.length * 230) / 180;
+        setTimeLeft(Math.floor(totalMinutes * 60));
       } catch (e) {
         console.error(e);
         toast({ variant: "destructive", title: "Erreur de chargement" });
@@ -224,19 +167,9 @@ function ExamRunContent() {
         setIsLoading(false);
       }
     }
-    fetchQuestionsAndState();
-  }, [db, examId, user, router, toast, isResumeMode]);
+    fetchQuestions();
+  }, [db, examId, user, router, toast]);
 
-  // Sauvegarde automatique toutes les 30 secondes
-  useEffect(() => {
-    if (viewMode !== 'question' || isPaused || isLoading) return;
-    const interval = setInterval(() => {
-      triggerSave();
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [triggerSave, viewMode, isPaused, isLoading]);
-
-  // Timer simulation
   useEffect(() => {
     let timer: any;
     if (viewMode === 'question' && !isPaused && timeLeft > 0) {
@@ -247,7 +180,6 @@ function ExamRunContent() {
     return () => clearInterval(timer);
   }, [viewMode, isPaused, timeLeft, result, isLoading, questions.length]);
 
-  // Timer pause
   useEffect(() => {
     let timer: any;
     if (viewMode === 'break' && breakTimeLeft > 0) {
@@ -350,14 +282,13 @@ function ExamRunContent() {
       correctCount: correct,
       totalQuestions: questions.length,
       performance,
-      durationSec: calculateTotalTime(questions.length) - (timeLeft > 0 ? timeLeft : 0),
+      durationSec: (questions.length * 230 / 180) * 60 - (timeLeft > 0 ? timeLeft : 0),
       submittedAt: serverTimestamp(),
       responses: detailedResults
     };
 
     try {
       await addDoc(collection(db, 'coachingAttempts'), finalData);
-      if (user?.uid) await clearExamState(db, user.uid); // Effacer l'état temporaire
       setResult(finalData);
       setViewMode('result');
     } catch (e) {
@@ -365,11 +296,6 @@ function ExamRunContent() {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handlePause = () => {
-    triggerSave();
-    setIsPaused(true);
   };
 
   if (isLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
@@ -494,17 +420,12 @@ function ExamRunContent() {
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <div className="bg-black text-white px-8 py-4 flex items-center justify-between shadow-xl sticky top-0 z-50">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={handlePause} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-10 px-4">
+          <Button variant="ghost" size="sm" onClick={() => setIsPaused(true)} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-10 px-4">
             <Pause className="h-4 w-4 mr-2" /> Pause
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setShowCalculator(true)} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-10 px-4">
             <CalcIcon className="h-4 w-4 mr-2" /> Calculator
           </Button>
-          {isSavingState && (
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase italic text-slate-400 animate-pulse">
-              <SaveIcon className="h-3 w-3" /> Sync...
-            </div>
-          )}
         </div>
 
         <div className="text-center">
@@ -680,14 +601,9 @@ function ExamRunContent() {
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center pointer-events-auto">
           <div className="text-center space-y-8">
             <h2 className="text-6xl font-black uppercase italic text-white tracking-tighter">EXAMEN EN PAUSE</h2>
-            <div className="flex flex-col gap-4 items-center">
-              <Button onClick={() => setIsPaused(false)} className="h-20 px-16 rounded-[28px] bg-white text-black text-2xl font-black uppercase tracking-widest shadow-2xl scale-110 hover:scale-115 transition-transform">
-                REPRENDRE
-              </Button>
-              <Button asChild variant="ghost" className="text-white font-bold uppercase tracking-widest hover:bg-white/10 mt-4">
-                <Link href="/dashboard/exam">Quitter et reprendre plus tard</Link>
-              </Button>
-            </div>
+            <Button onClick={() => setIsPaused(false)} className="h-20 px-16 rounded-[28px] bg-white text-black text-2xl font-black uppercase tracking-widest shadow-2xl scale-110 hover:scale-115 transition-transform">
+              REPRENDRE
+            </Button>
           </div>
         </div>
       )}

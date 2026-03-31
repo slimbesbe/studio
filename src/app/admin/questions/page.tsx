@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useMemo, Suspense, useEffect } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, orderBy, deleteDoc, doc, limit, where } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
@@ -34,51 +35,28 @@ function QuestionsList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterExam, setFilterExam] = useState('all');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [counts, setCounts] = useState<Record<string, number>>({});
 
   const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
 
   const questionsQuery = useMemoFirebase(() => {
     if (!isAdmin) return null;
-    return query(collection(db, 'questions'), orderBy('updatedAt', 'desc'), limit(2000));
+    return query(collection(db, 'questions'), orderBy('updatedAt', 'desc'), limit(1000));
   }, [db, isAdmin]);
 
   const { data: questions, isLoading } = useCollection(questionsQuery);
 
-  useEffect(() => {
-    if (questions) {
-      const newCounts: Record<string, number> = {};
-      questions.forEach(q => {
-        const sources = q.sourceIds || [];
-        if (sources.length > 0) {
-          sources.forEach((s: string) => {
-            newCounts[s] = (newCounts[s] || 0) + 1;
-          });
-        } else {
-          const id = q.examId || q.sessionId || 'general';
-          newCounts[id] = (newCounts[id] || 0) + 1;
-        }
-      });
-      setCounts(newCounts);
-    }
-  }, [questions]);
-
   const filteredQuestions = useMemo(() => {
     if (!questions) return [];
     return questions.filter(q => {
-      const textMatch = (q.statement || q.text || '').toLowerCase();
-      const codeMatch = (q.questionCode || '').toLowerCase();
-      const search = searchTerm.toLowerCase();
-      
-      const matchSearch = textMatch.includes(search) || codeMatch.includes(search);
+      const textMatch = (q.statement || q.text || '').toLowerCase().includes(searchTerm.toLowerCase());
+      const codeMatch = (q.questionCode || '').toLowerCase().includes(searchTerm.toLowerCase());
       
       const sources = q.sourceIds || [];
       const matchExam = filterExam === 'all' || 
                        sources.includes(filterExam) || 
-                       q.examId === filterExam || 
-                       q.sessionId === filterExam;
+                       (filterExam === 'general' && (!q.examId || q.examId === 'general'));
       
-      return matchSearch && matchExam;
+      return (textMatch || codeMatch) && matchExam;
     });
   }, [questions, searchTerm, filterExam]);
 
@@ -128,7 +106,7 @@ function QuestionsList() {
             <h1 className="text-3xl font-black italic uppercase tracking-tighter text-primary flex items-center gap-3">
               <BookCopy className="h-8 w-8" /> Banque de Questions
             </h1>
-            <p className="text-muted-foreground mt-1 uppercase tracking-widest text-[10px] font-bold italic">Gérez les questions des 5 examens et des coachings S2-S6.</p>
+            <p className="text-muted-foreground mt-1 uppercase tracking-widest text-[10px] font-bold italic">Gérez séparément les questions de pratique et d'examens.</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -159,21 +137,17 @@ function QuestionsList() {
             <SelectTrigger className="h-16 rounded-[24px] border-2 font-black italic shadow-sm bg-white">
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-primary" />
-                <SelectValue placeholder="Toutes les simulations" />
+                <SelectValue placeholder="Toutes les bases" />
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Toutes ({questions?.length || 0})</SelectItem>
-              <SelectItem value="exam1">Examen 1 ({counts['exam1'] || 0})</SelectItem>
-              <SelectItem value="exam2">Examen 2 ({counts['exam2'] || 0})</SelectItem>
-              <SelectItem value="exam3">Examen 3 ({counts['exam3'] || 0})</SelectItem>
-              <SelectItem value="exam4">Examen 4 ({counts['exam4'] || 0})</SelectItem>
-              <SelectItem value="exam5">Examen 5 ({counts['exam5'] || 0})</SelectItem>
-              <SelectItem value="S2">Coaching S2 ({counts['S2'] || 0})</SelectItem>
-              <SelectItem value="S3">Coaching S3 ({counts['S3'] || 0})</SelectItem>
-              <SelectItem value="S4">Coaching S4 ({counts['S4'] || 0})</SelectItem>
-              <SelectItem value="S5">Coaching S5 ({counts['S5'] || 0})</SelectItem>
-              <SelectItem value="S6">Coaching S6 ({counts['S6'] || 0})</SelectItem>
+              <SelectItem value="all">Toutes les questions</SelectItem>
+              <SelectItem value="general">Pratique Libre</SelectItem>
+              <SelectItem value="exam1">Simulation Examen 1</SelectItem>
+              <SelectItem value="exam2">Simulation Examen 2</SelectItem>
+              <SelectItem value="exam3">Simulation Examen 3</SelectItem>
+              <SelectItem value="exam4">Simulation Examen 4</SelectItem>
+              <SelectItem value="exam5">Simulation Examen 5</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -195,7 +169,7 @@ function QuestionsList() {
                 <TableRow key={q.id} className="h-24 hover:bg-slate-50 transition-all border-b last:border-0 group">
                   <TableCell className="px-10">
                     <span className="font-mono font-black text-primary text-xs bg-primary/5 px-2 py-1 rounded-lg border border-primary/10">
-                      {q.questionCode || `Q-${q.index || '---'}`}
+                      {q.questionCode || '---'}
                     </span>
                   </TableCell>
                   <TableCell>
@@ -203,32 +177,24 @@ function QuestionsList() {
                     <div className="flex gap-2 mt-1">
                       <Badge variant="secondary" className="text-[8px] font-black uppercase italic py-0 bg-slate-100 border-none">{q.tags?.domain || 'Process'}</Badge>
                       <Badge variant="secondary" className="text-[8px] font-black uppercase italic py-0 bg-slate-100 border-none">{q.tags?.approach || 'Agile'}</Badge>
-                      {q.isActive === false && <Badge variant="destructive" className="text-[8px] font-black uppercase italic py-0 border-none">Inactif</Badge>}
                     </div>
                   </TableCell>
                   <TableCell className="text-center">
                     <div className="flex flex-wrap justify-center gap-1 max-w-[150px] mx-auto">
-                      {(q.sourceIds && q.sourceIds.length > 0) ? (
-                        q.sourceIds.map((s: string) => (
-                          <Badge key={s} className={cn("text-[7px] font-black uppercase italic py-0 border-none", s.startsWith('exam') ? "bg-indigo-100 text-indigo-600" : "bg-emerald-100 text-emerald-600")}>
-                            {s.replace('exam', 'E').replace('S', 'S')}
-                          </Badge>
-                        ))
-                      ) : (
-                        q.examId ? (
-                          <Badge className="bg-indigo-100 text-indigo-600 border-none font-black text-[7px] uppercase italic">E{q.examId.replace('exam','')}</Badge>
-                        ) : q.sessionId ? (
-                          <Badge className="bg-emerald-100 text-emerald-600 border-none font-black text-[7px] uppercase italic">{q.sessionId}</Badge>
-                        ) : (
-                          <span className="text-[7px] font-bold text-slate-300">LIBRE</span>
-                        )
+                      {(q.sourceIds || []).map((s: string) => (
+                        <Badge key={s} className={cn("text-[7px] font-black uppercase italic py-0 border-none", s === 'general' ? "bg-emerald-100 text-emerald-600" : "bg-indigo-100 text-indigo-600")}>
+                          {s === 'general' ? 'PRATIQUE' : s.replace('exam', 'E')}
+                        </Badge>
+                      ))}
+                      {(!q.sourceIds || q.sourceIds.length === 0) && (
+                        <Badge className="bg-slate-100 text-slate-400 border-none font-black text-[7px] uppercase italic">NON ASSIGNÉ</Badge>
                       )}
                     </div>
                   </TableCell>
                   <TableCell className="text-right px-10">
                     <div className="flex justify-end gap-2">
                       <Button variant="ghost" size="icon" asChild className="h-10 w-10 rounded-xl hover:bg-indigo-50 text-indigo-600 border-2 border-indigo-50">
-                        <Link href={q.sessionId || (q.sourceIds && q.sourceIds.some((s: string) => s.startsWith('S'))) ? `/admin/manage-question/coaching/${q.id}` : `/admin/manage-question/${q.examId || 'general'}/${q.id}`}><Pencil className="h-4 w-4" /></Link>
+                        <Link href={`/admin/manage-question/${q.examId || 'general'}/${q.id}`}><Pencil className="h-4 w-4" /></Link>
                       </Button>
                       <Button variant="ghost" size="icon" onClick={() => handleDelete(q.id)} className="h-10 w-10 rounded-xl hover:bg-red-50 text-red-600 border-2 border-red-50">
                         <Trash2 className="h-4 w-4" />
@@ -256,7 +222,7 @@ function QuestionsList() {
       <ImportQuestionsModal 
         isOpen={isImportModalOpen} 
         onClose={() => setIsImportModalOpen(false)} 
-        examId={filterExam !== 'all' && !filterExam.startsWith('S') ? filterExam : 'general'} 
+        examId={filterExam !== 'all' ? filterExam : 'general'} 
       />
     </div>
   );

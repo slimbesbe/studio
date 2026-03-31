@@ -12,13 +12,10 @@ import {
   Trophy, 
   FileQuestion, 
   ChevronRight,
-  AlertCircle,
-  RotateCcw,
-  PlayCircle
+  AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { getExamState, clearExamState, type ExamState } from '@/lib/services/exam-state-service';
 
 const ALL_EXAMS = [
   { id: 'exam1', title: 'Simulation Examen 1', description: 'Examen complet de questions couvrant tous les domaines.' },
@@ -35,20 +32,7 @@ export default function ExamPage() {
   const [examCounts, setExamCounts] = useState<Record<string, number>>({});
   const [isCounting, setIsCounting] = useState(true);
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
-  const [activeSimulation, setActiveSimulation] = useState<ExamState | null>(null);
-  const [isClearing, setIsClearing] = useState(false);
 
-  // Vérifier s'il y a une simulation en cours
-  useEffect(() => {
-    async function checkActiveSim() {
-      if (!db || !user?.uid) return;
-      const state = await getExamState(db, user.uid);
-      setActiveSimulation(state);
-    }
-    checkActiveSim();
-  }, [db, user?.uid]);
-
-  // Compter les questions réelles par examen
   useEffect(() => {
     async function fetchCounts() {
       if (!db || isUserLoading || !user) return;
@@ -57,24 +41,15 @@ export default function ExamPage() {
         const qRef = collection(db, 'questions');
         const counts: Record<string, number> = {};
         
-        const countsPromises = ALL_EXAMS.map(async (exam) => {
-          // On récupère les IDs des deux sources possibles pour un comptage fiable
-          const [snapNew, snapLegacy] = await Promise.all([
-            getDocs(query(qRef, where('sourceIds', 'array-contains', exam.id), where('isActive', '==', true))),
-            getDocs(query(qRef, where('examId', '==', exam.id), where('isActive', '==', true)))
-          ]);
-          
-          const uniqueIds = new Set();
-          snapNew.forEach(d => uniqueIds.add(d.id));
-          snapLegacy.forEach(d => uniqueIds.add(d.id));
-
-          return { id: exam.id, count: uniqueIds.size };
-        });
-
-        const results = await Promise.all(countsPromises);
-        results.forEach(res => {
-          counts[res.id] = res.count;
-        });
+        // On compte les questions assignées à chaque examen via sourceIds
+        for (const exam of ALL_EXAMS) {
+          const q = query(qRef, 
+            where('sourceIds', 'array-contains', exam.id), 
+            where('isActive', '==', true)
+          );
+          const snap = await getDocs(q);
+          counts[exam.id] = snap.size;
+        }
         
         setExamCounts(counts);
       } catch (e) {
@@ -85,17 +60,6 @@ export default function ExamPage() {
     }
     fetchCounts();
   }, [db, user, isUserLoading]);
-
-  const handleDiscard = async () => {
-    if (!user?.uid || !confirm("Voulez-vous vraiment abandonner votre progression actuelle ?")) return;
-    setIsClearing(true);
-    try {
-      await clearExamState(db, user.uid);
-      setActiveSimulation(null);
-    } finally {
-      setIsClearing(false);
-    }
-  };
 
   const availableExams = useMemo(() => {
     if (!profile) return [];
@@ -126,43 +90,11 @@ export default function ExamPage() {
             <Trophy className="h-12 w-12 text-primary" />
           </div>
           <div>
-            <h1 className="text-4xl font-black italic uppercase tracking-tighter text-primary" suppressHydrationWarning>Simulations d'Examen</h1>
+            <h1 className="text-4xl font-black italic uppercase tracking-tighter text-primary">Simulations d'Examen</h1>
             <p className="text-slate-500 font-bold uppercase tracking-widest text-sm mt-1">Validez vos connaissances dans les conditions réelles du PMP®.</p>
           </div>
         </div>
       </div>
-
-      {/* REPRENDRE UNE SIMULATION EN COURS */}
-      {activeSimulation && (
-        <Card className="rounded-[40px] border-4 border-amber-400 bg-amber-50 shadow-2xl animate-slide-up overflow-hidden">
-          <div className="flex flex-col md:flex-row items-center p-8 gap-8">
-            <div className="bg-amber-400 p-4 rounded-3xl shadow-lg">
-              <RotateCcw className="h-10 w-10 text-white" />
-            </div>
-            <div className="flex-1 text-center md:text-left">
-              <h2 className="text-2xl font-black text-amber-900 uppercase italic tracking-tight">Simulation interrompue détectée</h2>
-              <p className="text-amber-800 font-bold italic">
-                Vous avez une session en cours pour <strong>{ALL_EXAMS.find(e => e.id === activeSimulation.examId)?.title}</strong>. 
-                Voulez-vous la reprendre ?
-              </p>
-              <div className="flex gap-4 mt-2">
-                <Badge variant="outline" className="bg-white border-amber-200 text-amber-700 font-black">Section {activeSimulation.currentSection}</Badge>
-                <Badge variant="outline" className="bg-white border-amber-200 text-amber-700 font-black">Question {activeSimulation.currentIndex + 1}</Badge>
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
-              <Button onClick={handleDiscard} variant="ghost" disabled={isClearing} className="h-14 px-8 rounded-2xl font-black uppercase text-amber-700 hover:bg-amber-100">
-                Abandonner
-              </Button>
-              <Button asChild className="h-14 px-10 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black uppercase shadow-xl">
-                <Link href={`/dashboard/exam/run?id=${activeSimulation.examId}&resume=true`}>
-                  Reprendre <ChevronRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
 
       {availableExams.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 bg-white rounded-[40px] shadow-inner border-4 border-dashed border-slate-100">
@@ -172,7 +104,7 @@ export default function ExamPage() {
           <div className="space-y-2">
             <h2 className="text-2xl font-black text-slate-400 italic uppercase tracking-tight">Aucune simulation prête</h2>
             <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic max-w-md mx-auto">
-              Les examens n'apparaîtront ici que s'ils contiennent des questions dans la banque.
+              Les examens n'apparaîtront ici que s'ils contiennent des questions dans la banque (Base Examens).
             </p>
           </div>
           {(profile?.role === 'admin' || profile?.role === 'super_admin') && (
@@ -188,8 +120,7 @@ export default function ExamPage() {
               key={exam.id} 
               className={cn(
                 "rounded-[40px] border-4 transition-all relative overflow-hidden group cursor-pointer",
-                selectedExamId === exam.id ? "border-primary bg-primary/5 shadow-2xl scale-[1.02]" : "bg-white border-white shadow-xl hover:border-primary/20",
-                activeSimulation && activeSimulation.examId !== exam.id && "opacity-50 pointer-events-none grayscale"
+                selectedExamId === exam.id ? "border-primary bg-primary/5 shadow-2xl scale-[1.02]" : "bg-white border-white shadow-xl hover:border-primary/20"
               )}
               onClick={() => setSelectedExamId(exam.id)}
             >
@@ -237,9 +168,9 @@ export default function ExamPage() {
       <div className="bg-amber-50 border-2 border-amber-200 p-6 rounded-[32px] flex items-start gap-4 animate-slide-up">
         <AlertCircle className="h-6 w-6 text-amber-600 shrink-0" />
         <div>
-          <h4 className="font-black uppercase italic text-amber-800 text-sm">Informations Importantes</h4>
+          <h4 className="font-black uppercase italic text-amber-800 text-sm">Base de données séparée</h4>
           <p className="text-xs font-bold text-amber-700/80 italic mt-1">
-            Le temps alloué est calculé proportionnellement au nombre de questions (ratio officiel PMP : 230 min pour 180 questions).
+            Les questions utilisées dans ces simulations sont distinctes de celles de la Pratique Libre pour garantir l'intégrité de votre score final.
           </p>
         </div>
       </div>

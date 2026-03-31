@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useFirestore } from '@/firebase';
+import { useState, useEffect, useRef } from 'react';
+import { useFirestore, useUser } from '@/firebase';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,8 +28,11 @@ import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
 
 export default function ManageDomains() {
+  const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [activeTab, setActiveTab] = useState('people');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -44,6 +47,7 @@ export default function ManageDomains() {
 
   useEffect(() => {
     async function load() {
+      if (!user) return;
       setIsLoading(true);
       const snap = await getDoc(doc(db, 'concepts_domains', activeTab));
       if (snap.exists()) {
@@ -54,7 +58,7 @@ export default function ManageDomains() {
       setIsLoading(false);
     }
     load();
-  }, [db, activeTab]);
+  }, [db, activeTab, user]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -69,6 +73,48 @@ export default function ManageDomains() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        
+        // Jargon
+        const jargonSheet = wb.Sheets["Jargon"];
+        const jargonData = jargonSheet ? XLSX.utils.sheet_to_json(jargonSheet) : [];
+        const parsedJargon = jargonData.map((row: any) => ({
+          term: row.term || row.Terme || "",
+          def: row.def || row.Définition || ""
+        }));
+
+        // Quiz
+        const quizSheet = wb.Sheets["Quiz"];
+        const quizData = quizSheet ? XLSX.utils.sheet_to_json(quizSheet) : [];
+        const parsedQuiz = quizData.map((row: any) => ({
+          q: row.q || row.Question || "",
+          a: [row.a1 || "", row.a2 || "", row.a3 || ""],
+          c: parseInt(row.correct_idx || row.index_correct || "0"),
+          exp: row.exp || row.Explication || ""
+        }));
+
+        setData((prev: any) => ({
+          ...prev,
+          jargon: parsedJargon.length > 0 ? parsedJargon : prev.jargon,
+          quiz: parsedQuiz.length > 0 ? parsedQuiz : prev.quiz
+        }));
+
+        toast({ title: "Import réussi", description: "Données chargées. N'oubliez pas d'enregistrer." });
+      } catch (err) {
+        toast({ variant: "destructive", title: "Erreur import" });
+      }
+    };
+    reader.readAsBinaryString(file);
   };
 
   const addJargon = () => setData({...data, jargon: [...data.jargon, { term: '', def: '' }]});
@@ -114,7 +160,11 @@ export default function ManageDomains() {
           </div>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={exportModel} className="h-14 px-6 rounded-2xl font-black uppercase text-xs italic border-2"><Download className="mr-2 h-4 w-4" /> Modèle Excel</Button>
+          <Button variant="outline" onClick={exportModel} className="h-14 px-6 rounded-2xl font-black uppercase text-xs italic border-2"><Download className="mr-2 h-4 w-4" /> Modèle</Button>
+          <div className="relative">
+            <Button variant="outline" className="h-14 px-6 rounded-2xl font-black uppercase text-xs italic border-2 bg-emerald-50 text-emerald-600 border-emerald-100" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2 h-4 w-4" /> Import Excel</Button>
+            <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx,.xls" onChange={handleImport} />
+          </div>
           <Button onClick={handleSave} disabled={isSaving} className="bg-primary h-14 px-8 rounded-2xl font-black uppercase tracking-widest shadow-xl">
             {isSaving ? <Loader2 className="animate-spin h-5 w-5" /> : <Save className="mr-2 h-5 w-5" />} Enregistrer {activeTab}
           </Button>
@@ -176,7 +226,7 @@ export default function ManageDomains() {
                 {data.quiz.map((q:any, idx:number) => (
                   <div key={idx} className="p-6 bg-emerald-50/30 rounded-3xl border-2 border-emerald-100 relative group space-y-4">
                     <Button variant="ghost" size="icon" onClick={() => removeQuiz(idx)} className="absolute -top-2 -right-2 h-8 w-8 rounded-full bg-white border-2 text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"><Trash2 className="h-4 w-4" /></Button>
-                    <Input placeholder="Question ?" value={q.q} onChange={(e) => updateQuiz(idx, 'q', e.target.value)} className="h-10 bg-white rounded-lg font-black italic border-2 border-emerald-200" />
+                    <Input placeholder="Question ?" value={q.q} onChange={(e) => updateQuiz(idx, 'q', e.target.value)} className="h-10 bg-white rounded-lg font-black italic border-2 border-amber-200" />
                     <div className="grid grid-cols-1 gap-2">
                       {q.a.map((opt:string, optIdx:number) => (
                         <div key={optIdx} className="flex items-center gap-2">

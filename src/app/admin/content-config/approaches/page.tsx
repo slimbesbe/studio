@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
+import { useState, useEffect, useRef } from 'react';
+import { useFirestore, useUser } from '@/firebase';
 import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,14 +10,12 @@ import {
   ChevronLeft, 
   Save, 
   Loader2, 
-  Globe, 
   BookOpen, 
   Zap, 
   Plus, 
   Trash2,
   Download,
-  Upload,
-  Info
+  Upload
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -32,6 +30,8 @@ export default function ManageApproaches() {
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [activeTab, setActiveTab] = useState('predictive');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -43,7 +43,6 @@ export default function ManageApproaches() {
     quiz: []
   });
 
-  // Load data for active approach
   useEffect(() => {
     async function load() {
       if (!user) return;
@@ -78,6 +77,48 @@ export default function ManageApproaches() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        
+        // Parsing Jargon
+        const jargonSheet = wb.Sheets["Jargon"];
+        const jargonData = jargonSheet ? XLSX.utils.sheet_to_json(jargonSheet) : [];
+        const parsedJargon = jargonData.map((row: any) => ({
+          term: row.term || row.Terme || "",
+          def: row.def || row.Définition || ""
+        }));
+
+        // Parsing Quiz
+        const quizSheet = wb.Sheets["Quiz"];
+        const quizData = quizSheet ? XLSX.utils.sheet_to_json(quizSheet) : [];
+        const parsedQuiz = quizData.map((row: any) => ({
+          q: row.q || row.Question || "",
+          a: [row.a1 || "", row.a2 || "", row.a3 || ""],
+          c: parseInt(row.correct_idx || row.index_correct || "0"),
+          exp: row.exp || row.Explication || ""
+        }));
+
+        setData((prev: any) => ({
+          ...prev,
+          jargon: parsedJargon.length > 0 ? parsedJargon : prev.jargon,
+          quiz: parsedQuiz.length > 0 ? parsedQuiz : prev.quiz
+        }));
+
+        toast({ title: "Import réussi", description: "Données chargées. N'oubliez pas d'enregistrer." });
+      } catch (err) {
+        toast({ variant: "destructive", title: "Erreur import", description: "Format de fichier invalide." });
+      }
+    };
+    reader.readAsBinaryString(file);
   };
 
   const addJargon = () => setData({...data, jargon: [...data.jargon, { term: '', def: '' }]});
@@ -123,7 +164,11 @@ export default function ManageApproaches() {
           </div>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={exportModel} className="h-14 px-6 rounded-2xl font-black uppercase text-xs italic border-2"><Download className="mr-2 h-4 w-4" /> Modèle Excel</Button>
+          <Button variant="outline" onClick={exportModel} className="h-14 px-6 rounded-2xl font-black uppercase text-xs italic border-2"><Download className="mr-2 h-4 w-4" /> Modèle</Button>
+          <div className="relative">
+            <Button variant="outline" className="h-14 px-6 rounded-2xl font-black uppercase text-xs italic border-2 bg-emerald-50 text-emerald-600 border-emerald-100" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2 h-4 w-4" /> Import Excel</Button>
+            <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx,.xls" onChange={handleImport} />
+          </div>
           <Button onClick={handleSave} disabled={isSaving} className="bg-primary h-14 px-8 rounded-2xl font-black uppercase tracking-widest shadow-xl">
             {isSaving ? <Loader2 className="animate-spin h-5 w-5" /> : <Save className="mr-2 h-5 w-5" />} Enregistrer {activeTab}
           </Button>

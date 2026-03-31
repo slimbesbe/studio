@@ -40,16 +40,12 @@ interface Option {
 }
 
 const ALL_SOURCES = [
+  { id: 'general', label: 'Pratique Libre' },
   { id: 'exam1', label: 'Examen 1' },
   { id: 'exam2', label: 'Examen 2' },
   { id: 'exam3', label: 'Examen 3' },
   { id: 'exam4', label: 'Examen 4' },
   { id: 'exam5', label: 'Examen 5' },
-  { id: 'S2', label: 'Coaching S2' },
-  { id: 'S3', label: 'Coaching S3' },
-  { id: 'S4', label: 'Coaching S4' },
-  { id: 'S5', label: 'Coaching S5' },
-  { id: 'S6', label: 'Coaching S6' },
 ];
 
 export default function ManageQuestionPage() {
@@ -88,6 +84,8 @@ export default function ManageQuestionPage() {
   useEffect(() => {
     if (isNew && examIdParam !== 'general' && examIdParam !== 'new') {
       setSourceIds([examIdParam]);
+    } else if (isNew && examIdParam === 'general') {
+      setSourceIds(['general']);
     }
   }, [isNew, examIdParam]);
 
@@ -107,14 +105,7 @@ export default function ManageQuestionPage() {
       setCorrectOptionIds(questionData.correctOptionIds || [String(questionData.correctChoice)]);
       setIsActive(questionData.isActive !== false);
       setQuestionCode(questionData.questionCode || "");
-      
-      // Migration/Loading of sources
-      let loadedSources = questionData.sourceIds || [];
-      if (loadedSources.length === 0) {
-        if (questionData.examId) loadedSources.push(questionData.examId);
-        if (questionData.sessionId) loadedSources.push(questionData.sessionId);
-      }
-      setSourceIds(loadedSources);
+      setSourceIds(questionData.sourceIds || (questionData.examId ? [questionData.examId] : ['general']));
 
       if (questionData.tags) {
         setDomain(questionData.tags.domain || "Process");
@@ -199,10 +190,6 @@ export default function ManageQuestionPage() {
 
     setIsSubmitting(true);
     try {
-      // Pour compatibilité avec l'ancien code, on garde examId et sessionId si un seul est sélectionné
-      const firstExam = sourceIds.find(s => s.startsWith('exam'));
-      const firstSession = sourceIds.find(s => s.startsWith('S'));
-
       const finalData = {
         statement,
         text: statement,
@@ -221,8 +208,8 @@ export default function ManageQuestionPage() {
           difficulty
         },
         sourceIds,
-        examId: firstExam || null,
-        sessionId: firstSession || null,
+        // Legacy support
+        examId: sourceIds.includes('general') ? null : sourceIds[0],
         questionCode: questionCode || `Q-${Date.now()}`
       };
 
@@ -280,7 +267,7 @@ export default function ManageQuestionPage() {
           
           <div className="space-y-4">
             <Label className="flex items-center gap-2 font-black uppercase text-[10px] text-slate-400 italic">
-              <Layers className="h-3 w-3" /> Sources d'Assignation (Multi-sources)
+              <Layers className="h-3 w-3" /> Sources d'Assignation (Séparation des bases)
             </Label>
             <Popover>
               <PopoverTrigger asChild>
@@ -292,30 +279,28 @@ export default function ManageQuestionPage() {
                   <ChevronDown className="h-4 w-4 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[400px] p-2 rounded-2xl shadow-2xl border-4" align="start">
+              <PopoverContent className="w-80 p-2 rounded-2xl shadow-2xl border-4" align="start">
                 <div className="space-y-1">
                   <div 
                     onClick={toggleAllSources}
                     className="flex items-center gap-3 p-3 rounded-lg hover:bg-primary/5 cursor-pointer transition-colors border-b mb-1"
                   >
                     <Checkbox checked={selectedCount === ALL_SOURCES.length} onCheckedChange={toggleAllSources} />
-                    <span className="font-black italic text-primary uppercase text-xs">Toutes les sources ({ALL_SOURCES.length})</span>
+                    <span className="font-black italic text-primary uppercase text-xs">Tout sélectionner</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-1">
-                    {ALL_SOURCES.map((source) => (
-                      <div 
-                        key={source.id} 
-                        onClick={() => toggleSource(source.id)}
-                        className={cn(
-                          "flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors",
-                          sourceIds.includes(source.id) && "bg-emerald-50/50"
-                        )}
-                      >
-                        <Checkbox checked={sourceIds.includes(source.id)} onCheckedChange={() => toggleSource(source.id)} />
-                        <span className="font-bold italic text-xs text-slate-700">{source.label}</span>
-                      </div>
-                    ))}
-                  </div>
+                  {ALL_SOURCES.map((source) => (
+                    <div 
+                      key={source.id} 
+                      onClick={() => toggleSource(source.id)}
+                      className={cn(
+                        "flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors",
+                        sourceIds.includes(source.id) && "bg-emerald-50/50"
+                      )}
+                    >
+                      <Checkbox checked={sourceIds.includes(source.id)} onCheckedChange={() => toggleSource(source.id)} />
+                      <span className="font-bold italic text-xs text-slate-700">{source.label}</span>
+                    </div>
+                  ))}
                 </div>
               </PopoverContent>
             </Popover>
