@@ -226,7 +226,9 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
     if (isAnswered) return; 
     setSelectedIdx(idx); 
     setIsAnswered(true); 
-    if (idx === activeQuestions[currentIdx].c) setScore(score + 1); 
+    const q = activeQuestions[currentIdx];
+    const correctIdx = parseInt(q.c || q.correctChoice || "0");
+    if (idx === correctIdx) setScore(score + 1); 
   };
 
   const next = async () => { 
@@ -278,12 +280,13 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
       </div>
       
       <h3 className="text-3xl font-black italic text-slate-800 leading-tight relative z-10">
-        {q.q}
+        {q.q || q.text || q.statement}
       </h3>
 
       <div className="grid gap-4 relative z-10">
-        {(q.a || []).map((opt: any, idx: number) => {
-          const isCorrect = idx === q.c;
+        {(q.a || q.choices || []).map((opt: any, idx: number) => {
+          const choiceText = typeof opt === 'string' ? opt : opt.text;
+          const isCorrect = idx === parseInt(q.c || q.correctChoice || "0");
           const isSelected = idx === selectedIdx;
           
           return (
@@ -316,9 +319,9 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
               </div>
               <span className={cn(
                 "flex-1 text-lg font-bold italic pt-1",
-                !isAnswered ? "text-slate-600" : isCorrect ? "text-emerald-900" : isSelected ? "text-red-900" : "text-slate-400"
+                !isAnswered ? "text-slate-900" : isCorrect ? "text-emerald-900" : isSelected ? "text-red-900" : "text-slate-400"
               )}>
-                {opt}
+                {choiceText}
               </span>
               {isAnswered && isCorrect && <CheckCircle2 className="h-6 w-6 text-emerald-500 absolute right-6 top-8" />}
             </button>
@@ -331,7 +334,9 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
           <div className="flex items-center gap-2 text-primary font-black uppercase italic text-[10px] tracking-widest">
             <Info className="h-4 w-4" /> Justification Mindset
           </div>
-          <p className="text-slate-700 font-bold italic text-lg leading-relaxed">{q.exp}</p>
+          <p className="text-slate-900 font-bold italic text-lg leading-relaxed whitespace-pre-wrap">
+            {q.exp || q.explanation || "Analysez cette situation selon le mindset PMI pour comprendre la meilleure réponse."}
+          </p>
           <Button onClick={next} className="mt-6 w-full h-14 rounded-2xl bg-[#0F172A] hover:bg-slate-800 text-white font-black uppercase italic tracking-widest">
             {currentIdx < activeQuestions.length - 1 ? "SUIVANT" : "VOIR LE RÉSULTAT"} <ChevronRight className="ml-2 h-4 w-4" />
           </Button>
