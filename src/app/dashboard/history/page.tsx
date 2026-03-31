@@ -56,12 +56,18 @@ export default function HistoryPage() {
     });
   }, [results]);
 
-  const formatTime = (seconds: number) => {
-    if (!seconds) return '0m';
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    return `${h > 0 ? h + 'h ' : ''}${m}m ${s}s`;
+  const formatTime = (seconds: any) => {
+    if (seconds === undefined || seconds === null) return '-';
+    const totalSeconds = Math.max(0, Number(seconds) || 0);
+    if (totalSeconds === 0) return '0m';
+    
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
   };
 
   const formatDate = (ts: any) => {
@@ -93,7 +99,7 @@ export default function HistoryPage() {
 
   return (
     <div className="space-y-8 animate-fade-in max-w-[1600px] mx-auto py-8 px-4">
-      <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-8 rounded-[40px] shadow-xl border-2">
+      <div className="flex flex-col md:flex-row items-center justify-between bg-white p-8 rounded-[40px] shadow-xl border-2">
         <div>
           <h1 className="text-4xl font-black text-primary italic uppercase tracking-tighter flex items-center gap-4">
             <History className="h-12 w-12 text-primary" />
@@ -193,7 +199,7 @@ export default function HistoryPage() {
               <h3 className="text-2xl font-black italic uppercase tracking-tighter text-slate-900 flex items-center gap-3">
                 <TrendingUp className="h-8 w-8 text-primary" /> Courbe d'avancement
               </h3>
-              <Badge className="bg-emerald-100 text-emerald-600 border-none font-black italic text-[10px] px-4 py-1 uppercase">Cible : 100%</Badge>
+              <Badge className="bg-emerald-100 text-emerald-600 border-none font-black italic text-[10px] px-4 py-1 uppercase">CIBLE : 100%</Badge>
             </div>
 
             <div className="flex-1 min-h-[400px] w-full">

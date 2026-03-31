@@ -44,6 +44,7 @@ function MatrixSprintContent() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [sessionResults, setSessionResults] = useState({ correct: 0, total: 0 });
+  const [startTime, setStartTime] = useState<number>(0);
   
   const [selectedChoices, setSelectedChoices] = useState<string[]>([]);
   const [correction, setCorrection] = useState<any | null>(null);
@@ -53,10 +54,10 @@ function MatrixSprintContent() {
   const handleStart = async () => {
     setIsLoading(true);
     try {
-      // On force 5 questions pour le sprint matrice
       const data = await startTrainingSession(db, user!.uid, 'domain', { domain, approach }, 5);
       setQuestions(data);
       setSessionHistory([]);
+      setStartTime(Date.now());
       setStep('session');
       setCurrentIndex(0);
       setSessionResults({ correct: 0, total: data.length });
@@ -121,6 +122,7 @@ function MatrixSprintContent() {
 
   const saveFinalResults = async () => {
     if (sessionHistory.length === 0) return;
+    const duration = Math.floor((Date.now() - startTime) / 1000);
     try {
       const percent = Math.round((sessionResults.correct / sessionResults.total) * 100);
       await addDoc(collection(db, 'coachingAttempts'), {
@@ -128,6 +130,7 @@ function MatrixSprintContent() {
         scorePercent: percent,
         correctCount: sessionResults.correct,
         totalQuestions: sessionResults.total,
+        durationSec: duration,
         submittedAt: serverTimestamp(),
         responses: sessionHistory.map(h => ({
           questionId: h.question.id,
