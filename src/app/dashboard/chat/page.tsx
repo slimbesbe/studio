@@ -54,7 +54,7 @@ export default function ChatPage() {
       const assistantMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: "Merci pour votre question ! Le service de chat interactif n'est pas encore disponible. Nous finalisons la configuration pour vous offrir une expérience optimale. Revenez vers moi ultérieurement pour un coaching complet.",
+        content: "Merci pour votre question ! Le service de chat interactif n'est pas encore disponible. Nous finalisons la configuration pour vous offrir une expérience optimale. Revenez vers nous ultérieurement pour un coaching complet.",
         timestamp: new Date()
       };
       setMessages(prev => [...prev, assistantMsg]);
