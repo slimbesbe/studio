@@ -49,7 +49,7 @@ export default function ChatPage() {
     setInput(''); // Vider le champ immédiatement
     setIsLoading(true);
 
-    // Simulation de réflexion (1 seconde) puis réponse automatique
+    // Simulation de réflexion prolongée (12 secondes) pour un rendu naturel
     setTimeout(() => {
       const assistantMsg: Message = {
         id: (Date.now() + 1).toString(),
@@ -59,7 +59,7 @@ export default function ChatPage() {
       };
       setMessages(prev => [...prev, assistantMsg]);
       setIsLoading(false);
-    }, 1000);
+    }, 12000);
   };
 
   return (
