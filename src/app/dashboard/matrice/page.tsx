@@ -76,7 +76,7 @@ export default function MatriceMagiquePage() {
   };
 
   if (isUserLoading || isLoading) {
-    return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
+    return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
   }
 
   return (
@@ -124,7 +124,7 @@ export default function MatriceMagiquePage() {
                 return (
                   <Link 
                     key={key} 
-                    href={`/dashboard/practice?mode=domain&domain=${d.id}&approach=${a.id}`}
+                    href={`/dashboard/matrice/sprint?domain=${d.id}&approach=${a.id}`}
                     className={cn(
                       "aspect-[16/10] rounded-[24px] border-4 transition-all duration-300 flex flex-col items-center justify-center relative group overflow-hidden hover:scale-105 hover:shadow-xl",
                       styles

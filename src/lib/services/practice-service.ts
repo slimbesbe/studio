@@ -52,9 +52,37 @@ export async function startTrainingSession(
     
     const q = query(questionsRef, ...constraints, limit(200));
     const snap = await getDocs(q);
+    
+    if (snap.empty) {
+      // PROVISOIRE : Si aucune question n'est en DB, on retourne des questions de test
+      return generateMockQuestions(filters.domain || 'All', filters.approach || 'All', questionCount);
+    }
+
     const pool = snap.docs.map(d => ({...d.data(), id: d.id}));
     return pool.sort(() => 0.5 - Math.random()).slice(0, questionCount === 0 ? pool.length : questionCount);
   }
+}
+
+function generateMockQuestions(domain: string, approach: string, count: number) {
+  const mocks = [];
+  for(let i=1; i<=count; i++) {
+    mocks.push({
+      id: `mock-q-${domain}-${approach}-${i}`,
+      statement: `[TEST] Question ${i} pour ${domain} x ${approach}. Un chef de projet doit gérer un conflit dans une équipe travaillant en mode ${approach}. Que faire ?`,
+      options: [
+        { id: '1', text: 'Ignorer le conflit et suivre le plan.' },
+        { id: '2', text: 'Collaborer pour trouver une solution pérenne.' },
+        { id: '3', text: 'Escalader immédiatement au sponsor.' },
+        { id: '4', text: 'Demander le remplacement de l\'équipe.' }
+      ],
+      choices: ['Ignorer le conflit', 'Collaborer (PMI Mindset)', 'Escalader', 'Remplacer'],
+      correctOptionIds: ['2'],
+      correctChoice: '2',
+      explanation: "Le mindset PMI privilégie toujours la résolution de problèmes par la collaboration et la proactivité avant toute escalade.",
+      tags: { domain, approach, difficulty: 'Medium' }
+    });
+  }
+  return mocks;
 }
 
 export async function submitPracticeAnswer(
@@ -65,9 +93,23 @@ export async function submitPracticeAnswer(
   context: "training" | "exam" = "training"
 ) {
   const qDoc = await getDoc(doc(db, 'questions', questionId));
-  if (!qDoc.exists()) throw new Error("Question non trouvée");
+  let qData;
   
-  const qData = qDoc.data();
+  if (!qDoc.exists()) {
+    // Si c'est une question mockée
+    if (questionId.startsWith('mock-q')) {
+      qData = {
+        correctOptionIds: ['2'],
+        explanation: "Le mindset PMI privilégie toujours la résolution de problèmes par la collaboration et la proactivité avant toute escalade.",
+        tags: { domain: 'Unknown', approach: 'Unknown' }
+      };
+    } else {
+      throw new Error("Question non trouvée");
+    }
+  } else {
+    qData = qDoc.data();
+  }
+  
   const userChoices = Array.isArray(selectedChoiceIds) ? selectedChoiceIds : [selectedChoiceIds];
   const correctOptionIds = qData.correctOptionIds || [String(qData.correctChoice)];
 
@@ -76,34 +118,36 @@ export async function submitPracticeAnswer(
                     userChoices.every(id => correctOptionIds.includes(id));
 
   // Log Attempt
-  const attemptRef = doc(collection(db, 'users', userId, 'attempts'));
-  await setDoc(attemptRef, {
-    questionId,
-    selectedChoiceIds: userChoices,
-    isCorrect,
-    context,
-    tags: qData.tags || {},
-    answeredAt: serverTimestamp()
-  });
+  if (!questionId.startsWith('mock-q')) {
+    const attemptRef = doc(collection(db, 'users', userId, 'attempts'));
+    await setDoc(attemptRef, {
+      questionId,
+      selectedChoiceIds: userChoices,
+      isCorrect,
+      context,
+      tags: qData.tags || {},
+      answeredAt: serverTimestamp()
+    });
 
-  // Update KillMistakes
-  const kmRef = doc(db, 'users', userId, 'killMistakes', questionId);
-  if (!isCorrect) {
-    await setDoc(kmRef, {
-      status: 'wrong',
-      wrongCount: increment(1),
-      lastWrongAt: serverTimestamp(),
-      questionId,
-      lastSelectedChoiceIds: userChoices,
-      tags: qData.tags || {}
-    }, { merge: true });
-  } else {
-    await setDoc(kmRef, {
-      status: 'corrected',
-      lastCorrectAt: serverTimestamp(),
-      questionId,
-      tags: qData.tags || {}
-    }, { merge: true });
+    // Update KillMistakes
+    const kmRef = doc(db, 'users', userId, 'killMistakes', questionId);
+    if (!isCorrect) {
+      await setDoc(kmRef, {
+        status: 'wrong',
+        wrongCount: increment(1),
+        lastWrongAt: serverTimestamp(),
+        questionId,
+        lastSelectedChoiceIds: userChoices,
+        tags: qData.tags || {}
+      }, { merge: true });
+    } else {
+      await setDoc(kmRef, {
+        status: 'corrected',
+        lastCorrectAt: serverTimestamp(),
+        questionId,
+        tags: qData.tags || {}
+      }, { merge: true });
+    }
   }
 
   return { 
