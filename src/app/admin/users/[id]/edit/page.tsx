@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -9,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, ArrowLeft, ShieldCheck, Mail, User, Clock, Trophy, Pencil, Check, Lock } from 'lucide-react';
+import { Loader2, ArrowLeft, ShieldCheck, Mail, User, Clock, Trophy, Pencil, Check, Lock, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Link from 'next/link';
@@ -44,6 +45,7 @@ export default function EditUserPage() {
     groupId: 'none',
     validityDays: '30',
     fixedDate: '',
+    targetExamDate: '',
     status: 'active'
   });
 
@@ -65,6 +67,7 @@ export default function EditUserPage() {
         groupId: userData.groupId || 'none',
         validityDays: String(userData.validityDays || '30'),
         fixedDate: userData.expiresAt ? new Date(userData.expiresAt.seconds * 1000).toISOString().split('T')[0] : '',
+        targetExamDate: userData.targetExamDate ? new Date(userData.targetExamDate.seconds * 1000).toISOString().split('T')[0] : '',
         status: userData.status || 'active'
       });
       setSelectedExams(userData.allowedExams || []);
@@ -103,6 +106,7 @@ export default function EditUserPage() {
         validityType,
         validityDays: validityType === 'days' ? (Number(formData.validityDays) || 30) : null,
         expiresAt: (expiresAtDate && !isNaN(expiresAtDate.getTime())) ? Timestamp.fromDate(expiresAtDate) : null,
+        targetExamDate: formData.targetExamDate ? Timestamp.fromDate(new Date(formData.targetExamDate)) : null,
         allowedExams: selectedExams,
         updatedAt: serverTimestamp(),
       };
@@ -235,29 +239,46 @@ export default function EditUserPage() {
               </div>
             </div>
 
-            <div className="space-y-6 pt-6 border-t">
-              <Label className="text-primary font-black uppercase italic text-xs tracking-widest flex items-center gap-2">
-                <Clock className="h-4 w-4" /> 4. Période de Validité
-              </Label>
-              <Card className="border-2 rounded-2xl overflow-hidden bg-slate-50/50">
-                <Tabs value={validityType} onValueChange={setValidityType} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 h-14 bg-slate-100 rounded-none border-b-2">
-                    <TabsTrigger value="days" className="font-black italic uppercase text-[10px]">Durée (Jours)</TabsTrigger>
-                    <TabsTrigger value="fixedDate" className="font-black italic uppercase text-[10px]">Date d'expiration</TabsTrigger>
-                  </TabsList>
-                  <CardContent className="p-6">
-                    <TabsContent value="days" className="mt-0">
-                      <div className="flex items-center gap-4">
-                        <Input type="number" min="1" value={formData.validityDays} onChange={(e) => setFormData({...formData, validityDays: e.target.value})} className="h-12 font-black italic border-2 rounded-xl text-center text-xl w-32 bg-white" />
-                        <span className="font-black italic uppercase text-slate-400 text-xs">Jours d'accès restants</span>
-                      </div>
-                    </TabsContent>
-                    <TabsContent value="fixedDate" className="mt-0">
-                      <Input type="date" value={formData.fixedDate} onChange={(e) => setFormData({...formData, fixedDate: e.target.value})} className="h-12 font-black italic border-2 rounded-xl bg-white" />
-                    </TabsContent>
-                  </CardContent>
-                </Tabs>
-              </Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t">
+              <div className="space-y-6">
+                <Label className="text-primary font-black uppercase italic text-xs tracking-widest flex items-center gap-2">
+                  <Clock className="h-4 w-4" /> 4. Période de Validité
+                </Label>
+                <Card className="border-2 rounded-2xl overflow-hidden bg-slate-50/50">
+                  <Tabs value={validityType} onValueChange={setValidityType} className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 h-14 bg-slate-100 rounded-none border-b-2">
+                      <TabsTrigger value="days" className="font-black italic uppercase text-[10px]">Durée (Jours)</TabsTrigger>
+                      <TabsTrigger value="fixedDate" className="font-black italic uppercase text-[10px]">Date d'expiration</TabsTrigger>
+                    </TabsList>
+                    <CardContent className="p-6">
+                      <TabsContent value="days" className="mt-0">
+                        <div className="flex items-center gap-4">
+                          <Input type="number" min="1" value={formData.validityDays} onChange={(e) => setFormData({...formData, validityDays: e.target.value})} className="h-12 font-black italic border-2 rounded-xl text-center text-xl w-32 bg-white" />
+                          <span className="font-black italic uppercase text-slate-400 text-xs">Jours d'accès restants</span>
+                        </div>
+                      </TabsContent>
+                      <TabsContent value="fixedDate" className="mt-0">
+                        <Input type="date" value={formData.fixedDate} onChange={(e) => setFormData({...formData, fixedDate: e.target.value})} className="h-12 font-black italic border-2 rounded-xl bg-white" />
+                      </TabsContent>
+                    </CardContent>
+                  </Tabs>
+                </Card>
+              </div>
+
+              <div className="space-y-6">
+                <Label className="text-primary font-black uppercase italic text-xs tracking-widest flex items-center gap-2">
+                  <Calendar className="h-4 w-4" /> 5. Objectif Examen
+                </Label>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase text-slate-400 ml-1 italic">Date cible PMP®</Label>
+                  <Input 
+                    type="date" 
+                    value={formData.targetExamDate} 
+                    onChange={(e) => setFormData({...formData, targetExamDate: e.target.value})} 
+                    className="h-14 rounded-xl border-2 font-black italic shadow-sm"
+                  />
+                </div>
+              </div>
             </div>
 
             <Button type="submit" className="w-full bg-primary hover:bg-primary/90 h-20 rounded-[24px] font-black uppercase tracking-widest text-xl shadow-2xl scale-105 transition-transform" disabled={isSubmitting}>

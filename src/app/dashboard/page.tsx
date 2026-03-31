@@ -37,6 +37,7 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { TargetExamDateCard } from '@/components/dashboard/TargetExamDateCard';
 
 export default function DashboardPage() {
   const { user, profile, isUserLoading } = useUser();
@@ -188,21 +189,9 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* 4. Gestion (Alerts) */}
+        {/* 4. Target Exam Date - NEW CARD */}
         <div className="md:col-span-4">
-          <Card className="rounded-2xl border-none shadow-sm p-4 bg-white space-y-4">
-            <h3 className="font-bold text-slate-500 text-[11px] uppercase">4. Statut</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-red-50 p-3 rounded-xl border border-red-100">
-                <p className="text-[9px] font-bold text-red-400 uppercase">Alertes erreurs</p>
-                <p className="text-2xl font-bold text-red-600">12</p>
-              </div>
-              <div className="bg-amber-50 p-3 rounded-xl border border-amber-100">
-                <p className="text-[9px] font-bold text-amber-400 uppercase">En attente</p>
-                <p className="text-2xl font-bold text-amber-600">3</p>
-              </div>
-            </div>
-          </Card>
+          <TargetExamDateCard profile={profile} />
         </div>
 
         {/* 5. Temps d'étude (Donut) */}
@@ -231,7 +220,7 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Mindset Card - Updated with Light Purple background */}
+        {/* Mindset Card */}
         <div className="md:col-span-4">
           <Card className="rounded-2xl border-none shadow-sm p-4 bg-[#b2bdfc] h-full flex flex-col justify-between">
             <div className="flex items-center gap-2">

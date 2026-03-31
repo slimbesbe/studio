@@ -17,6 +17,8 @@
         "partnerId": { "type": "string", "description": "ID du partenaire B2B si applicable" },
         "assignedCoachId": { "type": "string" },
         "validUntil": { "type": "string", "format": "date-time" },
+        "targetExamDate": { "type": "string", "format": "date-time", "description": "Date cible de l'examen PMP" },
+        "targetExamDateUpdatedAt": { "type": "string", "format": "date-time" },
         "simulationsCount": { "type": "number" },
         "averageScore": { "type": "number" },
         "totalTimeSpent": { "type": "number" },
