@@ -53,7 +53,10 @@ export default function UsersListPage() {
 
   const { data: users, isLoading: isCollectionLoading } = useCollection(usersQuery);
 
-  const groupsQuery = useMemoFirebase(() => collection(db, 'coachingGroups'), [db]);
+  const groupsQuery = useMemoFirebase(() => {
+    if (!isAdmin && !isPartner) return null;
+    return collection(db, 'coachingGroups');
+  }, [db, isAdmin, isPartner]);
   const { data: groups } = useCollection(groupsQuery);
 
   const filteredUsers = useMemo(() => {

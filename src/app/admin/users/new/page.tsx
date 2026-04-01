@@ -28,11 +28,13 @@ const AVAILABLE_EXAMS = [
 ];
 
 export default function NewUserPage() {
-  const { isUserLoading } = useUser();
+  const { profile, isUserLoading } = useUser();
   const db = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
   
+  const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validityType, setValidityType] = useState('days');
   const [selectedExams, setSelectedExams] = useState<string[]>(['exam1']); 
@@ -52,7 +54,10 @@ export default function NewUserPage() {
     targetExamDate: ''
   });
 
-  const groupsQuery = useMemoFirebase(() => collection(db, 'coachingGroups'), [db]);
+  const groupsQuery = useMemoFirebase(() => {
+    if (!isAdmin) return null;
+    return collection(db, 'coachingGroups');
+  }, [db, isAdmin]);
   const { data: groups } = useCollection(groupsQuery);
 
   const toggleExam = (id: string) => {
@@ -63,6 +68,7 @@ export default function NewUserPage() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) return;
     if (formData.password.length < 6) {
       toast({ variant: "destructive", title: "Erreur", description: "Le mot de passe doit faire au moins 6 caractères." });
       return;
@@ -115,12 +121,12 @@ export default function NewUserPage() {
         validityDays: validityType === 'days' ? (Number(formData.validityDays) || 30) : null,
         expiresAt: (expiresAt && !isNaN(expiresAt.getTime())) ? Timestamp.fromDate(expiresAt) : null,
         targetExamDate: formData.targetExamDate ? Timestamp.fromDate(new Date(formData.targetExamDate)) : null,
-        allowedExams: selectedExams,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         simulationsCount: 0,
         averageScore: 0,
-        totalTimeSpent: 0
+        totalTimeSpent: 0,
+        allowedExams: selectedExams
       });
 
       await signOut(secondaryAuth);
@@ -137,6 +143,14 @@ export default function NewUserPage() {
   };
 
   if (isUserLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+
+  if (!isAdmin) {
+    return (
+      <div className="h-screen flex items-center justify-center p-8 text-center">
+        <p className="font-black text-destructive uppercase italic">Accès restreint.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-6 animate-fade-in">

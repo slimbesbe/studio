@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from 'react';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, orderBy, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,10 +16,17 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
 export default function ConfigGroupsPage() {
+  const { profile, isUserLoading: isAuthLoading } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   
-  const groupsQuery = useMemoFirebase(() => query(collection(db, 'coachingGroups'), orderBy('createdAt', 'desc')), [db]);
+  const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
+
+  const groupsQuery = useMemoFirebase(() => {
+    if (!isAdmin) return null;
+    return query(collection(db, 'coachingGroups'), orderBy('createdAt', 'desc'));
+  }, [db, isAdmin]);
+
   const { data: groups, isLoading } = useCollection(groupsQuery);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -27,7 +34,7 @@ export default function ConfigGroupsPage() {
   const [newGroupName, setNewGroupName] = useState('');
 
   const handleCreateGroup = async () => {
-    if (!newGroupName.trim()) return;
+    if (!newGroupName.trim() || !isAdmin) return;
     setIsSubmitting(true);
     try {
       const gRef = doc(collection(db, 'coachingGroups'));
@@ -47,7 +54,15 @@ export default function ConfigGroupsPage() {
     }
   };
 
-  if (isLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
+  if (isAuthLoading || isLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
+
+  if (!isAdmin) {
+    return (
+      <div className="h-screen flex items-center justify-center p-8 text-center">
+        <p className="font-black text-destructive uppercase italic">Accès restreint aux administrateurs.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-8 animate-fade-in">

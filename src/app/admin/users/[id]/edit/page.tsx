@@ -24,13 +24,15 @@ const AVAILABLE_EXAMS = [
 ];
 
 export default function EditUserPage() {
-  const { isUserLoading } = useUser();
+  const { profile, isUserLoading } = useUser();
   const db = useFirestore();
   const router = useRouter();
   const params = useParams();
   const userId = params.id as string;
   const { toast } = useToast();
   
+  const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validityType, setValidityType] = useState('days');
   const [selectedExams, setSelectedExams] = useState<string[]>([]);
@@ -49,10 +51,16 @@ export default function EditUserPage() {
     status: 'active'
   });
 
-  const userRef = useMemoFirebase(() => doc(db, 'users', userId), [db, userId]);
+  const userRef = useMemoFirebase(() => {
+    if (!isAdmin) return null;
+    return doc(db, 'users', userId);
+  }, [db, userId, isAdmin]);
   const { data: userData, isLoading: isUserDataLoading } = useDoc(userRef);
 
-  const groupsQuery = useMemoFirebase(() => collection(db, 'coachingGroups'), [db]);
+  const groupsQuery = useMemoFirebase(() => {
+    if (!isAdmin) return null;
+    return collection(db, 'coachingGroups');
+  }, [db, isAdmin]);
   const { data: groups } = useCollection(groupsQuery);
 
   useEffect(() => {
@@ -83,6 +91,7 @@ export default function EditUserPage() {
 
   const handleUpdateUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) return;
     setIsSubmitting(true);
     
     try {
@@ -124,6 +133,14 @@ export default function EditUserPage() {
 
   if (isUserLoading || isUserDataLoading) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="h-screen flex items-center justify-center p-8 text-center">
+        <p className="font-black text-destructive uppercase italic">Accès restreint.</p>
+      </div>
+    );
   }
 
   return (
