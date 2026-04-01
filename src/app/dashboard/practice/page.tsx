@@ -9,7 +9,7 @@ import {
   Play, Layers, Globe, Loader2, 
   Brain, ChevronRight, Info, CheckCircle2,
   BookOpen, Settings2, Trophy, ArrowRight,
-  Tags, ChevronLeft, RotateCcw
+  Tags, ChevronLeft, RotateCcw, Home
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -297,9 +297,14 @@ function PracticeContent() {
             <Button className="w-full h-16 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl text-lg italic" onClick={() => { setStep('review'); setCurrentIndex(0); }}>
               <Info className="mr-2 h-6 w-6" /> Revoir les questions ({sessionHistory.length})
             </Button>
-            <Button variant="outline" className="w-full h-16 rounded-2xl border-4 font-black uppercase tracking-widest text-lg italic" onClick={() => setStep('setup')}>
-              Nouvelle Session
-            </Button>
+            <div className="grid grid-cols-2 gap-4">
+              <Button variant="outline" className="h-16 rounded-2xl border-4 font-black uppercase tracking-widest text-sm italic gap-2" onClick={() => setStep('setup')}>
+                <RotateCcw className="h-4 w-4" /> Recommencer
+              </Button>
+              <Button variant="outline" className="h-16 rounded-2xl border-4 border-slate-200 font-black uppercase tracking-widest text-sm italic gap-2 hover:bg-slate-50" onClick={() => { setStep('setup'); setMode('domain'); }}>
+                <Home className="h-4 w-4" /> Retour Accueil
+              </Button>
+            </div>
           </div>
         </Card>
       </div>
@@ -409,7 +414,7 @@ function PracticeContent() {
       <div className="space-y-4">
         {mode === 'kill_mistake' && (
           <Button variant="ghost" asChild className="hover:bg-primary/5 -ml-2 text-muted-foreground font-black uppercase tracking-widest text-xs">
-            <Link href="/dashboard/kill-mistake-selection"><ChevronLeft className="mr-2 h-4 w-4" /> Retour à la sélection</Link>
+            <Link href="/dashboard/kill-mistake-selection"><ChevronLeft className="mr-2 h-3 w-3" /> Retour à la sélection</Link>
           </Button>
         )}
         <div className="space-y-2">

@@ -5,7 +5,7 @@ import { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, Edit2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Calendar, Clock, Edit2, AlertCircle, CheckCircle2, Zap } from 'lucide-react';
 import { TargetExamDateModal } from './TargetExamDateModal';
 import { cn } from '@/lib/utils';
 import { Timestamp } from 'firebase/firestore';
@@ -101,15 +101,25 @@ export function TargetExamDateCard({ profile }: TargetExamDateCardProps) {
         </div>
 
         <div className="flex justify-end">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => setIsModalOpen(true)}
-            className="h-8 px-3 rounded-lg font-black uppercase text-[9px] tracking-widest italic hover:bg-black/5"
-          >
-            <Edit2 className="h-3 w-3 mr-1.5" /> 
-            {status === 'missing' ? 'Définir ma date' : 'Mettre à jour'}
-          </Button>
+          {status === 'missing' ? (
+            <Button 
+              onClick={() => setIsModalOpen(true)}
+              className="bg-[#1d4ed8] hover:bg-[#1e40af] text-white font-black uppercase rounded-xl h-10 px-6 text-[10px] tracking-widest shadow-lg scale-105 transition-transform"
+            >
+              <Zap className="h-3.5 w-3.5 mr-2 fill-white" /> 
+              Définir ma date
+            </Button>
+          ) : (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setIsModalOpen(true)}
+              className="h-8 px-3 rounded-lg font-black uppercase text-[9px] tracking-widest italic hover:bg-black/5"
+            >
+              <Edit2 className="h-3 w-3 mr-1.5" /> 
+              Mettre à jour
+            </Button>
+          )}
         </div>
       </Card>
 
