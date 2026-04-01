@@ -33,6 +33,7 @@ interface ParsedQuestion {
   correctOptionIds: string[];
   explanation: string;
   index: number;
+  questionCode: string;
   tags: {
     domain: string;
     approach: string;
@@ -72,6 +73,7 @@ export function CoachingImportModal({ isOpen, onClose, session }: CoachingImport
           const text = row["Énoncé"] || row.statement || row.text;
           const explanation = row["Justification"] || row.explanation || "";
           const correct = String(row.correct || "");
+          const code = row["Code"] || row.questionCode;
           
           if (!text) return;
 
@@ -96,6 +98,7 @@ export function CoachingImportModal({ isOpen, onClose, session }: CoachingImport
             correctOptionIds: [correctIdx],
             explanation,
             index: session.questionStart + index,
+            questionCode: code ? String(code).trim() : `COACH-${session.id}-${session.questionStart + index}`,
             tags: {
               domain: row["Domaine"] || "Process",
               approach: row["Approche"] || "Agile",
@@ -152,7 +155,7 @@ export function CoachingImportModal({ isOpen, onClose, session }: CoachingImport
             <FileSpreadsheet className="h-8 w-8" /> Import {session?.title}
           </DialogTitle>
           <DialogDescription className="font-bold text-slate-500 italic uppercase text-[10px] tracking-widest mt-2">
-            Importation pour la plage Q{session?.questionStart} à Q{session?.questionEnd}.
+            Modèle recommandé : Colonne "Code" + "Énoncé".
           </DialogDescription>
         </DialogHeader>
 

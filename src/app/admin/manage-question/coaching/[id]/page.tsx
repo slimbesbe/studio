@@ -66,6 +66,7 @@ function ManageCoachingQuestionContent() {
   const [correctChoice, setCorrectChoice] = useState("1");
   const [isActive, setIsActive] = useState(true);
   const [index, setIndex] = useState(parseInt(searchParams.get('index') || '0'));
+  const [questionCode, setQuestionCode] = useState("");
   const [sourceIds, setSourceIds] = useState<string[]>([]);
 
   // PMP Tags
@@ -92,6 +93,7 @@ function ManageCoachingQuestionContent() {
       setCorrectChoice(String(questionData.correctChoice || "1"));
       setIsActive(questionData.isActive !== false);
       setIndex(questionData.index || 0);
+      setQuestionCode(questionData.questionCode || "");
       
       // Load sources
       let loadedSources = questionData.sourceIds || [];
@@ -148,6 +150,7 @@ function ManageCoachingQuestionContent() {
     if (!text.trim()) return "L'énoncé est obligatoire.";
     if (choices.some(c => !c.trim())) return "Toutes les options doivent être remplies.";
     if (index === 0) return "L'index est requis.";
+    if (!questionCode.trim()) return "Le code de question est obligatoire.";
     if (sourceIds.length === 0) return "Veuillez assigner au moins une source.";
     return null;
   };
@@ -173,6 +176,7 @@ function ManageCoachingQuestionContent() {
         explanation,
         isActive,
         index,
+        questionCode,
         sourceIds,
         examId: firstExam || null,
         sessionId: firstSession || null,
@@ -185,7 +189,9 @@ function ManageCoachingQuestionContent() {
       };
 
       if (isNew) {
-        const newRef = doc(db, 'questions', `COACHING_Q_${index}`);
+        // Pour les questions de coaching, on utilise une nomenclature fixe si c'est nouveau
+        const newId = `COACHING_Q_${index}`;
+        const newRef = doc(db, 'questions', newId);
         await setDoc(newRef, { ...finalData, id: newRef.id }, { merge: true });
       } else {
         await updateDoc(doc(db, 'questions', questionId), finalData);
@@ -231,47 +237,58 @@ function ManageCoachingQuestionContent() {
         <CardHeader className="bg-slate-50/50 border-b p-8"><CardTitle className="text-xl flex items-center gap-2 uppercase tracking-widest"><HelpCircle className="h-5 w-5 text-primary" /> Configuration Question</CardTitle></CardHeader>
         <CardContent className="p-8 space-y-8">
           
-          <div className="space-y-4">
-            <Label className="flex items-center gap-2 font-black uppercase text-[10px] text-slate-400 italic">
-              <Layers className="h-3 w-3" /> Sources d'Assignation (Multi-sources)
-            </Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full h-14 justify-between border-2 rounded-xl px-4 font-bold italic bg-white text-slate-700">
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className={cn("h-5 w-5", selectedCount > 0 ? "text-emerald-500" : "text-slate-300")} />
-                    {sourceLabel}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label className="font-black uppercase text-[10px] text-slate-400 italic">Code Question (Unique)</Label>
+              <Input 
+                value={questionCode} 
+                onChange={(e) => setQuestionCode(e.target.value.toUpperCase())}
+                placeholder="Ex: COACH-S2-Q1"
+                className="h-14 rounded-xl border-2 font-black italic text-primary"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2 font-black uppercase text-[10px] text-slate-400 italic">
+                <Layers className="h-3 w-3" /> Sources d'Assignation
+              </Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full h-14 justify-between border-2 rounded-xl px-4 font-bold italic bg-white text-slate-700">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle2 className={cn("h-5 w-5", selectedCount > 0 ? "text-emerald-500" : "text-slate-300")} />
+                      {sourceLabel}
+                    </div>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-2 rounded-2xl shadow-2xl border-4" align="start">
+                  <div className="space-y-1">
+                    <div 
+                      onClick={toggleAllSources}
+                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-primary/5 cursor-pointer transition-colors border-b mb-1"
+                    >
+                      <Checkbox checked={selectedCount === ALL_SOURCES.length} onCheckedChange={toggleAllSources} />
+                      <span className="font-black italic text-primary uppercase text-xs">Toutes les sources ({ALL_SOURCES.length})</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                      {ALL_SOURCES.map((source) => (
+                        <div 
+                          key={source.id} 
+                          onClick={() => toggleSource(source.id)}
+                          className={cn(
+                            "flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors",
+                            sourceIds.includes(source.id) && "bg-emerald-50/50"
+                          )}
+                        >
+                          <Checkbox checked={sourceIds.includes(source.id)} onCheckedChange={() => toggleSource(source.id)} />
+                          <span className="font-bold italic text-xs text-slate-700">{source.label}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <ChevronDown className="h-4 w-4 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[400px] p-2 rounded-2xl shadow-2xl border-4" align="start">
-                <div className="space-y-1">
-                  <div 
-                    onClick={toggleAllSources}
-                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-primary/5 cursor-pointer transition-colors border-b mb-1"
-                  >
-                    <Checkbox checked={selectedCount === ALL_SOURCES.length} onCheckedChange={toggleAllSources} />
-                    <span className="font-black italic text-primary uppercase text-xs">Toutes les sources ({ALL_SOURCES.length})</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-1">
-                    {ALL_SOURCES.map((source) => (
-                      <div 
-                        key={source.id} 
-                        onClick={() => toggleSource(source.id)}
-                        className={cn(
-                          "flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors",
-                          sourceIds.includes(source.id) && "bg-emerald-50/50"
-                        )}
-                      >
-                        <Checkbox checked={sourceIds.includes(source.id)} onCheckedChange={() => toggleSource(source.id)} />
-                        <span className="font-bold italic text-xs text-slate-700">{source.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
 
           <div className="space-y-4">

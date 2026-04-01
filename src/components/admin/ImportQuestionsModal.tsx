@@ -31,6 +31,7 @@ interface ParsedQuestion {
   correctOptionIds: string[];
   isMultipleCorrect: boolean;
   explanation: string;
+  questionCode: string;
   tags: {
     domain: string;
     approach: string;
@@ -83,6 +84,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
           const statement = row["Énoncé"] || row.statement || row.text;
           const justification = row["Justification"] || row.explanation || "";
           const correct = String(row.correct || "");
+          const code = row["Code"] || row.questionCode || row.id;
           
           if (!statement) {
             parseErrors.push({ line: lineNum, msg: "Énoncé manquant." });
@@ -123,6 +125,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
               correctOptionIds: mappedIds,
               isMultipleCorrect: mappedIds.length > 1,
               explanation: justification,
+              questionCode: code ? String(code).trim() : '',
               tags: {
                 domain: row["Domaine"] || "Process",
                 approach: row["Approche"] || "Agile",
@@ -157,19 +160,20 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
         const chunk = parsedData.slice(i, i + batchSize);
         
         chunk.forEach((q) => {
-          const questionId = generateId(q.statement, examId);
+          // Utiliser le code fourni comme ID si possible, sinon générer un hash
+          const questionId = q.questionCode ? `q_${examId}_${q.questionCode.replace(/[^a-zA-Z0-9]/g, '_')}` : generateId(q.statement, examId);
           const qRef = doc(db, 'questions', questionId);
 
           const finalData = {
             ...q,
             id: questionId,
-            questionCode: questionId,
+            questionCode: q.questionCode || questionId,
             isActive: true,
             createdBy: profile?.id || 'admin',
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
             examId: examId,
-            sourceIds: [examId] // On peuple systématiquement sourceIds pour la compatibilité multi-sources
+            sourceIds: [examId]
           };
 
           batch.set(qRef, finalData, { merge: true });
@@ -198,7 +202,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
             <FileSpreadsheet className="h-8 w-8" /> Importation Massive
           </DialogTitle>
           <DialogDescription className="font-bold text-slate-500 italic uppercase text-[10px] tracking-widest mt-2">
-            Ajoutez des centaines de questions en quelques secondes.
+            Ajoutez des centaines de questions. Le champ "Code" est fortement recommandé.
           </DialogDescription>
         </DialogHeader>
 
