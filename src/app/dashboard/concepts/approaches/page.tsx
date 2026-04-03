@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
@@ -93,7 +92,7 @@ export default function VisionApprochesPage() {
   const totalPages = Math.ceil(jargonList.length / pageSize);
 
   return (
-    <div className="h-[calc(100vh-80px)] flex flex-col overflow-hidden animate-fade-in max-w-7xl mx-auto px-4 py-2 space-y-4">
+    <div className="flex-1 flex flex-col overflow-hidden animate-fade-in space-y-4 h-full">
       <div className="shrink-0 space-y-1">
         <h1 className="text-3xl font-black italic uppercase tracking-tighter text-slate-900 leading-none">Vision Approches</h1>
         <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] italic">Maîtrisez le cycle de vie de vos projets.</p>
@@ -123,7 +122,7 @@ export default function VisionApprochesPage() {
       <div className="shrink-0 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <h2 className="text-xl font-black italic uppercase tracking-tight text-slate-900">Focus : {data.title}</h2>
-          <div className="flex bg-slate-100 p-1 rounded-xl">
+          <div className="flex bg-slate-100 p-1 rounded-xl shadow-inner border">
             <Button 
               size="sm"
               onClick={() => setActiveTab('jargon')} 
@@ -146,7 +145,7 @@ export default function VisionApprochesPage() {
             <Button 
               variant="outline" 
               size="icon" 
-              className="h-10 w-10 rounded-full border-2 shadow-sm"
+              className="h-10 w-10 rounded-full border-2 shadow-sm bg-white"
               disabled={currentPage === 0}
               onClick={() => setCurrentPage(currentPage - 1)}
             >
@@ -156,7 +155,7 @@ export default function VisionApprochesPage() {
             <Button 
               variant="outline" 
               size="icon" 
-              className="h-10 w-10 rounded-full border-2 shadow-sm"
+              className="h-10 w-10 rounded-full border-2 shadow-sm bg-white"
               disabled={currentPage >= totalPages - 1}
               onClick={() => setCurrentPage(currentPage + 1)}
             >
@@ -166,9 +165,9 @@ export default function VisionApprochesPage() {
         )}
       </div>
 
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 overflow-hidden pb-2">
         {activeTab === 'jargon' ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 grid-rows-2 gap-4 h-full animate-slide-up pb-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 grid-rows-2 gap-4 h-full animate-slide-up">
             {paginatedJargon.map((item: any, idx: number) => (
               <JargonCard key={idx} term={item.term} def={item.def} />
             ))}
@@ -177,7 +176,7 @@ export default function VisionApprochesPage() {
             ))}
           </div>
         ) : (
-          <div className="h-full flex items-center justify-center">
+          <div className="h-full flex items-center justify-center overflow-hidden">
             <QuickQuiz questions={data.quiz || []} axisId={activeApproach} userId={user?.uid || ''} db={db} />
           </div>
         )}
@@ -203,7 +202,7 @@ function JargonCard({ term, def }: { term: string, def: string }) {
           <h3 className="text-xl font-black italic uppercase tracking-tight text-center leading-tight">{term}</h3>
         </div>
         {/* VERSO : Gris Anthracite profond */}
-        <div className="absolute inset-0 backface-hidden rotate-y-180 bg-[#1e293b] text-white rounded-[32px] flex items-center justify-center p-8 shadow-2xl">
+        <div className="absolute inset-0 backface-hidden rotate-y-180 bg-[#1e293b] text-white rounded-[32px] flex items-center justify-center p-8 shadow-2xl border-2 border-slate-700">
           <p className="text-center font-bold italic text-sm leading-relaxed">{def}</p>
         </div>
       </div>
