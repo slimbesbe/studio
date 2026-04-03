@@ -52,6 +52,38 @@ export function CoachingImportModal({ isOpen, onClose, session }: CoachingImport
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const normalizeTag = (type: 'domain' | 'approach' | 'difficulty', value: any): string => {
+    const val = String(value || '').trim().toLowerCase();
+    if (!val) {
+      if (type === 'domain') return 'Process';
+      if (type === 'approach') return 'Agile';
+      return 'Medium';
+    }
+
+    if (type === 'domain') {
+      if (val.includes('peop') || val.includes('gens')) return 'People';
+      if (val.includes('proc')) return 'Process';
+      if (val.includes('busi') || val.includes('affair')) return 'Business';
+      return 'Process';
+    }
+
+    if (type === 'approach') {
+      if (val.includes('pred') || val.includes('water') || val.includes('casc')) return 'Predictive';
+      if (val.includes('agile')) return 'Agile';
+      if (val.includes('hybr')) return 'Hybrid';
+      return 'Agile';
+    }
+
+    if (type === 'difficulty') {
+      if (val.includes('eas') || val.includes('faci')) return 'Easy';
+      if (val.includes('med') || val.includes('moy')) return 'Medium';
+      if (val.includes('har') || val.includes('diff')) return 'Hard';
+      return 'Medium';
+    }
+
+    return val;
+  };
+
   const parseFile = async (file: File) => {
     if (!session) return;
     setIsParsing(true);
@@ -70,16 +102,16 @@ export function CoachingImportModal({ isOpen, onClose, session }: CoachingImport
         const dataToProcess = json.slice(0, count);
 
         dataToProcess.forEach((row, index) => {
-          const text = row["Énoncé"] || row.statement || row.text;
-          const explanation = row["Justification"] || row.explanation || "";
-          const correct = String(row.correct || "");
+          const text = row["Énoncé"] || row.statement || row.text || row["Question"];
+          const explanation = row["Justification"] || row.explanation || row.Rationale || "";
+          const correct = String(row.correct || row.Correct || row.Answer || "");
           const code = row["Code"] || row.questionCode;
           
           if (!text) return;
 
           const choices: string[] = [];
           for (let i = 1; i <= 4; i++) {
-            const optVal = row[`option${i}`] || row[`choice${i}`];
+            const optVal = row[`option${i}`] || row[`choice${i}`] || row[`opt${i}`] || row[`Choix${i}`];
             if (optVal) choices.push(String(optVal));
           }
 
@@ -100,9 +132,9 @@ export function CoachingImportModal({ isOpen, onClose, session }: CoachingImport
             index: session.questionStart + index,
             questionCode: code ? String(code).trim() : `COACH-${session.id}-${session.questionStart + index}`,
             tags: {
-              domain: row["Domaine"] || "Process",
-              approach: row["Approche"] || "Agile",
-              difficulty: row["Difficulté"] || "Medium"
+              domain: normalizeTag('domain', row["Domaine"] || row["Domain"]),
+              approach: normalizeTag('approach', row["Approche"] || row["Approach"]),
+              difficulty: normalizeTag('difficulty', row["Difficulté"] || row["Difficulty"] || row["Niveau"] || row["Level"]),
             }
           });
         });
@@ -132,7 +164,8 @@ export function CoachingImportModal({ isOpen, onClose, session }: CoachingImport
           isActive: true,
           updatedAt: serverTimestamp(),
           source: 'coaching_import',
-          sessionId: session.id
+          sessionId: session.id,
+          sourceIds: [session.id] // ensure it shows up correctly in filters
         }, { merge: true });
       });
 

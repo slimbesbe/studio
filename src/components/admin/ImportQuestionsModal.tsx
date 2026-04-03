@@ -52,7 +52,38 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Helper function to generate a simple hash for deduplication
+  const normalizeTag = (type: 'domain' | 'approach' | 'difficulty', value: any): string => {
+    const val = String(value || '').trim().toLowerCase();
+    if (!val) {
+      if (type === 'domain') return 'Process';
+      if (type === 'approach') return 'Agile';
+      return 'Medium';
+    }
+
+    if (type === 'domain') {
+      if (val.includes('peop') || val.includes('gens')) return 'People';
+      if (val.includes('proc')) return 'Process';
+      if (val.includes('busi') || val.includes('affair')) return 'Business';
+      return 'Process';
+    }
+
+    if (type === 'approach') {
+      if (val.includes('pred') || val.includes('water') || val.includes('casc')) return 'Predictive';
+      if (val.includes('agile')) return 'Agile';
+      if (val.includes('hybr')) return 'Hybrid';
+      return 'Agile';
+    }
+
+    if (type === 'difficulty') {
+      if (val.includes('eas') || val.includes('faci')) return 'Easy';
+      if (val.includes('med') || val.includes('moy')) return 'Medium';
+      if (val.includes('har') || val.includes('diff')) return 'Hard';
+      return 'Medium';
+    }
+
+    return val;
+  };
+
   const generateId = (text: string, exam: string) => {
     let hash = 0;
     const str = text + exam;
@@ -81,9 +112,9 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
 
         json.forEach((row, index) => {
           const lineNum = index + 2;
-          const statement = row["Énoncé"] || row.statement || row.text;
-          const justification = row["Justification"] || row.explanation || "";
-          const correct = String(row.correct || "");
+          const statement = row["Énoncé"] || row.statement || row.text || row["Question"];
+          const justification = row["Justification"] || row.explanation || row.Rationale || "";
+          const correct = String(row.correct || row.Correct || row.Answer || "");
           const code = row["Code"] || row.questionCode || row.id;
           
           if (!statement) {
@@ -93,7 +124,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
 
           const options: { id: string, text: string }[] = [];
           for (let i = 1; i <= 5; i++) {
-            const optVal = row[`option${i}`] || row[`choice${i}`];
+            const optVal = row[`option${i}`] || row[`choice${i}`] || row[`opt${i}`] || row[`Choix${i}`];
             if (optVal) options.push({ id: String(i), text: String(optVal) });
           }
 
@@ -127,9 +158,9 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
               explanation: justification,
               questionCode: code ? String(code).trim() : '',
               tags: {
-                domain: row["Domaine"] || "Process",
-                approach: row["Approche"] || "Agile",
-                difficulty: row["Difficulté"] || "Medium",
+                domain: normalizeTag('domain', row["Domaine"] || row["Domain"]),
+                approach: normalizeTag('approach', row["Approche"] || row["Approach"]),
+                difficulty: normalizeTag('difficulty', row["Difficulté"] || row["Difficulty"] || row["Niveau"] || row["Level"]),
               }
             });
           }
@@ -160,13 +191,15 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
         const chunk = parsedData.slice(i, i + batchSize);
         
         chunk.forEach((q) => {
-          // Utiliser le code fourni comme ID si possible, sinon générer un hash
           const questionId = q.questionCode ? `q_${examId}_${q.questionCode.replace(/[^a-zA-Z0-9]/g, '_')}` : generateId(q.statement, examId);
           const qRef = doc(db, 'questions', questionId);
 
           const finalData = {
             ...q,
             id: questionId,
+            text: q.statement, // ensure legacy compatibility
+            choices: q.options.map(o => o.text), // ensure legacy compatibility
+            correctChoice: q.correctOptionIds[0], // ensure legacy compatibility
             questionCode: q.questionCode || questionId,
             isActive: true,
             createdBy: profile?.id || 'admin',
