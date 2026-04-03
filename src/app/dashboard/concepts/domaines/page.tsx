@@ -1,8 +1,7 @@
-
 "use client"
 
-import { useState, useMemo, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { useState, useEffect } from 'react';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -87,7 +86,7 @@ export default function VisionDomainesPage() {
   const totalPages = Math.ceil(jargonList.length / pageSize);
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden animate-fade-in space-y-2 h-[calc(100vh-80px)] box-border p-2">
+    <div className="flex-1 flex flex-col overflow-hidden animate-fade-in space-y-2 h-full max-h-screen box-border p-2">
       {/* HEADER ULTRA COMPACT */}
       <div className="shrink-0 flex justify-between items-end">
         <div className="space-y-0.5">
@@ -97,7 +96,7 @@ export default function VisionDomainesPage() {
       </div>
 
       {/* SELECTEUR DE DOMAINE COMPACT */}
-      <div className="shrink-0 grid grid-cols-3 gap-2 h-16">
+      <div className="shrink-0 grid grid-cols-3 gap-2 h-14">
         {(['people', 'process', 'business'] as const).map((id) => {
           const isActive = activeDomain === id;
           const Ico = id === 'people' ? Users : id === 'process' ? Settings : Globe;
@@ -118,9 +117,9 @@ export default function VisionDomainesPage() {
       </div>
 
       {/* CONTROLES ET TABS - UNE SEULE LIGNE */}
-      <div className="shrink-0 flex items-center justify-between bg-white/50 p-1.5 rounded-xl border border-slate-100">
-        <div className="flex items-center gap-3">
-          <h2 className="text-[11px] font-black italic uppercase tracking-tight text-slate-900 ml-1">{currentData.title}</h2>
+      <div className="shrink-0 flex items-center justify-between bg-white/50 p-1 rounded-xl border border-slate-100">
+        <div className="flex items-center gap-2">
+          <h2 className="text-[10px] font-black italic uppercase tracking-tight text-slate-900 ml-1">{currentData.title}</h2>
           <div className="flex bg-slate-100 p-0.5 rounded-lg border">
             <Button 
               size="sm"
@@ -165,9 +164,9 @@ export default function VisionDomainesPage() {
       </div>
 
       {/* GRILLE DYNAMIQUE 3X2 - OCCUPE TOUT LE RESTE DE L'ECRAN */}
-      <div className="flex-1 min-h-0 overflow-hidden pb-2">
+      <div className="flex-1 min-h-0 overflow-hidden">
         {activeTab === 'jargon' ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 grid-rows-2 gap-3 h-full animate-slide-up">
+          <div className="grid grid-cols-1 md:grid-cols-3 grid-rows-2 gap-2 h-full animate-slide-up">
             {paginatedJargon.map((item: any, idx: number) => (
               <JargonCard key={idx} term={item.term} def={item.def} />
             ))}
@@ -176,7 +175,7 @@ export default function VisionDomainesPage() {
             ))}
           </div>
         ) : (
-          <div className="h-full flex items-center justify-center overflow-hidden">
+          <div className="h-full flex items-center justify-center overflow-hidden py-2">
             <QuickQuiz questions={currentData.quiz || []} axisId={activeDomain} userId={user?.uid || ''} db={db} />
           </div>
         )}
@@ -276,14 +275,14 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
   const correctIdx = q.c !== undefined ? Number(q.c) : 0;
 
   return (
-    <Card className="rounded-3xl bg-white p-5 space-y-3 w-full max-w-lg shadow-xl animate-slide-up border-none overflow-hidden">
+    <Card className="rounded-3xl bg-white p-5 space-y-3 w-full max-w-lg shadow-xl animate-slide-up border-none overflow-hidden max-h-full">
       <Badge variant="outline" className="font-black italic px-2 py-0.5 rounded-md border text-slate-400 text-[8px]">
         Q {currentIdx + 1} / {activeQuestions.length}
       </Badge>
       <h3 className="text-[13px] font-black italic text-slate-900 leading-tight">
         {q.q || q.text}
       </h3>
-      <div className="grid gap-1.5">
+      <div className="grid gap-1.5 overflow-y-auto max-h-[200px] p-1">
         {rawChoices.map((opt: any, idx: number) => (
           <button 
             key={idx} 
