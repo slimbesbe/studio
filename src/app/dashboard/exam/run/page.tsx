@@ -23,7 +23,9 @@ import {
   LayoutGrid,
   Info,
   MoveLeft,
-  MoveRight
+  MoveRight,
+  Layers,
+  Globe
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -32,14 +34,14 @@ import { Calculator } from '@/components/dashboard/Calculator';
 type ViewMode = 'question' | 'review' | 'break' | 'result';
 
 function PerformanceScale({ score }: { score: number }) {
-  const isPass = score >= 50;
+  const isPass = score >= 70; // PMP pass threshold approx 70%
   
   // segments widths are equal (25% each)
   // cursor position is simply the score percent
   const cursorLeft = `${score}%`;
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-8 py-10 animate-fade-in">
+    <div className="w-full max-w-4xl mx-auto space-y-8 py-6 animate-fade-in">
       <div className="text-left space-y-2">
         <h2 className="text-3xl font-medium text-slate-700">
           Your Overall Performance: <span className={cn("font-bold text-4xl", isPass ? "text-[#005bb7]" : "text-destructive")}>
@@ -114,7 +116,8 @@ function ExamRunContent() {
   const [answers, setAnswers] = useState<Record<string, string[]>>({});
   const [flagged, setFlagged] = useState<Record<string, boolean>>({});
   const [viewMode, setViewMode] = useState<ViewMode>('question');
-  const [timeLeft, setTimeLeft] = useState(230 * 60); 
+  const [timeLeft, setTimeLeft] = useState(0); 
+  const [totalTime, setTotalTime] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [showNavigator, setShowNavigator] = useState(false);
@@ -133,7 +136,6 @@ function ExamRunContent() {
       setIsLoading(true);
       try {
         const qRef = collection(db, 'questions');
-        // Séparation : On ne charge que les questions assignées à cet examen précis via sourceIds
         const q = query(qRef, 
           where('sourceIds', 'array-contains', examId), 
           where('isActive', '==', true)
@@ -153,13 +155,13 @@ function ExamRunContent() {
           choices: d.data().choices || d.data().options?.map((o: any) => o.text)
         }));
         
-        // Trier par index si disponible, sinon stable
         fetched.sort((a, b) => (a.index || 0) - (b.index || 0));
         setQuestions(fetched);
         
-        // Temps total proportionnel (ratio PMP : 230m / 180 questions)
         const totalMinutes = (fetched.length * 230) / 180;
-        setTimeLeft(Math.floor(totalMinutes * 60));
+        const initialSeconds = Math.floor(totalMinutes * 60);
+        setTimeLeft(initialSeconds);
+        setTotalTime(initialSeconds);
       } catch (e) {
         console.error(e);
         toast({ variant: "destructive", title: "Erreur de chargement" });
@@ -191,7 +193,7 @@ function ExamRunContent() {
   }, [viewMode, breakTimeLeft]);
 
   const formatMMSS = (seconds: number) => {
-    if (seconds < 0) return "--:--";
+    if (seconds < 0) return "0:00";
     const m = Math.floor(seconds / 60);
     const s = Math.floor(seconds % 60);
     return `${m}:${s.toString().padStart(2, '0')}`;
@@ -247,6 +249,19 @@ function ExamRunContent() {
     const detailedResults: any[] = [];
     let correct = 0;
 
+    // Aggregate stats for domains and approaches
+    const domainStats: Record<string, { correct: number, total: number }> = {
+      'People': { correct: 0, total: 0 },
+      'Process': { correct: 0, total: 0 },
+      'Business': { correct: 0, total: 0 }
+    };
+
+    const approachStats: Record<string, { correct: number, total: number }> = {
+      'Predictive': { correct: 0, total: 0 },
+      'Agile': { correct: 0, total: 0 },
+      'Hybrid': { correct: 0, total: 0 }
+    };
+
     questions.forEach(q => {
       const correctOptionIds = q.correctOptionIds || [String(q.correctChoice || "1")];
       const userChoices = answers[q.id] || [];
@@ -255,6 +270,19 @@ function ExamRunContent() {
                             userChoices.every(id => correctOptionIds.includes(id));
       
       if (isUserCorrect) correct++;
+
+      // Tracking stats
+      const domain = q.tags?.domain === 'Processus' ? 'Process' : (q.tags?.domain || 'Process');
+      if (domainStats[domain]) {
+        domainStats[domain].total++;
+        if (isUserCorrect) domainStats[domain].correct++;
+      }
+
+      const approach = q.tags?.approach || 'Predictive';
+      if (approachStats[approach]) {
+        approachStats[approach].total++;
+        if (isUserCorrect) approachStats[approach].correct++;
+      }
 
       detailedResults.push({
         questionId: q.id,
@@ -272,8 +300,8 @@ function ExamRunContent() {
     
     let performance = "Needs Improvement";
     if (percent >= 75) performance = "Above Target";
-    else if (percent >= 50) performance = "Target";
-    else if (percent >= 25) performance = "Below Target";
+    else if (percent >= 60) performance = "Target";
+    else if (percent >= 40) performance = "Below Target";
 
     const finalData = {
       examId,
@@ -282,9 +310,11 @@ function ExamRunContent() {
       correctCount: correct,
       totalQuestions: questions.length,
       performance,
-      durationSec: (questions.length * 230 / 180) * 60 - (timeLeft > 0 ? timeLeft : 0),
+      durationSec: totalTime - timeLeft,
       submittedAt: serverTimestamp(),
-      responses: detailedResults
+      responses: detailedResults,
+      domainBreakdown: domainStats,
+      approachBreakdown: approachStats
     };
 
     try {
@@ -302,32 +332,81 @@ function ExamRunContent() {
 
   if (viewMode === 'result' && result) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-4">
-        <Card className="max-w-5xl w-full border-none shadow-none p-12 space-y-10 bg-white">
-          <PerformanceScale score={result.scorePercent} />
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-10 border-t border-slate-100">
-            <div className="bg-slate-50 p-6 rounded-3xl border-2">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Score</p>
-              <p className="text-4xl font-black italic text-primary">{result.scorePercent}%</p>
+      <div className="min-h-screen bg-[#F8FAFC] py-12 px-4 animate-fade-in">
+        <Card className="max-w-6xl mx-auto border-none shadow-2xl rounded-[48px] bg-white overflow-hidden">
+          <div className="p-12 space-y-12">
+            <PerformanceScale score={result.scorePercent} />
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-[#F1F5F9] p-8 rounded-[32px] border-2 border-white shadow-sm flex flex-col items-center justify-center text-center">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">TOTAL SCORE</p>
+                <p className="text-6xl font-black italic text-[#1d4ed8] tracking-tighter">{result.scorePercent}%</p>
+              </div>
+              <div className="bg-[#F1F5F9] p-8 rounded-[32px] border-2 border-white shadow-sm flex flex-col items-center justify-center text-center">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">CORRECT ANSWERS</p>
+                <p className="text-6xl font-black italic text-slate-800 tracking-tighter">{result.correctCount}/{result.totalQuestions}</p>
+              </div>
+              <div className="bg-[#F1F5F9] p-8 rounded-[32px] border-2 border-white shadow-sm flex flex-col items-center justify-center text-center">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">TIME SPENT</p>
+                <p className="text-6xl font-black italic text-slate-800 tracking-tighter">{Math.ceil(result.durationSec / 60)}m</p>
+              </div>
             </div>
-            <div className="bg-slate-50 p-6 rounded-3xl border-2">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Correct Answers</p>
-              <p className="text-4xl font-black italic text-slate-700">{result.correctCount}/{result.totalQuestions}</p>
-            </div>
-            <div className="bg-slate-50 p-6 rounded-3xl border-2">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Time Spent</p>
-              <p className="text-4xl font-black italic text-slate-700">{Math.floor(result.durationSec / 60)}m</p>
-            </div>
-          </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 pt-6">
-            <Button variant="outline" className="flex-1 h-16 rounded-2xl border-4 font-black uppercase tracking-widest text-lg italic" asChild>
-              <Link href="/dashboard/history">Voir mon Historique</Link>
-            </Button>
-            <Button className="flex-1 h-16 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl text-lg italic" asChild>
-              <Link href="/dashboard">Tableau de bord</Link>
-            </Button>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 pt-6">
+              {/* Performance by Domain */}
+              <div className="space-y-6">
+                <h3 className="text-xl font-black italic uppercase tracking-tight flex items-center gap-3">
+                  <Layers className="h-6 w-6 text-[#1d4ed8]" /> Performance by Domain
+                </h3>
+                <div className="space-y-4">
+                  {Object.entries(result.domainBreakdown || {}).map(([domain, data]: any) => {
+                    const domainScore = data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0;
+                    return (
+                      <div key={domain} className="space-y-2">
+                        <div className="flex justify-between items-end">
+                          <span className="text-xs font-black uppercase text-slate-500 italic">{domain}</span>
+                          <span className="text-sm font-black text-[#1d4ed8] italic">{domainScore}%</span>
+                        </div>
+                        <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+                          <div 
+                            className={cn("h-full transition-all duration-1000", domainScore >= 75 ? "bg-emerald-500" : domainScore >= 50 ? "bg-[#1d4ed8]" : "bg-red-500")}
+                            style={{ width: `${domainScore}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Exam Breakdown by Approach */}
+              <div className="space-y-6">
+                <h3 className="text-xl font-black italic uppercase tracking-tight flex items-center gap-3">
+                  <Globe className="h-6 w-6 text-orange-500" /> Exam Breakdown (Approaches)
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {Object.entries(result.approachBreakdown || {}).map(([approach, data]: any) => {
+                    const approachScore = data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0;
+                    return (
+                      <div key={approach} className="bg-slate-50 p-5 rounded-2xl border-2 border-dashed border-slate-200 text-center space-y-1">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{approach === 'Predictive' ? 'Waterfall' : approach}</p>
+                        <p className="text-2xl font-black italic text-slate-800">{approachScore}%</p>
+                        <p className="text-[8px] font-bold text-slate-400 italic">{data.correct}/{data.total} Qs</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-6 pt-10 border-t-2 border-dashed border-slate-100">
+              <Button variant="outline" className="flex-1 h-20 rounded-3xl border-4 font-black uppercase tracking-widest text-lg italic shadow-lg hover:bg-slate-50" asChild>
+                <Link href="/dashboard/history">VOIR MON HISTORIQUE</Link>
+              </Button>
+              <Button className="flex-1 h-20 rounded-3xl bg-[#1d4ed8] hover:bg-[#1e40af] font-black uppercase tracking-widest shadow-2xl text-lg italic scale-105 transition-transform" asChild>
+                <Link href="/dashboard">TABLEAU DE BORD</Link>
+              </Button>
+            </div>
           </div>
         </Card>
       </div>
