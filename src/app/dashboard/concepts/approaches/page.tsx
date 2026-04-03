@@ -10,12 +10,9 @@ import {
   CheckCircle2, Info, Trophy, Loader2, ChevronRight,
   ChevronLeft
 } from 'lucide-react';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
-import { ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { useUser, useFirestore } from '@/firebase';
+import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import Link from 'next/link';
 
 const DEFAULT_APPROACH_DATA: Record<string, any> = {
   predictive: {
@@ -64,7 +61,6 @@ export default function VisionApprochesPage() {
   const [approachData, setApproachData] = useState<any>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
   
-  // Pagination State
   const [currentPage, setCurrentPage] = useState(0);
   const pageSize = 6;
 
@@ -83,7 +79,7 @@ export default function VisionApprochesPage() {
         setApproachData(DEFAULT_APPROACH_DATA[activeApproach]);
       } finally {
         setIsDataLoading(false);
-        setCurrentPage(0); // Reset pagination on approach change
+        setCurrentPage(0);
       }
     }
     load();
@@ -97,14 +93,12 @@ export default function VisionApprochesPage() {
   const totalPages = Math.ceil(jargonList.length / pageSize);
 
   return (
-    <div className="h-[calc(100vh-100px)] flex flex-col overflow-hidden animate-fade-in max-w-7xl mx-auto px-4 py-2 space-y-4">
-      {/* Header Section */}
+    <div className="h-[calc(100vh-80px)] flex flex-col overflow-hidden animate-fade-in max-w-7xl mx-auto px-4 py-2 space-y-4">
       <div className="shrink-0 space-y-1">
         <h1 className="text-3xl font-black italic uppercase tracking-tighter text-slate-900 leading-none">Vision Approches</h1>
         <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] italic">Maîtrisez le cycle de vie de vos projets.</p>
       </div>
 
-      {/* Selectors Section */}
       <div className="shrink-0 grid grid-cols-3 gap-4 h-24">
         {(['predictive', 'agile', 'hybrid'] as const).map((id) => {
           const item = DEFAULT_APPROACH_DATA[id];
@@ -126,7 +120,6 @@ export default function VisionApprochesPage() {
         })}
       </div>
 
-      {/* Focus & Tabs Section */}
       <div className="shrink-0 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <h2 className="text-xl font-black italic uppercase tracking-tight text-slate-900">Focus : {data.title}</h2>
@@ -148,40 +141,37 @@ export default function VisionApprochesPage() {
           </div>
         </div>
 
-        {/* Pagination Arrows */}
         {activeTab === 'jargon' && totalPages > 1 && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
             <Button 
               variant="outline" 
               size="icon" 
-              className="h-8 w-8 rounded-full border-2"
+              className="h-10 w-10 rounded-full border-2 shadow-sm"
               disabled={currentPage === 0}
               onClick={() => setCurrentPage(currentPage - 1)}
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-5 w-5" />
             </Button>
-            <span className="text-[10px] font-black italic text-slate-400 uppercase">Page {currentPage + 1}/{totalPages}</span>
+            <span className="text-[10px] font-black italic text-slate-400 uppercase tracking-widest">PAGE {currentPage + 1} / {totalPages}</span>
             <Button 
               variant="outline" 
               size="icon" 
-              className="h-8 w-8 rounded-full border-2"
+              className="h-10 w-10 rounded-full border-2 shadow-sm"
               disabled={currentPage >= totalPages - 1}
               onClick={() => setCurrentPage(currentPage + 1)}
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
         )}
       </div>
 
-      {/* Main Content Area - Flexible Grid */}
       <div className="flex-1 min-h-0">
         {activeTab === 'jargon' ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 grid-rows-2 gap-4 h-full animate-slide-up">
+          <div className="grid grid-cols-1 md:grid-cols-3 grid-rows-2 gap-4 h-full animate-slide-up pb-4">
             {paginatedJargon.map((item: any, idx: number) => (
               <JargonCard key={idx} term={item.term} def={item.def} />
             ))}
-            {/* Fillers for empty spots to maintain 3x2 structure */}
             {paginatedJargon.length < 6 && Array.from({ length: 6 - paginatedJargon.length }).map((_, i) => (
               <div key={`filler-${i}`} className="bg-slate-50/50 border-2 border-dashed border-slate-100 rounded-[24px]" />
             ))}
@@ -193,7 +183,12 @@ export default function VisionApprochesPage() {
         )}
       </div>
 
-      <style jsx global>{`.perspective-1000 { perspective: 1000px; } .preserve-3d { transform-style: preserve-3d; } .backface-hidden { backface-visibility: hidden; } .rotate-y-180 { transform: rotateY(180deg); }`}</style>
+      <style jsx global>{`
+        .perspective-1000 { perspective: 1000px; }
+        .preserve-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+      `}</style>
     </div>
   );
 }
@@ -203,12 +198,12 @@ function JargonCard({ term, def }: { term: string, def: string }) {
   return (
     <div className="perspective-1000 h-full w-full cursor-pointer group" onClick={() => setIsFlipped(!isFlipped)}>
       <div className={cn("relative w-full h-full transition-transform duration-500 preserve-3d", isFlipped ? "rotate-y-180" : "")}>
-        {/* RECTO : Gris Anthracite profond (#1e293b) */}
-        <div className="absolute inset-0 backface-hidden bg-[#1e293b] text-white rounded-[24px] flex flex-col items-center justify-center p-6 shadow-xl border-2 border-slate-800">
+        {/* RECTO : Vert très clair et doux */}
+        <div className="absolute inset-0 backface-hidden bg-[#f0fdf4] text-emerald-900 rounded-[32px] flex flex-col items-center justify-center p-6 shadow-xl border-2 border-emerald-100">
           <h3 className="text-xl font-black italic uppercase tracking-tight text-center leading-tight">{term}</h3>
         </div>
-        {/* VERSO : Bleu Royal Simu-lux (#004aad) */}
-        <div className="absolute inset-0 backface-hidden rotate-y-180 bg-[#004aad] text-white rounded-[24px] flex items-center justify-center p-8 shadow-2xl">
+        {/* VERSO : Gris Anthracite profond */}
+        <div className="absolute inset-0 backface-hidden rotate-y-180 bg-[#1e293b] text-white rounded-[32px] flex items-center justify-center p-8 shadow-2xl">
           <p className="text-center font-bold italic text-sm leading-relaxed">{def}</p>
         </div>
       </div>
@@ -257,9 +252,7 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
           totalQuestions: activeQuestions.length, 
           submittedAt: serverTimestamp() 
         });
-      } catch (e) {
-        console.error("Score saving error", e);
-      }
+      } catch (e) {}
       setShowResult(true); 
     }
   };
@@ -280,83 +273,46 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
   const q = activeQuestions[currentIdx];
   if (!q) return null;
 
-  const getRawChoices = (item: any) => {
-    if (Array.isArray(item.a) && item.a.length > 0) return item.a;
-    if (Array.isArray(item.choices) && item.choices.length > 0) return item.choices;
-    if (Array.isArray(item.options) && item.options.length > 0) return item.options;
-    const standardKeys = ["a1", "a2", "a3", "a4", "option1", "option2", "option3", "option4", "Vrai", "Faux", "A", "B", "C", "D"];
-    const found = standardKeys.map(k => item[k]).filter(v => v !== undefined && v !== null && String(v).trim() !== "");
-    return found;
-  };
-
-  const rawChoices = getRawChoices(q);
+  const rawChoices = Array.isArray(q.a) ? q.a : (Array.isArray(q.choices) ? q.choices : []);
   const correctIdx = q.c !== undefined ? Number(q.c) : 0;
-  const explanation = q.exp || q.explanation || "Analyse Coach : Priorisez toujours l'analyse d'impact et la communication proactive selon le mindset PMI.";
 
   return (
-    <Card className="rounded-[40px] bg-white p-8 space-y-6 w-full max-w-2xl shadow-2xl animate-slide-up border-none overflow-hidden relative">
-      <div className="flex justify-between items-center relative z-10">
-        <Badge variant="outline" className="font-black italic px-4 py-1 rounded-lg border-2 text-slate-400 text-[10px]">
-          Question {currentIdx + 1} / {activeQuestions.length}
-        </Badge>
-      </div>
-      
-      <h3 className="text-xl font-black italic text-slate-900 leading-tight relative z-10">
-        {q.q || q.text || q.statement}
+    <Card className="rounded-[40px] bg-white p-8 space-y-6 w-full max-w-2xl shadow-2xl animate-slide-up border-none overflow-hidden">
+      <Badge variant="outline" className="font-black italic px-4 py-1 rounded-lg border-2 text-slate-400 text-[10px]">
+        Question {currentIdx + 1} / {activeQuestions.length}
+      </Badge>
+      <h3 className="text-xl font-black italic text-slate-900 leading-tight">
+        {q.q || q.text}
       </h3>
-
-      <div className="grid gap-3 relative z-10">
-        {rawChoices.map((opt: any, idx: number) => {
-          const isCorrect = idx === correctIdx;
-          const isSelected = idx === selectedIdx;
-          const textValue = String(opt?.text || opt || '');
-          if (!textValue || textValue.trim() === "") return null;
-
-          return (
-            <button 
-              key={idx} 
-              disabled={isAnswered}
-              onClick={() => handleAnswer(idx)} 
-              className={cn(
-                "p-4 rounded-xl border-2 transition-all text-left flex items-start gap-4 group relative",
-                !isAnswered 
-                  ? "border-slate-100 bg-white hover:border-primary" 
-                  : isCorrect 
-                    ? "border-emerald-500 bg-emerald-50" 
-                    : isSelected 
-                      ? "border-red-500 bg-red-50" 
-                      : "border-slate-50 opacity-40"
-              )}
-            >
-              <div className={cn(
-                "h-8 w-8 flex items-center justify-center font-black text-xs shrink-0 border-2 rounded-full",
-                !isAnswered 
-                  ? "bg-white text-slate-400 border-slate-100" 
-                  : isCorrect 
-                    ? "bg-emerald-500 text-white border-emerald-500" 
-                    : isSelected 
-                      ? "bg-red-500 text-white border-red-500" 
-                      : "bg-white text-slate-200 border-slate-50"
-              )}>
-                {String.fromCharCode(65 + idx)}
-              </div>
-              <span className={cn(
-                "flex-1 text-base font-black italic pt-0.5",
-                !isAnswered ? "text-slate-700" : (isCorrect ? "text-emerald-900" : isSelected ? "text-red-900" : "text-slate-400")
-              )}>
-                {textValue}
-              </span>
-            </button>
-          );
-        })}
+      <div className="grid gap-3">
+        {rawChoices.map((opt: any, idx: number) => (
+          <button 
+            key={idx} 
+            disabled={isAnswered}
+            onClick={() => handleAnswer(idx)} 
+            className={cn(
+              "p-4 rounded-xl border-2 transition-all text-left flex items-start gap-4",
+              !isAnswered ? "border-slate-100 bg-white hover:border-primary" : 
+              idx === correctIdx ? "border-emerald-500 bg-emerald-50" : 
+              idx === selectedIdx ? "border-red-500 bg-red-50" : "border-slate-50 opacity-40"
+            )}
+          >
+            <div className={cn(
+              "h-8 w-8 flex items-center justify-center font-black text-xs shrink-0 border-2 rounded-full",
+              !isAnswered ? "bg-white text-slate-400" : 
+              idx === correctIdx ? "bg-emerald-500 text-white" : 
+              idx === selectedIdx ? "bg-red-500 text-white" : "bg-white text-slate-200"
+            )}>
+              {String.fromCharCode(65 + idx)}
+            </div>
+            <span className="flex-1 text-base font-black italic pt-0.5">{opt}</span>
+          </button>
+        ))}
       </div>
-
       {isAnswered && (
         <div className="bg-slate-50 p-6 rounded-[24px] border-l-4 border-l-primary animate-slide-up space-y-3">
-          <p className="text-black font-bold italic text-sm leading-relaxed">
-            {explanation}
-          </p>
-          <Button onClick={next} className="w-full h-10 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black uppercase italic tracking-widest text-[10px]">
+          <p className="text-black font-bold italic text-sm leading-relaxed">{q.exp || q.explanation}</p>
+          <Button onClick={next} className="w-full h-10 rounded-xl bg-slate-900 text-white font-black uppercase italic tracking-widest text-[10px]">
             {currentIdx < activeQuestions.length - 1 ? "SUIVANT" : "RÉSULTAT"}
           </Button>
         </div>
