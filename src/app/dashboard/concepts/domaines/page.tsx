@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -59,7 +60,7 @@ export default function VisionDomainesPage() {
   useEffect(() => {
     async function load() {
       if (!user) return;
-      setIsDataLoading(true);
+      setIsLoading(true);
       try {
         const snap = await getDoc(doc(db, 'concepts_domains', activeDomain));
         if (snap.exists()) {
@@ -70,7 +71,7 @@ export default function VisionDomainesPage() {
       } catch (e) {
         setDomainData(DEFAULT_DOMAIN_DATA[activeDomain]);
       } finally {
-        setIsDataLoading(false);
+        setIsLoading(false);
         setCurrentPage(0);
       }
     }
@@ -196,12 +197,12 @@ function JargonCard({ term, def }: { term: string, def: string }) {
     <div className="perspective-1000 h-full w-full cursor-pointer flex-shrink min-h-0" onClick={() => setIsFlipped(!isFlipped)}>
       <div className={cn("relative w-full h-full transition-transform duration-500 preserve-3d", isFlipped ? "rotate-y-180" : "")}>
         {/* RECTO : Vert très clair */}
-        <div className="absolute inset-0 backface-hidden bg-[#f0fdf4] text-[#1e293b] rounded-xl flex flex-col items-center justify-center p-[1.5vh] shadow-md border-2 border-emerald-100 overflow-hidden">
-          <h3 className="text-[clamp(0.8rem,1.8vh,1.2rem)] font-black italic uppercase tracking-tight text-center leading-tight">{term}</h3>
+        <div className="absolute inset-0 backface-hidden bg-[#f0fdf4] text-[#1e293b] rounded-xl flex flex-col items-center justify-center p-[2vh] shadow-md border-2 border-emerald-100 overflow-hidden">
+          <h3 className="text-[clamp(1.2rem,5vh,4rem)] font-black italic uppercase tracking-tight text-center leading-tight">{term}</h3>
         </div>
         {/* VERSO : Gris Anthracite */}
-        <div className="absolute inset-0 backface-hidden rotate-y-180 bg-[#1e293b] text-white rounded-xl flex items-center justify-center p-[1.5vh] shadow-xl border-2 border-slate-700 overflow-y-auto custom-scrollbar">
-          <p className="text-center font-bold italic text-[clamp(0.7rem,1.4vh,1rem)] leading-relaxed">{def}</p>
+        <div className="absolute inset-0 backface-hidden rotate-y-180 bg-[#1e293b] text-white rounded-xl flex items-center justify-center p-[2vh] shadow-xl border-2 border-slate-700 overflow-y-auto custom-scrollbar">
+          <p className="text-center font-bold italic text-[clamp(1rem,2.8vh,2.2rem)] leading-relaxed">{def}</p>
         </div>
       </div>
     </div>
