@@ -53,7 +53,6 @@ export default function VisionDomainesPage() {
   const [activeTab, setActiveTab] = useState<'jargon' | 'quiz'>('jargon');
   const [domainData, setDomainData] = useState<any>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
-
   const [currentPage, setCurrentPage] = useState(0);
   const pageSize = 6;
 
@@ -78,7 +77,7 @@ export default function VisionDomainesPage() {
     load();
   }, [db, activeDomain, user]);
 
-  if (isDataLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
+  if (isDataLoading) return <div className="h-full w-full flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
 
   const currentData = domainData || DEFAULT_DOMAIN_DATA[activeDomain];
   const jargonList = currentData.jargon || [];
@@ -86,17 +85,17 @@ export default function VisionDomainesPage() {
   const totalPages = Math.ceil(jargonList.length / pageSize);
 
   return (
-    <div className="flex-1 flex flex-col h-full lg:h-[calc(100vh-100px)] overflow-hidden animate-fade-in space-y-2 md:space-y-3 p-2 md:p-4 box-border">
-      {/* HEADER ULTRA COMPACT */}
-      <div className="shrink-0 flex justify-between items-end px-1">
-        <div className="space-y-0.5">
-          <h1 className="text-lg md:text-2xl font-black italic uppercase tracking-tighter text-slate-900 leading-none">Vision Domaines</h1>
-          <p className="text-slate-500 font-bold uppercase tracking-widest text-[7px] md:text-[9px] italic">Les 3 piliers du PMP® en un coup d'œil.</p>
+    <div className="flex-1 flex flex-col min-h-0 h-full w-full overflow-hidden animate-fade-in p-[1vh] gap-[1vh]">
+      {/* HEADER COMPACT (VH BASED) */}
+      <header className="flex-none flex justify-between items-end px-2 h-[4vh]">
+        <div className="flex flex-col">
+          <h1 className="text-[clamp(1.2rem,2.5vh,2rem)] font-black italic uppercase tracking-tighter text-slate-900 leading-none">Vision Domaines</h1>
+          <p className="text-slate-500 font-bold uppercase tracking-widest text-[clamp(0.5rem,1vh,0.8rem)] italic leading-none mt-1">Les 3 piliers du PMP® en un coup d'œil.</p>
         </div>
-      </div>
+      </header>
 
-      {/* SELECTEUR DE DOMAINE COMPACT */}
-      <div className="shrink-0 grid grid-cols-3 gap-2 md:gap-3 h-12 md:h-16">
+      {/* SELECTOR (VH BASED) */}
+      <nav className="flex-none grid grid-cols-3 gap-[1vh] h-[8vh]">
         {(['people', 'process', 'business'] as const).map((id) => {
           const isActive = activeDomain === id;
           const Ico = id === 'people' ? Users : id === 'process' ? Settings : Globe;
@@ -105,81 +104,81 @@ export default function VisionDomainesPage() {
               key={id} 
               onClick={() => { setActiveDomain(id); setActiveTab('jargon'); }} 
               className={cn(
-                "flex flex-col items-center justify-center rounded-xl md:rounded-2xl border-2 transition-all duration-300 gap-0.5 md:gap-1 bg-white shadow-sm", 
+                "flex flex-col items-center justify-center rounded-xl border-2 transition-all duration-300 gap-1 bg-white shadow-sm flex-shrink", 
                 isActive ? "border-primary bg-primary/5 scale-[1.02]" : "border-slate-100 hover:border-slate-200"
               )}
             >
-              <Ico className={cn("h-3 w-3 md:h-5 md:w-5", isActive ? "text-primary" : "text-slate-300")} />
-              <span className={cn("font-black uppercase italic tracking-widest text-[6px] md:text-[9px]", isActive ? "text-primary" : "text-slate-400")}>{id.toUpperCase()}</span>
+              <Ico className={cn("h-[2.5vh] w-[2.5vh]", isActive ? "text-primary" : "text-slate-300")} />
+              <span className={cn("font-black uppercase italic tracking-widest text-[clamp(0.6rem,1.2vh,0.9rem)]", isActive ? "text-primary" : "text-slate-400")}>{id.toUpperCase()}</span>
             </button>
           );
         })}
-      </div>
+      </nav>
 
-      {/* CONTROLES ET TABS - UNE SEULE LIGNE */}
-      <div className="shrink-0 flex items-center justify-between bg-white p-1 md:p-2 rounded-xl md:rounded-2xl border border-slate-100 shadow-sm h-10 md:h-14">
-        <div className="flex items-center gap-2 md:gap-4 overflow-hidden">
-          <h2 className="text-[8px] md:text-xs font-black italic uppercase tracking-tight text-slate-900 ml-1 md:ml-2 truncate hidden sm:block">{currentData.title}</h2>
-          <div className="flex bg-slate-100 p-0.5 md:p-1 rounded-lg border">
+      {/* TABS & NAVIGATION (VH BASED) */}
+      <div className="flex-none flex items-center justify-between bg-white px-2 rounded-xl border border-slate-100 shadow-sm h-[6vh]">
+        <div className="flex items-center gap-[2vw] flex-1 min-w-0">
+          <h2 className="text-[clamp(0.7rem,1.5vh,1rem)] font-black italic uppercase tracking-tight text-slate-900 truncate hidden sm:block">{currentData.title}</h2>
+          <div className="flex bg-slate-100 p-1 rounded-lg border h-[4.5vh]">
             <Button 
               size="sm"
               onClick={() => setActiveTab('jargon')} 
-              className={cn("h-6 md:h-8 px-2 md:px-4 rounded-md font-black uppercase italic text-[7px] md:text-[9px] gap-1 md:gap-2", activeTab === 'jargon' ? "bg-slate-900 text-white shadow-md" : "bg-transparent text-slate-500 hover:bg-slate-200")}
+              className={cn("h-full px-3 md:px-6 rounded-md font-black uppercase italic text-[clamp(0.6rem,1.2vh,0.8rem)] gap-2", activeTab === 'jargon' ? "bg-slate-900 text-white shadow-md" : "bg-transparent text-slate-500 hover:bg-slate-200")}
             >
-              <BookOpen className="h-2 w-2 md:h-3 md:w-3" /> Jargon
+              <BookOpen className="h-3 w-3" /> Jargon
             </Button>
             <Button 
               size="sm"
               onClick={() => setActiveTab('quiz')} 
-              className={cn("h-6 md:h-8 px-2 md:px-4 rounded-md font-black uppercase italic text-[7px] md:text-[9px] gap-1 md:gap-2", activeTab === 'quiz' ? "bg-slate-900 text-white shadow-md" : "bg-transparent text-slate-500 hover:bg-slate-200")}
+              className={cn("h-full px-3 md:px-6 rounded-md font-black uppercase italic text-[clamp(0.6rem,1.2vh,0.8rem)] gap-2", activeTab === 'quiz' ? "bg-slate-900 text-white shadow-md" : "bg-transparent text-slate-500 hover:bg-slate-200")}
             >
-              <Zap className="h-2 w-2 md:h-3 md:w-3" /> Quiz
+              <Zap className="h-3 w-3" /> Quiz
             </Button>
           </div>
         </div>
 
         {activeTab === 'jargon' && totalPages > 1 && (
-          <div className="flex items-center gap-1 md:gap-3 mr-1">
+          <div className="flex items-center gap-[1vw]">
             <Button 
               variant="outline" 
               size="icon" 
-              className="h-6 w-6 md:h-8 md:w-8 rounded-full border shadow-sm bg-white hover:bg-slate-50"
+              className="h-[4vh] w-[4vh] rounded-full border shadow-sm bg-white"
               disabled={currentPage === 0}
               onClick={() => setCurrentPage(currentPage - 1)}
             >
-              <ChevronLeft className="h-2 w-2 md:h-4 md:w-4" />
+              <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-[7px] md:text-[10px] font-black italic text-slate-400 uppercase tracking-widest">{currentPage + 1}/{totalPages}</span>
+            <span className="text-[1.2vh] font-black italic text-slate-400 uppercase">{currentPage + 1}/{totalPages}</span>
             <Button 
               variant="outline" 
               size="icon" 
-              className="h-6 w-6 md:h-8 md:w-8 rounded-full border shadow-sm bg-white hover:bg-slate-50"
+              className="h-[4vh] w-[4vh] rounded-full border shadow-sm bg-white"
               disabled={currentPage >= totalPages - 1}
               onClick={() => setCurrentPage(currentPage + 1)}
             >
-              <ChevronRight className="h-2 w-2 md:h-4 md:w-4" />
+              <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
         )}
       </div>
 
-      {/* GRILLE DYNAMIQUE 3X2 (Desktop) ou 1x6 (Mobile) */}
-      <div className="flex-1 min-h-0">
+      {/* CONTENT AREA (STRICT FLEX-1) */}
+      <main className="flex-1 min-h-0 relative">
         {activeTab === 'jargon' ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 grid-rows-6 md:grid-rows-2 gap-1.5 md:gap-3 h-full animate-slide-up box-border">
+          <div className="grid grid-cols-1 md:grid-cols-3 grid-rows-6 md:grid-rows-2 gap-[1vh] h-full animate-slide-up">
             {paginatedJargon.map((item: any, idx: number) => (
               <JargonCard key={idx} term={item.term} def={item.def} />
             ))}
             {paginatedJargon.length < 6 && Array.from({ length: 6 - paginatedJargon.length }).map((_, i) => (
-              <div key={`filler-${i}`} className="bg-slate-50/20 border-2 border-dashed border-slate-100 rounded-xl md:rounded-[24px] h-full" />
+              <div key={`filler-${i}`} className="bg-slate-50/20 border-2 border-dashed border-slate-100 rounded-xl h-full flex-shrink" />
             ))}
           </div>
         ) : (
-          <div className="h-full flex items-center justify-center py-2 min-h-0">
+          <div className="h-full w-full flex items-center justify-center min-h-0">
             <QuickQuiz questions={currentData.quiz || []} axisId={activeDomain} userId={user?.uid || ''} db={db} />
           </div>
         )}
-      </div>
+      </main>
 
       <style jsx global>{`
         .perspective-1000 { perspective: 1000px; }
@@ -194,15 +193,15 @@ export default function VisionDomainesPage() {
 function JargonCard({ term, def }: { term: string, def: string }) {
   const [isFlipped, setIsFlipped] = useState(false);
   return (
-    <div className="perspective-1000 h-full w-full cursor-pointer group box-border min-h-0" onClick={() => setIsFlipped(!isFlipped)}>
+    <div className="perspective-1000 h-full w-full cursor-pointer flex-shrink min-h-0" onClick={() => setIsFlipped(!isFlipped)}>
       <div className={cn("relative w-full h-full transition-transform duration-500 preserve-3d", isFlipped ? "rotate-y-180" : "")}>
         {/* RECTO : Vert très clair */}
-        <div className="absolute inset-0 backface-hidden bg-[#f0fdf4] text-[#1e293b] rounded-xl md:rounded-[24px] flex flex-col items-center justify-center p-2 md:p-4 shadow-md border-2 border-emerald-100 overflow-hidden">
-          <h3 className="text-[10px] md:text-lg font-black italic uppercase tracking-tight text-center leading-tight">{term}</h3>
+        <div className="absolute inset-0 backface-hidden bg-[#f0fdf4] text-[#1e293b] rounded-xl flex flex-col items-center justify-center p-[1.5vh] shadow-md border-2 border-emerald-100 overflow-hidden">
+          <h3 className="text-[clamp(0.8rem,1.8vh,1.2rem)] font-black italic uppercase tracking-tight text-center leading-tight">{term}</h3>
         </div>
         {/* VERSO : Gris Anthracite */}
-        <div className="absolute inset-0 backface-hidden rotate-y-180 bg-[#1e293b] text-white rounded-xl md:rounded-[24px] flex items-center justify-center p-2 md:p-4 shadow-xl border-2 border-slate-700 overflow-y-auto custom-scrollbar">
-          <p className="text-center font-bold italic text-[7px] md:text-xs leading-relaxed">{def}</p>
+        <div className="absolute inset-0 backface-hidden rotate-y-180 bg-[#1e293b] text-white rounded-xl flex items-center justify-center p-[1.5vh] shadow-xl border-2 border-slate-700 overflow-y-auto custom-scrollbar">
+          <p className="text-center font-bold italic text-[clamp(0.7rem,1.4vh,1rem)] leading-relaxed">{def}</p>
         </div>
       </div>
     </div>
@@ -256,15 +255,15 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
   };
 
   if (showResult) return (
-    <Card className="rounded-[32px] md:rounded-[40px] bg-white p-6 md:p-10 text-center space-y-4 md:space-y-6 shadow-2xl animate-fade-in border-none w-full max-w-[280px] md:max-w-sm">
-      <div className="bg-primary/5 w-12 h-12 md:w-16 md:h-16 rounded-2xl md:rounded-3xl flex items-center justify-center mx-auto shadow-inner">
-        <Trophy className="h-6 w-6 md:h-8 md:w-8 text-primary" />
+    <Card className="rounded-3xl bg-white p-[4vh] text-center space-y-[2vh] shadow-2xl animate-fade-in border-none w-full max-w-[35vh]">
+      <div className="bg-primary/5 w-[8vh] h-[8vh] rounded-2xl flex items-center justify-center mx-auto shadow-inner">
+        <Trophy className="h-[4vh] w-[4vh] text-primary" />
       </div>
-      <div className="space-y-1">
-        <h3 className="text-xl md:text-3xl font-black italic uppercase tracking-tighter text-slate-900">Score : {score} / {activeQuestions.length}</h3>
-        <p className="text-slate-400 font-bold uppercase tracking-widest text-[8px] md:text-[10px] italic">Session validée</p>
+      <div className="space-y-[0.5vh]">
+        <h3 className="text-[3vh] font-black italic uppercase tracking-tighter text-slate-900">Score : {score} / {activeQuestions.length}</h3>
+        <p className="text-slate-400 font-bold uppercase tracking-widest text-[1.2vh] italic">Session validée</p>
       </div>
-      <Button onClick={() => window.location.reload()} className="h-10 md:h-14 px-8 md:px-10 rounded-xl md:rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl text-white text-[9px] md:text-xs">REFAIRE LE QUIZ</Button>
+      <Button onClick={() => window.location.reload()} className="h-[6vh] w-full rounded-xl bg-primary font-black uppercase tracking-widest shadow-xl text-white text-[1.5vh]">REFAIRE LE QUIZ</Button>
     </Card>
   );
   
@@ -275,43 +274,43 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
   const correctIdx = q.c !== undefined ? Number(q.c) : 0;
 
   return (
-    <Card className="rounded-[32px] md:rounded-[40px] bg-white p-3 md:p-6 space-y-2 md:space-y-4 w-full max-w-2xl shadow-2xl animate-slide-up border-none overflow-y-auto max-h-full custom-scrollbar box-border">
-      <Badge variant="outline" className="font-black italic px-3 md:px-4 py-0.5 md:py-1 rounded-lg md:rounded-xl border-2 text-slate-400 text-[7px] md:text-[10px]">
+    <Card className="rounded-3xl bg-white p-[2vh] space-y-[1.5vh] w-full max-w-[80vh] shadow-2xl animate-slide-up border-none overflow-y-auto max-h-full custom-scrollbar flex flex-col">
+      <Badge variant="outline" className="self-start font-black italic px-3 py-1 rounded-lg border-2 text-slate-400 text-[1.2vh]">
         QUESTION {currentIdx + 1} / {activeQuestions.length}
       </Badge>
-      <h3 className="text-[11px] md:text-xl font-black italic text-slate-900 leading-tight">
+      <h3 className="text-[clamp(0.9rem,2.2vh,1.5rem)] font-black italic text-slate-900 leading-tight">
         {q.q || q.text}
       </h3>
-      <div className="grid gap-1 md:gap-2 p-0.5">
+      <div className="grid gap-[1vh] flex-1 min-h-0">
         {rawChoices.map((opt: any, idx: number) => (
           <button 
             key={idx} 
             disabled={isAnswered}
             onClick={() => handleAnswer(idx)} 
             className={cn(
-              "p-2 md:p-4 rounded-lg md:rounded-xl border-2 transition-all text-left flex items-start gap-2 md:gap-4 shadow-sm min-h-0",
+              "p-[1.5vh] rounded-xl border-2 transition-all text-left flex items-start gap-[1.5vh] shadow-sm flex-shrink min-h-0",
               !isAnswered ? "border-slate-100 bg-white hover:border-primary" : 
               idx === correctIdx ? "border-emerald-500 bg-emerald-50" : 
               idx === selectedIdx ? "border-red-500 bg-red-50" : "border-slate-50 opacity-40"
             )}
           >
             <div className={cn(
-              "h-4 w-4 md:h-8 md:w-8 flex items-center justify-center font-black text-[7px] md:text-[10px] shrink-0 border-2 rounded-full",
+              "h-[3vh] w-[3vh] flex items-center justify-center font-black text-[1.5vh] shrink-0 border-2 rounded-full",
               !isAnswered ? "bg-white text-slate-400" : 
               idx === correctIdx ? "bg-emerald-500 text-white" : 
               idx === selectedIdx ? "bg-red-500 text-white" : "bg-white text-slate-200"
             )}>
               {String.fromCharCode(65 + idx)}
             </div>
-            <span className="flex-1 text-[8px] md:text-sm font-black italic pt-0.5">{opt}</span>
+            <span className="flex-1 text-[clamp(0.7rem,1.6vh,1.1rem)] font-black italic pt-0.5">{opt}</span>
           </button>
         ))}
       </div>
       {isAnswered && (
-        <div className="bg-slate-50 p-2 md:p-4 rounded-xl md:rounded-2xl border-l-4 md:border-l-8 border-l-primary animate-slide-up space-y-1 md:space-y-3">
-          <p className="text-black font-bold italic text-[8px] md:text-xs leading-relaxed">{q.exp || q.explanation}</p>
-          <Button onClick={next} className="w-full h-7 md:h-10 rounded-lg md:rounded-xl bg-slate-900 text-white font-black uppercase italic tracking-widest text-[7px] md:text-[9px]">
-            {currentIdx < activeQuestions.length - 1 ? "PASSER À LA SUIVANTE" : "VOIR MON RÉSULTAT"}
+        <div className="flex-none bg-slate-50 p-[1.5vh] rounded-xl border-l-4 border-l-primary animate-slide-up space-y-[1vh]">
+          <p className="text-black font-bold italic text-[1.4vh] leading-relaxed line-clamp-3">{q.exp || q.explanation}</p>
+          <Button onClick={next} className="w-full h-[5vh] rounded-xl bg-slate-900 text-white font-black uppercase italic tracking-widest text-[1.5vh]">
+            {currentIdx < activeQuestions.length - 1 ? "SUIVANTE" : "RÉSULTAT"}
           </Button>
         </div>
       )}

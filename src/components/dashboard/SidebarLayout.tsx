@@ -11,16 +11,13 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { SimuLuxLogo } from './Sidebar';
 
 /**
- * SidebarLayout gère désormais une navigation hybride :
- * - Desktop : Sidebar fixe à gauche.
- * - Mobile : Header avec bouton Menu et Sidebar dans un Drawer (Sheet).
+ * SidebarLayout gère désormais une navigation hybride avec contrainte de hauteur stricte.
  */
 export function SidebarLayout({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Fermer le menu mobile lors d'un changement de route
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [pathname]);
@@ -32,9 +29,9 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col lg:flex-row overflow-hidden">
+    <div className="h-screen w-screen bg-background flex flex-col lg:flex-row overflow-hidden">
       {/* --- DESKTOP SIDEBAR --- */}
-      <aside className="hidden lg:block w-64 shrink-0">
+      <aside className="hidden lg:block w-64 shrink-0 h-full border-r bg-white">
         <Sidebar />
       </aside>
 
@@ -56,9 +53,9 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
         </Sheet>
       </header>
 
-      {/* --- MAIN CONTENT --- */}
+      {/* --- MAIN CONTENT (FIT TO SCREEN) --- */}
       <main className={cn(
-        "flex-1 flex flex-col h-[calc(100vh-64px)] lg:h-screen overflow-y-auto relative",
+        "flex-1 flex flex-col min-h-0 h-full relative overflow-hidden",
         "transition-all duration-300 ease-in-out"
       )}>
         {children}
