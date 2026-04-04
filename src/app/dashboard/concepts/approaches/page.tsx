@@ -208,12 +208,16 @@ function JargonCard({ term, def }: { term: string, def: string }) {
           <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
             <RotateCcw className="h-4 w-4 text-emerald-300" />
           </div>
-          <h3 className="text-[clamp(1.2rem,5.5vh,4.5rem)] font-black italic uppercase tracking-tight text-center leading-[1.1]">{term}</h3>
+          <h3 className="text-[clamp(1rem,3.5vh,3rem)] font-black italic uppercase tracking-tight text-center leading-[1.1] break-words hyphens-auto px-[2vh] w-full">
+            {term}
+          </h3>
         </div>
         {/* VERSO : Gris Anthracite */}
-        <div className="absolute inset-0 backface-hidden rotate-y-180 bg-[#1e293b] text-white rounded-2xl flex items-center justify-center p-[3vh] shadow-2xl border-2 border-slate-700">
+        <div className="absolute inset-0 backface-hidden rotate-y-180 bg-[#1e293b] text-white rounded-2xl flex items-center justify-center p-[3vh] shadow-2xl border-2 border-slate-700 overflow-hidden">
           <div className="h-full w-full overflow-y-auto custom-scrollbar flex items-center justify-center">
-            <p className="text-center font-bold italic text-[clamp(1rem,2.8vh,2.5rem)] leading-relaxed">{def}</p>
+            <p className="text-center font-bold italic text-[clamp(0.9rem,2.5vh,2rem)] leading-relaxed">
+              {def}
+            </p>
           </div>
         </div>
       </div>
