@@ -12,7 +12,8 @@ import {
   Loader2, UserPlus, ChevronLeft, Users, User, Clock, Key, 
   Trash2, BarChart, Target, Mail, Pencil, CalendarDays, 
   ShieldCheck, Filter, Building2, GraduationCap, MailWarning,
-  CheckCircle2, RefreshCw, Info, MoreHorizontal
+  CheckCircle2, RefreshCw, Info, MoreHorizontal, LayoutDashboard,
+  Eye
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -221,6 +222,11 @@ export default function UsersListPage() {
                       </TableCell>
                       <TableCell className="text-right px-10">
                         <div className="flex justify-end gap-2">
+                          {u.role === 'user' && (
+                            <Button variant="outline" size="sm" asChild className="h-10 px-4 rounded-xl border-2 font-black uppercase text-[10px] italic text-primary hover:bg-primary/5">
+                              <Link href={`/admin/users/${u.id}/dashboard`}><LayoutDashboard className="mr-2 h-3.5 w-3.5" /> Dashboard</Link>
+                            </Button>
+                          )}
                           <Button variant="ghost" size="icon" asChild className="h-10 w-10 rounded-xl border-2 hover:bg-slate-50"><Link href={`/admin/users/${u.id}/edit`}><Pencil className="h-4 w-4 text-slate-400" /></Link></Button>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl border-2 hover:bg-slate-50"><MoreHorizontal className="h-4 w-4 text-slate-400" /></Button></DropdownMenuTrigger>
