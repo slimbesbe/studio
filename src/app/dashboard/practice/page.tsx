@@ -183,11 +183,11 @@ function PracticeContent() {
                 {q.statement || q.text}
               </CardTitle>
               {q.imageUrl && (
-                <div className="rounded-[32px] overflow-hidden border-4 border-slate-100 shadow-inner bg-slate-50 p-4">
+                <div className="rounded-[2vh] overflow-hidden border-2 border-slate-100 bg-white p-[0.5vh] flex justify-center shadow-md">
                   <img 
                     src={q.imageUrl} 
                     alt="Illustration" 
-                    className="max-h-[350px] w-auto mx-auto object-contain rounded-2xl"
+                    className="max-h-[45vh] w-full object-contain rounded-lg"
                   />
                 </div>
               )}
@@ -338,11 +338,11 @@ function PracticeContent() {
                 {q.statement || q.text}
               </CardTitle>
               {q.imageUrl && (
-                <div className="rounded-[32px] overflow-hidden border-4 border-slate-100 shadow-inner bg-slate-50 p-4">
+                <div className="rounded-[2vh] overflow-hidden border-2 border-slate-100 bg-white p-[0.5vh] flex justify-center shadow-md">
                   <img 
                     src={q.imageUrl} 
                     alt="Illustration" 
-                    className="max-h-[350px] w-auto mx-auto object-contain rounded-2xl"
+                    className="max-h-[45vh] w-full object-contain rounded-lg"
                   />
                 </div>
               )}

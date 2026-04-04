@@ -276,8 +276,8 @@ function ExamRunContent() {
             </div>
           </div>
           <div className="flex-none p-[3vh] border-t-2 border-dashed flex gap-[2vh] bg-slate-50">
-            <Button variant="outline" className="flex-1 h-[8vh] rounded-2xl border-4 font-black uppercase text-[1.5vh]" asChild><Link href="/dashboard/history">HISTORIQUE</Link></Button>
-            <Button className="flex-1 h-[8vh] rounded-2xl bg-[#1d4ed8] font-black uppercase text-[1.5vh] shadow-xl" asChild><Link href="/dashboard">TABLEAU DE BORD</Link></Button>
+            <Button variant="outline" className="flex-1 h-8vh rounded-2xl border-4 font-black uppercase text-[1.5vh]" asChild><Link href="/dashboard/history">HISTORIQUE</Link></Button>
+            <Button className="flex-1 h-8vh rounded-2xl bg-[#1d4ed8] font-black uppercase text-[1.5vh] shadow-xl" asChild><Link href="/dashboard">TABLEAU DE BORD</Link></Button>
           </div>
         </Card>
       </div>
@@ -291,7 +291,7 @@ function ExamRunContent() {
           <div className="bg-emerald-50 h-[12vh] w-[12vh] rounded-[3vh] flex items-center justify-center shadow-inner"><Clock className="h-[6vh] w-[6vh] text-emerald-600" /></div>
           <div className="space-y-[1vh]"><h2 className="text-[4vh] font-black italic uppercase text-emerald-600">Break</h2><p className="text-[1.8vh] font-bold text-slate-500 italic">10 minutes rest period.</p></div>
           <div className="text-[8vh] font-black italic tabular-nums text-slate-800 bg-slate-50 w-full py-[4vh] rounded-3xl border-2 border-dashed border-emerald-100">{formatMMSS(breakTimeLeft)}</div>
-          <Button onClick={startNextSection} className="h-[8vh] w-full rounded-2xl bg-emerald-600 font-black uppercase text-[2vh] shadow-xl">RESUME NOW</Button>
+          <Button onClick={startNextSection} className="h-8vh w-full rounded-2xl bg-emerald-600 font-black uppercase text-[2vh] shadow-xl">RESUME NOW</Button>
         </Card>
       </div>
     );
@@ -315,8 +315,8 @@ function ExamRunContent() {
             })}
           </div>
           <div className="flex-none flex flex-col sm:flex-row gap-[2vh] pt-[4vh]">
-            <Button variant="outline" className="flex-1 h-[8vh] rounded-2xl border-4 font-black uppercase text-[1.5vh]" onClick={() => setViewMode('question')}>BACK TO QUESTIONS</Button>
-            <Button className="flex-1 h-[8vh] rounded-2xl bg-red-600 font-black uppercase text-[1.5vh] shadow-xl text-white" onClick={currentSection < 3 && (currentSection * SECTION_SIZE < questions.length) ? () => setViewMode('break') : finishExam}>
+            <Button variant="outline" className="flex-1 h-8vh rounded-2xl border-4 font-black uppercase text-[1.5vh]" onClick={() => setViewMode('question')}>BACK TO QUESTIONS</Button>
+            <Button className="flex-1 h-8vh rounded-2xl bg-red-600 font-black uppercase text-[1.5vh] shadow-xl text-white" onClick={currentSection < 3 && (currentSection * SECTION_SIZE < questions.length) ? () => setViewMode('break') : finishExam}>
               {currentSection < 3 && (currentSection * SECTION_SIZE < questions.length) ? "FINISH & BREAK" : "FINISH EXAM"}
             </Button>
           </div>
@@ -360,7 +360,15 @@ function ExamRunContent() {
             <div className="flex-none space-y-[2vh]">
               {currentQuestion?.isMultipleCorrect && <Badge className="bg-indigo-100 text-indigo-600 border-none font-black italic uppercase text-[1vh] py-[0.5vh] px-[2vh]">Multiple Selection</Badge>}
               <h2 className="text-[clamp(1rem,2.2vh,1.8rem)] font-black text-slate-800 italic leading-relaxed">{currentQuestion?.text}</h2>
-              {currentQuestion?.imageUrl && <div className="rounded-[2vh] overflow-hidden border-2 border-slate-100 bg-slate-50 p-[1vh] flex justify-center"><img src={currentQuestion.imageUrl} alt="Case" className="max-h-[25vh] w-auto object-contain rounded-xl" /></div>}
+              {currentQuestion?.imageUrl && (
+                <div className="rounded-[2vh] overflow-hidden border-2 border-slate-100 bg-white p-[0.5vh] flex justify-center shadow-md group relative">
+                  <img 
+                    src={currentQuestion.imageUrl} 
+                    alt="Case illustration" 
+                    className="max-h-[45vh] w-full object-contain rounded-lg transition-transform duration-300 hover:scale-[1.01]" 
+                  />
+                </div>
+              )}
             </div>
 
             <div className="grid gap-[1vh] flex-none">

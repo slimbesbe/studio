@@ -357,8 +357,8 @@ function KillMistakesContent() {
                     )}
                     <p className="text-2xl font-black text-slate-800 italic leading-relaxed">{questionDetails.statement || questionDetails.text}</p>
                     {questionDetails.imageUrl && (
-                      <div className="rounded-3xl overflow-hidden border-4 border-slate-100 p-4 bg-slate-50">
-                        <img src={questionDetails.imageUrl} alt="Case illustration" className="max-h-[350px] w-auto mx-auto object-contain rounded-xl" />
+                      <div className="rounded-[2vh] overflow-hidden border-2 border-slate-100 bg-white p-[0.5vh] flex justify-center shadow-md">
+                        <img src={questionDetails.imageUrl} alt="Case illustration" className="max-h-[45vh] w-full object-contain rounded-lg" />
                       </div>
                     )}
                   </div>
@@ -426,8 +426,8 @@ function KillMistakesContent() {
                   <div className="space-y-6">
                     <p className="text-xl font-black text-slate-800 italic leading-relaxed">{questionDetails?.statement || questionDetails?.text}</p>
                     {questionDetails?.imageUrl && (
-                      <div className="rounded-3xl overflow-hidden border-4 border-slate-100 p-4 bg-slate-50">
-                        <img src={questionDetails.imageUrl} alt="Illustration" className="max-h-[300px] w-auto mx-auto object-contain rounded-xl" />
+                      <div className="rounded-[2vh] overflow-hidden border-2 border-slate-100 bg-white p-[0.5vh] flex justify-center shadow-md">
+                        <img src={questionDetails.imageUrl} alt="Illustration" className="max-h-[45vh] w-full object-contain rounded-lg" />
                       </div>
                     )}
                   </div>
@@ -590,8 +590,8 @@ function KillMistakesContent() {
                       )}
                       <p className="text-lg font-bold text-slate-700 italic leading-relaxed">{questionDetails.statement || questionDetails.text}</p>
                       {questionDetails.imageUrl && (
-                        <div className="rounded-2xl overflow-hidden border-2 border-slate-200 p-2 bg-white">
-                          <img src={questionDetails.imageUrl} alt="Case illustration" className="max-h-[300px] w-auto mx-auto object-contain rounded-lg" />
+                        <div className="rounded-[2vh] overflow-hidden border-2 border-slate-100 bg-white p-[0.5vh] flex justify-center shadow-md">
+                          <img src={questionDetails.imageUrl} alt="Case illustration" className="max-h-[45vh] w-full object-contain rounded-lg" />
                         </div>
                       )}
                     </div>

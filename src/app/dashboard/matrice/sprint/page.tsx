@@ -203,6 +203,15 @@ function MatrixSprintContent() {
               <CardTitle className="text-xl leading-relaxed font-black italic text-slate-800">
                 {q.statement || q.text}
               </CardTitle>
+              {q.imageUrl && (
+                <div className="rounded-[2vh] overflow-hidden border-2 border-slate-100 bg-white p-[0.5vh] flex justify-center shadow-md">
+                  <img 
+                    src={q.imageUrl} 
+                    alt="Illustration" 
+                    className="max-h-[45vh] w-full object-contain rounded-lg"
+                  />
+                </div>
+              )}
             </div>
           </CardHeader>
           <CardContent className="p-8 space-y-4">
@@ -228,7 +237,7 @@ function MatrixSprintContent() {
                       q.isMultipleCorrect ? "rounded-xl" : "rounded-full",
                       isSelected ? "bg-primary text-white border-primary" : "bg-white text-slate-400",
                       correction && isCorrect ? "bg-emerald-500 text-white border-emerald-500" : "",
-                      correction && isSelected && !isCorrect ? "bg-red-500 text-white border-red-500" : ""
+                      correction && isSelected && !isCorrect ? "border-red-500 text-red-500" : ""
                     )}>
                       {String.fromCharCode(65 + idx)}
                     </div>
@@ -243,7 +252,7 @@ function MatrixSprintContent() {
             {correction && (
               <div className="mt-8 p-6 bg-slate-50 rounded-[24px] border-l-8 border-l-primary animate-slide-up shadow-inner">
                 <h4 className="font-black text-primary flex items-center gap-2 mb-3 uppercase tracking-widest italic text-xs">
-                  <Info className="h-4 w-4" /> Justification Mindset
+                  <span className="flex items-center justify-center h-4 w-4 rounded-full bg-primary/10"><Info className="h-3 w-3" /></span> Justification Mindset
                 </h4>
                 <div className="text-sm font-bold italic text-slate-700 leading-relaxed whitespace-pre-wrap">
                   {correction.explanation}
@@ -309,7 +318,18 @@ function MatrixSprintContent() {
         </div>
         <Card className={cn("shadow-2xl border-t-8 rounded-[32px] overflow-hidden bg-white", corr.isCorrect ? "border-t-emerald-500" : "border-t-red-500")}>
           <CardContent className="p-10 space-y-8">
-            <p className="text-xl font-black text-slate-800 italic leading-relaxed">{q.statement || q.text}</p>
+            <div className="space-y-6">
+              <p className="text-xl font-black text-slate-800 italic leading-relaxed">{q.statement || q.text}</p>
+              {q.imageUrl && (
+                <div className="rounded-[2vh] overflow-hidden border-2 border-slate-100 bg-white p-[0.5vh] flex justify-center shadow-md">
+                  <img 
+                    src={q.imageUrl} 
+                    alt="Illustration" 
+                    className="max-h-[45vh] w-full object-contain rounded-lg"
+                  />
+                </div>
+              )}
+            </div>
             <div className="grid gap-3">
               {(q.options || q.choices || []).map((opt: any, idx: number) => {
                 const choiceId = opt.id || String(idx + 1);

@@ -136,6 +136,15 @@ export default function SimulationReviewPage() {
                   )}
                 </div>
                 <p className="text-2xl font-black text-slate-800 italic leading-relaxed">{currentQ.text}</p>
+                {currentQ.imageUrl && (
+                  <div className="rounded-[2vh] overflow-hidden border-2 border-slate-100 bg-white p-[0.5vh] flex justify-center shadow-md">
+                    <img 
+                      src={currentQ.imageUrl} 
+                      alt="Illustration" 
+                      className="max-h-[45vh] w-full object-contain rounded-lg"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="grid gap-4">
