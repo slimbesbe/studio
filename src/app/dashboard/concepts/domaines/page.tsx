@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
@@ -86,7 +86,7 @@ export default function VisionDomainesPage() {
   const totalPages = Math.ceil(jargonList.length / pageSize);
 
   return (
-    <div className="flex-1 flex flex-col h-[calc(100vh-100px)] overflow-hidden animate-fade-in space-y-3 p-4">
+    <div className="flex-1 flex flex-col h-[calc(100vh-100px)] overflow-hidden animate-fade-in space-y-3 p-4 box-border">
       {/* HEADER ULTRA COMPACT */}
       <div className="shrink-0 flex justify-between items-end">
         <div className="space-y-0.5">
@@ -117,7 +117,7 @@ export default function VisionDomainesPage() {
       </div>
 
       {/* CONTROLES ET TABS - UNE SEULE LIGNE */}
-      <div className="shrink-0 flex items-center justify-between bg-white p-2 rounded-2xl border border-slate-100 shadow-sm">
+      <div className="shrink-0 flex items-center justify-between bg-white p-2 rounded-2xl border border-slate-100 shadow-sm h-14">
         <div className="flex items-center gap-4">
           <h2 className="text-xs font-black italic uppercase tracking-tight text-slate-900 ml-2">{currentData.title}</h2>
           <div className="flex bg-slate-100 p-1 rounded-xl border">
@@ -166,7 +166,7 @@ export default function VisionDomainesPage() {
       {/* GRILLE DYNAMIQUE 3X2 - OCCUPE TOUT LE RESTE DE L'ECRAN */}
       <div className="flex-1 min-h-0">
         {activeTab === 'jargon' ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 grid-rows-2 gap-3 h-full animate-slide-up">
+          <div className="grid grid-cols-1 md:grid-cols-3 grid-rows-2 gap-3 h-full animate-slide-up box-border">
             {paginatedJargon.map((item: any, idx: number) => (
               <JargonCard key={idx} term={item.term} def={item.def} />
             ))}
@@ -175,7 +175,7 @@ export default function VisionDomainesPage() {
             ))}
           </div>
         ) : (
-          <div className="h-full flex items-center justify-center py-4">
+          <div className="h-full flex items-center justify-center py-4 min-h-0">
             <QuickQuiz questions={currentData.quiz || []} axisId={activeDomain} userId={user?.uid || ''} db={db} />
           </div>
         )}
@@ -194,15 +194,15 @@ export default function VisionDomainesPage() {
 function JargonCard({ term, def }: { term: string, def: string }) {
   const [isFlipped, setIsFlipped] = useState(false);
   return (
-    <div className="perspective-1000 h-full w-full cursor-pointer group" onClick={() => setIsFlipped(!isFlipped)}>
+    <div className="perspective-1000 h-full w-full cursor-pointer group box-border min-h-0" onClick={() => setIsFlipped(!isFlipped)}>
       <div className={cn("relative w-full h-full transition-transform duration-500 preserve-3d", isFlipped ? "rotate-y-180" : "")}>
         {/* RECTO : Vert très clair et doux */}
-        <div className="absolute inset-0 backface-hidden bg-[#f0fdf4] text-[#1e293b] rounded-[24px] flex flex-col items-center justify-center p-6 shadow-md border-2 border-emerald-100">
-          <h3 className="text-lg font-black italic uppercase tracking-tight text-center leading-tight">{term}</h3>
+        <div className="absolute inset-0 backface-hidden bg-[#f0fdf4] text-[#1e293b] rounded-[24px] flex flex-col items-center justify-center p-4 shadow-md border-2 border-emerald-100 overflow-hidden">
+          <h3 className="text-sm md:text-lg font-black italic uppercase tracking-tight text-center leading-tight">{term}</h3>
         </div>
         {/* VERSO : Gris Anthracite profond */}
-        <div className="absolute inset-0 backface-hidden rotate-y-180 bg-[#1e293b] text-white rounded-[24px] flex items-center justify-center p-6 shadow-xl border-2 border-slate-700">
-          <p className="text-center font-bold italic text-xs leading-relaxed">{def}</p>
+        <div className="absolute inset-0 backface-hidden rotate-y-180 bg-[#1e293b] text-white rounded-[24px] flex items-center justify-center p-4 shadow-xl border-2 border-slate-700 overflow-y-auto custom-scrollbar">
+          <p className="text-center font-bold italic text-[10px] md:text-xs leading-relaxed">{def}</p>
         </div>
       </div>
     </div>
@@ -275,42 +275,42 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
   const correctIdx = q.c !== undefined ? Number(q.c) : 0;
 
   return (
-    <Card className="rounded-[40px] bg-white p-8 space-y-6 w-full max-w-2xl shadow-2xl animate-slide-up border-none overflow-hidden max-h-full">
+    <Card className="rounded-[40px] bg-white p-6 space-y-4 w-full max-w-2xl shadow-2xl animate-slide-up border-none overflow-y-auto max-h-full custom-scrollbar box-border">
       <Badge variant="outline" className="font-black italic px-4 py-1 rounded-xl border-2 text-slate-400 text-[10px]">
         QUESTION {currentIdx + 1} / {activeQuestions.length}
       </Badge>
-      <h3 className="text-xl font-black italic text-slate-900 leading-tight">
+      <h3 className="text-lg md:text-xl font-black italic text-slate-900 leading-tight">
         {q.q || q.text}
       </h3>
-      <div className="grid gap-3 p-1">
+      <div className="grid gap-2 p-1">
         {rawChoices.map((opt: any, idx: number) => (
           <button 
             key={idx} 
             disabled={isAnswered}
             onClick={() => handleAnswer(idx)} 
             className={cn(
-              "p-4 rounded-xl border-2 transition-all text-left flex items-start gap-4 shadow-sm",
+              "p-3 md:p-4 rounded-xl border-2 transition-all text-left flex items-start gap-4 shadow-sm min-h-0",
               !isAnswered ? "border-slate-100 bg-white hover:border-primary" : 
               idx === correctIdx ? "border-emerald-500 bg-emerald-50" : 
               idx === selectedIdx ? "border-red-500 bg-red-50" : "border-slate-50 opacity-40"
             )}
           >
             <div className={cn(
-              "h-8 w-8 flex items-center justify-center font-black text-[10px] shrink-0 border-2 rounded-full",
+              "h-6 w-6 md:h-8 md:w-8 flex items-center justify-center font-black text-[10px] shrink-0 border-2 rounded-full",
               !isAnswered ? "bg-white text-slate-400" : 
               idx === correctIdx ? "bg-emerald-500 text-white" : 
               idx === selectedIdx ? "bg-red-500 text-white" : "bg-white text-slate-200"
             )}>
               {String.fromCharCode(65 + idx)}
             </div>
-            <span className="flex-1 text-sm font-black italic pt-1">{opt}</span>
+            <span className="flex-1 text-xs md:text-sm font-black italic pt-1">{opt}</span>
           </button>
         ))}
       </div>
       {isAnswered && (
-        <div className="bg-slate-50 p-5 rounded-2xl border-l-8 border-l-primary animate-slide-up space-y-4">
-          <p className="text-black font-bold italic text-xs leading-relaxed">{q.exp || q.explanation}</p>
-          <Button onClick={next} className="w-full h-12 rounded-xl bg-slate-900 text-white font-black uppercase italic tracking-widest text-[10px]">
+        <div className="bg-slate-50 p-4 rounded-2xl border-l-8 border-l-primary animate-slide-up space-y-3">
+          <p className="text-black font-bold italic text-[10px] md:text-xs leading-relaxed">{q.exp || q.explanation}</p>
+          <Button onClick={next} className="w-full h-10 rounded-xl bg-slate-900 text-white font-black uppercase italic tracking-widest text-[9px]">
             {currentIdx < activeQuestions.length - 1 ? "PASSER À LA SUIVANTE" : "VOIR MON RÉSULTAT"}
           </Button>
         </div>
