@@ -14,7 +14,8 @@ import {
   Trophy,
   Loader2,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  RotateCcw
 } from 'lucide-react';
 import { useUser, useFirestore } from '@/firebase';
 import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
@@ -60,7 +61,7 @@ export default function VisionDomainesPage() {
   useEffect(() => {
     async function load() {
       if (!user) return;
-      setIsLoading(true);
+      setIsDataLoading(true);
       try {
         const snap = await getDoc(doc(db, 'concepts_domains', activeDomain));
         if (snap.exists()) {
@@ -71,7 +72,7 @@ export default function VisionDomainesPage() {
       } catch (e) {
         setDomainData(DEFAULT_DOMAIN_DATA[activeDomain]);
       } finally {
-        setIsLoading(false);
+        setIsDataLoading(false);
         setCurrentPage(0);
       }
     }
