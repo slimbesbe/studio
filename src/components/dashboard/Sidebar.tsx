@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from 'next/link';
@@ -59,7 +58,6 @@ export function Sidebar() {
   const auth = useAuth();
   const [conceptsOpen, setConceptsOpen] = useState(pathname.includes('/concepts'));
   
-  // State pour permettre à l'admin de basculer sa vision
   const [isAdminMode, setIsAdminMode] = useState(pathname.startsWith('/admin'));
 
   useEffect(() => {
@@ -67,7 +65,7 @@ export function Sidebar() {
     if (pathname.startsWith('/dashboard')) setIsAdminMode(false);
   }, [pathname]);
 
-  if (isUserLoading || !user || pathname === '/' || pathname === '/login' || pathname === '/access-denied') {
+  if (isUserLoading || !user) {
     return null;
   }
 
@@ -93,7 +91,7 @@ export function Sidebar() {
     : user?.email?.[0].toUpperCase() || '?';
 
   return (
-    <div className="flex flex-col h-full bg-white text-slate-600 w-64 fixed left-0 top-0 z-40 border-r border-slate-100 shadow-[10px_0_30px_rgba(0,0,0,0.02)]">
+    <div className="flex flex-col h-full bg-white text-slate-600 w-full lg:w-64 border-r border-slate-100 shadow-[10px_0_30px_rgba(0,0,0,0.02)]">
       {/* Header Logo */}
       <div className="h-24 flex flex-col items-center justify-center px-6 border-b border-slate-50 bg-white">
         <Link className="flex flex-col items-center group w-full" href={isAdminMode ? "/admin/dashboard" : "/dashboard"}>
@@ -107,7 +105,6 @@ export function Sidebar() {
       {/* Navigation */}
       <div className="flex-1 py-8 px-4 space-y-1 overflow-y-auto custom-scrollbar">
         
-        {/* Switcher pour l'Admin */}
         {isProfileAdmin && (
           <div className="mb-6 px-2">
             <Button 
@@ -147,9 +144,9 @@ export function Sidebar() {
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-1 mt-1 ml-4 border-l-2 border-slate-50 pl-2">
-                <Link href="/dashboard/concepts/approches" className={cn(
+                <Link href="/dashboard/concepts/approaches" className={cn(
                   "flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-bold transition-all hover:text-primary",
-                  pathname === '/dashboard/concepts/approches' ? "text-primary" : "text-slate-400"
+                  pathname === '/dashboard/concepts/approaches' ? "text-primary" : "text-slate-400"
                 )}>
                   <Globe className="h-3.5 w-3.5" /> Vision Approches
                 </Link>
