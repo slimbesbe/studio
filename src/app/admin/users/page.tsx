@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useAuth } from '@/firebase';
-import { collection, doc, updateDoc, Timestamp, deleteDoc, query, where, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, updateDoc, deleteDoc, query, where, serverTimestamp } from 'firebase/firestore';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -10,20 +10,46 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { 
   Loader2, UserPlus, ChevronLeft, Users, User, Clock, Key, 
-  Trash2, BarChart, Target, Mail, Pencil, CalendarDays, 
-  ShieldCheck, Filter, Building2, GraduationCap, MailWarning,
-  CheckCircle2, RefreshCw, Info, MoreHorizontal, LayoutDashboard,
-  Eye
+  Trash2, Mail, Pencil, ShieldCheck, GraduationCap, 
+  MoreHorizontal, LayoutDashboard, RefreshCw, Info, Search
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger, 
+  DropdownMenuSeparator 
+} from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle 
+} from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter, 
+  DialogDescription 
+} from '@/components/ui/dialog';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
 
 export default function UsersListPage() {
   const { user: currentUser, profile, isUserLoading } = useUser();
@@ -45,6 +71,13 @@ export default function UsersListPage() {
   const isSA = profile?.role === 'super_admin';
   const isAdmin = isSA || profile?.role === 'admin';
   const isPartner = profile?.role === 'partner';
+
+  // SÉCURITÉ : Forcer le déblocage du body si coincé (anti-bug Radix)
+  useEffect(() => {
+    if (!userToDelete && !passwordChangeUser) {
+      document.body.style.pointerEvents = 'auto';
+    }
+  }, [userToDelete, passwordChangeUser]);
 
   const usersQuery = useMemoFirebase(() => {
     if (isSA || isAdmin) return collection(db, 'users');
@@ -73,13 +106,16 @@ export default function UsersListPage() {
   }, [users, searchTerm, roleFilter, groupFilter]);
 
   const toggleStatus = async (userId: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'active' ? 'disabled' : 'active';
-    try {
-      await updateDoc(doc(db, 'users', userId), { status: newStatus, updatedAt: serverTimestamp() });
-      toast({ title: "Statut mis à jour", description: `Le compte est désormais ${newStatus === 'active' ? 'actif' : 'suspendu'}.` });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Erreur", description: e.message });
-    }
+    // On attend un court instant pour laisser le dropdown se fermer proprement
+    setTimeout(async () => {
+      const newStatus = currentStatus === 'active' ? 'disabled' : 'active';
+      try {
+        await updateDoc(doc(db, 'users', userId), { status: newStatus, updatedAt: serverTimestamp() });
+        toast({ title: "Statut mis à jour", description: `Le compte est désormais ${newStatus === 'active' ? 'actif' : 'suspendu'}.` });
+      } catch (e: any) {
+        toast({ variant: "destructive", title: "Erreur", description: e.message });
+      }
+    }, 100);
   };
 
   const handleUpdatePasswordMemo = async () => {
@@ -93,11 +129,11 @@ export default function UsersListPage() {
         password: newPassword,
         updatedAt: serverTimestamp()
       });
-      toast({ title: "Mémo mis à jour", description: "Référence enregistrée. N'oubliez pas d'envoyer l'email pour synchroniser l'accès réel." });
+      toast({ title: "Mémo mis à jour" });
       setPasswordChangeUser(null);
       setNewPassword('');
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Erreur", description: e.message });
+      toast({ variant: "destructive", title: "Erreur" });
     } finally {
       setIsChangingPassword(false);
     }
@@ -108,10 +144,10 @@ export default function UsersListPage() {
     setIsSendingReset(true);
     try {
       await sendPasswordResetEmail(auth, passwordChangeUser.email);
-      toast({ title: "Email envoyé", description: `Lien de synchronisation envoyé à ${passwordChangeUser.email}` });
+      toast({ title: "Email envoyé", description: `Lien envoyé à ${passwordChangeUser.email}` });
       setPasswordChangeUser(null);
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Erreur d'envoi", description: e.message });
+      toast({ variant: "destructive", title: "Erreur d'envoi" });
     } finally {
       setIsSendingReset(false);
     }
@@ -124,14 +160,15 @@ export default function UsersListPage() {
     const idToDelete = userToDelete.id;
     
     try {
-      // FERMETURE IMMÉDIATE de l'UI pour éviter le blocage des pointer-events
-      setUserToDelete(null);
-      
       await deleteDoc(doc(db, 'users', idToDelete));
-      toast({ title: "Utilisateur supprimé", description: "Profil retiré de la base de données." });
+      toast({ title: "Utilisateur supprimé" });
+      // On attend la fin de l'animation de fermeture
+      setTimeout(() => {
+        setUserToDelete(null);
+        setIsDeleting(false);
+      }, 100);
     } catch (e: any) {
       toast({ variant: "destructive", title: "Erreur", description: e.message });
-    } finally {
       setIsDeleting(false);
     }
   };
@@ -193,7 +230,7 @@ export default function UsersListPage() {
 
       <div className="bg-white p-6 rounded-[32px] shadow-lg border-2 mb-6">
         <div className="relative">
-          <User className="absolute left-4 top-4 h-6 w-6 text-slate-300" />
+          <Search className="absolute left-4 top-4 h-6 w-6 text-slate-300" />
           <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Rechercher par nom ou email..." className="h-14 rounded-2xl pl-14 font-bold italic border-2 bg-white" />
         </div>
       </div>
@@ -237,9 +274,14 @@ export default function UsersListPage() {
                             </Button>
                           )}
                           <Button variant="ghost" size="icon" asChild className="h-10 w-10 rounded-xl border-2 hover:bg-slate-50"><Link href={`/admin/users/${u.id}/edit`}><Pencil className="h-4 w-4 text-slate-400" /></Link></Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl border-2 hover:bg-slate-50"><MoreHorizontal className="h-4 w-4 text-slate-400" /></Button></DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-64 p-2 rounded-2xl shadow-2xl border-4">
+                          
+                          <DropdownMenu modal={false}>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl border-2 hover:bg-slate-50">
+                                <MoreHorizontal className="h-4 w-4 text-slate-400" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-64 p-2 rounded-2xl shadow-2xl border-4 bg-white z-[100]">
                               <DropdownMenuItem onClick={() => toggleStatus(u.id, u.status)} className="h-12 rounded-xl font-black uppercase text-xs italic cursor-pointer">{u.status === 'active' ? '🚫 Suspendre' : '✅ Réactiver'}</DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { setPasswordChangeUser(u); setNewPassword(''); }} className="h-12 rounded-xl font-black uppercase text-xs italic cursor-pointer"><Key className="mr-3 h-4 w-4" /> Accès & Sync</DropdownMenuItem>
                               <DropdownMenuSeparator className="my-2" />
@@ -257,6 +299,7 @@ export default function UsersListPage() {
         </CardContent>
       </Card>
 
+      {/* DIALOGS POSITIONNÉS À L'EXTÉRIEUR POUR ÉVITER LES CONFLITS DE RENDU */}
       <Dialog open={!!passwordChangeUser} onOpenChange={(val) => !val && setPasswordChangeUser(null)}>
         <DialogContent className="rounded-[40px] max-w-lg p-12 border-4 shadow-3xl">
           <DialogHeader>
@@ -272,26 +315,11 @@ export default function UsersListPage() {
               <div className="space-y-2">
                 <Label className="font-black uppercase text-[10px] text-slate-400 italic">Modifier le mémo (Admin uniquement)</Label>
                 <Input value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Nouveau mot de passe mémo..." className="h-14 rounded-xl font-black italic border-2 bg-white" />
-                <p className="text-[9px] font-bold text-slate-400 leading-tight italic">
-                  Note : Modifier ce champ ne change pas l'accès réel de l'utilisateur. Utilisez le bouton de synchronisation ci-dessous.
-                </p>
               </div>
-              
-              <div className="relative py-2">
-                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-dashed" /></div>
-                <div className="relative flex justify-center text-[9px] uppercase"><span className="bg-white px-2 text-primary font-black italic tracking-widest">Action Réelle</span></div>
-              </div>
-
-              <Button variant="outline" className="w-full h-16 rounded-xl font-black uppercase italic text-xs gap-3 border-4 border-amber-200 text-amber-700 hover:bg-amber-50 shadow-sm" onClick={handleSendResetEmail} disabled={isSendingReset}>
+              <Button variant="outline" className="w-full h-16 rounded-xl font-black uppercase italic text-xs gap-3 border-4 border-amber-200 text-amber-700 hover:bg-amber-50" onClick={handleSendResetEmail} disabled={isSendingReset}>
                 {isSendingReset ? <Loader2 className="animate-spin h-5 w-5" /> : <RefreshCw className="h-5 w-5" />}
                 Envoyer Lien de Synchronisation
               </Button>
-              <div className="flex items-start gap-2 bg-blue-50 p-3 rounded-xl border border-blue-100">
-                <Info className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
-                <p className="text-[9px] font-bold text-blue-600 leading-relaxed italic">
-                  C'est la seule méthode pour mettre à jour l'accès réel de l'utilisateur. Il recevra un email pour définir son nouveau mot de passe.
-                </p>
-              </div>
             </div>
           </div>
           <DialogFooter className="gap-4">
@@ -314,10 +342,7 @@ export default function UsersListPage() {
           <AlertDialogFooter className="mt-8 gap-4">
             <AlertDialogCancel disabled={isDeleting} className="h-14 rounded-xl font-black uppercase border-4">Annuler</AlertDialogCancel>
             <AlertDialogAction 
-              onClick={(e) => {
-                e.preventDefault();
-                handleDeleteUser();
-              }} 
+              onClick={handleDeleteUser} 
               disabled={isDeleting}
               className="h-14 rounded-xl font-black bg-destructive hover:bg-red-700 shadow-xl"
             >
