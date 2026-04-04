@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
@@ -190,11 +189,11 @@ export default function UsersListPage() {
       </div>
 
       <Card className="shadow-2xl border-none overflow-hidden bg-white rounded-[40px]">
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow className="h-20 border-b-4">
-                <TableHead className="px-10 font-black uppercase tracking-widest text-xs">Utilisateur</TableHead>
+                <TableHead className="px-10 font-black uppercase tracking-widest text-xs min-w-[250px]">Utilisateur</TableHead>
                 <TableHead className="text-center font-black uppercase tracking-widest text-xs">Rôle</TableHead>
                 <TableHead className="text-center font-black uppercase tracking-widest text-xs">Groupe</TableHead>
                 <TableHead className="text-center font-black uppercase tracking-widest text-xs">Statut</TableHead>
@@ -221,16 +220,18 @@ export default function UsersListPage() {
                         <Badge variant={u.status === 'active' ? 'default' : 'destructive'} className="font-black italic uppercase text-[9px] px-3">{u.status === 'active' ? 'Actif' : 'Suspendu'}</Badge>
                       </TableCell>
                       <TableCell className="text-right px-10">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-12 w-12 rounded-xl border-2 hover:bg-slate-50"><Pencil className="h-5 w-5 text-slate-400" /></Button></DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-64 p-2 rounded-2xl shadow-2xl border-4">
-                            <DropdownMenuItem asChild className="h-12 rounded-xl font-black uppercase text-xs italic cursor-pointer"><Link href={`/admin/users/${u.id}/edit`}><Pencil className="mr-3 h-4 w-4" /> Modifier Profil</Link></DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => toggleStatus(u.id, u.status)} className="h-12 rounded-xl font-black uppercase text-xs italic cursor-pointer">{u.status === 'active' ? '🚫 Suspendre' : '✅ Réactiver'}</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => { setPasswordChangeUser(u); setNewPassword(''); }} className="h-12 rounded-xl font-black uppercase text-xs italic cursor-pointer"><Key className="mr-3 h-4 w-4" /> Accès & Sync</DropdownMenuItem>
-                            <DropdownMenuSeparator className="my-2" />
-                            <DropdownMenuItem onClick={() => setUserToDelete(u)} className="h-12 rounded-xl font-black uppercase text-xs italic text-destructive focus:bg-red-50 cursor-pointer"><Trash2 className="mr-3 h-4 w-4" /> Supprimer</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <div className="flex justify-end gap-2">
+                          <Button variant="ghost" size="icon" asChild className="h-10 w-10 rounded-xl border-2 hover:bg-slate-50"><Link href={`/admin/users/${u.id}/edit`}><Pencil className="h-4 w-4 text-slate-400" /></Link></Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl border-2 hover:bg-slate-50"><MoreHorizontal className="h-4 w-4 text-slate-400" /></Button></DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-64 p-2 rounded-2xl shadow-2xl border-4">
+                              <DropdownMenuItem onClick={() => toggleStatus(u.id, u.status)} className="h-12 rounded-xl font-black uppercase text-xs italic cursor-pointer">{u.status === 'active' ? '🚫 Suspendre' : '✅ Réactiver'}</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => { setPasswordChangeUser(u); setNewPassword(''); }} className="h-12 rounded-xl font-black uppercase text-xs italic cursor-pointer"><Key className="mr-3 h-4 w-4" /> Accès & Sync</DropdownMenuItem>
+                              <DropdownMenuSeparator className="my-2" />
+                              <DropdownMenuItem onClick={() => setUserToDelete(u)} className="h-12 rounded-xl font-black uppercase text-xs italic text-destructive focus:bg-red-50 cursor-pointer"><Trash2 className="mr-3 h-4 w-4" /> Supprimer</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );

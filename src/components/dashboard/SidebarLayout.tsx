@@ -11,7 +11,8 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { SimuLuxLogo } from './Sidebar';
 
 /**
- * SidebarLayout gère désormais une navigation hybride avec contrainte de hauteur stricte.
+ * SidebarLayout gère désormais une navigation hybride avec contrainte de hauteur stricte pour le dashboard,
+ * tout en permettant le défilement (scrolling) pour l'interface admin.
  */
 export function SidebarLayout({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
@@ -23,6 +24,7 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   const showNavigation = !!user && !isUserLoading && pathname !== '/' && pathname !== '/login';
+  const isAdmin = pathname.startsWith('/admin');
 
   if (!showNavigation) {
     return <main className="min-h-screen w-full">{children}</main>;
@@ -53,9 +55,10 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
         </Sheet>
       </header>
 
-      {/* --- MAIN CONTENT (FIT TO SCREEN) --- */}
+      {/* --- MAIN CONTENT --- */}
       <main className={cn(
-        "flex-1 flex flex-col min-h-0 h-full relative overflow-hidden",
+        "flex-1 flex flex-col min-h-0 h-full relative",
+        isAdmin ? "overflow-auto" : "overflow-hidden",
         "transition-all duration-300 ease-in-out"
       )}>
         {children}

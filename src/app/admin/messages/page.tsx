@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -43,7 +42,6 @@ export default function AdminCommunicationsPage() {
   const { data: messages, isLoading: isMessagesLoading } = useCollection(messagesQuery);
 
   // Liste des utilisateurs ayant utilisé le chat (basé sur la collection /chats)
-  // On récupère la liste des documents de /chats qui correspondent aux userIds
   const chatsQuery = useMemoFirebase(() => collection(db, 'users'), [db]);
   const { data: allUsers } = useCollection(chatsQuery);
 
@@ -112,12 +110,12 @@ export default function AdminCommunicationsPage() {
 
         <TabsContent value="support" className="animate-fade-in m-0">
           <Card className="rounded-[40px] shadow-2xl border-none overflow-hidden bg-white">
-            <CardContent className="p-0">
+            <CardContent className="p-0 overflow-x-auto">
               <Table>
                 <TableHeader className="bg-muted/30">
                   <TableRow className="h-20 border-b-4">
-                    <TableHead className="px-10 font-black uppercase tracking-widest text-xs">Utilisateur</TableHead>
-                    <TableHead className="font-black uppercase tracking-widest text-xs">Objet / Message</TableHead>
+                    <TableHead className="px-10 font-black uppercase tracking-widest text-xs min-w-[250px]">Utilisateur</TableHead>
+                    <TableHead className="font-black uppercase tracking-widest text-xs min-w-[300px]">Objet / Message</TableHead>
                     <TableHead className="text-center font-black uppercase tracking-widest text-xs">Statut</TableHead>
                     <TableHead className="text-right px-10 font-black uppercase tracking-widest text-xs">Actions</TableHead>
                   </TableRow>
@@ -166,11 +164,11 @@ export default function AdminCommunicationsPage() {
 
         <TabsContent value="chat" className="animate-fade-in m-0">
           <Card className="rounded-[40px] shadow-2xl border-none overflow-hidden bg-white">
-            <CardContent className="p-0">
+            <CardContent className="p-0 overflow-x-auto">
               <Table>
                 <TableHeader className="bg-muted/30">
                   <TableRow className="h-20 border-b-4">
-                    <TableHead className="px-10 font-black uppercase tracking-widest text-xs">Élève</TableHead>
+                    <TableHead className="px-10 font-black uppercase tracking-widest text-xs min-w-[250px]">Élève</TableHead>
                     <TableHead className="font-black uppercase tracking-widest text-xs">Groupe</TableHead>
                     <TableHead className="text-right px-10 font-black uppercase tracking-widest text-xs">Historique</TableHead>
                   </TableRow>

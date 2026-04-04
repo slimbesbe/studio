@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, Suspense } from 'react';
@@ -133,7 +132,7 @@ function QuestionsList() {
   if (!isAdmin) return null;
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-fade-in p-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild className="h-14 w-14 rounded-2xl border-2"><Link href="/admin/dashboard"><ChevronLeft className="h-6 w-6" /></Link></Button>
@@ -190,12 +189,12 @@ function QuestionsList() {
       </div>
 
       <Card className="rounded-[40px] shadow-2xl border-none overflow-hidden bg-white">
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow className="h-20 border-b-4">
                 <TableHead className="px-10 font-black uppercase tracking-widest text-xs w-32">Code</TableHead>
-                <TableHead className="font-black uppercase tracking-widest text-xs">Énoncé de la question</TableHead>
+                <TableHead className="font-black uppercase tracking-widest text-xs min-w-[400px]">Énoncé de la question</TableHead>
                 <TableHead className="text-center font-black uppercase tracking-widest text-xs">Source(s)</TableHead>
                 <TableHead className="text-right px-10 font-black uppercase tracking-widest text-xs">Actions</TableHead>
               </TableRow>
@@ -278,10 +277,8 @@ function QuestionsList() {
 
 export default function QuestionsPage() {
   return (
-    <section className="p-8 max-w-7xl mx-auto space-y-10">
-      <Suspense fallback={<div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>}>
-        <QuestionsList />
-      </Suspense>
-    </section>
+    <Suspense fallback={<div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>}>
+      <QuestionsList />
+    </Suspense>
   );
 }
