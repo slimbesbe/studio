@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Menu, X } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { SimuLuxLogo } from './Sidebar';
 
@@ -49,7 +49,7 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
             <Button variant="ghost" size="icon" className="rounded-xl border-2">
               <Menu className="h-6 w-6 text-primary" />
             </Button>
-          </Trigger>
+          </SheetTrigger>
           <SheetContent side="left" className="p-0 w-72 border-r-4 border-primary/10">
             <Sidebar />
           </SheetContent>
