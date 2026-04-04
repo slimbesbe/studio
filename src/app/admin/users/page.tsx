@@ -12,7 +12,7 @@ import {
   Loader2, UserPlus, ChevronLeft, Users, User, Clock, Key, 
   Trash2, BarChart, Target, Mail, Pencil, CalendarDays, 
   ShieldCheck, Filter, Building2, GraduationCap, MailWarning,
-  CheckCircle2, RefreshCw, Info
+  CheckCircle2, RefreshCw, Info, MoreHorizontal
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
