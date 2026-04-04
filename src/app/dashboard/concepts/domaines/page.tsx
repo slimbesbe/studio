@@ -86,17 +86,17 @@ export default function VisionDomainesPage() {
   const totalPages = Math.ceil(jargonList.length / pageSize);
 
   return (
-    <div className="flex-1 flex flex-col h-[calc(100vh-100px)] overflow-hidden animate-fade-in space-y-3 p-4 box-border">
+    <div className="flex-1 flex flex-col h-[calc(100vh-100px)] overflow-hidden animate-fade-in space-y-3 p-2 md:p-4 box-border">
       {/* HEADER ULTRA COMPACT */}
-      <div className="shrink-0 flex justify-between items-end">
+      <div className="shrink-0 flex justify-between items-end px-1">
         <div className="space-y-0.5">
-          <h1 className="text-2xl font-black italic uppercase tracking-tighter text-slate-900 leading-none">Vision Domaines</h1>
-          <p className="text-slate-500 font-bold uppercase tracking-widest text-[9px] italic">Les 3 piliers du PMP® en un coup d'œil.</p>
+          <h1 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter text-slate-900 leading-none">Vision Domaines</h1>
+          <p className="text-slate-500 font-bold uppercase tracking-widest text-[8px] md:text-[9px] italic">Les 3 piliers du PMP® en un coup d'œil.</p>
         </div>
       </div>
 
       {/* SELECTEUR DE DOMAINE COMPACT */}
-      <div className="shrink-0 grid grid-cols-3 gap-3 h-16">
+      <div className="shrink-0 grid grid-cols-3 gap-2 md:gap-3 h-14 md:h-16">
         {(['people', 'process', 'business'] as const).map((id) => {
           const isActive = activeDomain === id;
           const Ico = id === 'people' ? Users : id === 'process' ? Settings : Globe;
@@ -105,33 +105,33 @@ export default function VisionDomainesPage() {
               key={id} 
               onClick={() => { setActiveDomain(id); setActiveTab('jargon'); }} 
               className={cn(
-                "flex flex-col items-center justify-center rounded-2xl border-2 transition-all duration-300 gap-1 bg-white shadow-sm", 
+                "flex flex-col items-center justify-center rounded-xl md:rounded-2xl border-2 transition-all duration-300 gap-0.5 md:gap-1 bg-white shadow-sm", 
                 isActive ? "border-primary bg-primary/5 scale-[1.02]" : "border-slate-100 hover:border-slate-200"
               )}
             >
-              <Ico className={cn("h-5 w-5", isActive ? "text-primary" : "text-slate-300")} />
-              <span className={cn("font-black uppercase italic tracking-widest text-[9px]", isActive ? "text-primary" : "text-slate-400")}>{id.toUpperCase()}</span>
+              <Ico className={cn("h-4 w-4 md:h-5 md:w-5", isActive ? "text-primary" : "text-slate-300")} />
+              <span className={cn("font-black uppercase italic tracking-widest text-[7px] md:text-[9px]", isActive ? "text-primary" : "text-slate-400")}>{id.toUpperCase()}</span>
             </button>
           );
         })}
       </div>
 
       {/* CONTROLES ET TABS - UNE SEULE LIGNE */}
-      <div className="shrink-0 flex items-center justify-between bg-white p-2 rounded-2xl border border-slate-100 shadow-sm h-14">
-        <div className="flex items-center gap-4">
-          <h2 className="text-xs font-black italic uppercase tracking-tight text-slate-900 ml-2">{currentData.title}</h2>
-          <div className="flex bg-slate-100 p-1 rounded-xl border">
+      <div className="shrink-0 flex items-center justify-between bg-white p-1.5 md:p-2 rounded-xl md:rounded-2xl border border-slate-100 shadow-sm h-12 md:h-14">
+        <div className="flex items-center gap-2 md:gap-4 overflow-hidden">
+          <h2 className="text-[10px] md:text-xs font-black italic uppercase tracking-tight text-slate-900 ml-1 md:ml-2 truncate hidden sm:block">{currentData.title}</h2>
+          <div className="flex bg-slate-100 p-0.5 md:p-1 rounded-lg border">
             <Button 
               size="sm"
               onClick={() => setActiveTab('jargon')} 
-              className={cn("h-8 px-4 rounded-lg font-black uppercase italic text-[9px] gap-2", activeTab === 'jargon' ? "bg-slate-900 text-white shadow-md" : "bg-transparent text-slate-500 hover:bg-slate-200")}
+              className={cn("h-7 md:h-8 px-2 md:px-4 rounded-md font-black uppercase italic text-[8px] md:text-[9px] gap-1 md:gap-2", activeTab === 'jargon' ? "bg-slate-900 text-white shadow-md" : "bg-transparent text-slate-500 hover:bg-slate-200")}
             >
               <BookOpen className="h-3 w-3" /> Jargon
             </Button>
             <Button 
               size="sm"
               onClick={() => setActiveTab('quiz')} 
-              className={cn("h-8 px-4 rounded-lg font-black uppercase italic text-[9px] gap-2", activeTab === 'quiz' ? "bg-slate-900 text-white shadow-md" : "bg-transparent text-slate-500 hover:bg-slate-200")}
+              className={cn("h-7 md:h-8 px-2 md:px-4 rounded-md font-black uppercase italic text-[8px] md:text-[9px] gap-1 md:gap-2", activeTab === 'quiz' ? "bg-slate-900 text-white shadow-md" : "bg-transparent text-slate-500 hover:bg-slate-200")}
             >
               <Zap className="h-3 w-3" /> Quiz
             </Button>
@@ -139,43 +139,43 @@ export default function VisionDomainesPage() {
         </div>
 
         {activeTab === 'jargon' && totalPages > 1 && (
-          <div className="flex items-center gap-3 mr-2">
+          <div className="flex items-center gap-2 md:gap-3 mr-1">
             <Button 
               variant="outline" 
               size="icon" 
-              className="h-8 w-8 rounded-full border shadow-sm bg-white hover:bg-slate-50"
+              className="h-7 w-7 md:h-8 md:w-8 rounded-full border shadow-sm bg-white hover:bg-slate-50"
               disabled={currentPage === 0}
               onClick={() => setCurrentPage(currentPage - 1)}
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-3 w-3 md:h-4 md:w-4" />
             </Button>
-            <span className="text-[10px] font-black italic text-slate-400 uppercase tracking-widest">{currentPage + 1} / {totalPages}</span>
+            <span className="text-[8px] md:text-[10px] font-black italic text-slate-400 uppercase tracking-widest">{currentPage + 1}/{totalPages}</span>
             <Button 
               variant="outline" 
               size="icon" 
-              className="h-8 w-8 rounded-full border shadow-sm bg-white hover:bg-slate-50"
+              className="h-7 w-7 md:h-8 md:w-8 rounded-full border shadow-sm bg-white hover:bg-slate-50"
               disabled={currentPage >= totalPages - 1}
               onClick={() => setCurrentPage(currentPage + 1)}
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />
             </Button>
           </div>
         )}
       </div>
 
-      {/* GRILLE DYNAMIQUE 3X2 - OCCUPE TOUT LE RESTE DE L'ECRAN */}
+      {/* GRILLE DYNAMIQUE 3X2 (Desktop) ou 1x6 (Mobile) - OCCUPE TOUT LE RESTE DE L'ECRAN */}
       <div className="flex-1 min-h-0">
         {activeTab === 'jargon' ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 grid-rows-2 gap-3 h-full animate-slide-up box-border">
+          <div className="grid grid-cols-1 md:grid-cols-3 grid-rows-6 md:grid-rows-2 gap-2 md:gap-3 h-full animate-slide-up box-border">
             {paginatedJargon.map((item: any, idx: number) => (
               <JargonCard key={idx} term={item.term} def={item.def} />
             ))}
             {paginatedJargon.length < 6 && Array.from({ length: 6 - paginatedJargon.length }).map((_, i) => (
-              <div key={`filler-${i}`} className="bg-slate-50/20 border-2 border-dashed border-slate-100 rounded-[24px] h-full" />
+              <div key={`filler-${i}`} className="bg-slate-50/20 border-2 border-dashed border-slate-100 rounded-xl md:rounded-[24px] h-full" />
             ))}
           </div>
         ) : (
-          <div className="h-full flex items-center justify-center py-4 min-h-0">
+          <div className="h-full flex items-center justify-center py-2 md:py-4 min-h-0">
             <QuickQuiz questions={currentData.quiz || []} axisId={activeDomain} userId={user?.uid || ''} db={db} />
           </div>
         )}
@@ -197,12 +197,12 @@ function JargonCard({ term, def }: { term: string, def: string }) {
     <div className="perspective-1000 h-full w-full cursor-pointer group box-border min-h-0" onClick={() => setIsFlipped(!isFlipped)}>
       <div className={cn("relative w-full h-full transition-transform duration-500 preserve-3d", isFlipped ? "rotate-y-180" : "")}>
         {/* RECTO : Vert très clair et doux */}
-        <div className="absolute inset-0 backface-hidden bg-[#f0fdf4] text-[#1e293b] rounded-[24px] flex flex-col items-center justify-center p-4 shadow-md border-2 border-emerald-100 overflow-hidden">
-          <h3 className="text-sm md:text-lg font-black italic uppercase tracking-tight text-center leading-tight">{term}</h3>
+        <div className="absolute inset-0 backface-hidden bg-[#f0fdf4] text-[#1e293b] rounded-xl md:rounded-[24px] flex flex-col items-center justify-center p-3 md:p-4 shadow-md border-2 border-emerald-100 overflow-hidden">
+          <h3 className="text-xs md:text-lg font-black italic uppercase tracking-tight text-center leading-tight">{term}</h3>
         </div>
         {/* VERSO : Gris Anthracite profond */}
-        <div className="absolute inset-0 backface-hidden rotate-y-180 bg-[#1e293b] text-white rounded-[24px] flex items-center justify-center p-4 shadow-xl border-2 border-slate-700 overflow-y-auto custom-scrollbar">
-          <p className="text-center font-bold italic text-[10px] md:text-xs leading-relaxed">{def}</p>
+        <div className="absolute inset-0 backface-hidden rotate-y-180 bg-[#1e293b] text-white rounded-xl md:rounded-[24px] flex items-center justify-center p-3 md:p-4 shadow-xl border-2 border-slate-700 overflow-y-auto custom-scrollbar">
+          <p className="text-center font-bold italic text-[8px] md:text-xs leading-relaxed">{def}</p>
         </div>
       </div>
     </div>
@@ -256,15 +256,15 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
   };
 
   if (showResult) return (
-    <Card className="rounded-[40px] bg-white p-10 text-center space-y-6 shadow-2xl animate-fade-in border-none w-full max-w-sm">
-      <div className="bg-primary/5 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
-        <Trophy className="h-8 w-8 text-primary" />
+    <Card className="rounded-[32px] md:rounded-[40px] bg-white p-6 md:p-10 text-center space-y-4 md:space-y-6 shadow-2xl animate-fade-in border-none w-full max-w-xs md:max-w-sm">
+      <div className="bg-primary/5 w-12 h-12 md:w-16 md:h-16 rounded-2xl md:rounded-3xl flex items-center justify-center mx-auto shadow-inner">
+        <Trophy className="h-6 w-6 md:h-8 md:w-8 text-primary" />
       </div>
       <div className="space-y-1">
-        <h3 className="text-3xl font-black italic uppercase tracking-tighter text-slate-900">Score : {score} / {activeQuestions.length}</h3>
-        <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] italic">Session validée</p>
+        <h3 className="text-xl md:text-3xl font-black italic uppercase tracking-tighter text-slate-900">Score : {score} / {activeQuestions.length}</h3>
+        <p className="text-slate-400 font-bold uppercase tracking-widest text-[8px] md:text-[10px] italic">Session validée</p>
       </div>
-      <Button onClick={() => window.location.reload()} className="h-14 px-10 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl text-white text-xs">REFAIRE LE QUIZ</Button>
+      <Button onClick={() => window.location.reload()} className="h-12 md:h-14 px-8 md:px-10 rounded-xl md:rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl text-white text-[10px] md:text-xs">REFAIRE LE QUIZ</Button>
     </Card>
   );
   
@@ -275,42 +275,42 @@ function QuickQuiz({ questions, axisId, userId, db }: any) {
   const correctIdx = q.c !== undefined ? Number(q.c) : 0;
 
   return (
-    <Card className="rounded-[40px] bg-white p-6 space-y-4 w-full max-w-2xl shadow-2xl animate-slide-up border-none overflow-y-auto max-h-full custom-scrollbar box-border">
-      <Badge variant="outline" className="font-black italic px-4 py-1 rounded-xl border-2 text-slate-400 text-[10px]">
+    <Card className="rounded-[32px] md:rounded-[40px] bg-white p-4 md:p-6 space-y-3 md:space-y-4 w-full max-w-2xl shadow-2xl animate-slide-up border-none overflow-y-auto max-h-full custom-scrollbar box-border">
+      <Badge variant="outline" className="font-black italic px-3 md:px-4 py-0.5 md:py-1 rounded-lg md:rounded-xl border-2 text-slate-400 text-[8px] md:text-[10px]">
         QUESTION {currentIdx + 1} / {activeQuestions.length}
       </Badge>
-      <h3 className="text-lg md:text-xl font-black italic text-slate-900 leading-tight">
+      <h3 className="text-sm md:text-xl font-black italic text-slate-900 leading-tight">
         {q.q || q.text}
       </h3>
-      <div className="grid gap-2 p-1">
+      <div className="grid gap-1.5 md:gap-2 p-0.5">
         {rawChoices.map((opt: any, idx: number) => (
           <button 
             key={idx} 
             disabled={isAnswered}
             onClick={() => handleAnswer(idx)} 
             className={cn(
-              "p-3 md:p-4 rounded-xl border-2 transition-all text-left flex items-start gap-4 shadow-sm min-h-0",
+              "p-2.5 md:p-4 rounded-lg md:rounded-xl border-2 transition-all text-left flex items-start gap-3 md:gap-4 shadow-sm min-h-0",
               !isAnswered ? "border-slate-100 bg-white hover:border-primary" : 
               idx === correctIdx ? "border-emerald-500 bg-emerald-50" : 
               idx === selectedIdx ? "border-red-500 bg-red-50" : "border-slate-50 opacity-40"
             )}
           >
             <div className={cn(
-              "h-6 w-6 md:h-8 md:w-8 flex items-center justify-center font-black text-[10px] shrink-0 border-2 rounded-full",
+              "h-5 w-5 md:h-8 md:w-8 flex items-center justify-center font-black text-[8px] md:text-[10px] shrink-0 border-2 rounded-full",
               !isAnswered ? "bg-white text-slate-400" : 
               idx === correctIdx ? "bg-emerald-500 text-white" : 
               idx === selectedIdx ? "bg-red-500 text-white" : "bg-white text-slate-200"
             )}>
               {String.fromCharCode(65 + idx)}
             </div>
-            <span className="flex-1 text-xs md:text-sm font-black italic pt-1">{opt}</span>
+            <span className="flex-1 text-[10px] md:text-sm font-black italic pt-0.5">{opt}</span>
           </button>
         ))}
       </div>
       {isAnswered && (
-        <div className="bg-slate-50 p-4 rounded-2xl border-l-8 border-l-primary animate-slide-up space-y-3">
-          <p className="text-black font-bold italic text-[10px] md:text-xs leading-relaxed">{q.exp || q.explanation}</p>
-          <Button onClick={next} className="w-full h-10 rounded-xl bg-slate-900 text-white font-black uppercase italic tracking-widest text-[9px]">
+        <div className="bg-slate-50 p-3 md:p-4 rounded-xl md:rounded-2xl border-l-4 md:border-l-8 border-l-primary animate-slide-up space-y-2 md:space-y-3">
+          <p className="text-black font-bold italic text-[9px] md:text-xs leading-relaxed">{q.exp || q.explanation}</p>
+          <Button onClick={next} className="w-full h-8 md:h-10 rounded-lg md:rounded-xl bg-slate-900 text-white font-black uppercase italic tracking-widest text-[8px] md:text-[9px]">
             {currentIdx < activeQuestions.length - 1 ? "PASSER À LA SUIVANTE" : "VOIR MON RÉSULTAT"}
           </Button>
         </div>
