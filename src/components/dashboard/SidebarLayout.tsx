@@ -7,7 +7,14 @@ import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Menu } from 'lucide-react';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { 
+  Sheet, 
+  SheetContent, 
+  SheetTrigger,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription
+} from '@/components/ui/sheet';
 import { SimuLuxLogo } from './Sidebar';
 
 /**
@@ -50,6 +57,10 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="p-0 w-72 border-r-4 border-primary/10">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Menu de navigation</SheetTitle>
+              <SheetDescription>Accédez aux différentes sections de la plateforme de simulation PMP.</SheetDescription>
+            </SheetHeader>
             <Sidebar />
           </SheetContent>
         </Sheet>
