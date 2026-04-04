@@ -36,6 +36,7 @@ export default function UsersListPage() {
   const [roleFilter, setRoleFilter] = useState('all');
   const [groupFilter, setGroupFilter] = useState('all');
   const [userToDelete, setUserToDelete] = useState<any | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [passwordChangeUser, setPasswordChangeUser] = useState<any | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -117,13 +118,21 @@ export default function UsersListPage() {
   };
 
   const handleDeleteUser = async () => {
-    if (!userToDelete) return;
+    if (!userToDelete || isDeleting) return;
+    
+    setIsDeleting(true);
+    const idToDelete = userToDelete.id;
+    
     try {
-      await deleteDoc(doc(db, 'users', userToDelete.id));
-      toast({ title: "Utilisateur supprimé", description: "Profil retiré de la base de données." });
+      // FERMETURE IMMÉDIATE de l'UI pour éviter le blocage des pointer-events
       setUserToDelete(null);
+      
+      await deleteDoc(doc(db, 'users', idToDelete));
+      toast({ title: "Utilisateur supprimé", description: "Profil retiré de la base de données." });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Erreur", description: e.message });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -294,15 +303,26 @@ export default function UsersListPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
+      <AlertDialog open={!!userToDelete} onOpenChange={(open) => !isDeleting && setUserToDelete(open ? userToDelete : null)}>
         <AlertDialogContent className="rounded-[40px] p-12 border-4 shadow-3xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-3xl font-black uppercase text-destructive italic tracking-tighter">Action Irréversible</AlertDialogTitle>
-            <AlertDialogDescription className="text-xl font-bold pt-4 text-slate-600 leading-relaxed uppercase tracking-tight italic">Voulez-vous supprimer <strong>{userToDelete?.firstName} {userToDelete?.lastName}</strong> ?</AlertDialogDescription>
+            <AlertDialogDescription className="text-xl font-bold pt-4 text-slate-600 leading-relaxed uppercase tracking-tight italic">
+              Voulez-vous supprimer <strong>{userToDelete?.firstName} {userToDelete?.lastName}</strong> ?
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-8 gap-4">
-            <AlertDialogCancel className="h-14 rounded-xl font-black uppercase border-4">Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteUser} className="h-14 rounded-xl font-black bg-destructive hover:bg-red-700 shadow-xl">Confirmer</AlertDialogAction>
+            <AlertDialogCancel disabled={isDeleting} className="h-14 rounded-xl font-black uppercase border-4">Annuler</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteUser();
+              }} 
+              disabled={isDeleting}
+              className="h-14 rounded-xl font-black bg-destructive hover:bg-red-700 shadow-xl"
+            >
+              {isDeleting ? <Loader2 className="animate-spin h-5 w-5" /> : "Confirmer"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
