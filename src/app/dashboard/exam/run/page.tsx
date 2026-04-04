@@ -34,68 +34,46 @@ import { Calculator } from '@/components/dashboard/Calculator';
 type ViewMode = 'question' | 'review' | 'break' | 'result';
 
 function PerformanceScale({ score }: { score: number }) {
-  const isPass = score >= 70; // PMP pass threshold approx 70%
-  
-  // segments widths are equal (25% each)
-  // cursor position is simply the score percent
+  const isPass = score >= 70;
   const cursorLeft = `${score}%`;
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-8 py-6 animate-fade-in">
-      <div className="text-left space-y-2">
-        <h2 className="text-3xl font-medium text-slate-700">
-          Your Overall Performance: <span className={cn("font-bold text-4xl", isPass ? "text-[#005bb7]" : "text-destructive")}>
+    <div className="w-full max-w-4xl mx-auto space-y-[2vh] py-[1vh] animate-fade-in flex-none">
+      <div className="text-left space-y-[0.5vh]">
+        <h2 className="text-[clamp(1rem,2.5vh,2rem)] font-medium text-slate-700 leading-tight">
+          Your Overall Performance: <span className={cn("font-bold", isPass ? "text-[#005bb7]" : "text-destructive")}>
             {isPass ? 'Pass' : 'Fail'}
           </span>
         </h2>
-        <p className="text-slate-500 text-lg">
+        <p className="text-slate-500 text-[clamp(0.7rem,1.4vh,1rem)] leading-tight italic">
           {isPass 
-            ? "Congratulations! You passed your exam and have successfully earned your PMI certification. This is a tremendous accomplishment!" 
-            : "Unfortunately, you did not pass the exam this time. Focus on the areas indicated below to improve for your next attempt."}
+            ? "Congratulations! You passed your exam and have earned your PMP certification." 
+            : "Focus on the areas indicated below to improve for your next attempt."}
         </p>
       </div>
 
-      <div className="relative pt-12 pb-16">
-        {/* Labels failing/passing */}
-        <div className="absolute top-0 left-0 w-full flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">
-          <div className="flex items-center gap-2">
-            <MoveLeft className="h-3 w-3" /> Failing
-          </div>
-          <div className="flex items-center gap-2">
-            Passing <MoveRight className="h-3 w-3" />
-          </div>
+      <div className="relative pt-[4vh] pb-[6vh]">
+        <div className="absolute top-0 left-0 w-full flex justify-between text-[1vh] font-bold text-slate-400 uppercase tracking-widest px-2">
+          <div className="flex items-center gap-2"><MoveLeft className="h-[1.2vh] w-[1.2vh]" /> Failing</div>
+          <div className="flex items-center gap-2">Passing <MoveRight className="h-[1.2vh] w-[1.2vh]" /></div>
         </div>
 
-        {/* The double arrow line */}
-        <div className="absolute top-6 left-0 w-full h-px bg-sky-400 flex items-center justify-center">
-          <div className="h-3 w-px bg-sky-400" /> {/* center mark */}
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 border-y-[4px] border-y-transparent border-r-[6px] border-r-sky-400" />
-          <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1 border-y-[4px] border-y-transparent border-l-[6px] border-l-sky-400" />
+        <div className="absolute top-[2.5vh] left-0 w-full h-px bg-sky-400 flex items-center justify-center">
+          <div className="h-[1vh] w-px bg-sky-400" />
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 border-y-[0.4vh] border-y-transparent border-r-[0.6vh] border-r-sky-400" />
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1 border-y-[0.4vh] border-y-transparent border-l-[0.6vh] border-l-sky-400" />
         </div>
 
-        {/* The cursor "YOU" */}
-        <div 
-          className="absolute top-4 z-20 flex flex-col items-center transition-all duration-1000 ease-out"
-          style={{ left: cursorLeft }}
-        >
-          <span className="text-[11px] font-black text-slate-800 mb-1">YOU</span>
-          <div className="h-16 w-0.5 bg-black" />
+        <div className="absolute top-[1.5vh] z-20 flex flex-col items-center transition-all duration-1000 ease-out" style={{ left: cursorLeft }}>
+          <span className="text-[1.1vh] font-black text-slate-800 mb-[0.2vh]">YOU</span>
+          <div className="h-[8vh] w-0.5 bg-black" />
         </div>
 
-        {/* The 4 color segments */}
-        <div className="grid grid-cols-4 h-12 w-full gap-1 items-stretch">
-          <div className="bg-[#ffe4e1] flex items-end justify-start p-2">
-            <span className="text-[10px] font-bold text-slate-400 uppercase leading-none">Needs Improvement</span>
-          </div>
-          <div className="bg-[#fff9e6] flex items-end justify-start p-2">
-            <span className="text-[10px] font-bold text-slate-400 uppercase leading-none">Below Target</span>
-          </div>
-          <div className="bg-[#7fcdbb] flex items-end justify-start p-2">
-            <span className="text-[10px] font-bold text-[#005bb7] uppercase leading-none">Target</span>
-          </div>
-          <div className="bg-[#d9ece8] flex items-end justify-start p-2">
-            <span className="text-[10px] font-bold text-slate-400 uppercase leading-none">Above Target</span>
-          </div>
+        <div className="grid grid-cols-4 h-[6vh] w-full gap-[0.2vw] items-stretch">
+          <div className="bg-[#ffe4e1] flex items-end justify-start p-[0.5vh]"><span className="text-[0.9vh] font-bold text-slate-400 uppercase leading-none">Needs Improvement</span></div>
+          <div className="bg-[#fff9e6] flex items-end justify-start p-[0.5vh]"><span className="text-[0.9vh] font-bold text-slate-400 uppercase leading-none">Below Target</span></div>
+          <div className="bg-[#7fcdbb] flex items-end justify-start p-[0.5vh]"><span className="text-[0.9vh] font-bold text-[#005bb7] uppercase leading-none">Target</span></div>
+          <div className="bg-[#d9ece8] flex items-end justify-start p-[0.5vh]"><span className="text-[0.9vh] font-bold text-slate-400 uppercase leading-none">Above Target</span></div>
         </div>
       </div>
     </div>
@@ -127,7 +105,6 @@ function ExamRunContent() {
   const [breakTimeLeft, setBreakTimeLeft] = useState(10 * 60);
   const [currentSection, setCurrentSection] = useState(1);
 
-  // Constants
   const SECTION_SIZE = 60;
 
   useEffect(() => {
@@ -136,38 +113,27 @@ function ExamRunContent() {
       setIsLoading(true);
       try {
         const qRef = collection(db, 'questions');
-        const q = query(qRef, 
-          where('sourceIds', 'array-contains', examId), 
-          where('isActive', '==', true)
-        );
+        const q = query(qRef, where('sourceIds', 'array-contains', examId), where('isActive', '==', true));
         const snap = await getDocs(q);
-        
         if (snap.empty) {
-          toast({ variant: "destructive", title: "Examen vide", description: "Veuillez importer des questions pour cette simulation." });
+          toast({ variant: "destructive", title: "Examen vide" });
           router.push('/dashboard/exam');
           return;
         }
-
         const fetched = snap.docs.map(d => ({ 
-          ...d.data(), 
-          id: d.id,
+          ...d.data(), id: d.id,
           text: d.data().text || d.data().statement,
           choices: d.data().choices || d.data().options?.map((o: any) => o.text)
         }));
-        
         fetched.sort((a, b) => (a.index || 0) - (b.index || 0));
         setQuestions(fetched);
-        
         const totalMinutes = (fetched.length * 230) / 180;
         const initialSeconds = Math.floor(totalMinutes * 60);
         setTimeLeft(initialSeconds);
         setTotalTime(initialSeconds);
       } catch (e) {
-        console.error(e);
-        toast({ variant: "destructive", title: "Erreur de chargement" });
-      } finally {
-        setIsLoading(false);
-      }
+        toast({ variant: "destructive", title: "Erreur" });
+      } finally { setIsLoading(false); }
     }
     fetchQuestions();
   }, [db, examId, user, router, toast]);
@@ -193,20 +159,18 @@ function ExamRunContent() {
   }, [viewMode, breakTimeLeft]);
 
   const formatMMSS = (seconds: number) => {
-    if (seconds < 0) return "0:00";
     const m = Math.floor(seconds / 60);
     const s = Math.floor(seconds % 60);
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const getSectionIndices = (sectionNum: number) => {
-    const start = (sectionNum - 1) * SECTION_SIZE;
-    const end = Math.min(sectionNum * SECTION_SIZE - 1, questions.length - 1);
+  const { start: sectionStart, end: sectionEnd } = useMemo(() => {
+    const start = (currentSection - 1) * SECTION_SIZE;
+    const end = Math.min(currentSection * SECTION_SIZE - 1, questions.length - 1);
     return { start, end };
-  };
+  }, [currentSection, questions.length]);
 
-  const { start: sectionStart, end: sectionEnd } = getSectionIndices(currentSection);
-  const currentSectionQuestions = questions.slice(sectionStart, sectionEnd + 1);
+  const currentSectionQuestions = useMemo(() => questions.slice(sectionStart, sectionEnd + 1), [questions, sectionStart, sectionEnd]);
 
   const toggleFlag = () => {
     const qId = questions[currentIndex].id;
@@ -216,11 +180,7 @@ function ExamRunContent() {
   const toggleAnswer = (qId: string, optId: string, isMultiple: boolean) => {
     const current = answers[qId] || [];
     if (isMultiple) {
-      if (current.includes(optId)) {
-        setAnswers({ ...answers, [qId]: current.filter(id => id !== optId) });
-      } else {
-        setAnswers({ ...answers, [qId]: [...current, optId] });
-      }
+      setAnswers({ ...answers, [qId]: current.includes(optId) ? current.filter(id => id !== optId) : [...current, optId] });
     } else {
       setAnswers({ ...answers, [qId]: [optId] });
     }
@@ -234,179 +194,90 @@ function ExamRunContent() {
         setCurrentIndex(nextIdx);
         setViewMode('question');
         setBreakTimeLeft(10 * 60);
-      } else {
-        finishExam();
-      }
-    } else {
-      finishExam();
-    }
+      } else { finishExam(); }
+    } else { finishExam(); }
   };
 
   const finishExam = async () => {
     if (isSubmitting || questions.length === 0) return;
     setIsSubmitting(true);
-    
-    const detailedResults: any[] = [];
     let correct = 0;
-
-    // Aggregate stats for domains and approaches
-    const domainStats: Record<string, { correct: number, total: number }> = {
-      'People': { correct: 0, total: 0 },
-      'Process': { correct: 0, total: 0 },
-      'Business': { correct: 0, total: 0 }
-    };
-
-    const approachStats: Record<string, { correct: number, total: number }> = {
-      'Predictive': { correct: 0, total: 0 },
-      'Agile': { correct: 0, total: 0 },
-      'Hybrid': { correct: 0, total: 0 }
-    };
+    const domainStats: Record<string, { correct: number, total: number }> = { 'People': { correct: 0, total: 0 }, 'Process': { correct: 0, total: 0 }, 'Business': { correct: 0, total: 0 } };
+    const approachStats: Record<string, { correct: number, total: number }> = { 'Predictive': { correct: 0, total: 0 }, 'Agile': { correct: 0, total: 0 }, 'Hybrid': { correct: 0, total: 0 } };
 
     questions.forEach(q => {
-      const correctOptionIds = q.correctOptionIds || [String(q.correctChoice || "1")];
+      const correctIds = q.correctOptionIds || [String(q.correctChoice || "1")];
       const userChoices = answers[q.id] || [];
-      
-      const isUserCorrect = userChoices.length === correctOptionIds.length && 
-                            userChoices.every(id => correctOptionIds.includes(id));
-      
+      const isUserCorrect = userChoices.length === correctIds.length && userChoices.every(id => correctIds.includes(id));
       if (isUserCorrect) correct++;
-
-      // Tracking stats
       const domain = q.tags?.domain === 'Processus' ? 'Process' : (q.tags?.domain || 'Process');
-      if (domainStats[domain]) {
-        domainStats[domain].total++;
-        if (isUserCorrect) domainStats[domain].correct++;
-      }
-
+      if (domainStats[domain]) { domainStats[domain].total++; if (isUserCorrect) domainStats[domain].correct++; }
       const approach = q.tags?.approach || 'Predictive';
-      if (approachStats[approach]) {
-        approachStats[approach].total++;
-        if (isUserCorrect) approachStats[approach].correct++;
-      }
-
-      detailedResults.push({
-        questionId: q.id,
-        text: q.text,
-        choices: q.choices,
-        correctOptionIds: correctOptionIds,
-        userChoices: userChoices,
-        isCorrect: isUserCorrect,
-        explanation: q.explanation,
-        tags: q.tags || {}
-      });
+      if (approachStats[approach]) { approachStats[approach].total++; if (isUserCorrect) approachStats[approach].correct++; }
     });
 
     const percent = Math.round((correct / questions.length) * 100);
-    
-    let performance = "Needs Improvement";
-    if (percent >= 75) performance = "Above Target";
-    else if (percent >= 60) performance = "Target";
-    else if (percent >= 40) performance = "Below Target";
-
     const finalData = {
-      examId,
-      userId: user?.uid,
-      scorePercent: percent,
-      correctCount: correct,
-      totalQuestions: questions.length,
-      performance,
-      durationSec: totalTime - timeLeft,
-      submittedAt: serverTimestamp(),
-      responses: detailedResults,
-      domainBreakdown: domainStats,
-      approachBreakdown: approachStats
+      examId, userId: user?.uid, scorePercent: percent, correctCount: correct, totalQuestions: questions.length,
+      durationSec: totalTime - timeLeft, submittedAt: serverTimestamp(), domainBreakdown: domainStats, approachBreakdown: approachStats
     };
 
-    try {
-      await addDoc(collection(db, 'coachingAttempts'), finalData);
-      setResult(finalData);
-      setViewMode('result');
-    } catch (e) {
-      toast({ variant: "destructive", title: "Erreur sauvegarde score" });
-    } finally {
-      setIsSubmitting(false);
-    }
+    try { await addDoc(collection(db, 'coachingAttempts'), finalData); setResult(finalData); setViewMode('result'); }
+    catch (e) { toast({ variant: "destructive", title: "Erreur sauvegarde" }); }
+    finally { setIsSubmitting(false); }
   };
 
-  if (isLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
+  if (isLoading) return <div className="h-full w-full flex items-center justify-center"><Loader2 className="animate-spin h-[8vh] w-[8vh] text-primary" /></div>;
 
   if (viewMode === 'result' && result) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] py-12 px-4 animate-fade-in">
-        <Card className="max-w-6xl mx-auto border-none shadow-2xl rounded-[48px] bg-white overflow-hidden">
-          <div className="p-12 space-y-12">
+      <div className="h-full w-full bg-[#F8FAFC] p-[2vh] overflow-hidden flex flex-col animate-fade-in">
+        <Card className="flex-1 border-none shadow-2xl rounded-[4vh] bg-white overflow-hidden flex flex-col min-h-0">
+          <div className="flex-1 overflow-y-auto p-[4vh] space-y-[4vh] custom-scrollbar min-h-0">
             <PerformanceScale score={result.scorePercent} />
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-[#F1F5F9] p-8 rounded-[32px] border-2 border-white shadow-sm flex flex-col items-center justify-center text-center">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">TOTAL SCORE</p>
-                <p className="text-6xl font-black italic text-[#1d4ed8] tracking-tighter">{result.scorePercent}%</p>
+            <div className="grid grid-cols-3 gap-[2vh] flex-none">
+              <div className="bg-[#F1F5F9] p-[3vh] rounded-[2vh] text-center">
+                <p className="text-[1vh] font-black text-slate-400 uppercase tracking-widest">TOTAL SCORE</p>
+                <p className="text-[5vh] font-black italic text-[#1d4ed8] tracking-tighter">{result.scorePercent}%</p>
               </div>
-              <div className="bg-[#F1F5F9] p-8 rounded-[32px] border-2 border-white shadow-sm flex flex-col items-center justify-center text-center">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">CORRECT ANSWERS</p>
-                <p className="text-6xl font-black italic text-slate-800 tracking-tighter">{result.correctCount}/{result.totalQuestions}</p>
+              <div className="bg-[#F1F5F9] p-[3vh] rounded-[2vh] text-center">
+                <p className="text-[1vh] font-black text-slate-400 uppercase tracking-widest">CORRECT</p>
+                <p className="text-[5vh] font-black italic text-slate-800 tracking-tighter">{result.correctCount}/{result.totalQuestions}</p>
               </div>
-              <div className="bg-[#F1F5F9] p-8 rounded-[32px] border-2 border-white shadow-sm flex flex-col items-center justify-center text-center">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">TIME SPENT</p>
-                <p className="text-6xl font-black italic text-slate-800 tracking-tighter">{Math.ceil(result.durationSec / 60)}m</p>
+              <div className="bg-[#F1F5F9] p-[3vh] rounded-[2vh] text-center">
+                <p className="text-[1vh] font-black text-slate-400 uppercase tracking-widest">TIME</p>
+                <p className="text-[5vh] font-black italic text-slate-800 tracking-tighter">{Math.ceil(result.durationSec / 60)}m</p>
               </div>
             </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 pt-6">
-              {/* Performance by Domain */}
-              <div className="space-y-6">
-                <h3 className="text-xl font-black italic uppercase tracking-tight flex items-center gap-3">
-                  <Layers className="h-6 w-6 text-[#1d4ed8]" /> Performance by Domain
-                </h3>
-                <div className="space-y-4">
-                  {Object.entries(result.domainBreakdown || {}).map(([domain, data]: any) => {
-                    const domainScore = data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0;
-                    return (
-                      <div key={domain} className="space-y-2">
-                        <div className="flex justify-between items-end">
-                          <span className="text-xs font-black uppercase text-slate-500 italic">{domain}</span>
-                          <span className="text-sm font-black text-[#1d4ed8] italic">{domainScore}%</span>
-                        </div>
-                        <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
-                          <div 
-                            className={cn("h-full transition-all duration-1000", domainScore >= 75 ? "bg-emerald-500" : domainScore >= 50 ? "bg-[#1d4ed8]" : "bg-red-500")}
-                            style={{ width: `${domainScore}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+            <div className="grid grid-cols-2 gap-[4vh] flex-none">
+              <div className="space-y-[2vh]">
+                <h3 className="text-[1.5vh] font-black italic uppercase tracking-tight flex items-center gap-2"><Layers className="h-[2vh] w-[2vh] text-[#1d4ed8]" /> Domains</h3>
+                {Object.entries(result.domainBreakdown || {}).map(([domain, data]: any) => {
+                  const dScore = data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0;
+                  return (
+                    <div key={domain} className="space-y-[0.5vh]">
+                      <div className="flex justify-between text-[1.1vh] font-black uppercase italic text-slate-500"><span>{domain}</span><span>{dScore}%</span></div>
+                      <Progress value={dScore} className="h-[1vh]" />
+                    </div>
+                  );
+                })}
               </div>
-
-              {/* Exam Breakdown by Approach */}
-              <div className="space-y-6">
-                <h3 className="text-xl font-black italic uppercase tracking-tight flex items-center gap-3">
-                  <Globe className="h-6 w-6 text-orange-500" /> Exam Breakdown (Approaches)
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {Object.entries(result.approachBreakdown || {}).map(([approach, data]: any) => {
-                    const approachScore = data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0;
-                    return (
-                      <div key={approach} className="bg-slate-50 p-5 rounded-2xl border-2 border-dashed border-slate-200 text-center space-y-1">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{approach === 'Predictive' ? 'Waterfall' : approach}</p>
-                        <p className="text-2xl font-black italic text-slate-800">{approachScore}%</p>
-                        <p className="text-[8px] font-bold text-slate-400 italic">{data.correct}/{data.total} Qs</p>
-                      </div>
-                    );
-                  })}
+              <div className="space-y-[2vh]">
+                <h3 className="text-[1.5vh] font-black italic uppercase tracking-tight flex items-center gap-2"><Globe className="h-[2vh] w-[2vh] text-orange-500" /> Approaches</h3>
+                <div className="grid grid-cols-3 gap-[1vh]">
+                  {Object.entries(result.approachBreakdown || {}).map(([app, data]: any) => (
+                    <div key={app} className="bg-slate-50 p-[1.5vh] rounded-xl border-2 border-dashed border-slate-200 text-center">
+                      <p className="text-[0.8vh] font-black text-slate-400 uppercase">{app === 'Predictive' ? 'Waterfall' : app}</p>
+                      <p className="text-[2vh] font-black italic text-slate-800">{data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0}%</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-
-            <div className="flex flex-col sm:flex-row gap-6 pt-10 border-t-2 border-dashed border-slate-100">
-              <Button variant="outline" className="flex-1 h-20 rounded-3xl border-4 font-black uppercase tracking-widest text-lg italic shadow-lg hover:bg-slate-50" asChild>
-                <Link href="/dashboard/history">VOIR MON HISTORIQUE</Link>
-              </Button>
-              <Button className="flex-1 h-20 rounded-3xl bg-[#1d4ed8] hover:bg-[#1e40af] font-black uppercase tracking-widest shadow-2xl text-lg italic scale-105 transition-transform" asChild>
-                <Link href="/dashboard">TABLEAU DE BORD</Link>
-              </Button>
-            </div>
+          </div>
+          <div className="flex-none p-[3vh] border-t-2 border-dashed flex gap-[2vh] bg-slate-50">
+            <Button variant="outline" className="flex-1 h-[8vh] rounded-2xl border-4 font-black uppercase text-[1.5vh]" asChild><Link href="/dashboard/history">HISTORIQUE</Link></Button>
+            <Button className="flex-1 h-[8vh] rounded-2xl bg-[#1d4ed8] font-black uppercase text-[1.5vh] shadow-xl" asChild><Link href="/dashboard">TABLEAU DE BORD</Link></Button>
           </div>
         </Card>
       </div>
@@ -415,21 +286,12 @@ function ExamRunContent() {
 
   if (viewMode === 'break') {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <Card className="max-w-2xl w-full rounded-[40px] shadow-2xl p-12 text-center space-y-8 bg-white border-t-8 border-t-emerald-500">
-          <div className="bg-emerald-50 h-24 w-24 rounded-[32px] flex items-center justify-center mx-auto shadow-inner">
-            <Clock className="h-12 w-12 text-emerald-600" />
-          </div>
-          <div className="space-y-4">
-            <h2 className="text-4xl font-black italic uppercase tracking-tighter text-emerald-600">Pause de 10 Minutes</h2>
-            <p className="text-xl font-bold text-slate-500 italic">Prenez une pause. La section suivante commence bientôt.</p>
-          </div>
-          <div className="text-8xl font-black italic tabular-nums text-slate-800 bg-slate-50 py-8 rounded-3xl border-2 border-dashed border-emerald-100">
-            {formatMMSS(breakTimeLeft)}
-          </div>
-          <Button onClick={startNextSection} className="h-20 w-full rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xl shadow-xl scale-105 transition-transform">
-            REPRENDRE MAINTENANT
-          </Button>
+      <div className="h-full w-full bg-slate-50 flex items-center justify-center p-[4vh]">
+        <Card className="max-w-[60vh] w-full rounded-[4vh] shadow-2xl p-[6vh] text-center space-y-[4vh] bg-white border-t-8 border-t-emerald-500 flex flex-col items-center">
+          <div className="bg-emerald-50 h-[12vh] w-[12vh] rounded-[3vh] flex items-center justify-center shadow-inner"><Clock className="h-[6vh] w-[6vh] text-emerald-600" /></div>
+          <div className="space-y-[1vh]"><h2 className="text-[4vh] font-black italic uppercase text-emerald-600">Break</h2><p className="text-[1.8vh] font-bold text-slate-500 italic">10 minutes rest period.</p></div>
+          <div className="text-[8vh] font-black italic tabular-nums text-slate-800 bg-slate-50 w-full py-[4vh] rounded-3xl border-2 border-dashed border-emerald-100">{formatMMSS(breakTimeLeft)}</div>
+          <Button onClick={startNextSection} className="h-[8vh] w-full rounded-2xl bg-emerald-600 font-black uppercase text-[2vh] shadow-xl">RESUME NOW</Button>
         </Card>
       </div>
     );
@@ -437,56 +299,28 @@ function ExamRunContent() {
 
   if (viewMode === 'review') {
     return (
-      <div className="min-h-screen bg-slate-50 p-8 animate-fade-in">
-        <div className="max-w-5xl mx-auto space-y-8">
-          <div className="text-center">
-            <h1 className="text-4xl font-black italic uppercase tracking-tighter text-primary">Revue Section {currentSection}</h1>
-            <p className="text-slate-500 font-bold uppercase tracking-widest text-xs mt-2">Vérifiez vos réponses avant de valider cette section.</p>
+      <div className="h-full w-full bg-slate-50 p-[4vh] overflow-hidden flex flex-col animate-fade-in gap-[4vh]">
+        <div className="text-center flex-none"><h1 className="text-[4vh] font-black italic uppercase text-primary">Review Section {currentSection}</h1></div>
+        <Card className="flex-1 rounded-[4vh] shadow-2xl border-none bg-white p-[4vh] flex flex-col min-h-0">
+          <div className="flex-1 overflow-y-auto grid grid-cols-10 gap-[1vh] content-start custom-scrollbar">
+            {currentSectionQuestions.map((q, idx) => {
+              const globalIdx = sectionStart + idx;
+              const isAnswered = (answers[q.id]?.length || 0) > 0;
+              const isFlagged = flagged[q.id];
+              return (
+                <button key={q.id} onClick={() => { setCurrentIndex(globalIdx); setViewMode('question'); }} className={cn("aspect-square rounded-xl font-black text-[1.5vh] transition-all flex items-center justify-center relative border-2", isFlagged ? "bg-amber-100 border-amber-400 text-amber-700" : isAnswered ? "bg-primary/10 border-primary/20 text-primary" : "bg-white text-slate-300 border-slate-100")}>
+                  {globalIdx + 1}{isFlagged && <Flag className="absolute -top-1 -right-1 w-[1.2vh] h-[1.2vh] text-amber-600 fill-current" />}
+                </button>
+              );
+            })}
           </div>
-
-          <Card className="rounded-[40px] shadow-2xl border-none bg-white p-10">
-            <div className="grid grid-cols-5 sm:grid-cols-10 gap-3 mb-10">
-              {currentSectionQuestions.map((q, idx) => {
-                const globalIdx = sectionStart + idx;
-                const isAnswered = (answers[q.id]?.length || 0) > 0;
-                const isFlagged = flagged[q.id];
-                return (
-                  <button
-                    key={q.id}
-                    onClick={() => {
-                      setCurrentIndex(globalIdx);
-                      setViewMode('question');
-                    }}
-                    className={cn(
-                      "h-12 w-12 rounded-xl font-black text-sm transition-all flex items-center justify-center relative border-2",
-                      isFlagged ? "bg-amber-100 border-amber-400 text-amber-700" : 
-                      isAnswered ? "bg-primary/10 border-primary/20 text-primary" : "bg-white text-slate-300 border-slate-100"
-                    )}
-                  >
-                    {globalIdx + 1}
-                    {isFlagged && <Flag className="absolute -top-1 -right-1 w-3 h-3 text-amber-600 fill-current" />}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button 
-                variant="outline" 
-                className="flex-1 h-16 rounded-2xl border-4 font-black uppercase tracking-widest"
-                onClick={() => setViewMode('question')}
-              >
-                RETOUR AUX QUESTIONS
-              </Button>
-              <Button 
-                className="flex-1 h-16 rounded-2xl bg-red-600 hover:bg-red-700 font-black uppercase tracking-widest shadow-xl text-white"
-                onClick={currentSection < 3 && (currentSection * SECTION_SIZE < questions.length) ? () => setViewMode('break') : finishExam}
-              >
-                {currentSection < 3 && (currentSection * SECTION_SIZE < questions.length) ? "VALIDER ET PAUSE" : "VALIDER L'EXAMEN"}
-              </Button>
-            </div>
-          </Card>
-        </div>
+          <div className="flex-none flex flex-col sm:flex-row gap-[2vh] pt-[4vh]">
+            <Button variant="outline" className="flex-1 h-[8vh] rounded-2xl border-4 font-black uppercase text-[1.5vh]" onClick={() => setViewMode('question')}>BACK TO QUESTIONS</Button>
+            <Button className="flex-1 h-[8vh] rounded-2xl bg-red-600 font-black uppercase text-[1.5vh] shadow-xl text-white" onClick={currentSection < 3 && (currentSection * SECTION_SIZE < questions.length) ? () => setViewMode('break') : finishExam}>
+              {currentSection < 3 && (currentSection * SECTION_SIZE < questions.length) ? "FINISH & BREAK" : "FINISH EXAM"}
+            </Button>
+          </div>
+        </Card>
       </div>
     );
   }
@@ -496,96 +330,48 @@ function ExamRunContent() {
   const currentAnswers = answers[currentQuestion?.id] || [];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <div className="bg-black text-white px-8 py-4 flex items-center justify-between shadow-xl sticky top-0 z-50">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => setIsPaused(true)} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-10 px-4">
-            <Pause className="h-4 w-4 mr-2" /> Pause
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setShowCalculator(true)} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-10 px-4">
-            <CalcIcon className="h-4 w-4 mr-2" /> Calculator
-          </Button>
+    <div className="h-full w-full bg-slate-50 flex flex-col overflow-hidden relative">
+      {/* HEADER : VH BASED */}
+      <header className="flex-none bg-black text-white px-[4vw] py-[1.5vh] flex items-center justify-between shadow-xl z-50 h-[8vh]">
+        <div className="flex items-center gap-[1vw]">
+          <Button variant="ghost" size="sm" onClick={() => setIsPaused(true)} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-[5vh] px-[2vw] text-[1.2vh]"><Pause className="h-[1.5vh] w-[1.5vh] mr-2" /> Pause</Button>
+          <Button variant="ghost" size="sm" onClick={() => setShowCalculator(true)} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-[5vh] px-[2vw] text-[1.2vh]"><CalcIcon className="h-[1.5vh] w-[1.5vh] mr-2" /> Calculator</Button>
         </div>
-
-        <div className="text-center">
-          <p className="font-black italic uppercase tracking-widest text-lg">
-            Question {currentIndex + 1} of {questions.length}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-6">
-          <Button 
-            variant="ghost" 
-            onClick={toggleFlag}
-            className={cn(
-              "h-10 px-6 rounded-full border border-white/30 transition-all",
-              flagged[currentQuestion?.id] ? "bg-amber-500 text-white border-amber-400" : "text-white hover:bg-white/10"
-            )}
-          >
-            <Flag className={cn("h-4 w-4 mr-2", flagged[currentQuestion?.id] && "fill-current")} /> Flag
+        <div className="text-center font-black italic uppercase tracking-widest text-[clamp(0.8rem,2vh,1.5rem)]">Question {currentIndex + 1} of {questions.length}</div>
+        <div className="flex items-center gap-[2vw]">
+          <Button variant="ghost" onClick={toggleFlag} className={cn("h-[5vh] px-[2vw] rounded-full border border-white/30 text-[1.2vh]", flagged[currentQuestion?.id] ? "bg-amber-500 text-white border-amber-400" : "text-white")}>
+            <Flag className={cn("h-[1.5vh] w-[1.5vh] mr-2", flagged[currentQuestion?.id] && "fill-current")} /> Flag
           </Button>
-          
-          <div className="text-3xl font-black italic tabular-nums">
-            {formatMMSS(timeLeft)}
-          </div>
+          <div className="text-[3vh] font-black italic tabular-nums">{formatMMSS(timeLeft)}</div>
         </div>
-      </div>
+      </header>
 
-      <main className="flex-1 p-8 max-w-5xl mx-auto w-full space-y-8 pb-32">
-        <div className="space-y-2">
-          <Progress value={progressPercent} className="h-2 rounded-full bg-slate-200" />
-          <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest italic">
-            <span>Section {currentSection} / 3</span>
-            <span>{Math.round(progressPercent)}% Complété</span>
+      {/* MAIN CONTENT : STRETCHED */}
+      <main className="flex-1 p-[2vh] flex flex-col min-h-0 w-full max-w-[1200px] mx-auto gap-[1.5vh]">
+        <div className="flex-none space-y-[0.5vh]">
+          <Progress value={progressPercent} className="h-[0.8vh] rounded-full" />
+          <div className="flex justify-between text-[1vh] font-black text-slate-400 uppercase tracking-widest italic">
+            <span>Section {currentSection} / 3</span><span>{Math.round(progressPercent)}% Complété</span>
           </div>
         </div>
         
-        <Card className="rounded-[40px] shadow-2xl border-none bg-white overflow-hidden min-h-[450px]">
-          <CardContent className="p-12 space-y-10">
-            <div className="space-y-6">
-              {currentQuestion?.isMultipleCorrect && (
-                <Badge className="bg-indigo-100 text-indigo-600 border-none font-black italic uppercase text-[10px] py-1 px-4">
-                  Plusieurs réponses à sélectionner
-                </Badge>
-              )}
-              <h2 className="text-2xl font-black text-slate-800 italic leading-relaxed">
-                {currentQuestion?.text}
-              </h2>
-
-              {currentQuestion?.imageUrl && (
-                <div className="rounded-[32px] overflow-hidden border-4 border-slate-100 shadow-inner bg-slate-50 p-4">
-                  <img 
-                    src={currentQuestion.imageUrl} 
-                    alt="Illustration" 
-                    className="max-h-[400px] w-auto mx-auto object-contain rounded-2xl"
-                  />
-                </div>
-              )}
+        <Card className="flex-1 rounded-[3vh] shadow-2xl border-none bg-white overflow-hidden flex flex-col min-h-0">
+          <CardContent className="flex-1 overflow-y-auto p-[4vh] flex flex-col gap-[3vh] custom-scrollbar">
+            <div className="flex-none space-y-[2vh]">
+              {currentQuestion?.isMultipleCorrect && <Badge className="bg-indigo-100 text-indigo-600 border-none font-black italic uppercase text-[1vh] py-[0.5vh] px-[2vh]">Multiple Selection</Badge>}
+              <h2 className="text-[clamp(1rem,2.2vh,1.8rem)] font-black text-slate-800 italic leading-relaxed">{currentQuestion?.text}</h2>
+              {currentQuestion?.imageUrl && <div className="rounded-[2vh] overflow-hidden border-2 border-slate-100 bg-slate-50 p-[1vh] flex justify-center"><img src={currentQuestion.imageUrl} alt="Case" className="max-h-[25vh] w-auto object-contain rounded-xl" /></div>}
             </div>
 
-            <div className="grid gap-4">
+            <div className="grid gap-[1vh] flex-none">
               {currentQuestion?.choices?.map((opt: string, idx: number) => {
                 const optId = String(idx + 1);
                 const isSelected = currentAnswers.includes(optId);
-                
                 return (
-                  <div 
-                    key={idx} 
-                    onClick={() => toggleAnswer(currentQuestion.id, optId, currentQuestion.isMultipleCorrect)}
-                    className={cn(
-                      "p-6 rounded-2xl border-2 transition-all cursor-pointer flex items-center gap-6 shadow-sm",
-                      isSelected ? "border-primary bg-primary/5 scale-[1.01]" : "border-slate-100 hover:border-slate-300"
-                    )}
-                  >
-                    <div className={cn(
-                      "h-10 w-10 flex items-center justify-center font-black text-sm shrink-0 border-2",
-                      currentQuestion.isMultipleCorrect ? "rounded-xl" : "rounded-full",
-                      isSelected ? "bg-primary text-white border-primary" : "bg-white text-slate-400"
-                    )}>{String.fromCharCode(65 + idx)}</div>
-                    <p className={cn("flex-1 text-lg font-bold italic", isSelected ? "text-slate-900" : "text-slate-600")}>
-                      {opt}
-                    </p>
-                  </div>
+                  <button key={idx} onClick={() => toggleAnswer(currentQuestion.id, optId, currentQuestion.isMultipleCorrect)} className={cn("p-[2vh] rounded-xl border-2 transition-all text-left flex items-center gap-[2vh] shadow-sm flex-shrink min-h-0", isSelected ? "border-primary bg-primary/5 scale-[1.01]" : "border-slate-100 bg-white hover:border-slate-300")}>
+                    <div className={cn("h-[4vh] w-[4vh] flex items-center justify-center font-black text-[1.5vh] shrink-0 border-2", currentQuestion.isMultipleCorrect ? "rounded-lg" : "rounded-full", isSelected ? "bg-primary text-white border-primary" : "bg-white text-slate-400")}>{String.fromCharCode(65 + idx)}</div>
+                    <span className={cn("flex-1 text-[clamp(0.8rem,1.8vh,1.2rem)] font-black italic", isSelected ? "text-slate-900" : "text-slate-600")}>{opt}</span>
+                  </button>
                 );
               })}
             </div>
@@ -593,73 +379,36 @@ function ExamRunContent() {
         </Card>
       </main>
 
-      <div className="fixed bottom-0 left-0 lg:left-64 right-0 bg-white border-t-2 p-6 flex items-center justify-between shadow-2xl z-40">
-        <div className="flex items-center gap-4">
-          <Button 
-            variant="outline" 
-            className="h-14 px-8 rounded-2xl border-4 font-black uppercase tracking-widest italic" 
-            onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
-            disabled={currentIndex === sectionStart}
-          >
-            <ChevronLeft className="mr-2 h-5 w-5" /> Previous
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            onClick={() => setShowNavigator(!showNavigator)}
-            className="h-14 px-8 rounded-2xl border-4 font-black uppercase tracking-widest italic hover:bg-slate-50"
-          >
-            <LayoutGrid className="mr-2 h-5 w-5" /> Navigator
-          </Button>
+      {/* FOOTER : VH BASED */}
+      <footer className="flex-none h-[10vh] bg-white border-t-2 px-[4vw] flex items-center justify-between shadow-2xl z-40">
+        <div className="flex items-center gap-[1vw]">
+          <Button variant="outline" className="h-[6vh] px-[2vw] rounded-xl border-2 font-black uppercase text-[1.2vh] italic" onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))} disabled={currentIndex === sectionStart}><ChevronLeft className="mr-2 h-[1.5vh] w-[1.5vh]" /> Previous</Button>
+          <Button variant="outline" onClick={() => setShowNavigator(!showNavigator)} className="h-[6vh] px-[2vw] rounded-xl border-2 font-black uppercase text-[1.2vh] italic"><LayoutGrid className="mr-2 h-[1.5vh] w-[1.5vh]" /> Navigator</Button>
         </div>
-
         {currentIndex === sectionEnd || currentIndex === questions.length - 1 ? (
-          <Button 
-            onClick={() => setViewMode('review')}
-            className="h-14 px-10 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest italic shadow-xl"
-          >
-            REVIEW SECTION {currentSection}
-          </Button>
+          <Button onClick={() => setViewMode('review')} className="h-[6vh] px-[3vw] rounded-xl bg-red-600 text-white font-black uppercase text-[1.2vh] italic shadow-xl">REVIEW SECTION {currentSection}</Button>
         ) : (
-          <Button 
-            onClick={() => setCurrentIndex(currentIndex + 1)}
-            className="h-14 px-12 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest italic shadow-xl"
-          >
-            Next <ChevronRight className="ml-2 h-5 w-5" />
-          </Button>
+          <Button onClick={() => setCurrentIndex(currentIndex + 1)} className="h-[6vh] px-[3vw] rounded-xl bg-primary text-white font-black uppercase text-[1.2vh] italic shadow-xl">Next <ChevronRight className="ml-2 h-[1.5vh] w-[1.5vh]" /></Button>
         )}
-      </div>
+      </footer>
 
+      {/* NAVIGATOR OVERLAY */}
       {showNavigator && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center pb-32 px-4 pointer-events-none">
-          <Card className="w-full max-w-4xl p-8 rounded-[40px] shadow-3xl bg-white border-4 border-primary/20 pointer-events-auto animate-slide-up">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-black italic uppercase tracking-tight text-primary">Navigator - Section {currentSection}</h3>
-              <Button variant="ghost" size="icon" onClick={() => setShowNavigator(false)} className="rounded-full h-10 w-10 border-2"><X /></Button>
+        <div className="fixed inset-0 z-[60] flex items-end justify-center pb-[12vh] px-[2vw] pointer-events-none">
+          <Card className="w-full max-w-[1000px] p-[3vh] rounded-[3vh] shadow-3xl bg-white border-4 border-primary/20 pointer-events-auto animate-slide-up h-[40vh] flex flex-col">
+            <div className="flex justify-between items-center mb-[2vh] flex-none">
+              <h3 className="text-[2vh] font-black italic uppercase text-primary">Navigator - Section {currentSection}</h3>
+              <Button variant="ghost" size="icon" onClick={() => setShowNavigator(false)} className="rounded-full h-[4vh] w-[4vh] border-2"><X className="h-[2vh] w-[2vh]" /></Button>
             </div>
-            <div className="grid grid-cols-6 sm:grid-cols-10 gap-3 overflow-y-auto max-h-[350px] p-2">
+            <div className="flex-1 overflow-y-auto grid grid-cols-10 gap-[1vh] content-start p-[1vh] custom-scrollbar">
               {currentSectionQuestions.map((q, idx) => {
                 const globalIdx = sectionStart + idx;
                 const isAnswered = (answers[q.id]?.length || 0) > 0;
                 const isCurrent = globalIdx === currentIndex;
                 const isFlagged = flagged[q.id];
-                
                 return (
-                  <button
-                    key={q.id}
-                    onClick={() => {
-                      setCurrentIndex(globalIdx);
-                      setShowNavigator(false);
-                    }}
-                    className={cn(
-                      "h-12 w-12 rounded-xl font-black text-sm transition-all relative border-2 flex items-center justify-center",
-                      isCurrent ? "border-primary bg-primary text-white scale-110 z-10" : 
-                      isFlagged ? "bg-amber-100 border-amber-400 text-amber-700" :
-                      isAnswered ? "bg-primary/10 border-primary/20 text-primary" : "bg-slate-50 border-slate-100 text-slate-300"
-                    )}
-                  >
-                    {globalIdx + 1}
-                    {isFlagged && <Flag className="absolute -top-1 -right-1 w-3 h-3 text-amber-600 fill-current" />}
+                  <button key={q.id} onClick={() => { setCurrentIndex(globalIdx); setShowNavigator(false); }} className={cn("aspect-square rounded-lg font-black text-[1.2vh] transition-all relative border-2 flex items-center justify-center", isCurrent ? "border-primary bg-primary text-white scale-110 z-10" : isFlagged ? "bg-amber-100 border-amber-400 text-amber-700" : isAnswered ? "bg-primary/10 border-primary/20 text-primary" : "bg-slate-50 border-slate-100 text-slate-300")}>
+                    {globalIdx + 1}{isFlagged && <Flag className="absolute -top-1 -right-1 w-[1vh] h-[1vh] text-amber-600 fill-current" />}
                   </button>
                 );
               })}
@@ -668,31 +417,15 @@ function ExamRunContent() {
         </div>
       )}
 
-      {showCalculator && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
-          <div className="pointer-events-auto">
-            <Calculator onClose={() => setShowCalculator(false)} />
-          </div>
-        </div>
-      )}
-
-      {isPaused && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center pointer-events-auto">
-          <div className="text-center space-y-8">
-            <h2 className="text-6xl font-black uppercase italic text-white tracking-tighter">EXAMEN EN PAUSE</h2>
-            <Button onClick={() => setIsPaused(false)} className="h-20 px-16 rounded-[28px] bg-white text-black text-2xl font-black uppercase tracking-widest shadow-2xl scale-110 hover:scale-115 transition-transform">
-              REPRENDRE
-            </Button>
-          </div>
-        </div>
-      )}
+      {showCalculator && <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none"><div className="pointer-events-auto"><Calculator onClose={() => setShowCalculator(false)} /></div></div>}
+      {isPaused && <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center pointer-events-auto text-center space-y-[4vh] flex-col"><h2 className="text-[8vh] font-black uppercase italic text-white tracking-tighter">EXAM IN PAUSE</h2><Button onClick={() => setIsPaused(false)} className="h-[12vh] px-[8vw] rounded-[3vh] bg-white text-black text-[3vh] font-black uppercase shadow-2xl hover:scale-110 transition-transform">RESUME</Button></div>}
     </div>
   );
 }
 
 export default function ExamRunPage() {
   return (
-    <Suspense fallback={<div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>}>
+    <Suspense fallback={<div className="h-full w-full flex items-center justify-center"><Loader2 className="animate-spin h-[8vh] w-[8vh] text-primary" /></div>}>
       <ExamRunContent />
     </Suspense>
   );
