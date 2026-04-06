@@ -12,7 +12,8 @@ import {
   ArrowRight, 
   ChevronLeft,
   ShieldCheck,
-  RotateCcw
+  RotateCcw,
+  LayoutGrid
 } from 'lucide-react';
 import Link from 'next/link';
 import { useUser } from '@/firebase';
@@ -27,6 +28,15 @@ const CONFIG_SECTIONS = [
     href: '/admin/content-config/mindsets',
     color: 'bg-amber-500',
     tag: 'Dashboard'
+  },
+  {
+    id: 'matrice',
+    title: 'Matrice Magique',
+    description: 'Définissez les règles du jeu : seuils de succès et volume des sprints 3x3.',
+    icon: LayoutGrid,
+    href: '/admin/content-config/matrice',
+    color: 'bg-indigo-600',
+    tag: 'Algorithme'
   },
   {
     id: 'approaches',
@@ -75,7 +85,7 @@ export default function ContentConfigHub() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {CONFIG_SECTIONS.map((section) => (
           <Card key={section.id} className="rounded-[48px] border-none shadow-xl bg-white overflow-hidden group hover:scale-[1.02] transition-all">
             <div className={cn("h-3 w-full", section.color)} />
@@ -88,13 +98,13 @@ export default function ContentConfigHub() {
                   {section.tag}
                 </span>
               </div>
-              <CardTitle className="text-3xl font-black italic uppercase tracking-tight text-slate-900">{section.title}</CardTitle>
+              <CardTitle className="text-2xl font-black italic uppercase tracking-tight text-slate-900">{section.title}</CardTitle>
             </CardHeader>
             <CardContent className="p-10 pt-0 space-y-8">
-              <p className="text-slate-500 font-bold italic text-lg leading-relaxed">
+              <p className="text-slate-500 font-bold italic text-sm leading-relaxed min-h-[60px]">
                 {section.description}
               </p>
-              <Button asChild className={cn("w-full h-16 rounded-[24px] font-black uppercase tracking-widest text-sm italic shadow-xl group-hover:shadow-2xl transition-all", section.id === 'questions' ? 'bg-primary' : 'bg-slate-900')}>
+              <Button asChild className={cn("w-full h-16 rounded-[24px] font-black uppercase tracking-widest text-xs italic shadow-xl group-hover:shadow-2xl transition-all", section.id === 'questions' ? 'bg-primary' : 'bg-slate-900')}>
                 <Link href={section.href} className="flex items-center justify-center gap-3">
                   Gérer cette section <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-2" />
                 </Link>
@@ -119,7 +129,7 @@ export default function ContentConfigHub() {
               <div className="space-y-2 text-center md:text-left">
                 <h4 className="text-xl font-black uppercase italic text-slate-800 tracking-tight">Gestion des réinitialisations</h4>
                 <p className="text-sm font-bold text-slate-500 italic max-w-2xl leading-relaxed">
-                  Pour vider le contenu d'une section ou d'un onglet spécifique (ex: Waterfall uniquement), rendez-vous directement dans la section concernée. Des boutons de maintenance ciblés y sont disponibles.
+                  Pour vider le contenu d'une section ou d'un onglet spécifique (ex: Matrice ou Mindsets), rendez-vous directement dans la section concernée. Des boutons de maintenance ciblés y sont disponibles.
                 </p>
               </div>
             </div>
