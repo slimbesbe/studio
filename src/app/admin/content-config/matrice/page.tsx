@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from 'react';
@@ -17,8 +16,10 @@ import {
   CheckCircle2,
   AlertCircle,
   Settings2,
-  Table as TableIcon
+  Table as TableIcon,
+  Info
 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
