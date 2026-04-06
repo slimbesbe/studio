@@ -204,22 +204,46 @@ function ExamRunContent() {
     let correct = 0;
     const domainStats: Record<string, { correct: number, total: number }> = { 'People': { correct: 0, total: 0 }, 'Process': { correct: 0, total: 0 }, 'Business': { correct: 0, total: 0 } };
     const approachStats: Record<string, { correct: number, total: number }> = { 'Predictive': { correct: 0, total: 0 }, 'Agile': { correct: 0, total: 0 }, 'Hybrid': { correct: 0, total: 0 } };
+    const savedResponses: any[] = [];
 
     questions.forEach(q => {
       const correctIds = q.correctOptionIds || [String(q.correctChoice || "1")];
       const userChoices = answers[q.id] || [];
       const isUserCorrect = userChoices.length === correctIds.length && userChoices.every(id => correctIds.includes(id));
+      
       if (isUserCorrect) correct++;
+      
       const domain = q.tags?.domain === 'Processus' ? 'Process' : (q.tags?.domain || 'Process');
       if (domainStats[domain]) { domainStats[domain].total++; if (isUserCorrect) domainStats[domain].correct++; }
+      
       const approach = q.tags?.approach || 'Predictive';
       if (approachStats[approach]) { approachStats[approach].total++; if (isUserCorrect) approachStats[approach].correct++; }
+
+      savedResponses.push({
+        questionId: q.id,
+        text: q.text,
+        imageUrl: q.imageUrl || null,
+        choices: q.choices,
+        userChoices,
+        correctOptionIds: correctIds,
+        isCorrect: isUserCorrect,
+        explanation: q.explanation,
+        tags: q.tags
+      });
     });
 
     const percent = Math.round((correct / questions.length) * 100);
     const finalData = {
-      examId, userId: user?.uid, scorePercent: percent, correctCount: correct, totalQuestions: questions.length,
-      durationSec: totalTime - timeLeft, submittedAt: serverTimestamp(), domainBreakdown: domainStats, approachBreakdown: approachStats
+      examId, 
+      userId: user?.uid, 
+      scorePercent: percent, 
+      correctCount: correct, 
+      totalQuestions: questions.length,
+      durationSec: totalTime - timeLeft, 
+      submittedAt: serverTimestamp(), 
+      domainBreakdown: domainStats, 
+      approachBreakdown: approachStats,
+      responses: savedResponses
     };
 
     try { await addDoc(collection(db, 'coachingAttempts'), finalData); setResult(finalData); setViewMode('result'); }
