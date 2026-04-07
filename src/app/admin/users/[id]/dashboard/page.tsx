@@ -33,6 +33,7 @@ import Link from 'next/link';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useParams } from 'next/navigation';
+import { isValid } from 'date-fns';
 
 export default function AdminUserDashboardPage() {
   const params = useParams();
@@ -72,12 +73,16 @@ export default function AdminUserDashboardPage() {
     }
 
     const sorted = [...rawAttempts].sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
-    const avgScore = Math.round(sorted.reduce((acc, a) => acc + (a.scorePercent || 0), 0) / sorted.length);
-    const lastScore = sorted[0]?.scorePercent || 0;
-    const examCount = rawAttempts.filter(a => a.examId && a.examId.startsWith('exam')).length;
-    const questionsCount = rawAttempts.reduce((acc, a) => acc + (a.totalQuestions || 0), 0);
     
-    const progressionData = [...sorted].reverse().slice(-7).map((a, i) => {
+    // Sécurité dates
+    const validSorted = sorted.filter(a => a.submittedAt && isValid(a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt)));
+    
+    const avgScore = validSorted.length > 0 ? Math.round(validSorted.reduce((acc, a) => acc + (a.scorePercent || 0), 0) / validSorted.length) : 0;
+    const lastScore = validSorted[0]?.scorePercent || 0;
+    const examCount = validSorted.filter(a => a.examId && a.examId.startsWith('exam')).length;
+    const questionsCount = validSorted.reduce((acc, a) => acc + (a.totalQuestions || 0), 0);
+    
+    const progressionData = [...validSorted].reverse().slice(-7).map((a, i) => {
       const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
       return {
         name: date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
@@ -92,7 +97,7 @@ export default function AdminUserDashboardPage() {
       avgScore,
       questionsCount,
       progressionData,
-      sortedAttempts: sorted.slice(0, 10)
+      sortedAttempts: validSorted.slice(0, 10)
     };
   }, [rawAttempts]);
 
@@ -125,7 +130,7 @@ export default function AdminUserDashboardPage() {
       {/* KPI Row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <KPICard icon={Trophy} label="Ready Score" val={`${stats.readiness}%`} color="text-[#1d4ed8] bg-blue-50" />
-        <KPICard icon={History} label="Simulations" val={rawAttempts?.length || 0} color="text-[#22c55e] bg-emerald-50" />
+        <KPICard icon={History} label="Simulations" val={stats.sortedAttempts.length} color="text-[#22c55e] bg-emerald-50" />
         <KPICard icon={Clock} label="Temps d'étude" val={`${Math.floor((targetProfile?.totalTimeSpent || 0) / 3600)}h ${Math.floor(((targetProfile?.totalTimeSpent || 0) % 3600) / 60)}m`} color="text-indigo-600 bg-indigo-50" />
         <KPICard icon={FileQuestion} label="Questions traitées" val={stats.questionsCount} color="text-amber-600 bg-amber-50" />
       </div>
@@ -173,7 +178,7 @@ export default function AdminUserDashboardPage() {
             </div>
             <div className="space-y-1">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Expiration du compte</p>
-              <p className={cn("text-lg font-bold italic", new Date(targetProfile?.expiresAt?.seconds * 1000) < new Date() ? "text-red-500" : "text-emerald-600")}>
+              <p className={cn("text-lg font-bold italic", targetProfile?.expiresAt && new Date(targetProfile.expiresAt.seconds * 1000) < new Date() ? "text-red-500" : "text-emerald-600")}>
                 {targetProfile?.expiresAt?.toDate ? targetProfile.expiresAt.toDate().toLocaleDateString() : 'Illimité'}
               </p>
             </div>

@@ -20,7 +20,7 @@ import {
   BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, Cell
 } from 'recharts';
 import { cn } from '@/lib/utils';
-import { startOfDay, endOfDay, isWithinInterval, subDays, format, startOfMonth, endOfMonth } from 'date-fns';
+import { startOfDay, endOfDay, isWithinInterval, subDays, format, startOfMonth, endOfMonth, isValid } from 'date-fns';
 
 // LISTE BLANCHE MATÉRIELLE DE SÉCURITÉ
 const ADMIN_EMAILS = ['slim.besbes@yahoo.fr'];
@@ -91,29 +91,36 @@ export default function SuperAdminDashboard() {
     const expiredCount = allUsers.filter(u => u.status === 'expired').length;
     const suspendedCount = allUsers.filter(u => u.status === 'disabled' || u.status === 'suspended').length;
 
-    const todayAttempts = allAttempts.filter(a => {
+    // Filtrer les tentatives avec des dates valides pour éviter les plantages
+    const validAttempts = allAttempts.filter(a => {
+      if (!a.submittedAt) return false;
+      const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
+      return isValid(date);
+    });
+
+    const todayAttempts = validAttempts.filter(a => {
       const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
       return isWithinInterval(date, { start: todayStart, end: todayEnd });
     });
 
-    const monthAttempts = allAttempts.filter(a => {
+    const monthAttempts = validAttempts.filter(a => {
       const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
       return isWithinInterval(date, { start: monthStart, end: monthEnd });
     });
 
-    const avgScore = allAttempts.length > 0 
-      ? Math.round(allAttempts.reduce((acc, a) => acc + (Number(a.scorePercent) || 0), 0) / allAttempts.length)
+    const avgScore = validAttempts.length > 0 
+      ? Math.round(validAttempts.reduce((acc, a) => acc + (Number(a.scorePercent) || 0), 0) / validAttempts.length)
       : 0;
     
-    const successRate = allAttempts.length > 0
-      ? Math.round((allAttempts.filter(a => (Number(a.scorePercent) || 0) >= 75).length / allAttempts.length) * 100)
+    const successRate = validAttempts.length > 0
+      ? Math.round((validAttempts.filter(a => (Number(a.scorePercent) || 0) >= 75).length / validAttempts.length) * 100)
       : 0;
 
     const last7Days = Array.from({ length: 7 }, (_, i) => {
       const d = subDays(now, 6 - i);
       const dayStart = startOfDay(d);
       const dayEnd = endOfDay(d);
-      const count = allAttempts.filter(a => {
+      const count = validAttempts.filter(a => {
         const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
         return isWithinInterval(date, { start: dayStart, end: dayEnd });
       }).length;

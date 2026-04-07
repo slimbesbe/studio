@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -14,6 +13,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { 
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell 
 } from 'recharts';
+import { isValid } from 'date-fns';
 
 export default function HistoryPage() {
   const { user, isUserLoading } = useUser();
@@ -45,15 +45,23 @@ export default function HistoryPage() {
 
   const chartData = useMemo(() => {
     if (!results) return [];
-    // Chronologique pour le graphique (gauche à droite)
-    return [...results].reverse().slice(-10).map((res, i) => {
-      const date = res.submittedAt?.toDate ? res.submittedAt.toDate() : new Date(res.submittedAt);
-      return {
-        name: `S${i + 1}`,
-        score: res.scorePercent,
-        fullDate: date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
-      };
-    });
+    // Filtrer les entrées sans date valide (cas des écritures en cours)
+    return [...results]
+      .filter(res => {
+        if (!res.submittedAt) return false;
+        const date = res.submittedAt?.toDate ? res.submittedAt.toDate() : new Date(res.submittedAt);
+        return isValid(date);
+      })
+      .reverse()
+      .slice(-10)
+      .map((res, i) => {
+        const date = res.submittedAt?.toDate ? res.submittedAt.toDate() : new Date(res.submittedAt);
+        return {
+          name: `S${i + 1}`,
+          score: res.scorePercent,
+          fullDate: date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+        };
+      });
   }, [results]);
 
   const formatTime = (seconds: any) => {
@@ -73,6 +81,7 @@ export default function HistoryPage() {
   const formatDate = (ts: any) => {
     if (!ts) return '-';
     const date = ts?.toDate ? ts.toDate() : new Date(ts);
+    if (!isValid(date)) return 'Récemment';
     return date.toLocaleDateString('fr-FR', { 
       day: '2-digit', 
       month: 'short', 
@@ -83,6 +92,7 @@ export default function HistoryPage() {
   const formatHour = (ts: any) => {
     if (!ts) return '-';
     const date = ts?.toDate ? ts.toDate() : new Date(ts);
+    if (!isValid(date)) return '--:--';
     return date.toLocaleTimeString('fr-FR', { 
       hour: '2-digit',
       minute: '2-digit'

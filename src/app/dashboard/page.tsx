@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo, useState, useEffect } from 'react';
@@ -38,6 +37,7 @@ import Link from 'next/link';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TargetExamDateCard } from '@/components/dashboard/TargetExamDateCard';
+import { isValid } from 'date-fns';
 
 export default function DashboardPage() {
   const { user, profile, isUserLoading } = useUser();
@@ -73,12 +73,16 @@ export default function DashboardPage() {
     }
 
     const sorted = [...rawAttempts].sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
-    const avgScore = Math.round(sorted.reduce((acc, a) => acc + (a.scorePercent || 0), 0) / sorted.length);
-    const lastScore = sorted[0]?.scorePercent || 0;
-    const examCount = rawAttempts.filter(a => a.examId && a.examId.startsWith('exam')).length;
-    const questionsCount = rawAttempts.reduce((acc, a) => acc + (a.totalQuestions || 0), 0);
     
-    const progressionData = [...sorted].reverse().slice(-7).map((a, i) => {
+    // Filtrage des tentatives valides pour les stats
+    const validSorted = sorted.filter(a => a.submittedAt && isValid(a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt)));
+    
+    const avgScore = validSorted.length > 0 ? Math.round(validSorted.reduce((acc, a) => acc + (a.scorePercent || 0), 0) / validSorted.length) : 0;
+    const lastScore = validSorted[0]?.scorePercent || 0;
+    const examCount = validSorted.filter(a => a.examId && a.examId.startsWith('exam')).length;
+    const questionsCount = validSorted.reduce((acc, a) => acc + (a.totalQuestions || 0), 0);
+    
+    const progressionData = [...validSorted].reverse().slice(-7).map((a, i) => {
       const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
       return {
         name: date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
@@ -93,7 +97,7 @@ export default function DashboardPage() {
       avgScore,
       questionsCount,
       progressionData,
-      sortedAttempts: sorted.slice(0, 5)
+      sortedAttempts: validSorted.slice(0, 5)
     };
   }, [rawAttempts]);
 
