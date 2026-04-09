@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense, useCallback } from 'react';
 import { useUser, useFirestore } from '@/firebase';
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -30,6 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Calculator } from '@/components/dashboard/Calculator';
 import { logActivity } from '@/lib/services/logging-service';
+import { saveExamState, getExamState, clearExamState } from '@/lib/services/exam-state-service';
 
 type ViewMode = 'question' | 'review' | 'break' | 'result';
 
@@ -88,6 +89,7 @@ function ExamRunContent() {
   const { toast } = useToast();
   
   const examId = searchParams.get('id');
+  const shouldResume = searchParams.get('resume') === 'true';
   
   const [questions, setQuestions] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -106,6 +108,22 @@ function ExamRunContent() {
   const [currentSection, setCurrentSection] = useState(1);
 
   const SECTION_SIZE = 60;
+
+  // Persistence logic
+  const triggerSave = useCallback((override?: Partial<any>) => {
+    if (!user || !examId) return;
+    
+    const state = {
+      examId,
+      status: 'in_progress' as const,
+      currentIndex: override?.currentIndex ?? currentIndex,
+      answers: override?.answers ?? answers,
+      flagged: override?.flagged ?? flagged,
+      timeLeft: override?.timeLeft ?? timeLeft,
+      currentSection: override?.currentSection ?? currentSection,
+    };
+    saveExamState(db, user.uid, state);
+  }, [db, user, examId, currentIndex, answers, flagged, timeLeft, currentSection]);
 
   useEffect(() => {
     async function fetchQuestions() {
@@ -128,29 +146,54 @@ function ExamRunContent() {
         fetched.sort((a, b) => (a.index || 0) - (b.index || 0));
         setQuestions(fetched);
         
-        // Log exam start
-        logActivity(db, user.uid, 'exam_started', { examId });
+        let initialTime = Math.floor(((fetched.length * 230) / 180) * 60);
+        let initialIdx = 0;
+        let initialAnswers = {};
+        let initialFlags = {};
+        let initialSection = 1;
 
-        const totalMinutes = (fetched.length * 230) / 180;
-        const initialSeconds = Math.floor(totalMinutes * 60);
-        setTimeLeft(initialSeconds);
-        setTotalTime(initialSeconds);
+        if (shouldResume) {
+          const state = await getExamState(db, user.uid);
+          if (state && state.examId === examId) {
+            initialTime = state.timeLeft;
+            initialIdx = state.currentIndex;
+            initialAnswers = state.answers || {};
+            initialFlags = state.flagged || {};
+            initialSection = state.currentSection || 1;
+          }
+        }
+
+        setTimeLeft(initialTime);
+        setTotalTime(Math.floor(((fetched.length * 230) / 180) * 60));
+        setCurrentIndex(initialIdx);
+        setAnswers(initialAnswers);
+        setFlagged(initialFlags);
+        setCurrentSection(initialSection);
+
+        logActivity(db, user.uid, shouldResume ? 'exam_resumed' : 'exam_started', { examId });
       } catch (e) {
         toast({ variant: "destructive", title: "Erreur" });
       } finally { setIsLoading(false); }
     }
     fetchQuestions();
-  }, [db, examId, user, router, toast]);
+  }, [db, examId, user, router, toast, shouldResume]);
 
   useEffect(() => {
     let timer: any;
     if (viewMode === 'question' && !isPaused && timeLeft > 0) {
-      timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+      timer = setInterval(() => {
+        setTimeLeft(prev => {
+          const next = prev - 1;
+          // Sauvegarde automatique du temps toutes les 30 secondes
+          if (next > 0 && next % 30 === 0) triggerSave({ timeLeft: next });
+          return next;
+        });
+      }, 1000);
     } else if (timeLeft === 0 && !result && viewMode === 'question' && !isLoading && questions.length > 0) {
       finishExam();
     }
     return () => clearInterval(timer);
-  }, [viewMode, isPaused, timeLeft, result, isLoading, questions.length]);
+  }, [viewMode, isPaused, timeLeft, result, isLoading, questions.length, triggerSave]);
 
   useEffect(() => {
     let timer: any;
@@ -178,26 +221,33 @@ function ExamRunContent() {
 
   const toggleFlag = () => {
     const qId = questions[currentIndex].id;
-    setFlagged(prev => ({ ...prev, [qId]: !prev[qId] }));
+    const nextFlags = { ...flagged, [qId]: !flagged[qId] };
+    setFlagged(nextFlags);
+    triggerSave({ flagged: nextFlags });
   };
 
   const toggleAnswer = (qId: string, optId: string, isMultiple: boolean) => {
     const current = answers[qId] || [];
+    let nextAnswers;
     if (isMultiple) {
-      setAnswers({ ...answers, [qId]: current.includes(optId) ? current.filter(id => id !== optId) : [...current, optId] });
+      nextAnswers = { ...answers, [qId]: current.includes(optId) ? current.filter(id => id !== optId) : [...current, optId] };
     } else {
-      setAnswers({ ...answers, [qId]: [optId] });
+      nextAnswers = { ...answers, [qId]: [optId] };
     }
+    setAnswers(nextAnswers);
+    triggerSave({ answers: nextAnswers });
   };
 
   const startNextSection = () => {
     if (currentSection < 3) {
       const nextIdx = currentSection * SECTION_SIZE;
       if (nextIdx < questions.length) {
-        setCurrentSection(prev => prev + 1);
+        const nextSec = currentSection + 1;
+        setCurrentSection(nextSec);
         setCurrentIndex(nextIdx);
         setViewMode('question');
         setBreakTimeLeft(10 * 60);
+        triggerSave({ currentIndex: nextIdx, currentSection: nextSec });
       } else { finishExam(); }
     } else { finishExam(); }
   };
@@ -240,7 +290,6 @@ function ExamRunContent() {
       responses: minimalResponses
     };
 
-    // OPTIMISTIC UI: Prepare results locally and transition IMMEDIATELY
     const resultData = {
       ...finalData,
       scorePercent: percent,
@@ -253,13 +302,12 @@ function ExamRunContent() {
     setResult(resultData);
     setViewMode('result');
 
-    // ASYNC PERSISTENCE: Save to Firestore in background
+    // Clean up state and save result
+    if (user) clearExamState(db, user.uid);
+    
     addDoc(collection(db, 'coachingAttempts'), finalData)
       .then(() => {
         logActivity(db, user!.uid, 'exam_completed', { examId, score: percent });
-      })
-      .catch((e) => {
-        console.error("Async result save failed:", e);
       })
       .finally(() => {
         setIsSubmitting(false);
@@ -377,7 +425,7 @@ function ExamRunContent() {
       {/* HEADER : VH BASED */}
       <header className="flex-none bg-black text-white px-[4vw] py-[1.5vh] flex items-center justify-between shadow-xl z-50 h-[8vh]">
         <div className="flex items-center gap-[1vw]">
-          <Button variant="ghost" size="sm" onClick={() => setIsPaused(true)} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-[5vh] px-[2vw] text-[1.2vh]"><Pause className="h-[1.5vh] w-[1.5vh] mr-2" /> Pause</Button>
+          <Button variant="ghost" size="sm" onClick={() => { setIsPaused(true); triggerSave(); }} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-[5vh] px-[2vw] text-[1.2vh]"><Pause className="h-[1.5vh] w-[1.5vh] mr-2" /> Pause</Button>
           <Button variant="ghost" size="sm" onClick={() => setShowCalculator(true)} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-[5vh] px-[2vw] text-[1.2vh]"><CalcIcon className="h-[1.5vh] w-[1.5vh] mr-2" /> Calculator</Button>
         </div>
         <div className="text-center font-black italic uppercase tracking-widest text-[clamp(0.8rem,2vh,1.5rem)]">Question {currentIndex + 1} of {questions.length}</div>
@@ -433,13 +481,13 @@ function ExamRunContent() {
       {/* FOOTER : VH BASED */}
       <footer className="flex-none h-[10vh] bg-white border-t-2 px-[4vw] flex items-center justify-between shadow-2xl z-40">
         <div className="flex items-center gap-[1vw]">
-          <Button variant="outline" className="h-[6vh] px-[2vw] rounded-xl border-2 font-black uppercase text-[1.2vh] italic" onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))} disabled={currentIndex === sectionStart}><ChevronLeft className="mr-2 h-[1.5vh] w-[1.5vh]" /> Previous</Button>
+          <Button variant="outline" className="h-[6vh] px-[2vw] rounded-xl border-2 font-black uppercase text-[1.2vh] italic" onClick={() => { const next = Math.max(0, currentIndex - 1); setCurrentIndex(next); triggerSave({ currentIndex: next }); }} disabled={currentIndex === sectionStart}><ChevronLeft className="mr-2 h-[1.5vh] w-[1.5vh]" /> Previous</Button>
           <Button variant="outline" onClick={() => setShowNavigator(!showNavigator)} className="h-[6vh] px-[2vw] rounded-xl border-2 font-black uppercase text-[1.2vh] italic"><LayoutGrid className="mr-2 h-[1.5vh] w-[1.5vh]" /> Navigator</Button>
         </div>
         {currentIndex === sectionEnd || currentIndex === questions.length - 1 ? (
           <Button onClick={() => setViewMode('review')} className="h-[6vh] px-[3vw] rounded-xl bg-red-600 text-white font-black uppercase text-[1.2vh] italic shadow-xl">REVIEW SECTION {currentSection}</Button>
         ) : (
-          <Button onClick={() => setCurrentIndex(currentIndex + 1)} className="h-[6vh] px-[3vw] rounded-xl bg-primary text-white font-black uppercase text-[1.2vh] italic shadow-xl">Next <ChevronRight className="ml-2 h-4 w-4" /></Button>
+          <Button onClick={() => { const next = currentIndex + 1; setCurrentIndex(next); triggerSave({ currentIndex: next }); }} className="h-[6vh] px-[3vw] rounded-xl bg-primary text-white font-black uppercase text-[1.2vh] italic shadow-xl">Next <ChevronRight className="ml-2 h-4 w-4" /></Button>
         )}
       </footer>
 
@@ -458,7 +506,7 @@ function ExamRunContent() {
                 const isCurrent = globalIdx === currentIndex;
                 const isFlagged = flagged[q.id];
                 return (
-                  <button key={q.id} onClick={() => { setCurrentIndex(globalIdx); setShowNavigator(false); }} className={cn("aspect-square rounded-lg font-black text-[1.2vh] transition-all relative border-2 flex items-center justify-center", isCurrent ? "border-primary bg-primary text-white scale-110 z-10" : isFlagged ? "bg-amber-100 border-amber-400 text-amber-700" : isAnswered ? "bg-primary/10 border-primary/20 text-primary" : "bg-slate-50 border-slate-100 text-slate-300")}>
+                  <button key={q.id} onClick={() => { setCurrentIndex(globalIdx); setShowNavigator(false); triggerSave({ currentIndex: globalIdx }); }} className={cn("aspect-square rounded-lg font-black text-[1.2vh] transition-all relative border-2 flex items-center justify-center", isCurrent ? "border-primary bg-primary text-white scale-110 z-10" : isFlagged ? "bg-amber-100 border-amber-400 text-amber-700" : isAnswered ? "bg-primary/10 border-primary/20 text-primary" : "bg-slate-50 border-slate-100 text-slate-300")}>
                     {globalIdx + 1}{isFlagged && <Flag className="absolute -top-1 -right-1 w-[1vh] h-[1vh] text-amber-600 fill-current" />}
                   </button>
                 );

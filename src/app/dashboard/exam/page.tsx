@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -12,10 +11,23 @@ import {
   Trophy, 
   FileQuestion, 
   ChevronRight,
-  AlertCircle
+  AlertCircle,
+  Play,
+  RotateCcw,
+  AlertTriangle
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { getExamState, clearExamState, type ExamState } from '@/lib/services/exam-state-service';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useRouter } from 'next/navigation';
 
 const ALL_EXAMS = [
   { id: 'exam1', title: 'Simulation Examen 1', description: 'Examen complet de questions couvrant tous les domaines.' },
@@ -28,20 +40,27 @@ const ALL_EXAMS = [
 export default function ExamPage() {
   const { profile, user, isUserLoading } = useUser();
   const db = useFirestore();
+  const router = useRouter();
   
   const [examCounts, setExamCounts] = useState<Record<string, number>>({});
   const [isCounting, setIsCounting] = useState(true);
+  const [activeSim, setActiveSim] = useState<ExamState | null>(null);
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
+  const [showResumeModal, setShowResumeModal] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
 
   useEffect(() => {
-    async function fetchCounts() {
+    async function initData() {
       if (!db || isUserLoading || !user) return;
       setIsCounting(true);
       try {
+        // 1. Check for active simulation
+        const state = await getExamState(db, user.uid);
+        setActiveSim(state);
+
+        // 2. Count questions per exam
         const qRef = collection(db, 'questions');
         const counts: Record<string, number> = {};
-        
-        // On compte les questions assignées à chaque examen via sourceIds
         for (const exam of ALL_EXAMS) {
           const q = query(qRef, 
             where('sourceIds', 'array-contains', exam.id), 
@@ -50,29 +69,54 @@ export default function ExamPage() {
           const snap = await getDocs(q);
           counts[exam.id] = snap.size;
         }
-        
         setExamCounts(counts);
       } catch (e) {
-        console.error("Error counting questions:", e);
+        console.error("Error initializing exam page:", e);
       } finally {
         setIsCounting(false);
       }
     }
-    fetchCounts();
+    initData();
   }, [db, user, isUserLoading]);
 
   const availableExams = useMemo(() => {
     if (!profile) return [];
-    
     return ALL_EXAMS.filter(exam => {
       const count = examCounts[exam.id] || 0;
       const hasQuestions = count > 0;
       const isPrivileged = profile.role === 'admin' || profile.role === 'super_admin';
       const hasAccess = isPrivileged || (profile.allowedExams && profile.allowedExams.includes(exam.id));
-      
       return hasQuestions && hasAccess;
     });
   }, [profile, examCounts]);
+
+  const handleExamClick = (examId: string) => {
+    if (activeSim && activeSim.examId === examId) {
+      setShowResumeModal(true);
+    } else {
+      router.push(`/dashboard/exam/run?id=${examId}`);
+    }
+  };
+
+  const handleRestart = async () => {
+    if (!activeSim || !user) return;
+    setIsClearing(true);
+    try {
+      await clearExamState(db, user.uid);
+      router.push(`/dashboard/exam/run?id=${activeSim.examId}`);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsClearing(false);
+      setShowResumeModal(false);
+    }
+  };
+
+  const handleResume = () => {
+    if (!activeSim) return;
+    router.push(`/dashboard/exam/run?id=${activeSim.examId}&resume=true`);
+    setShowResumeModal(false);
+  };
 
   if (isUserLoading || isCounting) {
     return (
@@ -107,73 +151,130 @@ export default function ExamPage() {
               Les examens n'apparaîtront ici que s'ils contiennent des questions dans la banque (Base Examens).
             </p>
           </div>
-          {(profile?.role === 'admin' || profile?.role === 'super_admin') && (
-            <Button asChild className="bg-primary hover:bg-primary/90 font-black uppercase tracking-widest h-14 px-8 rounded-2xl shadow-lg">
-              <Link href="/admin/questions">Gérer la banque de questions</Link>
-            </Button>
-          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {availableExams.map((exam) => (
-            <Card 
-              key={exam.id} 
-              className={cn(
-                "rounded-[40px] border-4 transition-all relative overflow-hidden group cursor-pointer",
-                selectedExamId === exam.id ? "border-primary bg-primary/5 shadow-2xl scale-[1.02]" : "bg-white border-white shadow-xl hover:border-primary/20"
-              )}
-              onClick={() => setSelectedExamId(exam.id)}
-            >
-              <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                <Trophy className="h-20 w-20" />
-              </div>
-              
-              <CardHeader className="p-8 pb-4 space-y-4">
-                <div className="h-14 w-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-inner">
-                  <FileQuestion className="h-7 w-7" />
+          {availableExams.map((exam) => {
+            const isProgress = activeSim?.examId === exam.id;
+            return (
+              <Card 
+                key={exam.id} 
+                className={cn(
+                  "rounded-[40px] border-4 transition-all relative overflow-hidden group cursor-pointer",
+                  isProgress 
+                    ? "bg-amber-50/50 border-amber-200 shadow-amber-100 shadow-xl" 
+                    : "bg-white border-white shadow-xl hover:border-primary/20"
+                )}
+                onClick={() => handleExamClick(exam.id)}
+              >
+                <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <Trophy className="h-20 w-20" />
                 </div>
-                <CardTitle className="text-2xl font-black uppercase italic tracking-tight leading-tight pr-10">{exam.title}</CardTitle>
-                <div className="flex items-center gap-3 pt-1">
-                  <Badge className="bg-emerald-100 text-emerald-600 border-none font-black italic px-3 py-1.5 shadow-sm">
-                    {examCounts[exam.id] || 0} QUESTIONS
-                  </Badge>
-                  <Badge variant="outline" className="font-black border-2 text-[10px] uppercase px-3 py-1 bg-slate-50/50">
-                    {Math.floor(((examCounts[exam.id] || 0) * 230) / 180)} MIN
-                  </Badge>
-                </div>
-              </CardHeader>
-              
-              <CardContent className="p-8 pt-0">
-                <p className="text-sm font-bold italic text-slate-500 leading-relaxed min-h-[60px]">
-                  {exam.description}
-                </p>
                 
-                <Button 
-                  asChild
-                  className={cn(
-                    "w-full h-14 rounded-2xl mt-6 font-black uppercase tracking-widest text-sm shadow-lg",
-                    selectedExamId === exam.id ? "bg-primary hover:bg-primary/90" : "bg-slate-200 text-slate-500 pointer-events-none"
-                  )}
-                >
-                  <Link href={`/dashboard/exam/run?id=${exam.id}`}>
-                    Lancer la simulation <ChevronRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+                <CardHeader className="p-8 pb-4 space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div className={cn(
+                      "h-14 w-14 rounded-2xl flex items-center justify-center shadow-inner",
+                      isProgress ? "bg-amber-100 text-amber-600" : "bg-indigo-50 text-indigo-600"
+                    )}>
+                      <FileQuestion className="h-7 w-7" />
+                    </div>
+                    {isProgress && (
+                      <Badge className="bg-amber-500 text-white border-none font-black italic text-[10px] animate-pulse">
+                        EXAMEN EN COURS ⚠️
+                      </Badge>
+                    )}
+                  </div>
+                  <CardTitle className="text-2xl font-black uppercase italic tracking-tight leading-tight pr-10">{exam.title}</CardTitle>
+                  <div className="flex items-center gap-3 pt-1">
+                    <Badge className={cn(
+                      "border-none font-black italic px-3 py-1.5 shadow-sm",
+                      isProgress ? "bg-amber-200 text-amber-700" : "bg-emerald-100 text-emerald-600"
+                    )}>
+                      {examCounts[exam.id] || 0} QUESTIONS
+                    </Badge>
+                  </div>
+                </CardHeader>
+                
+                <CardContent className="p-8 pt-0">
+                  <p className="text-sm font-bold italic text-slate-500 leading-relaxed min-h-[60px]">
+                    {exam.description}
+                  </p>
+                  
+                  <Button 
+                    className={cn(
+                      "w-full h-14 rounded-2xl mt-6 font-black uppercase tracking-widest text-sm shadow-lg",
+                      isProgress ? "bg-amber-500 hover:bg-amber-600" : "bg-primary hover:bg-primary/90"
+                    )}
+                  >
+                    {isProgress ? "REPRENDRE L'EXAMEN" : "LANCER LA SIMULATION"} <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
       <div className="bg-amber-50 border-2 border-amber-200 p-6 rounded-[32px] flex items-start gap-4 animate-slide-up">
         <AlertCircle className="h-6 w-6 text-amber-600 shrink-0" />
         <div>
-          <h4 className="font-black uppercase italic text-amber-800 text-sm">Base de données séparée</h4>
+          <h4 className="font-black uppercase italic text-amber-800 text-sm">Sauvegarde automatique</h4>
           <p className="text-xs font-bold text-amber-700/80 italic mt-1">
-            Les questions utilisées dans ces simulations sont distinctes de celles de la Pratique Libre pour garantir l'intégrité de votre score final.
+            Votre progression est sauvegardée en temps réel. Vous pouvez quitter la page et reprendre votre examen là où vous l'avez laissé.
           </p>
         </div>
       </div>
+
+      <Dialog open={showResumeModal} onOpenChange={setShowResumeModal}>
+        <DialogContent className="rounded-[40px] p-10 border-4 shadow-3xl max-w-lg">
+          <DialogHeader className="space-y-4">
+            <div className="bg-amber-100 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto">
+              <AlertTriangle className="h-8 w-8 text-amber-600" />
+            </div>
+            <div className="text-center">
+              <DialogTitle className="text-3xl font-black uppercase italic tracking-tighter text-slate-900">Simulation en cours</DialogTitle>
+              <DialogDescription className="text-lg font-bold text-slate-500 italic mt-2">
+                Vous avez déjà une session active pour cet examen.
+              </DialogDescription>
+            </div>
+          </DialogHeader>
+          
+          <div className="bg-slate-50 p-6 rounded-3xl border-2 border-dashed border-slate-200 my-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center">
+                <p className="text-[10px] font-black uppercase text-slate-400">Progression</p>
+                <p className="text-2xl font-black italic text-primary">Q{ (activeSim?.currentIndex || 0) + 1 }</p>
+              </div>
+              <div className="text-center">
+                <p className="text-[10px] font-black uppercase text-slate-400">Temps restant</p>
+                <p className="text-2xl font-black italic text-primary">
+                  {Math.floor((activeSim?.timeLeft || 0) / 60)}m
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-4 sm:justify-center">
+            <Button 
+              variant="outline" 
+              onClick={handleRestart}
+              disabled={isClearing}
+              className="h-14 flex-1 rounded-2xl border-2 font-black uppercase italic text-xs tracking-widest text-slate-500"
+            >
+              {isClearing ? <Loader2 className="animate-spin h-4 w-4" /> : <RotateCcw className="h-4 w-4 mr-2" />}
+              Recommencer
+            </Button>
+            <Button 
+              onClick={handleResume}
+              className="h-14 flex-1 rounded-2xl bg-primary hover:bg-primary/90 font-black uppercase italic text-xs tracking-widest shadow-xl"
+            >
+              <Play className="h-4 w-4 mr-2 fill-white" />
+              Continuer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
