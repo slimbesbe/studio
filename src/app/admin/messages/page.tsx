@@ -17,7 +17,8 @@ import {
   ExternalLink,
   Sparkles,
   Search,
-  X
+  X,
+  PartyPopper
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -41,9 +42,9 @@ export default function AdminCommunicationsPage() {
   , [db]);
   const { data: messages, isLoading: isMessagesLoading } = useCollection(messagesQuery);
 
-  // Liste des utilisateurs ayant utilisé le chat (basé sur la collection /chats)
-  const chatsQuery = useMemoFirebase(() => collection(db, 'users'), [db]);
-  const { data: allUsers } = useCollection(chatsQuery);
+  // Liste des utilisateurs
+  const usersQuery = useMemoFirebase(() => collection(db, 'users'), [db]);
+  const { data: allUsers } = useCollection(usersQuery);
 
   const deleteMessage = async (id: string) => {
     if (!confirm("Supprimer ce message ?")) return;
@@ -64,18 +65,23 @@ export default function AdminCommunicationsPage() {
     }
   };
 
+  // --- IMPROVEMENT 2: Fix Historique Chat ---
   const openChatLog = async (user: any) => {
     setSelectedUserChat(user);
     setIsLoadingChat(true);
+    setChatMessages([]);
     try {
+      // Correct path based on backend.json structure: /chats/{chatId}/messages/{messageId}
       const q = query(
         collection(db, 'chats', user.id, 'messages'),
         orderBy('timestamp', 'asc'),
-        limit(100)
+        limit(200)
       );
       const snap = await getDocs(q);
-      setChatMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setChatMessages(msgs);
     } catch (e) {
+      console.error("Chat loading error:", e);
       toast({ variant: "destructive", title: "Impossible de charger le chat" });
     } finally {
       setIsLoadingChat(false);
@@ -130,7 +136,12 @@ export default function AdminCommunicationsPage() {
                       <TableRow key={m.id} className={cn("h-28 border-b last:border-0", m.status === 'unread' ? "bg-indigo-50/20" : "")}>
                         <TableCell className="px-10">
                           <div className="flex items-center gap-4">
-                            <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center font-black text-primary italic shrink-0">{m.userName?.[0] || '?'}</div>
+                            <div className={cn(
+                              "h-12 w-12 rounded-2xl flex items-center justify-center font-black italic shrink-0 shadow-sm",
+                              m.type === 'welcome' ? "bg-amber-100 text-amber-600" : "bg-primary/10 text-primary"
+                            )}>
+                              {m.type === 'welcome' ? <PartyPopper className="h-6 w-6" /> : (m.userName?.[0] || '?')}
+                            </div>
                             <div className="space-y-0.5">
                               <p className="font-black text-slate-800 italic uppercase text-sm leading-none">{m.userName}</p>
                               <p className="text-[10px] font-bold text-slate-400 italic lowercase">{m.userEmail}</p>
@@ -140,7 +151,10 @@ export default function AdminCommunicationsPage() {
                         </TableCell>
                         <TableCell>
                           <div className="max-w-md space-y-1">
-                            <p className="font-black text-slate-900 italic text-sm">{m.subject}</p>
+                            <p className="font-black text-slate-900 italic text-sm flex items-center gap-2">
+                              {m.subject}
+                              {m.type === 'welcome' && <Badge className="bg-amber-500 text-white border-none font-black italic uppercase text-[8px] px-2">AUTOMATIQUE</Badge>}
+                            </p>
                             <p className="text-xs font-bold text-slate-500 italic line-clamp-2 leading-relaxed">{m.message}</p>
                           </div>
                         </TableCell>
@@ -215,20 +229,26 @@ export default function AdminCommunicationsPage() {
             <Button variant="ghost" size="icon" onClick={() => setSelectedUserChat(null)} className="rounded-full h-10 w-10 border-2"><X /></Button>
           </DialogHeader>
           
-          <div className="flex-1 overflow-y-auto p-10 space-y-6 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto p-10 space-y-6 custom-scrollbar bg-slate-50/50">
             {isLoadingChat ? (
               <div className="h-full flex items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>
             ) : chatMessages.length === 0 ? (
-              <div className="text-center py-20 text-slate-300 italic font-black uppercase tracking-widest">Aucune discussion enregistrée.</div>
+              <div className="text-center py-20 text-slate-300 italic font-black uppercase tracking-widest flex flex-col items-center gap-4">
+                <MessageSquare className="h-12 w-12 opacity-20" />
+                Aucune discussion enregistrée.
+              </div>
             ) : (
               chatMessages.map((m, idx) => (
-                <div key={idx} className={cn("flex items-start gap-4", m.role === 'user' ? "flex-row-reverse" : "flex-row")}>
+                <div key={idx} className={cn("flex items-start gap-4 animate-slide-up", m.role === 'user' ? "flex-row-reverse" : "flex-row")}>
                   <div className={cn("h-8 w-8 rounded-xl flex items-center justify-center shrink-0 shadow-md text-[10px] font-black text-white", m.role === 'user' ? "bg-slate-900" : "bg-indigo-500")}>
                     {m.role === 'user' ? 'U' : 'AI'}
                   </div>
-                  <div className={cn("max-w-[80%] p-5 rounded-[24px] text-xs font-bold italic leading-relaxed shadow-sm border-2", m.role === 'user' ? "bg-white text-slate-800 rounded-tr-none border-slate-100" : "bg-indigo-50 text-indigo-900 rounded-tl-none border-indigo-100")}>
+                  <div className={cn(
+                    "max-w-[80%] p-5 rounded-[24px] text-xs font-bold italic leading-relaxed shadow-sm border-2", 
+                    m.role === 'user' ? "bg-white text-slate-800 rounded-tr-none border-slate-100" : "bg-indigo-50 text-indigo-900 rounded-tl-none border-indigo-100"
+                  )}>
                     {m.content}
-                    <div className="mt-2 text-[8px] opacity-40 text-right">{m.timestamp?.toDate ? m.timestamp.toDate().toLocaleString() : '-'}</div>
+                    <div className="mt-2 text-[8px] opacity-40 text-right font-black uppercase">{m.timestamp?.toDate ? m.timestamp.toDate().toLocaleString() : '-'}</div>
                   </div>
                 </div>
               ))

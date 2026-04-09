@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -9,6 +8,7 @@ import { MessageSquare, Send, Loader2, User, Sparkles } from 'lucide-react';
 import { useUser, useFirestore } from '@/firebase';
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
+import { logActivity } from '@/lib/services/logging-service';
 
 interface Message {
   id: string;
@@ -28,6 +28,10 @@ export default function ChatPage() {
   // Charger l'historique en temps réel
   useEffect(() => {
     if (!user || !db) return;
+    
+    // Log chat opening
+    logActivity(db, user.uid, 'chat_opened');
+
     const q = query(
       collection(db, 'chats', user.uid, 'messages'),
       orderBy('timestamp', 'asc')

@@ -1,11 +1,11 @@
-
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, onSnapshot, Timestamp, setDoc, serverTimestamp, increment } from 'firebase/firestore';
+import { Firestore, doc, onSnapshot, Timestamp, setDoc, serverTimestamp, increment, collection, addDoc } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
+import { logActivity } from '@/lib/services/logging-service';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -37,7 +37,6 @@ export interface FirebaseServicesAndUser {
 
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
-// LISTE BLANCHE MATÉRIELLE STRICTE - SEULE SOURCE DE VÉRITÉ POUR LES PRIVILÈGES
 const ADMIN_EMAILS = ['slim.besbes@yahoo.fr'];
 const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1'];
 
@@ -59,13 +58,16 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       if (!firebaseUser) {
         setProfile(null);
         setIsUserLoading(false);
+      } else {
+        // Log login action
+        logActivity(firestore, firebaseUser.uid, 'login', { email: firebaseUser.email });
       }
     }, (error) => {
       setUserError(error);
       setIsUserLoading(false);
     });
     return () => unsubscribe();
-  }, [auth]);
+  }, [auth, firestore]);
 
   useEffect(() => {
     if (!firestore || !user) {
@@ -76,14 +78,32 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     setIsUserLoading(true);
     const userDocRef = doc(firestore, 'users', user.uid);
     
-    // SÉCURITÉ : Détection admin basée strictement sur l'email/UID matériel
     const isHardcodedAdmin = (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) || 
                              ADMIN_UIDS.includes(user.uid);
 
-    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+    const unsubscribe = onSnapshot(userDocRef, async (docSnap) => {
       if (docSnap.exists()) {
         const profileData = docSnap.data();
         
+        // --- IMPROVEMENT 1: Welcome Message on First Login ---
+        if (!profileData.firstLoginAt && !isHardcodedAdmin && !user.isAnonymous) {
+          const now = serverTimestamp();
+          await setDoc(userDocRef, { firstLoginAt: now }, { merge: true });
+          
+          await addDoc(collection(firestore, 'supportMessages'), {
+            userId: user.uid,
+            userEmail: user.email,
+            userName: `${profileData.firstName} ${profileData.lastName}`,
+            subject: "Bienvenue",
+            message: `Première connexion détectée pour ${profileData.firstName} ${profileData.lastName}. Bienvenue sur la plateforme Simu-lux !`,
+            type: 'welcome',
+            status: 'unread',
+            createdAt: now
+          });
+          
+          logActivity(firestore, user.uid, 'first_login');
+        }
+
         let isExpired = false;
         if (profileData.expiresAt) {
           const expiryDate = profileData.expiresAt instanceof Timestamp 
@@ -93,9 +113,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         }
 
         const currentStatus = isExpired ? 'expired' : (profileData.status || 'active');
-        
-        // SÉCURITÉ ABSOLUE : Si pas dans la whitelist, on force le rôle 'user' peu importe ce que dit la DB
-        // Cela neutralise les accès non autorisés qui pourraient déclencher des requêtes d'administration.
         const finalRole = isHardcodedAdmin ? (profileData.role || 'super_admin') : 'user';
 
         setProfile({ 
@@ -121,16 +138,12 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       }
       setIsUserLoading(false);
     }, (error) => {
-      if (isHardcodedAdmin) {
-        setProfile({ id: user.uid, email: user.email, role: 'super_admin', status: 'active' });
-      }
       setIsUserLoading(false);
     });
 
     return () => unsubscribe();
   }, [firestore, user]);
 
-  // Suivi du temps d'étude (Uniquement pour les élèves authentiques)
   useEffect(() => {
     if (!firestore || !user || user.isAnonymous || !profile || profile.role !== 'user') return;
     const interval = setInterval(() => {

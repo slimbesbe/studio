@@ -11,9 +11,10 @@ import { useUser, useFirestore } from '@/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { logActivity } from '@/lib/services/logging-service';
 
 export default function MessageAdminPage() {
-  const { profile } = useUser();
+  const { profile, user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   
@@ -40,6 +41,9 @@ export default function MessageAdminPage() {
         createdAt: serverTimestamp()
       });
       
+      // Log message sent
+      logActivity(db, user!.uid, 'support_message_sent', { subject: formData.subject });
+
       setIsSent(true);
       toast({ title: "Message envoyé", description: "L'équipe Simu-lux a bien reçu votre demande." });
     } catch (e) {

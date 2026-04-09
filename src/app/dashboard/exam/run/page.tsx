@@ -29,6 +29,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Calculator } from '@/components/dashboard/Calculator';
+import { logActivity } from '@/lib/services/logging-service';
 
 type ViewMode = 'question' | 'review' | 'break' | 'result';
 
@@ -126,6 +127,10 @@ function ExamRunContent() {
         }));
         fetched.sort((a, b) => (a.index || 0) - (b.index || 0));
         setQuestions(fetched);
+        
+        // Log exam start
+        logActivity(db, user.uid, 'exam_started', { examId });
+
         const totalMinutes = (fetched.length * 230) / 180;
         const initialSeconds = Math.floor(totalMinutes * 60);
         setTimeLeft(initialSeconds);
@@ -201,12 +206,10 @@ function ExamRunContent() {
     if (isSubmitting || questions.length === 0) return;
     setIsSubmitting(true);
     
-    // Pour l'affichage immédiat du résultat, on calcule le score localement
     let correct = 0;
     const domainStats: Record<string, { correct: number, total: number }> = { 'People': { correct: 0, total: 0 }, 'Process': { correct: 0, total: 0 }, 'Business': { correct: 0, total: 0 } };
     const approachStats: Record<string, { correct: number, total: number }> = { 'Predictive': { correct: 0, total: 0 }, 'Agile': { correct: 0, total: 0 }, 'Hybrid': { correct: 0, total: 0 } };
     
-    // Architecture DYNAMIQUE : On ne stocke que les IDs et les réponses
     const minimalResponses: any[] = [];
 
     questions.forEach(q => {
@@ -232,7 +235,6 @@ function ExamRunContent() {
     const finalData = {
       examId, 
       userId: user?.uid, 
-      // Le score total n'est plus stocké selon la consigne, mais pour le rendu immédiat on le garde en mémoire state
       durationSec: totalTime - timeLeft, 
       submittedAt: serverTimestamp(), 
       responses: minimalResponses
@@ -240,7 +242,10 @@ function ExamRunContent() {
 
     try { 
       await addDoc(collection(db, 'coachingAttempts'), finalData); 
-      // On enrichit le résultat localement pour l'affichage final
+      
+      // Log exam completion
+      logActivity(db, user!.uid, 'exam_completed', { examId, score: percent });
+
       setResult({
         ...finalData,
         scorePercent: percent,

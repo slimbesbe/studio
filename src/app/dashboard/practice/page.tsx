@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, Suspense } from 'react';
@@ -19,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { logActivity } from '@/lib/services/logging-service';
 
 const MODES = [
   { id: 'domain', name: 'Par Domaine', icon: Layers, desc: 'Ciblez People, Process ou Business.' },
@@ -77,6 +77,9 @@ function PracticeContent() {
       setStep('session');
       setCurrentIndex(0);
       setSessionResults({ correct: 0, total: data.length });
+      
+      // Log practice start
+      logActivity(db, user!.uid, 'practice_started', { mode, filters, count: finalCount });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Erreur", description: e.message });
     } finally {
@@ -216,7 +219,7 @@ function PracticeContent() {
                       q.isMultipleCorrect ? "rounded-xl" : "rounded-full",
                       isSelected ? "bg-primary text-white border-primary" : "bg-white text-slate-400",
                       correction && isCorrect ? "bg-emerald-500 text-white border-emerald-500" : "",
-                      correction && isSelected && !isCorrect ? "bg-red-500 text-white border-red-500" : ""
+                      correction && isSelected && !isCorrect ? "border-red-500 text-red-500" : ""
                     )}>
                       {String.fromCharCode(65 + idx)}
                     </div>

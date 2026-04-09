@@ -25,10 +25,11 @@ import {
   User,
   ShieldCheck,
   RotateCcw,
-  Inbox
+  Inbox,
+  ClipboardList
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useUser, useAuth } from '@/firebase';
+import { useUser, useAuth, useFirestore } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
@@ -37,6 +38,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { logActivity } from '@/lib/services/logging-service';
 
 export const SimuLuxLogo = ({ className = "h-8 w-32" }: { className?: string }) => (
   <div className={cn("relative shrink-0 overflow-hidden", className)}>
@@ -56,6 +58,7 @@ export function Sidebar() {
   const router = useRouter();
   const { user, isUserLoading, profile } = useUser();
   const auth = useAuth();
+  const db = useFirestore();
   const [conceptsOpen, setConceptsOpen] = useState(pathname.includes('/concepts'));
   
   const [isAdminMode, setIsAdminMode] = useState(pathname.startsWith('/admin'));
@@ -72,6 +75,8 @@ export function Sidebar() {
   const isProfileAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
 
   const handleSignOut = async () => {
+    // Log logout action
+    await logActivity(db, user.uid, 'logout');
     await signOut(auth);
     router.push('/');
   };
@@ -182,6 +187,7 @@ export function Sidebar() {
             <NavItem href="/admin/coaching" icon={GraduationCap} label="Sessions Coaching" active={pathname.startsWith('/admin/coaching')} />
             <NavItem href="/admin/questions" icon={BookCopy} label="Banque Questions" active={pathname.startsWith('/admin/questions')} />
             <NavItem href="/admin/messages" icon={Inbox} label="Boîte Messages" active={pathname.startsWith('/admin/messages')} />
+            <NavItem href="/admin/logs" icon={ClipboardList} label="Logs Utilisateurs" active={pathname.startsWith('/admin/logs')} />
             <NavItem href="/admin/users" icon={Users} label="Utilisateurs" active={pathname.startsWith('/admin/users')} />
             <div className="pt-4">
               <NavItem href="/admin/maintenance" icon={Database} label="Maintenance" active={pathname.startsWith('/admin/maintenance')} />
