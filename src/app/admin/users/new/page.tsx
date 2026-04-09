@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { sendWelcomeEmail } from '@/lib/services/mail-service';
 
 const AVAILABLE_EXAMS = [
   { id: 'exam1', title: 'Examen 1' },
@@ -128,6 +129,9 @@ export default function NewUserPage() {
         totalTimeSpent: 0,
         allowedExams: selectedExams
       });
+
+      // TRIGGER WELCOME EMAIL
+      await sendWelcomeEmail(db, formData.email, formData.firstName);
 
       await signOut(secondaryAuth);
       await deleteApp(secondaryApp);

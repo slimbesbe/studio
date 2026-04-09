@@ -6,6 +6,7 @@ import { Firestore, doc, onSnapshot, Timestamp, setDoc, serverTimestamp, increme
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { logActivity } from '@/lib/services/logging-service';
+import { sendAdminAlertOnFirstLogin } from '@/lib/services/mail-service';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -85,22 +86,30 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       if (docSnap.exists()) {
         const profileData = docSnap.data();
         
-        // --- IMPROVEMENT 1: Welcome Message on First Login ---
+        // --- FIRST LOGIN DETECTION & NOTIFICATION ---
         if (!profileData.firstLoginAt && !isHardcodedAdmin && !user.isAnonymous) {
           const now = serverTimestamp();
+          const fullName = `${profileData.firstName} ${profileData.lastName}`;
+          
+          // 1. Update user profile
           await setDoc(userDocRef, { firstLoginAt: now }, { merge: true });
           
+          // 2. Create internal support message (Welcome)
           await addDoc(collection(firestore, 'supportMessages'), {
             userId: user.uid,
             userEmail: user.email,
-            userName: `${profileData.firstName} ${profileData.lastName}`,
+            userName: fullName,
             subject: "Bienvenue",
-            message: `Première connexion détectée pour ${profileData.firstName} ${profileData.lastName}. Bienvenue sur la plateforme Simu-lux !`,
+            message: `Première connexion détectée pour ${fullName}. Bienvenue sur la plateforme Simu-lux !`,
             type: 'welcome',
             status: 'unread',
             createdAt: now
           });
           
+          // 3. Trigger Admin Email Alert
+          await sendAdminAlertOnFirstLogin(firestore, fullName, user.email || user.uid);
+          
+          // 4. Log activity
           logActivity(firestore, user.uid, 'first_login');
         }
 
