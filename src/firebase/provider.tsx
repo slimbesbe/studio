@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
+import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect, useRef } from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore, doc, onSnapshot, Timestamp, setDoc, serverTimestamp, increment, collection, addDoc } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
@@ -51,6 +51,9 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   const [profile, setProfile] = useState<any | null>(null);
   const [isUserLoading, setIsUserLoading] = useState(true);
   const [userError, setUserError] = useState<Error | null>(null);
+  
+  // Verrou pour empêcher la duplication du message de bienvenue pendant la session
+  const welcomeTriggered = useRef<string | null>(null);
 
   useEffect(() => {
     if (!auth) return;
@@ -72,7 +75,10 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
   useEffect(() => {
     if (!firestore || !user) {
-      if (!user) setIsUserLoading(false);
+      if (!user) {
+        setIsUserLoading(false);
+        setProfile(null);
+      }
       return;
     }
 
@@ -87,11 +93,16 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         const profileData = docSnap.data();
         
         // --- FIRST LOGIN DETECTION & NOTIFICATION ---
-        if (!profileData.firstLoginAt && !isHardcodedAdmin && !user.isAnonymous) {
-          const now = serverTimestamp();
-          const fullName = `${profileData.firstName} ${profileData.lastName}`;
+        // Ajout d'un guard strict pour éviter les doublons et les noms "undefined"
+        if (!profileData.firstLoginAt && !isHardcodedAdmin && !user.isAnonymous && welcomeTriggered.current !== user.uid) {
+          welcomeTriggered.current = user.uid;
           
-          // 1. Update user profile
+          const now = serverTimestamp();
+          const firstName = profileData.firstName || 'Nouvel';
+          const lastName = profileData.lastName || 'Utilisateur';
+          const fullName = `${firstName} ${lastName}`;
+          
+          // 1. Update user profile (Atomic update)
           await setDoc(userDocRef, { firstLoginAt: now }, { merge: true });
           
           // 2. Create internal support message (Welcome)
