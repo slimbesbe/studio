@@ -23,6 +23,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useMemo } from 'react';
@@ -32,11 +33,12 @@ export default function AdminCommunicationsPage() {
   const db = useFirestore();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('support');
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedUserChat, setSelectedUserChat] = useState<any | null>(null);
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [isLoadingChat, setIsLoadingChat] = useState(false);
 
-  // Messages de support directs
+  // Messages de support directs - Triés par DATE DÉCROISSANTE
   const messagesQuery = useMemoFirebase(() => 
     query(collection(db, 'supportMessages'), orderBy('createdAt', 'desc'))
   , [db]);
@@ -45,6 +47,27 @@ export default function AdminCommunicationsPage() {
   // Liste des utilisateurs
   const usersQuery = useMemoFirebase(() => collection(db, 'users'), [db]);
   const { data: allUsers } = useCollection(usersQuery);
+
+  // Filtrage des messages Support Direct
+  const filteredMessages = useMemo(() => {
+    if (!messages) return [];
+    return messages.filter(m => 
+      (m.userName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (m.userEmail || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (m.subject || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [messages, searchTerm]);
+
+  // Filtrage des utilisateurs pour Historique Chat
+  const filteredUsers = useMemo(() => {
+    if (!allUsers) return [];
+    return allUsers.filter(u => 
+      u.role === 'user' && (
+        `${u.firstName} ${u.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (u.email || '').toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    );
+  }, [allUsers, searchTerm]);
 
   const deleteMessage = async (id: string) => {
     if (!confirm("Supprimer ce message ?")) return;
@@ -65,16 +88,15 @@ export default function AdminCommunicationsPage() {
     }
   };
 
-  // --- IMPROVEMENT 2: Fix Historique Chat ---
   const openChatLog = async (user: any) => {
     setSelectedUserChat(user);
     setIsLoadingChat(true);
     setChatMessages([]);
     try {
-      // Correct path based on backend.json structure: /chats/{chatId}/messages/{messageId}
+      // Tri par DATE DÉCROISSANTE pour voir les plus récents en haut
       const q = query(
         collection(db, 'chats', user.id, 'messages'),
-        orderBy('timestamp', 'asc'),
+        orderBy('timestamp', 'desc'),
         limit(200)
       );
       const snap = await getDocs(q);
@@ -90,7 +112,7 @@ export default function AdminCommunicationsPage() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 animate-fade-in pb-32">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[40px] shadow-xl border-2">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild className="h-14 w-14 rounded-2xl border-2 shadow-sm">
             <Link href="/admin/dashboard"><ChevronLeft className="h-6 w-6" /></Link>
@@ -101,6 +123,16 @@ export default function AdminCommunicationsPage() {
             </h1>
             <p className="text-muted-foreground mt-1 uppercase tracking-widest text-[10px] font-bold italic">Support direct et historiques des chats IA.</p>
           </div>
+        </div>
+
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-300" />
+          <Input 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Chercher par nom ou email..."
+            className="h-14 rounded-2xl pl-12 border-2 bg-slate-50/50 font-bold italic focus-visible:ring-indigo-500"
+          />
         </div>
       </div>
 
@@ -129,10 +161,10 @@ export default function AdminCommunicationsPage() {
                 <TableBody>
                   {isMessagesLoading ? (
                     <TableRow><TableCell colSpan={4} className="h-64 text-center"><Loader2 className="animate-spin mx-auto h-8 w-8 text-primary" /></TableCell></TableRow>
-                  ) : (!messages || messages.length === 0) ? (
-                    <TableRow><TableCell colSpan={4} className="h-64 text-center font-black uppercase italic tracking-widest text-slate-300">Aucun message reçu.</TableCell></TableRow>
+                  ) : filteredMessages.length === 0 ? (
+                    <TableRow><TableCell colSpan={4} className="h-64 text-center font-black uppercase italic tracking-widest text-slate-300">Aucun message trouvé.</TableCell></TableRow>
                   ) : (
-                    messages.map((m) => (
+                    filteredMessages.map((m) => (
                       <TableRow key={m.id} className={cn("h-28 border-b last:border-0", m.status === 'unread' ? "bg-indigo-50/20" : "")}>
                         <TableCell className="px-10">
                           <div className="flex items-center gap-4">
@@ -188,7 +220,9 @@ export default function AdminCommunicationsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {allUsers?.filter(u => u.role === 'user').map((u) => (
+                  {filteredUsers.length === 0 ? (
+                    <TableRow><TableCell colSpan={3} className="h-64 text-center font-black uppercase italic tracking-widest text-slate-300">Aucun élève trouvé.</TableCell></TableRow>
+                  ) : filteredUsers.map((u) => (
                     <TableRow key={u.id} className="h-24 hover:bg-slate-50 border-b last:border-0 group">
                       <TableCell className="px-10">
                         <div className="flex items-center gap-4">
