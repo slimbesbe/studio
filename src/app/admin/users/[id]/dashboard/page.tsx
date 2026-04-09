@@ -23,7 +23,7 @@ import {
   ExternalLink,
   Search
 } from 'lucide-react';
-import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { collection, query, where, limit, doc } from 'firebase/firestore';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -39,33 +39,42 @@ import { fetchQuestionsByIds } from '@/lib/services/practice-service';
 export default function AdminUserDashboardPage() {
   const params = useParams();
   const userId = params.id as string;
+  const { user, profile, isUserLoading: isAuthLoading } = useUser();
   const db = useFirestore();
   const [mounted, setMounted] = useState(false);
   const [computedResults, setComputedResults] = useState<any[]>([]);
   const [isComputing, setIsComputing] = useState(true);
 
+  // WHITELIST SÉCURITÉ
+  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com'];
+  const isAuthorizedAdmin = user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
+  const isAdmin = isAuthorizedAdmin && (profile?.role === 'super_admin' || profile?.role === 'admin');
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const userRef = useMemoFirebase(() => doc(db, 'users', userId), [db, userId]);
+  const userRef = useMemoFirebase(() => {
+    if (!isAdmin) return null;
+    return doc(db, 'users', userId);
+  }, [db, userId, isAdmin]);
   const { data: targetProfile, isLoading: isProfileLoading } = useDoc(userRef);
 
   const attemptsQuery = useMemoFirebase(() => {
-    if (!userId || !db) return null;
+    if (!userId || !db || !isAdmin) return null;
     return query(
       collection(db, 'coachingAttempts'), 
       where('userId', '==', userId),
       limit(100)
     );
-  }, [db, userId]);
+  }, [db, userId, isAdmin]);
 
   const { data: rawAttempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
 
   // Recalcul dynamique des scores pour le dashboard inspecteur admin
   useEffect(() => {
     async function compute() {
-      if (!rawAttempts || rawAttempts.length === 0) {
+      if (!rawAttempts || rawAttempts.length === 0 || !isAdmin) {
         setComputedResults([]);
         setIsComputing(false);
         return;
@@ -106,7 +115,7 @@ export default function AdminUserDashboardPage() {
       }
     }
     compute();
-  }, [rawAttempts, db]);
+  }, [rawAttempts, db, isAdmin]);
 
   const stats = useMemo(() => {
     if (computedResults.length === 0) {
@@ -147,7 +156,11 @@ export default function AdminUserDashboardPage() {
     };
   }, [computedResults]);
 
-  if (!mounted || isProfileLoading || isAttemptsLoading || isComputing) {
+  if (!isAdmin && !isAuthLoading) {
+    return <div className="h-screen flex items-center justify-center p-8 bg-white text-center"><div className="space-y-4"><p className="font-black text-destructive uppercase text-2xl tracking-tighter italic">Accès Refusé</p><p className="text-slate-400 font-bold italic text-sm">Cette page est réservée à l'administrateur principal.</p><Button asChild variant="outline"><Link href="/dashboard">Retour au Dashboard</Link></Button></div></div>;
+  }
+
+  if (!mounted || isAuthLoading || isProfileLoading || isAttemptsLoading || isComputing) {
     return <div className="h-screen flex items-center justify-center bg-[#f8fafc]"><Loader2 className="h-12 w-12 animate-spin text-[#1d4ed8]" /></div>;
   }
 
@@ -298,5 +311,14 @@ function KPICard({ icon: Icon, label, val, color }: any) {
         <p className="text-2xl font-black text-slate-900 italic tracking-tighter leading-none">{val}</p>
       </div>
     </Card>
+  );
+}
+
+function KPICardSmall({ label, val, color }: any) {
+  return (
+    <div className={cn("p-4 rounded-2xl border flex flex-col justify-center gap-1 group hover:shadow-md transition-all", color.split(' ')[1])}>
+      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest truncate italic">{label}</p>
+      <p className={cn("text-2xl font-black italic tracking-tighter leading-none", color.split(' ')[0])}>{val}</p>
+    </div>
   );
 }

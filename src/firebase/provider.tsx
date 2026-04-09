@@ -41,7 +41,7 @@ export interface FirebaseServicesAndUser {
 
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
-const ADMIN_EMAILS = ['slim.besbes@yahoo.fr'];
+const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com'];
 const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1'];
 
 export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({

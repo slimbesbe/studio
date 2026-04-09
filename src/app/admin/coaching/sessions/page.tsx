@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -34,7 +35,7 @@ export default function AdminCoachingSessions() {
   const { toast } = useToast();
 
   // Liste blanche matérielle pour double vérification
-  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr'];
+  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com'];
   const isHardwareAdmin = user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
   const isAdmin = isHardwareAdmin && (profile?.role === 'super_admin' || profile?.role === 'admin');
   

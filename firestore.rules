@@ -12,7 +12,11 @@ service cloud.firestore {
       return isSignedIn() && (
         request.auth.uid == "vwyrAnNtQkSojYSEEK2qkRB5feh2" || 
         request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1" ||
-        (request.auth.token.email != null && request.auth.token.email.lower() == "slim.besbes@yahoo.fr")
+        request.auth.uid == "ve5V0MUPoccuOdBNGYsz6QYY89L2" ||
+        (request.auth.token.email != null && (
+          request.auth.token.email.lower() == "slim.besbes@yahoo.fr" ||
+          request.auth.token.email.lower() == "contact@inovexio.com"
+        ))
       );
     }
 

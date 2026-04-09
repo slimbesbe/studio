@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,32 +25,50 @@ import { cn } from '@/lib/utils';
 import { isValid } from 'date-fns';
 
 export default function UserLogsPage() {
+  const { user } = useUser();
   const db = useFirestore();
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState('all');
 
-  // 1. Fetch Real-time Logs
-  const logsQuery = useMemoFirebase(() => 
-    query(collection(db, 'userLogs'), orderBy('timestamp', 'desc'), limit(500))
-  , [db]);
+  // WHITELIST SÉCURITÉ
+  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com'];
+  const isAuthorizedAdmin = user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
+
+  // 1. Fetch Real-time Logs - Protected by whitelist
+  const logsQuery = useMemoFirebase(() => {
+    if (!isAuthorizedAdmin) return null;
+    return query(collection(db, 'userLogs'), orderBy('timestamp', 'desc'), limit(500));
+  }, [db, isAuthorizedAdmin]);
   const { data: logs, isLoading: isLogsLoading } = useCollection(logsQuery);
 
-  // 2. Fetch Source Collections for Backfilling
-  const usersQuery = useMemoFirebase(() => collection(db, 'users'), [db]);
+  // 2. Fetch Source Collections for Backfilling - Protected
+  const usersQuery = useMemoFirebase(() => {
+    if (!isAuthorizedAdmin) return null;
+    return collection(db, 'users');
+  }, [db, isAuthorizedAdmin]);
   const { data: users } = useCollection(usersQuery);
 
-  const attemptsQuery = useMemoFirebase(() => collection(db, 'coachingAttempts'), [db]);
+  const attemptsQuery = useMemoFirebase(() => {
+    if (!isAuthorizedAdmin) return null;
+    return collection(db, 'coachingAttempts');
+  }, [db, isAuthorizedAdmin]);
   const { data: attempts } = useCollection(attemptsQuery);
 
-  const quickQuizQuery = useMemoFirebase(() => collection(db, 'quickQuizAttempts'), [db]);
+  const quickQuizQuery = useMemoFirebase(() => {
+    if (!isAuthorizedAdmin) return null;
+    return collection(db, 'quickQuizAttempts');
+  }, [db, isAuthorizedAdmin]);
   const { data: quickQuizzes } = useCollection(quickQuizQuery);
 
-  const supportQuery = useMemoFirebase(() => collection(db, 'supportMessages'), [db]);
+  const supportQuery = useMemoFirebase(() => {
+    if (!isAuthorizedAdmin) return null;
+    return collection(db, 'supportMessages');
+  }, [db, isAuthorizedAdmin]);
   const { data: supportMsgs } = useCollection(supportQuery);
 
   // 3. Merge & Reconstruct History
   const allMergedLogs = useMemo(() => {
-    if (!users) return [];
+    if (!users || !isAuthorizedAdmin) return [];
 
     const reconstructed: any[] = [];
 
@@ -137,16 +155,12 @@ export default function UserLogsPage() {
       });
     });
 
-    // Remove Duplicates (based on userId, action and approximate timestamp if needed, 
-    // but here we primarily sort and filter)
-    // For MVP, we'll keep them all and rely on the UI to show the most relevant ones.
-    
     return reconstructed.sort((a, b) => {
       const tsA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
       const tsB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
       return tsB.getTime() - tsA.getTime();
     });
-  }, [logs, users, attempts, quickQuizzes, supportMsgs]);
+  }, [logs, users, attempts, quickQuizzes, supportMsgs, isAuthorizedAdmin]);
 
   const filteredLogs = useMemo(() => {
     return allMergedLogs.filter(log => {
@@ -190,6 +204,10 @@ export default function UserLogsPage() {
     if (!isValid(date)) return 'Récemment';
     return date.toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
   };
+
+  if (!isAuthorizedAdmin) {
+    return <div className="h-screen flex items-center justify-center p-8 bg-white text-center"><div className="space-y-4"><p className="font-black text-destructive uppercase text-2xl tracking-tighter italic">Accès Refusé</p><p className="text-slate-400 font-bold italic text-sm">Cette page est réservée à l'administrateur principal.</p><Button asChild variant="outline"><Link href="/dashboard">Retour au Dashboard</Link></Button></div></div>;
+  }
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 animate-fade-in pb-32">

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
@@ -18,7 +19,10 @@ export default function SessionQuestionBreakdown() {
   const { profile, user, isUserLoading: isAuthLoading } = useUser();
   const db = useFirestore();
 
-  const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
+  // WHITELIST SÉCURITÉ
+  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com'];
+  const isAuthorizedAdmin = user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
+  const isAdmin = isAuthorizedAdmin && (profile?.role === 'super_admin' || profile?.role === 'admin');
 
   const groupRef = useMemoFirebase(() => doc(db, 'coachingGroups', groupId), [db, groupId]);
   const { data: group } = useDoc(groupRef);
@@ -60,11 +64,9 @@ export default function SessionQuestionBreakdown() {
 
   const COLORS = ['#10b981', '#ef4444', '#f59e0b', '#3F51B5'];
 
-  // Utilisation d'un useMemo pour stabiliser les données et éviter les erreurs d'hydratation (Math.random)
   const questionStatsMap = useMemo(() => {
     const map: Record<string, any[]> = {};
     questions.forEach(q => {
-      // Pour cet MVP, on simule une distribution basée sur l'ID de la question pour être déterministe au rendu
       const seed = q.id.length;
       map[q.id] = [
         { name: 'Réponse A', value: 25 + (seed % 10) },
@@ -81,7 +83,7 @@ export default function SessionQuestionBreakdown() {
   }
 
   if (!isAdmin) {
-    return <div className="h-screen flex items-center justify-center p-8 text-center"><p className="font-bold text-destructive italic uppercase">Accès restreint aux administrateurs.</p></div>;
+    return <div className="h-screen flex items-center justify-center p-8 bg-white text-center"><div className="space-y-4"><p className="font-black text-destructive uppercase text-2xl tracking-tighter italic">Accès Refusé</p><p className="text-slate-400 font-bold italic text-sm">Seul l'administrateur principal peut accéder à ces données globales.</p><Button asChild variant="outline"><Link href="/dashboard">Retour au Dashboard</Link></Button></div></div>;
   }
 
   return (

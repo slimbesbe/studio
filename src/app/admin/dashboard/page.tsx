@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
@@ -23,8 +24,8 @@ import { cn } from '@/lib/utils';
 import { startOfDay, endOfDay, isWithinInterval, subDays, format, startOfMonth, endOfMonth, isValid } from 'date-fns';
 
 // LISTE BLANCHE MATÉRIELLE DE SÉCURITÉ
-const ADMIN_EMAILS = ['slim.besbes@yahoo.fr'];
-const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1'];
+const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com'];
+const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1', 've5V0MUPoccuOdBNGYsz6QYY89L2'];
 
 export default function SuperAdminDashboard() {
   const { user, profile, isUserLoading } = useUser();

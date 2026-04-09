@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
@@ -18,7 +19,7 @@ export default function CoachingStatsGroups() {
   const [filterPartner, setFilterPartner] = useState('all');
   
   // SÉCURITÉ MATÉRIELLE STRICTE - DOUBLE VÉRIFICATION
-  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr'];
+  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com'];
   const isAuthorizedAdmin = user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
 
   const isSA = isAuthorizedAdmin && profile?.role === 'super_admin';

@@ -21,7 +21,10 @@ export default function AdminGroupStats() {
   const db = useFirestore();
   const [searchTerm, setSearchTerm] = useState('');
 
-  const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
+  // WHITELIST SÉCURITÉ
+  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com'];
+  const isAuthorizedAdmin = user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
+  const isAdmin = isAuthorizedAdmin && (profile?.role === 'super_admin' || profile?.role === 'admin');
 
   const groupRef = useMemoFirebase(() => doc(db, 'coachingGroups', groupId), [db, groupId]);
   const { data: group, isLoading: isGroupLoading } = useDoc(groupRef);
@@ -80,7 +83,7 @@ export default function AdminGroupStats() {
   if (isUserLoading) return null;
 
   if (!isAdmin) {
-    return <div className="h-screen flex items-center justify-center p-8 text-center"><p className="font-bold text-destructive italic uppercase">Accès restreint aux administrateurs.</p></div>;
+    return <div className="h-screen flex items-center justify-center p-8 bg-white text-center"><div className="space-y-4"><p className="font-black text-destructive uppercase text-2xl tracking-tighter italic">Accès Refusé</p><p className="text-slate-400 font-bold italic text-sm">Seul l'administrateur principal peut accéder à ces données globales.</p><Button asChild variant="outline"><Link href="/dashboard">Retour au Dashboard</Link></Button></div></div>;
   }
 
   if (isGroupLoading || isUsersLoading || isAttemptsLoading) {

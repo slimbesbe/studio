@@ -26,7 +26,7 @@ export default function Home() {
   const db = useFirestore();
   const { toast } = useToast();
 
-  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr'];
+  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com'];
   const MASTER_PASS = '147813';
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -122,14 +122,14 @@ export default function Home() {
               <Label className="font-black uppercase text-[10px] text-slate-400 ml-1 italic">Email Professionnel</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
-                <Input type="email" placeholder="votre@email.com" className="pl-10 h-12 rounded-xl font-bold italic border-2" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <Input type="email" placeholder="votre@email.com" className="pl-10 h-12 rounded-xl font-bold italic border-2" value={email} onChange={(e) => email.target.value} required />
               </div>
             </div>
             <div className="space-y-2">
               <Label className="font-black uppercase text-[10px] text-slate-400 ml-1 italic">Mot de passe</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
-                <Input type="password" placeholder="••••••••" className="pl-10 h-12 rounded-xl font-bold italic border-2" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                <Input type="password" placeholder="••••••••" className="pl-10 h-12 rounded-xl font-bold italic border-2" value={password} onChange={(e) => password.target.value} required />
               </div>
             </div>
             

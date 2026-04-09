@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
@@ -19,7 +20,7 @@ export default function GroupStatsDashboard() {
   const db = useFirestore();
 
   // LISTE BLANCHE MATÉRIELLE DE SÉCURITÉ
-  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr'];
+  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com'];
   const isHardcodedAdmin = user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
 
   const groupRef = useMemoFirebase(() => doc(db, 'coachingGroups', groupId), [db, groupId]);
@@ -58,7 +59,7 @@ export default function GroupStatsDashboard() {
   }
 
   if (!isHardcodedAdmin) {
-    return <div className="h-screen flex items-center justify-center p-8 text-center"><p className="font-bold text-destructive italic uppercase">Accès restreint aux administrateurs autorisés.</p></div>;
+    return <div className="h-screen flex items-center justify-center p-8 bg-white text-center"><div className="space-y-4"><p className="font-black text-destructive uppercase text-2xl tracking-tighter italic">Accès Refusé</p><p className="text-slate-400 font-bold italic text-sm">Seul l'administrateur principal peut accéder à ces données globales.</p><Button asChild variant="outline"><Link href="/dashboard">Retour au Dashboard</Link></Button></div></div>;
   }
 
   return (
