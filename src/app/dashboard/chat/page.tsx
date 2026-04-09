@@ -54,35 +54,40 @@ export default function ChatPage() {
     if (!input.trim() || isLoading || !user) return;
 
     const userContent = input;
-    setInput(''); // Vider le champ de saisie immédiatement
+
+    // ÉTAPE 1 : Action Immédiate (Visible par l'utilisateur)
+    // 1. Vider le champ de saisie instantanément
+    setInput('');
+    
+    // 2. Ajouter immédiatement le message utilisateur à Firestore
+    // IMPORTANT : On n'utilise pas 'await' ici pour que Firestore déclenche 
+    // l'événement local onSnapshot instantanément (Optimistic UI)
+    addDoc(collection(db, 'chats', user.uid, 'messages'), {
+      userId: user.uid,
+      userName: `${profile?.firstName} ${profile?.lastName}`,
+      role: 'user',
+      content: userContent,
+      timestamp: serverTimestamp()
+    });
+
+    // ÉTAPE 2 : Simulation de Réflexion (Visuelle)
+    // On force l'état de chargement pour afficher l'animation de typing sous le message utilisateur
     setIsLoading(true);
 
-    try {
-      // 1. Sauvegarder le message utilisateur dans Firestore
+    // ÉTAPE 3 : Affichage de la Réponse Standard après 1.5s
+    setTimeout(async () => {
+      // On ajoute la réponse du Coach à Firestore
       await addDoc(collection(db, 'chats', user.uid, 'messages'), {
         userId: user.uid,
-        userName: `${profile?.firstName} ${profile?.lastName}`,
-        role: 'user',
-        content: userContent,
+        userName: 'Assistant Simu-lux',
+        role: 'assistant',
+        content: "Merci pour votre question ! Le service de chat interactif n'est pas encore disponible. Nous finalisons la configuration pour vous offrir une expérience optimale. Revenez vers moi ultérieurement pour un coaching complet.",
         timestamp: serverTimestamp()
       });
-
-      // 2. Logique de réponse "Mode Préparation" avec délai de 1 seconde
-      setTimeout(async () => {
-        await addDoc(collection(db, 'chats', user.uid, 'messages'), {
-          userId: user.uid,
-          userName: 'Assistant Simu-lux',
-          role: 'assistant',
-          content: "Merci pour votre question ! Le service de chat interactif n'est pas encore disponible. Nous finalisons la configuration pour vous offrir une expérience optimale. Revenez vers moi ultérieurement pour un coaching complet.",
-          timestamp: serverTimestamp()
-        });
-        setIsLoading(false);
-      }, 1000);
-
-    } catch (e) {
-      console.error("Erreur lors de l'envoi du message:", e);
+      
+      // On retire l'animation de typing
       setIsLoading(false);
-    }
+    }, 1500);
   };
 
   return (
