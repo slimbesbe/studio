@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, Suspense } from 'react';
@@ -124,23 +123,14 @@ function MatrixSprintContent() {
     if (sessionHistory.length === 0) return;
     const duration = Math.floor((Date.now() - startTime) / 1000);
     try {
-      const percent = Math.round((sessionResults.correct / sessionResults.total) * 100);
+      // Architecture DYNAMIQUE : On ne stocke que les IDs et les réponses
       await addDoc(collection(db, 'coachingAttempts'), {
         userId: user!.uid,
-        scorePercent: percent,
-        correctCount: sessionResults.correct,
-        totalQuestions: sessionResults.total,
         durationSec: duration,
         submittedAt: serverTimestamp(),
         responses: sessionHistory.map(h => ({
           questionId: h.question.id,
-          text: h.question.statement || h.question.text,
-          choices: h.question.choices || h.question.options?.map((o:any) => o.text),
-          isCorrect: h.correction.isCorrect,
-          userChoices: h.userChoices,
-          correctOptionIds: h.correction.correctOptionIds,
-          explanation: h.correction.explanation,
-          tags: h.question.tags
+          userChoices: h.userChoices
         })),
         context: 'matrix_sprint'
       });
@@ -317,9 +307,11 @@ function MatrixSprintContent() {
           <Badge className={corr.isCorrect ? "bg-emerald-500" : "bg-red-500"}>{corr.isCorrect ? "CORRECT" : "ERREUR"}</Badge>
         </div>
         <Card className={cn("shadow-2xl border-t-8 rounded-[32px] overflow-hidden bg-white", corr.isCorrect ? "border-t-emerald-500" : "border-t-red-500")}>
-          <CardContent className="p-10 space-y-8">
+          <CardHeader className="p-8 pb-4">
             <div className="space-y-6">
-              <p className="text-xl font-black text-slate-800 italic leading-relaxed">{q.statement || q.text}</p>
+              <CardTitle className="text-xl leading-relaxed font-black italic text-slate-800">
+                {q.statement || q.text}
+              </CardTitle>
               {q.imageUrl && (
                 <div className="rounded-[2vh] overflow-hidden border-2 border-slate-100 bg-white p-[0.5vh] flex justify-center shadow-md">
                   <img 
@@ -330,6 +322,8 @@ function MatrixSprintContent() {
                 </div>
               )}
             </div>
+          </CardHeader>
+          <CardContent className="p-8 space-y-4">
             <div className="grid gap-3">
               {(q.options || q.choices || []).map((opt: any, idx: number) => {
                 const choiceId = opt.id || String(idx + 1);
@@ -337,7 +331,7 @@ function MatrixSprintContent() {
                 const isCorrect = corr.correctOptionIds?.includes(choiceId);
                 return (
                   <div key={idx} className={cn("p-5 rounded-2xl border-2 flex items-start gap-4 shadow-sm", isCorrect ? "border-emerald-500 bg-emerald-50" : isSelected ? "border-red-500 bg-red-50" : "border-slate-100")}>
-                    <div className={cn("h-8 w-8 flex items-center justify-center font-black text-xs shrink-0 border-2", isCorrect ? "bg-emerald-500 text-white" : isSelected ? "bg-red-500 text-white" : "bg-white text-slate-400")}>{String.fromCharCode(65 + idx)}</div>
+                    <div className={cn("h-8 w-8 flex items-center justify-center font-black text-xs shrink-0 border-2", isCorrect ? "bg-emerald-500 text-white border-emerald-500" : isSelected ? "bg-red-500 text-white border-red-500" : "bg-white text-slate-400")}>{String.fromCharCode(65 + idx)}</div>
                     <p className={cn("flex-1 text-sm font-bold italic pt-1", isCorrect ? "text-emerald-900" : isSelected ? "text-red-900" : "text-slate-500")}>{opt.text || opt}</p>
                   </div>
                 );

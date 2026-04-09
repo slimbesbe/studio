@@ -1,4 +1,3 @@
-
 'use client';
 
 import { 
@@ -13,7 +12,8 @@ import {
   serverTimestamp, 
   increment,
   limit,
-  writeBatch
+  writeBatch,
+  documentId
 } from 'firebase/firestore';
 
 export interface PracticeFilters {
@@ -22,6 +22,9 @@ export interface PracticeFilters {
   difficulty?: string;
 }
 
+/**
+ * Charge un pool de questions pour une session d'entraînement.
+ */
 export async function startTrainingSession(
   db: Firestore, 
   userId: string, 
@@ -38,15 +41,10 @@ export async function startTrainingSession(
     const kmIds = kmSnap.docs.map(d => d.id);
     if (kmIds.length === 0) throw new Error("Aucune erreur correspondant à ces critères !");
     
-    const pool = [];
-    for(const id of kmIds) {
-      const d = await getDoc(doc(db, 'questions', id));
-      if (d.exists()) pool.push({...d.data(), id: d.id});
-    }
-    return pool.sort(() => 0.5 - Math.random()).slice(0, questionCount === 0 ? pool.length : questionCount);
+    // Fetch current question details in batches
+    return fetchQuestionsByIds(db, kmIds, questionCount);
   } else {
     let questionsRef = collection(db, 'questions');
-    // Séparation : La pratique libre ne prend que les questions marquées "general"
     let constraints = [
       where('isActive', '==', true),
       where('sourceIds', 'array-contains', 'general')
@@ -67,6 +65,30 @@ export async function startTrainingSession(
   }
 }
 
+/**
+ * Helper pour récupérer des questions par IDs en respectant les limites de Firestore (30 par query)
+ */
+export async function fetchQuestionsByIds(db: Firestore, ids: string[], count: number = 0) {
+  if (!ids || ids.length === 0) return [];
+  
+  const results: any[] = [];
+  const batchSize = 30;
+  
+  for (let i = 0; i < ids.length; i += batchSize) {
+    const chunk = ids.slice(i, i + batchSize);
+    const q = query(collection(db, 'questions'), where(documentId(), 'in', chunk));
+    const snap = await getDocs(q);
+    snap.docs.forEach(d => results.push({ ...d.data(), id: d.id }));
+  }
+
+  const finalPool = results.sort(() => 0.5 - Math.random());
+  return count > 0 ? finalPool.slice(0, count) : finalPool;
+}
+
+/**
+ * Soumet une réponse et met à jour la base Kill Mistake.
+ * Note: On ne stocke plus le score ou l'explication dans la tentative.
+ */
 export async function submitPracticeAnswer(
   db: Firestore,
   userId: string,
@@ -81,22 +103,19 @@ export async function submitPracticeAnswer(
   const userChoices = Array.isArray(selectedChoiceIds) ? selectedChoiceIds : [selectedChoiceIds];
   const correctOptionIds = qData.correctOptionIds || [String(qData.correctChoice)];
 
-  // Validation : must match exactly the correct set
   const isCorrect = userChoices.length === correctOptionIds.length && 
                     userChoices.every(id => correctOptionIds.includes(id));
 
-  // Log Attempt
+  // Log minimal attempt
   const attemptRef = doc(collection(db, 'users', userId, 'attempts'));
   await setDoc(attemptRef, {
     questionId,
     selectedChoiceIds: userChoices,
-    isCorrect,
     context,
-    tags: qData.tags || {},
     answeredAt: serverTimestamp()
   });
 
-  // Update KillMistakes
+  // Update KillMistakes (Base de données dynamique)
   const kmRef = doc(db, 'users', userId, 'killMistakes', questionId);
   if (!isCorrect) {
     await setDoc(kmRef, {
@@ -121,46 +140,4 @@ export async function submitPracticeAnswer(
     explanation: qData.explanation,
     correctOptionIds
   };
-}
-
-export async function logExamAttempts(
-  db: Firestore,
-  userId: string,
-  results: { questionId: string, selectedChoiceIds: string[], isCorrect: boolean, tags?: any }[]
-) {
-  const batch = writeBatch(db);
-  
-  for (const res of results) {
-    const attemptRef = doc(collection(db, 'users', userId, 'attempts'));
-    
-    batch.set(attemptRef, {
-      questionId: res.questionId,
-      selectedChoiceIds: res.selectedChoiceIds,
-      isCorrect: res.isCorrect,
-      context: 'exam',
-      tags: res.tags || {},
-      answeredAt: serverTimestamp()
-    });
-
-    const kmRef = doc(db, 'users', userId, 'killMistakes', res.questionId);
-    if (!res.isCorrect) {
-      batch.set(kmRef, {
-        status: 'wrong',
-        wrongCount: increment(1),
-        lastWrongAt: serverTimestamp(),
-        questionId: res.questionId,
-        lastSelectedChoiceIds: res.selectedChoiceIds,
-        tags: res.tags || {}
-      }, { merge: true });
-    } else {
-      batch.set(kmRef, {
-        status: 'corrected',
-        lastCorrectAt: serverTimestamp(),
-        questionId: res.questionId,
-        tags: res.tags || {}
-      }, { merge: true });
-    }
-  }
-  
-  await batch.commit();
 }

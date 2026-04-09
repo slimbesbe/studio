@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { useParams, useRouter } from 'next/navigation';
@@ -19,10 +18,12 @@ import {
   ListOrdered,
   Trophy,
   History,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCw
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { fetchQuestionsByIds } from '@/lib/services/practice-service';
 
 type ReviewView = 'grid' | 'linear';
 
@@ -35,21 +36,79 @@ export default function SimulationReviewPage() {
 
   const [view, setView] = useState<ReviewView>('grid');
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [enrichedResponses, setEnrichedResponses] = useState<any[]>([]);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
+  const [stats, setStats] = useState({ correct: 0, total: 0, percent: 0 });
 
   const attemptRef = useMemoFirebase(() => doc(db, 'coachingAttempts', attemptId), [db, attemptId]);
-  const { data: attempt, isLoading } = useDoc(attemptRef);
+  const { data: attempt, isLoading: isLoadingAttempt } = useDoc(attemptRef);
 
-  const responses = useMemo(() => attempt?.responses || [], [attempt]);
-  const hasDetails = responses.length > 0;
-  const currentQ = useMemo(() => responses[currentIndex], [responses, currentIndex]);
+  useEffect(() => {
+    async function enrich() {
+      if (!attempt?.responses || attempt.responses.length === 0) {
+        setIsLoadingQuestions(false);
+        return;
+      }
 
-  if (isLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
+      setIsLoadingQuestions(true);
+      try {
+        const questionIds = attempt.responses.map((r: any) => r.questionId);
+        const latestQuestions = await fetchQuestionsByIds(db, questionIds);
+        
+        let correctCount = 0;
+        const enriched = attempt.responses.map((resp: any) => {
+          const q = latestQuestions.find(lq => llq.id === resp.questionId);
+          if (!q) return { ...resp, missing: true };
+
+          const correctIds = q.correctOptionIds || [String(q.correctChoice || "1")];
+          const userChoices = resp.userChoices || (resp.userChoice ? [resp.userChoice] : []);
+          const isCorrect = userChoices.length === correctIds.length && userChoices.every(id => correctIds.includes(id));
+          
+          if (isCorrect) correctCount++;
+
+          // Détecter si la question a été mise à jour après la tentative
+          const isUpdated = q.updatedAt && attempt.submittedAt && 
+                           (q.updatedAt.seconds > attempt.submittedAt.seconds);
+
+          return {
+            ...resp,
+            isCorrect,
+            isUpdated,
+            text: q.statement || q.text,
+            imageUrl: q.imageUrl,
+            choices: q.choices || q.options?.map((o:any) => o.text),
+            correctOptionIds: correctIds,
+            explanation: q.explanation,
+            tags: q.tags
+          };
+        });
+
+        setEnrichedResponses(enriched);
+        setStats({ 
+          correct: correctCount, 
+          total: enriched.length, 
+          percent: Math.round((correctCount / enriched.length) * 100) 
+        });
+      } catch (e) {
+        console.error("Error enriching responses", e);
+      } finally {
+        setIsLoadingQuestions(false);
+      }
+    }
+    enrich();
+  }, [attempt, db]);
+
+  const currentQ = useMemo(() => enrichedResponses[currentIndex], [enrichedResponses, currentIndex]);
+
+  if (isLoadingAttempt || isLoadingQuestions) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
 
   if (!attempt) return <div className="p-20 text-center font-black italic text-slate-400">Simulation introuvable.</div>;
 
+  const hasResponses = enrichedResponses.length > 0;
+
   return (
     <div className="max-w-6xl mx-auto py-8 px-4 space-y-8 animate-fade-in pb-24 h-full flex flex-col overflow-hidden">
-      {/* Header */}
+      {/* Header avec score recalculé dynamiquement */}
       <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-8 rounded-[40px] shadow-xl border-2 shrink-0">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild className="h-12 w-12 rounded-2xl border-2"><Link href="/dashboard/history"><ChevronLeft /></Link></Button>
@@ -58,12 +117,12 @@ export default function SimulationReviewPage() {
               <History className="h-8 w-8" /> Revue : {attempt.examId?.replace('exam', 'Examen ') || attempt.sessionId || 'Simulation'}
             </h1>
             <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-1 italic">
-              Score : {attempt.scorePercent}% • {attempt.correctCount}/{attempt.totalQuestions} correctes
+              Score Actuel : <span className="text-primary">{stats.percent}%</span> • {stats.correct}/{stats.total} correctes
             </p>
           </div>
         </div>
         
-        {hasDetails && (
+        {hasResponses && (
           <div className="flex bg-slate-100 p-1 rounded-2xl border-2">
             <Button 
               variant={view === 'grid' ? 'default' : 'ghost'} 
@@ -84,19 +143,19 @@ export default function SimulationReviewPage() {
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden">
-        {!hasDetails ? (
+        {!hasResponses ? (
           <Card className="rounded-[40px] shadow-2xl border-none p-12 bg-white flex flex-col items-center justify-center text-center space-y-6 h-full border-4 border-dashed border-slate-100">
             <div className="bg-amber-50 p-6 rounded-full"><AlertTriangle className="h-12 w-12 text-amber-500" /></div>
             <div className="space-y-2">
               <h3 className="text-2xl font-black italic uppercase text-slate-800">Détails non disponibles</h3>
-              <p className="text-slate-500 font-bold italic max-w-md">Cette simulation ancienne n'a pas enregistré le détail des questions. Seul votre score global ({attempt.scorePercent}%) est conservé.</p>
+              <p className="text-slate-500 font-bold italic max-w-md">Cette simulation n'a pas enregistré le détail des questions ou elles ont été supprimées de la base.</p>
             </div>
             <Button asChild variant="outline" className="h-14 px-8 rounded-2xl border-4 font-black uppercase italic tracking-widest"><Link href="/dashboard/history">Retour à l'historique</Link></Button>
           </Card>
         ) : view === 'grid' ? (
           <Card className="rounded-[40px] shadow-2xl border-none p-10 bg-white h-full overflow-y-auto custom-scrollbar">
             <div className="grid grid-cols-5 sm:grid-cols-10 md:grid-cols-15 lg:grid-cols-20 gap-3">
-              {responses.map((res: any, idx: number) => (
+              {enrichedResponses.map((res: any, idx: number) => (
                 <button
                   key={idx}
                   onClick={() => {
@@ -109,10 +168,11 @@ export default function SimulationReviewPage() {
                   )}
                 >
                   {idx + 1}
+                  {res.isUpdated && <div className="absolute -top-1 -right-1 h-2 w-2 bg-blue-500 rounded-full animate-pulse" />}
                 </button>
               ))}
             </div>
-            <div className="mt-12 flex justify-center gap-8 border-t pt-8">
+            <div className="mt-12 flex flex-wrap justify-center gap-8 border-t pt-8">
               <div className="flex items-center gap-2">
                 <div className="h-4 w-4 bg-emerald-500 rounded-md" />
                 <span className="text-xs font-black uppercase italic text-slate-500">Correcte</span>
@@ -121,14 +181,25 @@ export default function SimulationReviewPage() {
                 <div className="h-4 w-4 bg-red-500 rounded-md" />
                 <span className="text-xs font-black uppercase italic text-slate-500">Erreur</span>
               </div>
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 bg-blue-500 rounded-full" />
+                <span className="text-xs font-black uppercase italic text-slate-500">Mis à jour par Admin</span>
+              </div>
             </div>
           </Card>
         ) : (
           <div className="space-y-6 h-full flex flex-col">
             <div className="flex justify-between items-center bg-white p-6 rounded-3xl shadow-lg border-2 shrink-0">
-              <Badge variant="outline" className="h-10 px-6 rounded-xl border-2 font-black italic bg-slate-50">
-                QUESTION {currentIndex + 1} / {responses.length}
-              </Badge>
+              <div className="flex items-center gap-4">
+                <Badge variant="outline" className="h-10 px-6 rounded-xl border-2 font-black italic bg-slate-50">
+                  QUESTION {currentIndex + 1} / {enrichedResponses.length}
+                </Badge>
+                {currentQ?.isUpdated && (
+                  <Badge className="bg-blue-100 text-blue-600 border-none font-black italic uppercase text-[10px] py-1 px-4 flex items-center gap-2">
+                    <RefreshCw className="h-3 w-3" /> Explication mise à jour
+                  </Badge>
+                )}
+              </div>
               <Badge className={cn(
                 "font-black italic px-6 py-2 rounded-xl text-white shadow-lg",
                 currentQ?.isCorrect ? "bg-emerald-500" : "bg-red-500"
@@ -146,9 +217,6 @@ export default function SimulationReviewPage() {
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="secondary" className="bg-primary/5 text-primary border-none font-black italic uppercase text-[8px]">{currentQ?.tags?.domain || 'People'}</Badge>
                     <Badge variant="secondary" className="bg-primary/5 text-primary border-none font-black italic uppercase text-[8px]">{currentQ?.tags?.approach || 'Agile'}</Badge>
-                    {currentQ?.correctOptionIds && currentQ.correctOptionIds.length > 1 && (
-                      <Badge variant="outline" className="bg-indigo-50 text-indigo-600 border-indigo-200 font-black italic uppercase text-[8px]">Multi-réponses</Badge>
-                    )}
                   </div>
                   <p className="text-2xl font-black text-slate-800 italic leading-relaxed">{currentQ?.text}</p>
                   {currentQ?.imageUrl && (
@@ -165,8 +233,8 @@ export default function SimulationReviewPage() {
                 <div className="grid gap-4">
                   {currentQ?.choices?.map((opt: string, idx: number) => {
                     const optId = String(idx + 1);
-                    const userChoices = currentQ.userChoices || (currentQ.userChoice ? [currentQ.userChoice] : []);
-                    const correctOptionIds = currentQ.correctOptionIds || (currentQ.correctChoice ? [currentQ.correctChoice] : []);
+                    const userChoices = currentQ.userChoices || [];
+                    const correctOptionIds = currentQ.correctOptionIds || [];
                     
                     const isUserSelection = userChoices.includes(optId);
                     const isCorrectOpt = correctOptionIds.includes(optId);
@@ -197,10 +265,10 @@ export default function SimulationReviewPage() {
 
                 <div className="p-8 bg-slate-50 rounded-[32px] border-l-8 border-l-primary shadow-inner">
                   <h4 className="font-black text-primary uppercase italic text-xs mb-4 flex items-center gap-2">
-                    <Info className="h-4 w-4" /> Justification Mindset PMI®
+                    <Info className="h-4 w-4" /> Justification Mindset PMI® (Dernière version)
                   </h4>
                   <p className="text-lg font-bold italic text-slate-700 leading-relaxed whitespace-pre-wrap">
-                    {currentQ?.explanation || "Aucune justification disponible pour cette question."}
+                    {currentQ?.explanation || "Aucune justification disponible."}
                   </p>
                 </div>
               </CardContent>
@@ -215,8 +283,8 @@ export default function SimulationReviewPage() {
                 </Button>
                 <Button 
                   className="flex-1 h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest italic shadow-xl" 
-                  onClick={() => setCurrentIndex(Math.min(responses.length - 1, currentIndex + 1))}
-                  disabled={currentIndex === responses.length - 1}
+                  onClick={() => setCurrentIndex(Math.min(enrichedResponses.length - 1, currentIndex + 1))}
+                  disabled={currentIndex === enrichedResponses.length - 1}
                 >
                   Suivant <ChevronRight className="ml-2 h-5 w-5" />
                 </Button>

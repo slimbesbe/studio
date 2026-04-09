@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
@@ -201,10 +200,14 @@ function ExamRunContent() {
   const finishExam = async () => {
     if (isSubmitting || questions.length === 0) return;
     setIsSubmitting(true);
+    
+    // Pour l'affichage immédiat du résultat, on calcule le score localement
     let correct = 0;
     const domainStats: Record<string, { correct: number, total: number }> = { 'People': { correct: 0, total: 0 }, 'Process': { correct: 0, total: 0 }, 'Business': { correct: 0, total: 0 } };
     const approachStats: Record<string, { correct: number, total: number }> = { 'Predictive': { correct: 0, total: 0 }, 'Agile': { correct: 0, total: 0 }, 'Hybrid': { correct: 0, total: 0 } };
-    const savedResponses: any[] = [];
+    
+    // Architecture DYNAMIQUE : On ne stocke que les IDs et les réponses
+    const minimalResponses: any[] = [];
 
     questions.forEach(q => {
       const correctIds = q.correctOptionIds || [String(q.correctChoice || "1")];
@@ -219,16 +222,9 @@ function ExamRunContent() {
       const approach = q.tags?.approach || 'Predictive';
       if (approachStats[approach]) { approachStats[approach].total++; if (isUserCorrect) approachStats[approach].correct++; }
 
-      savedResponses.push({
+      minimalResponses.push({
         questionId: q.id,
-        text: q.text,
-        imageUrl: q.imageUrl || null,
-        choices: q.choices,
-        userChoices,
-        correctOptionIds: correctIds,
-        isCorrect: isUserCorrect,
-        explanation: q.explanation,
-        tags: q.tags
+        userChoices
       });
     });
 
@@ -236,17 +232,25 @@ function ExamRunContent() {
     const finalData = {
       examId, 
       userId: user?.uid, 
-      scorePercent: percent, 
-      correctCount: correct, 
-      totalQuestions: questions.length,
+      // Le score total n'est plus stocké selon la consigne, mais pour le rendu immédiat on le garde en mémoire state
       durationSec: totalTime - timeLeft, 
       submittedAt: serverTimestamp(), 
-      domainBreakdown: domainStats, 
-      approachBreakdown: approachStats,
-      responses: savedResponses
+      responses: minimalResponses
     };
 
-    try { await addDoc(collection(db, 'coachingAttempts'), finalData); setResult(finalData); setViewMode('result'); }
+    try { 
+      await addDoc(collection(db, 'coachingAttempts'), finalData); 
+      // On enrichit le résultat localement pour l'affichage final
+      setResult({
+        ...finalData,
+        scorePercent: percent,
+        correctCount: correct,
+        totalQuestions: questions.length,
+        domainBreakdown: domainStats,
+        approachBreakdown: approachStats
+      }); 
+      setViewMode('result'); 
+    }
     catch (e) { toast({ variant: "destructive", title: "Erreur sauvegarde" }); }
     finally { setIsSubmitting(false); }
   };
@@ -420,7 +424,7 @@ function ExamRunContent() {
         {currentIndex === sectionEnd || currentIndex === questions.length - 1 ? (
           <Button onClick={() => setViewMode('review')} className="h-[6vh] px-[3vw] rounded-xl bg-red-600 text-white font-black uppercase text-[1.2vh] italic shadow-xl">REVIEW SECTION {currentSection}</Button>
         ) : (
-          <Button onClick={() => setCurrentIndex(currentIndex + 1)} className="h-[6vh] px-[3vw] rounded-xl bg-primary text-white font-black uppercase text-[1.2vh] italic shadow-xl">Next <ChevronRight className="ml-2 h-[1.5vh] w-[1.5vh]" /></Button>
+          <Button onClick={() => setCurrentIndex(currentIndex + 1)} className="h-[6vh] px-[3vw] rounded-xl bg-primary text-white font-black uppercase text-[1.2vh] italic shadow-xl">Next <ChevronRight className="ml-2 h-4 w-4" /></Button>
         )}
       </footer>
 
