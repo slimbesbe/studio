@@ -6,30 +6,20 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
   Loader2, 
-  Target,
   ChevronRight,
   Zap,
   Brain,
-  Check,
-  Clock,
   History,
+  Activity,
+  TrendingUp,
   Trophy,
   FileQuestion,
-  Users,
-  LayoutGrid,
-  GraduationCap,
-  Briefcase,
-  Activity,
-  MoreHorizontal,
-  Info,
-  Edit2,
-  Trash2,
-  TrendingUp
+  Clock
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, limit } from 'firebase/firestore';
 import { 
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
+  XAxis, YAxis, CartesianGrid, Tooltip, 
   ResponsiveContainer, Cell, PieChart, Pie, AreaChart, Area
 } from 'recharts';
 import { cn } from '@/lib/utils';
@@ -73,8 +63,6 @@ export default function DashboardPage() {
     }
 
     const sorted = [...rawAttempts].sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
-    
-    // Filtrage des tentatives valides pour les stats
     const validSorted = sorted.filter(a => a.submittedAt && isValid(a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt)));
     
     const avgScore = validSorted.length > 0 ? Math.round(validSorted.reduce((acc, a) => acc + (a.scorePercent || 0), 0) / validSorted.length) : 0;
@@ -82,7 +70,7 @@ export default function DashboardPage() {
     const examCount = validSorted.filter(a => a.examId && a.examId.startsWith('exam')).length;
     const questionsCount = validSorted.reduce((acc, a) => acc + (a.totalQuestions || 0), 0);
     
-    const progressionData = [...validSorted].reverse().slice(-7).map((a, i) => {
+    const progressionData = [...validSorted].reverse().slice(-7).map((a) => {
       const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
       return {
         name: date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
@@ -102,38 +90,38 @@ export default function DashboardPage() {
   }, [rawAttempts]);
 
   if (isUserLoading || !mounted) {
-    return <div className="h-screen flex items-center justify-center bg-[#f8fafc]"><Loader2 className="h-12 w-12 animate-spin text-[#1d4ed8]" /></div>;
+    return <div className="min-h-[70vh] flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-[#1d4ed8]" /></div>;
   }
 
   return (
-    <div className="h-full flex flex-col space-y-[2vh] animate-fade-in p-[1vh] overflow-hidden bg-[#f8fafc]">
+    <div className="flex flex-col space-y-8 animate-fade-in pb-12">
       
-      {/* Header Compact */}
-      <div className="flex-none flex flex-col md:flex-row md:items-center justify-between gap-2 px-2">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-[clamp(1.2rem,3vh,2rem)] font-black italic text-slate-900 tracking-tighter uppercase leading-none">Tableau de Bord</h1>
-          <p className="text-slate-500 font-bold uppercase tracking-widest text-[clamp(0.6rem,1.2vh,0.8rem)] italic mt-1">Bonjour {profile?.firstName || 'Candidat'} • Vision 360°</p>
+          <h1 className="text-4xl font-black italic text-slate-900 tracking-tighter uppercase leading-none">Tableau de Bord</h1>
+          <p className="text-slate-500 font-bold uppercase tracking-widest text-xs italic mt-2">Bonjour {profile?.firstName || 'Candidat'} • Vision 360°</p>
         </div>
-        <Button asChild className="bg-[#1d4ed8] hover:bg-[#1e40af] text-white font-black uppercase italic rounded-xl h-[6vh] px-6 text-[1.4vh] shadow-lg">
+        <Button asChild className="bg-[#1d4ed8] hover:bg-[#1e40af] text-white font-black uppercase italic rounded-2xl h-14 px-8 text-sm shadow-xl transition-all hover:scale-105 active:scale-95">
           <Link href="/dashboard/practice" className="flex items-center gap-2">
-            <Zap className="h-4 w-4 fill-white" /> Start Practice
+            <Zap className="h-5 w-5 fill-white" /> Start Practice
           </Link>
         </Button>
       </div>
 
-      {/* Bento Grid Scalable */}
-      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-[2vh]">
+      {/* Bento Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         
         {/* ROW 1: STRATEGIC */}
-        <div className="md:col-span-4 h-full min-h-0">
+        <div className="md:col-span-4">
           <TargetExamDateCard profile={profile} />
         </div>
 
-        <div className="md:col-span-4 h-full min-h-0">
-          <Card className="rounded-[2.5vh] border-none shadow-sm p-[2vh] bg-white h-full flex flex-col justify-between overflow-hidden">
-            <h3 className="font-black text-slate-400 text-[1vh] uppercase tracking-[0.2em] italic">Temps d'étude</h3>
-            <div className="flex items-center gap-[2vw] flex-1 min-h-0">
-              <div className="h-[12vh] w-[12vh] shrink-0">
+        <div className="md:col-span-4">
+          <Card className="rounded-[32px] border-none shadow-xl p-6 bg-white flex flex-col justify-between min-h-[200px]">
+            <h3 className="font-black text-slate-400 text-[10px] uppercase tracking-widest italic">Temps d'étude</h3>
+            <div className="flex items-center gap-6 mt-4">
+              <div className="h-24 w-24 shrink-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -146,40 +134,40 @@ export default function DashboardPage() {
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <div className="space-y-[0.5vh]">
-                <p className="text-[clamp(1.5rem,4vh,3rem)] font-black italic text-slate-900 leading-none">{Math.floor((profile?.totalTimeSpent || 0) / 3600)}h</p>
-                <p className="text-[1vh] font-bold text-slate-400 uppercase leading-tight italic">Temps cumulé</p>
+              <div>
+                <p className="text-4xl font-black italic text-slate-900 leading-none">{Math.floor((profile?.totalTimeSpent || 0) / 3600)}h</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase leading-tight italic mt-1">Temps cumulé</p>
               </div>
             </div>
           </Card>
         </div>
 
-        <div className="md:col-span-4 h-full min-h-0">
-          <Card className="rounded-[2.5vh] border-none shadow-sm p-[2vh] bg-[#004aad] h-full flex flex-col justify-between relative overflow-hidden group">
+        <div className="md:col-span-4">
+          <Card className="rounded-[32px] border-none shadow-xl p-6 bg-[#004aad] text-white flex flex-col justify-between relative overflow-hidden group min-h-[200px]">
             <div className="absolute -top-10 -right-10 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Brain className="h-[25vh] w-[25vh] text-white" />
+              <Brain className="h-40 w-40 text-white" />
             </div>
             <div className="relative z-10 flex items-center gap-2">
-              <Brain className="h-[2vh] w-[2vh] text-blue-100" />
-              <h3 className="font-black text-[1vh] uppercase tracking-widest text-blue-100/80 italic">Mindset Coach</h3>
+              <Brain className="h-5 w-5 text-blue-100" />
+              <h3 className="font-black text-[10px] uppercase tracking-widest text-blue-100/80 italic">Mindset Coach</h3>
             </div>
-            <p className="relative z-10 text-[clamp(0.8rem,1.8vh,1.4rem)] font-black italic text-white leading-relaxed line-clamp-3">
+            <p className="relative z-10 text-lg font-black italic text-white leading-relaxed line-clamp-3 mt-4">
               "Privilégiez toujours la collaboration interne à l'équipe avant d'escalader au management."
             </p>
-            <Button asChild variant="link" className="relative z-10 p-0 text-white font-black text-[1vh] h-auto uppercase tracking-widest hover:text-blue-200 justify-start">
-              <Link href="/dashboard/coach">Plus de conseils <ChevronRight className="h-2 w-2 ml-1" /></Link>
+            <Button asChild variant="link" className="relative z-10 p-0 text-white font-black text-[10px] h-auto uppercase tracking-widest hover:text-blue-200 justify-start mt-4">
+              <Link href="/dashboard/coach">Plus de conseils <ChevronRight className="h-3 w-3 ml-1" /></Link>
             </Button>
           </Card>
         </div>
 
         {/* ROW 2: ANALYTICAL */}
-        <div className="md:col-span-4 h-full min-h-0">
-          <Card className="rounded-[2.5vh] border-none shadow-sm p-[2vh] space-y-[2vh] bg-white h-full flex flex-col">
+        <div className="md:col-span-4">
+          <Card className="rounded-[32px] border-none shadow-xl p-8 space-y-6 bg-white h-full">
             <div className="flex items-center justify-between">
-              <h3 className="font-black text-slate-400 text-[1vh] uppercase tracking-widest italic">Performance</h3>
-              <Activity className="h-3 w-3 text-slate-300" />
+              <h3 className="font-black text-slate-400 text-[10px] uppercase tracking-widest italic">Performance</h3>
+              <Activity className="h-4 w-4 text-slate-300" />
             </div>
-            <div className="grid grid-cols-2 gap-[1.5vh] flex-1">
+            <div className="grid grid-cols-2 gap-4">
               <KPICard label="Dernier Score" val={`${stats.lastScore}%`} color="text-[#1d4ed8] bg-blue-50" />
               <KPICard label="Examens" val={stats.examCount} color="text-[#22c55e] bg-emerald-50" />
               <KPICard label="Score Moyen" val={`${stats.avgScore}%`} color="text-indigo-600 bg-indigo-50" />
@@ -188,13 +176,13 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        <div className="md:col-span-8 h-full min-h-0">
-          <Card className="rounded-[2.5vh] border-none shadow-sm p-[2vh] h-full space-y-[2vh] bg-white flex flex-col">
+        <div className="md:col-span-8">
+          <Card className="rounded-[32px] border-none shadow-xl p-8 h-full space-y-6 bg-white">
             <div className="flex items-center justify-between">
-              <h3 className="font-black text-slate-400 text-[1vh] uppercase tracking-widest italic">Historique de progression</h3>
-              <TrendingUp className="h-3 w-3 text-slate-300" />
+              <h3 className="font-black text-slate-400 text-[10px] uppercase tracking-widest italic">Historique de progression</h3>
+              <TrendingUp className="h-4 w-4 text-slate-300" />
             </div>
-            <div className="flex-1 w-full min-h-0">
+            <div className="h-[250px] w-full">
               {stats.progressionData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={stats.progressionData}>
@@ -205,74 +193,74 @@ export default function DashboardPage() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} dy={10} />
                     <YAxis hide domain={[0, 100]} />
                     <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)', fontWeight: 'bold' }} />
                     <Area type="monotone" dataKey="val" stroke="#1d4ed8" strokeWidth={3} fillOpacity={1} fill="url(#colorVal)" />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-full flex items-center justify-center text-slate-300 font-bold italic text-[1.4vh]">Données insuffisantes</div>
+                <div className="h-full flex items-center justify-center text-slate-300 font-bold italic">Données insuffisantes pour le graphique</div>
               )}
             </div>
           </Card>
         </div>
 
         {/* ROW 3: RECENT ACTIVITY TABLE */}
-        <div className="md:col-span-12 h-full min-h-0">
-          <Card className="rounded-[2.5vh] border-none shadow-sm bg-white overflow-hidden h-full flex flex-col">
-            <CardHeader className="p-[1.5vh] border-b bg-slate-50/50 flex-none">
-              <CardTitle className="text-[1vh] font-black text-slate-400 uppercase tracking-widest italic flex items-center gap-2">
-                <History className="h-3 w-3" /> Activités récentes
+        <div className="md:col-span-12">
+          <Card className="rounded-[32px] border-none shadow-xl bg-white overflow-hidden">
+            <CardHeader className="p-6 border-b bg-slate-50/50">
+              <CardTitle className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic flex items-center gap-2">
+                <History className="h-4 w-4" /> Activités récentes
               </CardTitle>
             </CardHeader>
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+            <CardContent className="p-0">
               <Table>
-                <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
-                  <TableRow className="border-none h-[4vh]">
-                    <TableHead className="font-black text-[0.9vh] uppercase text-slate-400">Session</TableHead>
-                    <TableHead className="font-black text-[0.9vh] uppercase text-slate-400 text-center">Score</TableHead>
-                    <TableHead className="font-black text-[0.9vh] uppercase text-slate-400">Progression</TableHead>
-                    <TableHead className="text-right font-black text-[0.9vh] uppercase text-slate-400 pr-6">Revue</TableHead>
+                <TableHeader className="bg-white">
+                  <TableRow className="border-none h-12">
+                    <TableHead className="font-black text-[10px] uppercase text-slate-400 px-6">Session</TableHead>
+                    <TableHead className="font-black text-[10px] uppercase text-slate-400 text-center">Score</TableHead>
+                    <TableHead className="font-black text-[10px] uppercase text-slate-400">Progression</TableHead>
+                    <TableHead className="text-right font-black text-[10px] uppercase text-slate-400 pr-8">Revue</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {stats.sortedAttempts.map((a, i) => (
-                    <TableRow key={i} className="border-b border-slate-50 h-[6vh] hover:bg-slate-50 transition-colors">
-                      <TableCell className="py-1">
+                    <TableRow key={i} className="border-b border-slate-50 h-20 hover:bg-slate-50 transition-colors">
+                      <TableCell className="px-6">
                         <div className="flex flex-col">
-                          <span className="font-black text-slate-700 text-[1.3vh] italic truncate uppercase">{a.examId ? a.examId.replace('exam', 'Simulation ') : a.sessionId || 'Sprint'}</span>
-                          <span className="text-[0.8vh] font-bold text-slate-400 uppercase italic">
+                          <span className="font-black text-slate-700 text-sm italic truncate uppercase">{a.examId ? a.examId.replace('exam', 'Simulation ') : a.sessionId || 'Sprint'}</span>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase italic">
                             {a.submittedAt?.toDate ? a.submittedAt.toDate().toLocaleDateString() : 'Récemment'}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-center py-1">
+                      <TableCell className="text-center">
                         <Badge className={cn(
-                          "font-black italic text-[1.1vh] px-2 py-0.5 rounded-lg border-none",
+                          "font-black italic text-xs px-3 py-1 rounded-lg border-none",
                           a.scorePercent >= 75 ? "bg-emerald-50 text-emerald-600" : "bg-indigo-50 text-indigo-600"
                         )}>
                           {a.scorePercent}%
                         </Badge>
                       </TableCell>
-                      <TableCell className="py-1 w-[15vw]">
+                      <TableCell className="w-1/4 min-w-[150px]">
                         <div className="flex items-center gap-2">
-                          <Progress value={a.scorePercent} className="h-[0.6vh]" />
+                          <Progress value={a.scorePercent} className="h-2" />
                         </div>
                       </TableCell>
-                      <TableCell className="text-right py-1 pr-6">
-                        <Button variant="ghost" size="icon" className="h-[4vh] w-[4vh] rounded-lg hover:bg-primary/5" asChild>
-                          <Link href={`/dashboard/history/${a.id}`}><ChevronRight className="h-4 w-4 text-primary" /></Link>
+                      <TableCell className="text-right pr-8">
+                        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-primary/5 border-2 border-transparent hover:border-primary/10" asChild>
+                          <Link href={`/dashboard/history/${a.id}`}><ChevronRight className="h-5 w-5 text-primary" /></Link>
                         </Button>
                       </TableCell>
                     </TableRow>
                   ))}
                   {stats.sortedAttempts.length === 0 && (
-                    <TableRow><TableCell colSpan={4} className="h-[15vh] text-center font-bold italic text-slate-300 text-[1.2vh]">Aucune activité</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={4} className="h-40 text-center font-bold italic text-slate-300">Aucune activité enregistrée</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
-            </div>
+            </CardContent>
           </Card>
         </div>
 
@@ -283,9 +271,9 @@ export default function DashboardPage() {
 
 function KPICard({ label, val, color }: any) {
   return (
-    <div className={cn("p-[1.5vh] rounded-[1.5vh] border flex flex-col justify-center gap-1 group hover:shadow-md transition-all", color.split(' ')[1])}>
-      <p className="text-[0.8vh] font-black text-slate-400 uppercase tracking-widest truncate italic">{label}</p>
-      <p className={cn("text-[clamp(1rem,2.5vh,2rem)] font-black italic tracking-tighter leading-none", color.split(' ')[0])}>{val}</p>
+    <div className={cn("p-4 rounded-2xl border flex flex-col justify-center gap-1 group hover:shadow-md transition-all", color.split(' ')[1])}>
+      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest truncate italic">{label}</p>
+      <p className={cn("text-2xl font-black italic tracking-tighter leading-none", color.split(' ')[0])}>{val}</p>
     </div>
   );
 }

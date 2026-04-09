@@ -1,10 +1,10 @@
 "use client";
 
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, getDocs, documentId } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, History, Trophy, Clock, ChevronRight, TrendingUp, Calendar } from 'lucide-react';
+import { Loader2, History, Trophy, ChevronRight, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -37,7 +37,6 @@ export default function HistoryPage() {
 
   const { data: rawResults, isLoading: isCollectionLoading } = useCollection(resultsQuery);
 
-  // Recalcul dynamique des scores pour la liste
   useEffect(() => {
     async function computeScores() {
       if (!rawResults || rawResults.length === 0) {
@@ -102,7 +101,6 @@ export default function HistoryPage() {
   const formatTime = (seconds: any) => {
     if (seconds === undefined || seconds === null) return '-';
     const totalSeconds = Math.max(0, Number(seconds) || 0);
-    if (totalSeconds === 0) return '0m';
     const h = Math.floor(totalSeconds / 3600);
     const m = Math.floor((totalSeconds % 3600) / 60);
     const s = totalSeconds % 60;
@@ -119,23 +117,23 @@ export default function HistoryPage() {
   };
 
   if (isUserLoading || isCollectionLoading || isComputing || !mounted) {
-    return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
+    return <div className="min-h-[70vh] flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
   return (
-    <div className="space-y-8 animate-fade-in max-w-[1600px] mx-auto py-8 px-4">
-      <div className="flex flex-col md:flex-row items-center justify-between bg-white p-8 rounded-[40px] shadow-xl border-2">
+    <div className="space-y-8 animate-fade-in pb-12">
+      <div className="flex flex-col md:flex-row items-center justify-between bg-white p-8 rounded-[32px] shadow-xl border-2 border-slate-100">
         <div>
           <h1 className="text-4xl font-black text-primary italic uppercase tracking-tighter flex items-center gap-4">
-            <History className="h-12 w-12 text-primary" /> Historique Dynamique
+            <History className="h-12 w-12 text-primary" /> Historique de Simulation
           </h1>
-          <p className="text-slate-500 font-bold mt-1 uppercase tracking-widest text-sm italic">Scores recalculés selon la dernière banque de questions.</p>
+          <p className="text-slate-500 font-bold mt-1 uppercase tracking-widest text-sm italic">Analysez votre progression pas à pas.</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-7">
-          <Card className="rounded-[40px] shadow-2xl border-none overflow-hidden bg-white h-full">
+          <Card className="rounded-[32px] shadow-xl border-none overflow-hidden bg-white">
             <CardContent className="p-0">
               <Table>
                 <TableHeader className="bg-muted/30">
@@ -152,11 +150,11 @@ export default function HistoryPage() {
                     <TableRow><TableCell colSpan={5} className="h-64 text-center text-slate-400 font-black uppercase italic tracking-widest">Aucun résultat</TableCell></TableRow>
                   ) : (
                     computedResults.map((res) => (
-                      <TableRow key={res.id} className="h-24 hover:bg-slate-50/80 transition-all border-b group">
+                      <TableRow key={res.id} className="h-24 hover:bg-slate-50 transition-all border-b group">
                         <TableCell className="px-6">
                           <div className="flex items-center gap-3">
                             <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0"><Trophy className="h-5 w-5" /></div>
-                            <div className="font-black text-sm text-slate-800 uppercase italic truncate">{res.examId ? res.examId.replace('exam', 'Examen ') : res.sessionId || 'Simulation'}</div>
+                            <div className="font-black text-sm text-slate-800 uppercase italic truncate">{res.examId ? res.examId.replace('exam', 'Simulation ') : res.sessionId || 'Simulation'}</div>
                           </div>
                         </TableCell>
                         <TableCell className="text-center text-xs font-bold text-slate-600">{formatDate(res.submittedAt)}</TableCell>
@@ -180,11 +178,11 @@ export default function HistoryPage() {
         </div>
 
         <div className="lg:col-span-5">
-          <Card className="rounded-[40px] shadow-2xl border-none bg-white p-8 space-y-8 h-full flex flex-col">
+          <Card className="rounded-[32px] shadow-xl border-none bg-white p-8 space-y-8 flex flex-col min-h-[400px]">
             <div className="flex items-center justify-between">
               <h3 className="text-2xl font-black italic uppercase tracking-tighter text-slate-900 flex items-center gap-3"><TrendingUp className="h-8 w-8 text-primary" /> Évolution du Ready Score</h3>
             </div>
-            <div className="flex-1 min-h-[400px] w-full">
+            <div className="flex-1 w-full">
               {chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={chartData}>
