@@ -183,10 +183,10 @@ export default function AdminCommunicationsPage() {
                         </TableCell>
                         <TableCell>
                           <div className="max-w-md space-y-1">
-                            <p className="font-black text-slate-900 italic text-sm flex items-center gap-2">
+                            <div className="font-black text-slate-900 italic text-sm flex items-center gap-2">
                               {m.subject}
                               {m.type === 'welcome' && <Badge className="bg-amber-500 text-white border-none font-black italic uppercase text-[8px] px-2">AUTOMATIQUE</Badge>}
-                            </p>
+                            </div>
                             <p className="text-xs font-bold text-slate-500 italic line-clamp-2 leading-relaxed">{m.message}</p>
                           </div>
                         </TableCell>
