@@ -54,11 +54,11 @@ export default function ChatPage() {
     if (!input.trim() || isLoading || !user) return;
 
     const userContent = input;
-    setInput('');
+    setInput(''); // Vider le champ de saisie immédiatement
     setIsLoading(true);
 
     try {
-      // 1. Sauvegarder le message utilisateur
+      // 1. Sauvegarder le message utilisateur dans Firestore
       await addDoc(collection(db, 'chats', user.uid, 'messages'), {
         userId: user.uid,
         userName: `${profile?.firstName} ${profile?.lastName}`,
@@ -67,20 +67,20 @@ export default function ChatPage() {
         timestamp: serverTimestamp()
       });
 
-      // 2. Simulation IA avec délai de 12 secondes (Mode Préparation)
+      // 2. Logique de réponse "Mode Préparation" avec délai de 1 seconde
       setTimeout(async () => {
         await addDoc(collection(db, 'chats', user.uid, 'messages'), {
           userId: user.uid,
           userName: 'Assistant Simu-lux',
           role: 'assistant',
-          content: "Merci pour votre question ! Le service de chat interactif n'est pas encore disponible. Nous finalisons la configuration pour vous offrir une expérience optimale. Revenez vers nous ultérieurement pour un coaching complet.",
+          content: "Merci pour votre question ! Le service de chat interactif n'est pas encore disponible. Nous finalisons la configuration pour vous offrir une expérience optimale. Revenez vers moi ultérieurement pour un coaching complet.",
           timestamp: serverTimestamp()
         });
         setIsLoading(false);
-      }, 12000);
+      }, 1000);
 
     } catch (e) {
-      console.error(e);
+      console.error("Erreur lors de l'envoi du message:", e);
       setIsLoading(false);
     }
   };
@@ -102,7 +102,7 @@ export default function ChatPage() {
           ref={scrollRef}
           className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar"
         >
-          {/* Bulle de Bienvenue Initiale (toujours visible si pas de messages ou en haut) */}
+          {/* Bulle de Bienvenue Initiale */}
           <div className="flex items-start gap-4 animate-slide-up">
             <div className="h-10 w-10 rounded-2xl bg-indigo-500 flex items-center justify-center shrink-0 shadow-lg">
               <Sparkles className="h-5 w-5 text-white" />
@@ -133,15 +133,15 @@ export default function ChatPage() {
           ))}
           
           {isLoading && (
-            <div className="flex items-start gap-4 animate-pulse">
+            <div className="flex items-start gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
               <div className="h-10 w-10 rounded-2xl bg-indigo-500 flex items-center justify-center shrink-0 shadow-lg">
                 <Sparkles className="h-5 w-5 text-white" />
               </div>
-              <div className="bg-indigo-50 border-2 border-indigo-100 p-4 rounded-[24px] rounded-tl-none flex items-center gap-1.5">
+              <div className="bg-indigo-50 border-2 border-indigo-100 p-5 rounded-[24px] rounded-tl-none flex items-center gap-1.5">
                 <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
                 <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
                 <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce"></div>
-                <span className="text-[10px] font-black text-indigo-400 uppercase italic ml-2">Réflexion du coach...</span>
+                <span className="text-[10px] font-black text-indigo-400 uppercase italic ml-3 tracking-widest">Réflexion du coach...</span>
               </div>
             </div>
           )}
