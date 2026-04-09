@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
@@ -57,7 +58,7 @@ export default function SimulationReviewPage() {
         
         let correctCount = 0;
         const enriched = attempt.responses.map((resp: any) => {
-          const q = latestQuestions.find(lq => llq.id === resp.questionId);
+          const q = latestQuestions.find(lq => lq.id === resp.questionId);
           if (!q) return { ...resp, missing: true };
 
           const correctIds = q.correctOptionIds || [String(q.correctChoice || "1")];
@@ -66,7 +67,6 @@ export default function SimulationReviewPage() {
           
           if (isCorrect) correctCount++;
 
-          // Détecter si la question a été mise à jour après la tentative
           const isUpdated = q.updatedAt && attempt.submittedAt && 
                            (q.updatedAt.seconds > attempt.submittedAt.seconds);
 
@@ -108,7 +108,6 @@ export default function SimulationReviewPage() {
 
   return (
     <div className="max-w-6xl mx-auto py-8 px-4 space-y-8 animate-fade-in pb-24 h-full flex flex-col overflow-hidden">
-      {/* Header avec score recalculé dynamiquement */}
       <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-8 rounded-[40px] shadow-xl border-2 shrink-0">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild className="h-12 w-12 rounded-2xl border-2"><Link href="/dashboard/history"><ChevronLeft /></Link></Button>

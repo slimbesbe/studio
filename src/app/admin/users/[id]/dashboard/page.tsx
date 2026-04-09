@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useState, useEffect } from 'react';
@@ -25,21 +26,23 @@ import {
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, where, limit, doc } from 'firebase/firestore';
 import { 
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
-  ResponsiveContainer, Cell, PieChart, Pie, AreaChart, Area
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
+  ResponsiveContainer
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useParams } from 'next/navigation';
 import { isValid } from 'date-fns';
+import { fetchQuestionsByIds } from '@/lib/services/practice-service';
 
 export default function AdminUserDashboardPage() {
   const params = useParams();
   const userId = params.id as string;
   const db = useFirestore();
   const [mounted, setMounted] = useState(false);
+  const [computedResults, setComputedResults] = useState<any[]>([]);
+  const [isComputing, setIsComputing] = useState(true);
 
   useEffect(() => {
     setMounted(true);
@@ -59,8 +62,54 @@ export default function AdminUserDashboardPage() {
 
   const { data: rawAttempts, isLoading: isAttemptsLoading } = useCollection(attemptsQuery);
 
+  // Recalcul dynamique des scores pour le dashboard inspecteur admin
+  useEffect(() => {
+    async function compute() {
+      if (!rawAttempts || rawAttempts.length === 0) {
+        setComputedResults([]);
+        setIsComputing(false);
+        return;
+      }
+
+      setIsComputing(true);
+      try {
+        const allQuestionIds = Array.from(new Set(rawAttempts.flatMap(r => r.responses?.map((resp: any) => resp.questionId) || [])));
+        const latestQuestions = await fetchQuestionsByIds(db, allQuestionIds);
+        
+        const computed = rawAttempts.map(attempt => {
+          let correct = 0;
+          const total = attempt.responses?.length || 0;
+          
+          attempt.responses?.forEach((resp: any) => {
+            const q = latestQuestions.find(lq => lq.id === resp.questionId);
+            if (!q) return;
+            const correctIds = q.correctOptionIds || [String(q.correctChoice || "1")];
+            const userChoices = resp.userChoices || (resp.userChoice ? [resp.userChoice] : []);
+            if (userChoices.length === correctIds.length && userChoices.every(id => correctIds.includes(id))) {
+              correct++;
+            }
+          });
+
+          return {
+            ...attempt,
+            scorePercent: total > 0 ? Math.round((correct / total) * 100) : 0,
+            correctCount: correct,
+            totalQuestions: total
+          };
+        }).sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
+
+        setComputedResults(computed);
+      } catch (e) {
+        console.error("Admin user dashboard compute error", e);
+      } finally {
+        setIsComputing(false);
+      }
+    }
+    compute();
+  }, [rawAttempts, db]);
+
   const stats = useMemo(() => {
-    if (!rawAttempts || rawAttempts.length === 0) {
+    if (computedResults.length === 0) {
       return {
         readiness: 0,
         lastScore: 0,
@@ -72,10 +121,7 @@ export default function AdminUserDashboardPage() {
       };
     }
 
-    const sorted = [...rawAttempts].sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
-    
-    // Sécurité dates
-    const validSorted = sorted.filter(a => a.submittedAt && isValid(a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt)));
+    const validSorted = computedResults.filter(a => a.submittedAt && isValid(a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt)));
     
     const avgScore = validSorted.length > 0 ? Math.round(validSorted.reduce((acc, a) => acc + (a.scorePercent || 0), 0) / validSorted.length) : 0;
     const lastScore = validSorted[0]?.scorePercent || 0;
@@ -99,16 +145,14 @@ export default function AdminUserDashboardPage() {
       progressionData,
       sortedAttempts: validSorted.slice(0, 10)
     };
-  }, [rawAttempts]);
+  }, [computedResults]);
 
-  if (!mounted || isProfileLoading || isAttemptsLoading) {
+  if (!mounted || isProfileLoading || isAttemptsLoading || isComputing) {
     return <div className="h-screen flex items-center justify-center bg-[#f8fafc]"><Loader2 className="h-12 w-12 animate-spin text-[#1d4ed8]" /></div>;
   }
 
   return (
     <div className="min-h-screen bg-[#f8fafc] p-8 space-y-8 animate-fade-in pb-20 overflow-auto">
-      
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild className="h-12 w-12 rounded-2xl border-2"><Link href="/admin/users"><ChevronLeft /></Link></Button>
@@ -127,7 +171,6 @@ export default function AdminUserDashboardPage() {
         </div>
       </div>
 
-      {/* KPI Row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <KPICard icon={Trophy} label="Ready Score" val={`${stats.readiness}%`} color="text-[#1d4ed8] bg-blue-50" />
         <KPICard icon={History} label="Simulations" val={stats.sortedAttempts.length} color="text-[#22c55e] bg-emerald-50" />
@@ -136,8 +179,6 @@ export default function AdminUserDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        {/* Graphique de progression */}
         <Card className="lg:col-span-8 rounded-[40px] shadow-xl border-none bg-white p-10 space-y-8">
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-black italic uppercase tracking-tight flex items-center gap-3">
@@ -168,7 +209,6 @@ export default function AdminUserDashboardPage() {
           </div>
         </Card>
 
-        {/* Détails profil */}
         <Card className="lg:col-span-4 rounded-[40px] shadow-xl border-none bg-white p-10 space-y-8">
           <h3 className="text-xl font-black italic uppercase tracking-tight">Paramètres Accès</h3>
           <div className="space-y-6">
@@ -194,7 +234,6 @@ export default function AdminUserDashboardPage() {
           </div>
         </Card>
 
-        {/* Tableau des dernières activités */}
         <Card className="lg:col-span-12 rounded-[40px] shadow-2xl border-none overflow-hidden bg-white">
           <CardHeader className="p-8 border-b flex flex-row items-center justify-between">
             <CardTitle className="text-xl font-black italic uppercase tracking-tight flex items-center gap-3">
