@@ -240,24 +240,30 @@ function ExamRunContent() {
       responses: minimalResponses
     };
 
-    try { 
-      await addDoc(collection(db, 'coachingAttempts'), finalData); 
-      
-      // Log exam completion
-      logActivity(db, user!.uid, 'exam_completed', { examId, score: percent });
+    // OPTIMISTIC UI: Prepare results locally and transition IMMEDIATELY
+    const resultData = {
+      ...finalData,
+      scorePercent: percent,
+      correctCount: correct,
+      totalQuestions: questions.length,
+      domainBreakdown: domainStats,
+      approachBreakdown: approachStats
+    };
 
-      setResult({
-        ...finalData,
-        scorePercent: percent,
-        correctCount: correct,
-        totalQuestions: questions.length,
-        domainBreakdown: domainStats,
-        approachBreakdown: approachStats
-      }); 
-      setViewMode('result'); 
-    }
-    catch (e) { toast({ variant: "destructive", title: "Erreur sauvegarde" }); }
-    finally { setIsSubmitting(false); }
+    setResult(resultData);
+    setViewMode('result');
+
+    // ASYNC PERSISTENCE: Save to Firestore in background
+    addDoc(collection(db, 'coachingAttempts'), finalData)
+      .then(() => {
+        logActivity(db, user!.uid, 'exam_completed', { examId, score: percent });
+      })
+      .catch((e) => {
+        console.error("Async result save failed:", e);
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
   };
 
   if (isLoading) return <div className="h-full w-full flex items-center justify-center"><Loader2 className="animate-spin h-[8vh] w-[8vh] text-primary" /></div>;
@@ -349,8 +355,12 @@ function ExamRunContent() {
           </div>
           <div className="flex-none flex flex-col sm:flex-row gap-[2vh] pt-[4vh]">
             <Button variant="outline" className="flex-1 h-8vh rounded-2xl border-4 font-black uppercase text-[1.5vh]" onClick={() => setViewMode('question')}>BACK TO QUESTIONS</Button>
-            <Button className="flex-1 h-8vh rounded-2xl bg-red-600 font-black uppercase text-[1.5vh] shadow-xl text-white" onClick={currentSection < 3 && (currentSection * SECTION_SIZE < questions.length) ? () => setViewMode('break') : finishExam}>
-              {currentSection < 3 && (currentSection * SECTION_SIZE < questions.length) ? "FINISH & BREAK" : "FINISH EXAM"}
+            <Button 
+              className="flex-1 h-8vh rounded-2xl bg-red-600 font-black uppercase text-[1.5vh] shadow-xl text-white" 
+              onClick={currentSection < 3 && (currentSection * SECTION_SIZE < questions.length) ? () => setViewMode('break') : finishExam}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? <Loader2 className="animate-spin h-[3vh] w-[3vh]" /> : (currentSection < 3 && (currentSection * SECTION_SIZE < questions.length) ? "FINISH & BREAK" : "FINISH EXAM")}
             </Button>
           </div>
         </Card>
