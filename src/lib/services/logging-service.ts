@@ -1,3 +1,4 @@
+
 'use client';
 
 import { 
@@ -6,11 +7,13 @@ import {
   addDoc, 
   serverTimestamp 
 } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 /**
  * Enregistre une activité utilisateur dans la collection userLogs.
  */
-export async function logActivity(
+export function logActivity(
   db: Firestore, 
   userId: string, 
   action: string, 
@@ -18,14 +21,20 @@ export async function logActivity(
 ) {
   if (!userId || !db) return;
   
-  try {
-    await addDoc(collection(db, 'userLogs'), {
-      userId,
-      action,
-      timestamp: serverTimestamp(),
-      ...metadata
-    });
-  } catch (e) {
-    console.error("Failed to log activity:", e);
-  }
+  const logsRef = collection(db, 'userLogs');
+  const logData = {
+    userId,
+    action,
+    timestamp: serverTimestamp(),
+    ...metadata
+  };
+
+  // Pattern non-bloquant conformément aux instructions
+  addDoc(logsRef, logData).catch(async (error) => {
+    errorEmitter.emit('permission-error', new FirestorePermissionError({
+      path: logsRef.path,
+      operation: 'create',
+      requestResourceData: logData
+    }));
+  });
 }

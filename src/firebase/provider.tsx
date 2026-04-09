@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect, useRef } from 'react';
@@ -7,6 +8,8 @@ import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { logActivity } from '@/lib/services/logging-service';
 import { sendAdminAlertOnFirstLogin } from '@/lib/services/mail-service';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -88,12 +91,11 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     const isHardcodedAdmin = (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) || 
                              ADMIN_UIDS.includes(user.uid);
 
-    const unsubscribe = onSnapshot(userDocRef, async (docSnap) => {
+    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
       if (docSnap.exists()) {
         const profileData = docSnap.data();
         
         // --- FIRST LOGIN DETECTION & NOTIFICATION ---
-        // Ajout d'un guard strict pour éviter les doublons et les noms "undefined"
         if (!profileData.firstLoginAt && !isHardcodedAdmin && !user.isAnonymous && welcomeTriggered.current !== user.uid) {
           welcomeTriggered.current = user.uid;
           
@@ -103,10 +105,17 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
           const fullName = `${firstName} ${lastName}`;
           
           // 1. Update user profile (Atomic update)
-          await setDoc(userDocRef, { firstLoginAt: now }, { merge: true });
+          setDoc(userDocRef, { firstLoginAt: now }, { merge: true }).catch(err => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+              path: userDocRef.path,
+              operation: 'update',
+              requestResourceData: { firstLoginAt: now }
+            }));
+          });
           
           // 2. Create internal support message (Welcome)
-          await addDoc(collection(firestore, 'supportMessages'), {
+          const supportMsgRef = collection(firestore, 'supportMessages');
+          const supportMsgData = {
             userId: user.uid,
             userEmail: user.email,
             userName: fullName,
@@ -115,10 +124,17 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
             type: 'welcome',
             status: 'unread',
             createdAt: now
+          };
+          addDoc(supportMsgRef, supportMsgData).catch(err => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+              path: supportMsgRef.path,
+              operation: 'create',
+              requestResourceData: supportMsgData
+            }));
           });
           
           // 3. Trigger Admin Email Alert
-          await sendAdminAlertOnFirstLogin(firestore, fullName, user.email || user.uid);
+          sendAdminAlertOnFirstLogin(firestore, fullName, user.email || user.uid);
           
           // 4. Log activity
           logActivity(firestore, user.uid, 'first_login');
@@ -159,6 +175,10 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       setIsUserLoading(false);
     }, (error) => {
       setIsUserLoading(false);
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: userDocRef.path,
+        operation: 'get'
+      }));
     });
 
     return () => unsubscribe();
@@ -167,10 +187,12 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   useEffect(() => {
     if (!firestore || !user || user.isAnonymous || !profile || profile.role !== 'user') return;
     const interval = setInterval(() => {
-      setDoc(doc(firestore, 'users', user.uid), { 
+      const userRef = doc(firestore, 'users', user.uid);
+      const updateData = { 
         totalTimeSpent: increment(60),
         lastLoginAt: serverTimestamp() 
-      }, { merge: true }).catch(() => {});
+      };
+      setDoc(userRef, updateData, { merge: true }).catch(() => {});
     }, 60000);
     return () => clearInterval(interval);
   }, [firestore, user, profile]);

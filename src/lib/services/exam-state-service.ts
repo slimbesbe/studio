@@ -1,3 +1,4 @@
+
 'use client';
 
 import { 
@@ -8,6 +9,8 @@ import {
   deleteDoc,
   serverTimestamp 
 } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export interface ExamState {
   examId: string;
@@ -23,14 +26,22 @@ export interface ExamState {
 /**
  * Sauvegarde l'état actuel d'une simulation pour un utilisateur.
  */
-export async function saveExamState(db: Firestore, userId: string, state: Omit<ExamState, 'lastUpdatedAt'>) {
+export function saveExamState(db: Firestore, userId: string, state: Omit<ExamState, 'lastUpdatedAt'>) {
   if (!userId || !db) return;
   const stateRef = doc(db, 'users', userId, 'activeSimulation', 'current');
-  // On utilise setDoc sans await pour la fluidité UI (le SDK gère la file d'attente)
-  setDoc(stateRef, {
+  const data = {
     ...state,
     lastUpdatedAt: serverTimestamp()
-  }, { merge: true });
+  };
+
+  // On utilise setDoc sans await pour la fluidité UI
+  setDoc(stateRef, data, { merge: true }).catch(async (error) => {
+    errorEmitter.emit('permission-error', new FirestorePermissionError({
+      path: stateRef.path,
+      operation: 'write',
+      requestResourceData: data
+    }));
+  });
 }
 
 /**
@@ -49,8 +60,13 @@ export async function getExamState(db: Firestore, userId: string): Promise<ExamS
 /**
  * Supprime l'état de la simulation (appelé lors de la fin de l'examen ou abandon).
  */
-export async function clearExamState(db: Firestore, userId: string) {
+export function clearExamState(db: Firestore, userId: string) {
   if (!userId || !db) return;
   const stateRef = doc(db, 'users', userId, 'activeSimulation', 'current');
-  await deleteDoc(stateRef);
+  deleteDoc(stateRef).catch(async (error) => {
+    errorEmitter.emit('permission-error', new FirestorePermissionError({
+      path: stateRef.path,
+      operation: 'delete'
+    }));
+  });
 }
