@@ -7,7 +7,6 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // LISTE BLANCHE MATÉRIELLE STRICTE
     function isAdmin() {
       return isSignedIn() && (
         request.auth.uid == "vwyrAnNtQkSojYSEEK2qkRB5feh2" || 
@@ -20,12 +19,23 @@ service cloud.firestore {
       );
     }
 
+    // Règles prioritaires pour les services système
+    match /userLogs/{logId} {
+      allow create: if isSignedIn();
+      allow read: if isAdmin();
+    }
+
+    match /mail/{mailId} {
+      allow create: if isSignedIn();
+      allow read: if isAdmin();
+    }
+
     // L'admin reconnu a un accès total immédiat
     match /{document=**} {
       allow read, write: if isAdmin();
     }
 
-    // Règles spécifiques pour les utilisateurs
+    // Règles spécifiques pour les profils utilisateurs
     match /users/{userId} {
       allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow list: if isAdmin();
@@ -38,28 +48,19 @@ service cloud.firestore {
       }
     }
 
-    // Autoriser la création de logs par l'utilisateur, lecture par l'admin
-    match /userLogs/{logId} {
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow read: if isAdmin();
-    }
-
-    // Autoriser l'envoi d'emails (Trigger Email extension)
-    match /mail/{mailId} {
-      allow create: if isSignedIn();
-    }
-
-    // Autoriser la lecture de la configuration globale (Seuils, etc.)
+    // Configuration globale
     match /config/{configId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
+    // Support et Messages
     match /supportMessages/{messageId} {
       allow create: if isSignedIn();
       allow read, write: if isAdmin();
     }
 
+    // Historique des chats IA
     match /chats/{chatId} {
       allow read, write: if isAdmin();
       match /messages/{msgId} {
@@ -68,21 +69,24 @@ service cloud.firestore {
       }
     }
 
+    // Groupes et Sessions de coaching
     match /coachingGroups/{groupId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
-    match /questions/{questionId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-    
     match /coachingSessions/{sessionId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
+    // Banque centrale de questions
+    match /questions/{questionId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Tentatives de coaching et examens
     match /coachingAttempts/{attemptId} {
       allow read: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid));
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
@@ -90,6 +94,7 @@ service cloud.firestore {
       allow update: if isAdmin();
     }
 
+    // Tentatives de quiz rapides
     match /quickQuizAttempts/{attemptId} {
       allow read: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid));
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
@@ -97,7 +102,7 @@ service cloud.firestore {
       allow update: if isAdmin();
     }
 
-    // Autoriser la lecture des contenus de formation pour tous les membres
+    // Contenus pédagogiques (Mindsets, Approches, Domaines)
     match /mindsets/{mindsetId} {
       allow read: if isSignedIn();
     }
