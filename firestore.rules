@@ -19,7 +19,8 @@ service cloud.firestore {
       );
     }
 
-    // Règles prioritaires pour les services système
+    // 1. SERVICES SYSTÈME (Priorité Haute)
+    // Permettre la création de logs et d'emails pour le suivi
     match /userLogs/{logId} {
       allow create: if isSignedIn();
       allow read: if isAdmin();
@@ -30,12 +31,12 @@ service cloud.firestore {
       allow read: if isAdmin();
     }
 
-    // L'admin reconnu a un accès total immédiat
-    match /{document=**} {
+    match /supportMessages/{messageId} {
+      allow create: if isSignedIn();
       allow read, write: if isAdmin();
     }
 
-    // Règles spécifiques pour les profils utilisateurs
+    // 2. PROFILS UTILISATEURS
     match /users/{userId} {
       allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow list: if isAdmin();
@@ -48,29 +49,8 @@ service cloud.firestore {
       }
     }
 
-    // Configuration globale
-    match /config/{configId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    // Support et Messages
-    match /supportMessages/{messageId} {
-      allow create: if isSignedIn();
-      allow read, write: if isAdmin();
-    }
-
-    // Historique des chats IA
-    match /chats/{chatId} {
-      allow read, write: if isAdmin();
-      match /messages/{msgId} {
-        allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-        allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      }
-    }
-
-    // Groupes et Sessions de coaching
-    match /coachingGroups/{groupId} {
+    // 3. CONTENUS ET CONFIGURATION
+    match /questions/{questionId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
@@ -80,13 +60,17 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Banque centrale de questions
-    match /questions/{questionId} {
+    match /coachingGroups/{groupId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
-    // Tentatives de coaching et examens
+    match /config/{configId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // 4. RÉSULTATS ET TENTATIVES
     match /coachingAttempts/{attemptId} {
       allow read: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid));
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
@@ -94,7 +78,6 @@ service cloud.firestore {
       allow update: if isAdmin();
     }
 
-    // Tentatives de quiz rapides
     match /quickQuizAttempts/{attemptId} {
       allow read: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid));
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
@@ -102,17 +85,34 @@ service cloud.firestore {
       allow update: if isAdmin();
     }
 
-    // Contenus pédagogiques (Mindsets, Approches, Domaines)
+    // 5. RESSOURCES PÉDAGOGIQUES
     match /mindsets/{mindsetId} {
       allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
     
     match /concepts_approaches/{approachId} {
       allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
     
     match /concepts_domains/{domainId} {
       allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // 6. CHATS IA
+    match /chats/{chatId} {
+      allow read, write: if isAdmin() || (isSignedIn() && request.auth.uid == chatId);
+      match /messages/{msgId} {
+        allow create: if isSignedIn() && (request.auth.uid == chatId || isAdmin());
+        allow read: if isSignedIn() && (request.auth.uid == chatId || isAdmin());
+      }
+    }
+
+    // 7. SÉCURITÉ GLOBALE POUR L'ADMINISTRATEUR
+    match /{document=**} {
+      allow read, write: if isAdmin();
     }
   }
 }

@@ -8,7 +8,7 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 /**
  * Enregistre une activité utilisateur dans la collection userLogs.
@@ -30,11 +30,16 @@ export function logActivity(
   };
 
   // Pattern non-bloquant conformément aux instructions
+  // On ne met pas de 'await' ici pour ne pas bloquer l'interface
   addDoc(logsRef, logData).catch(async (error) => {
-    errorEmitter.emit('permission-error', new FirestorePermissionError({
+    // Création d'une erreur contextuelle pour le débogage agentive
+    const permissionError = new FirestorePermissionError({
       path: logsRef.path,
       operation: 'create',
       requestResourceData: logData
-    }));
+    } satisfies SecurityRuleContext);
+
+    // Émission de l'erreur vers le listener central
+    errorEmitter.emit('permission-error', permissionError);
   });
 }
