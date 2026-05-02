@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc, updateDoc, getDoc, serverTimestamp, setDoc, collection } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, setDoc, collection } from 'firebase/firestore';
 import { useRouter, useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,8 +39,8 @@ interface Option {
   text: string;
 }
 
-const ALL_SOURCES = [
-  { id: 'general', label: 'Pratique Libre' },
+const SOURCES_PRACTICE = [{ id: 'general', label: 'Pratique Libre' }];
+const SOURCES_EXAMS = [
   { id: 'exam1', label: 'Examen 1' },
   { id: 'exam2', label: 'Examen 2' },
   { id: 'exam3', label: 'Examen 3' },
@@ -49,7 +49,7 @@ const ALL_SOURCES = [
 ];
 
 export default function ManageQuestionPage() {
-  const { user, profile, isUserLoading } = useUser();
+  const { profile, isUserLoading } = useUser();
   const db = useFirestore();
   const router = useRouter();
   const params = useParams();
@@ -58,6 +58,10 @@ export default function ManageQuestionPage() {
   const questionId = params.id as string;
   const isNew = questionId === 'new';
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Détermination automatique de la banque (Practice vs Exam)
+  const isPracticeContext = examIdParam === 'general';
+  const currentAvailableSources = isPracticeContext ? SOURCES_PRACTICE : SOURCES_EXAMS;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statement, setStatement] = useState("");
@@ -82,10 +86,8 @@ export default function ManageQuestionPage() {
   const { data: questionData, isLoading: isQuestionLoading } = useDoc(questionRef);
 
   useEffect(() => {
-    if (isNew && examIdParam !== 'general' && examIdParam !== 'new') {
+    if (isNew) {
       setSourceIds([examIdParam]);
-    } else if (isNew && examIdParam === 'general') {
-      setSourceIds(['general']);
     }
   }, [isNew, examIdParam]);
 
@@ -105,15 +107,18 @@ export default function ManageQuestionPage() {
       setCorrectOptionIds(questionData.correctOptionIds || [String(questionData.correctChoice)]);
       setIsActive(questionData.isActive !== false);
       setQuestionCode(questionData.questionCode || "");
-      setSourceIds(questionData.sourceIds || (questionData.examId ? [questionData.examId] : ['general']));
-
+      
+      // Sécurité : Ne charger que les sources compatibles avec le contexte actuel
+      const loadedSources = questionData.sourceIds || (questionData.examId ? [questionData.examId] : ['general']);
+      setSourceIds(loadedSources.filter(s => currentAvailableSources.some(avail => avail.id === s)));
+      
       if (questionData.tags) {
         setDomain(questionData.tags.domain || "Process");
         setApproach(questionData.tags.approach || "Predictive");
         setDifficulty(questionData.tags.difficulty || "Medium");
       }
     }
-  }, [questionData, isNew]);
+  }, [questionData, isNew, currentAvailableSources]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -137,10 +142,10 @@ export default function ManageQuestionPage() {
   };
 
   const toggleAllSources = () => {
-    if (sourceIds.length === ALL_SOURCES.length) {
+    if (sourceIds.length === currentAvailableSources.length) {
       setSourceIds([]);
     } else {
-      setSourceIds(ALL_SOURCES.map(s => s.id));
+      setSourceIds(currentAvailableSources.map(s => s.id));
     }
   };
 
@@ -208,8 +213,7 @@ export default function ManageQuestionPage() {
           difficulty
         },
         sourceIds,
-        // Legacy support
-        examId: sourceIds.includes('general') ? null : sourceIds[0],
+        examId: sourceIds.find(s => s.startsWith('exam')) || null,
         questionCode: questionCode || `Q-${Date.now()}`
       };
 
@@ -221,7 +225,7 @@ export default function ManageQuestionPage() {
       }
 
       toast({ title: "Succès", description: "Question enregistrée." });
-      router.push('/admin/questions');
+      router.push(`/admin/questions?type=${isPracticeContext ? 'practice' : 'exams'}`);
     } catch (e) {
       console.error(e);
       toast({ variant: "destructive", title: "Erreur" });
@@ -237,21 +241,25 @@ export default function ManageQuestionPage() {
   const selectedCount = sourceIds.length;
   const sourceLabel = selectedCount === 0 
     ? "Choisir les sources..." 
-    : selectedCount === ALL_SOURCES.length 
+    : selectedCount === currentAvailableSources.length 
       ? "Toutes les sources" 
       : `${selectedCount} source(s) sélectionnée(s)`;
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-6 animate-fade-in">
+    <div className="p-8 max-w-4xl mx-auto space-y-6 animate-fade-in pb-32">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild><Link href="/admin/questions"><ArrowLeft /></Link></Button>
+          <Button variant="ghost" size="icon" onClick={() => router.back()}><ArrowLeft /></Button>
           <div className="flex flex-col">
-            <h1 className="text-3xl font-black italic uppercase tracking-tighter text-primary">
+            <h1 className={cn(
+              "text-3xl font-black italic uppercase tracking-tighter",
+              isPracticeContext ? "text-emerald-600" : "text-primary"
+            )}>
               {isNew ? 'Nouvelle Question' : 'Édition Question'}
             </h1>
-            <div className="flex items-center gap-2 text-primary font-mono text-sm mt-1">
-              <Hash className="h-3 w-3" /> {questionCode || 'Nouveau'}
+            <div className="flex items-center gap-3 font-mono text-[10px] mt-1 uppercase font-bold text-slate-400">
+              <Badge variant="outline" className="border-2">{isPracticeContext ? 'BANQUE PRATIQUE' : 'BANQUE EXAMENS'}</Badge>
+              {questionCode && <span><Hash className="h-3 w-3 inline mr-1" /> {questionCode}</span>}
             </div>
           </div>
         </div>
@@ -259,7 +267,7 @@ export default function ManageQuestionPage() {
 
       <Card className="border-t-8 border-t-primary shadow-2xl rounded-3xl bg-white overflow-hidden">
         <CardHeader className="bg-slate-50/50 border-b p-8">
-          <CardTitle className="text-xl flex items-center gap-2 uppercase tracking-widest">
+          <CardTitle className="text-xl flex items-center gap-2 uppercase tracking-widest italic">
             <HelpCircle className="h-5 w-5 text-primary" /> Configuration
           </CardTitle>
         </CardHeader>
@@ -267,7 +275,7 @@ export default function ManageQuestionPage() {
           
           <div className="space-y-4">
             <Label className="flex items-center gap-2 font-black uppercase text-[10px] text-slate-400 italic">
-              <Layers className="h-3 w-3" /> Sources d'Assignation (Séparation des bases)
+              <Layers className="h-3 w-3" /> Assignation des Sources (Silo {isPracticeContext ? 'Pratique' : 'Examens'})
             </Label>
             <Popover>
               <PopoverTrigger asChild>
@@ -281,14 +289,16 @@ export default function ManageQuestionPage() {
               </PopoverTrigger>
               <PopoverContent className="w-80 p-2 rounded-2xl shadow-2xl border-4" align="start">
                 <div className="space-y-1">
-                  <div 
-                    onClick={toggleAllSources}
-                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-primary/5 cursor-pointer transition-colors border-b mb-1"
-                  >
-                    <Checkbox checked={selectedCount === ALL_SOURCES.length} onCheckedChange={toggleAllSources} />
-                    <span className="font-black italic text-primary uppercase text-xs">Tout sélectionner</span>
-                  </div>
-                  {ALL_SOURCES.map((source) => (
+                  {currentAvailableSources.length > 1 && (
+                    <div 
+                      onClick={toggleAllSources}
+                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-primary/5 cursor-pointer transition-colors border-b mb-1"
+                    >
+                      <Checkbox checked={selectedCount === currentAvailableSources.length} onCheckedChange={toggleAllSources} />
+                      <span className="font-black italic text-primary uppercase text-xs">Tout sélectionner</span>
+                    </div>
+                  )}
+                  {currentAvailableSources.map((source) => (
                     <div 
                       key={source.id} 
                       onClick={() => toggleSource(source.id)}
@@ -308,56 +318,35 @@ export default function ManageQuestionPage() {
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label className="font-black uppercase text-[10px] text-slate-400 italic">Énoncé de la question (Étude de cas)</Label>
+              <Label className="font-black uppercase text-[10px] text-slate-400 italic">Énoncé de la question</Label>
               <Button 
                 variant="outline" 
                 size="sm" 
                 className="h-8 rounded-lg font-black uppercase text-[10px] gap-2 border-2"
                 onClick={() => fileInputRef.current?.click()}
               >
-                <ImageIcon className="h-3 w-3" /> Insérer une image
+                <ImageIcon className="h-3 w-3" /> Insérer image
               </Button>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                className="hidden" 
-                accept="image/*" 
-                onChange={handleImageUpload}
-              />
+              <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
             </div>
             <Textarea 
-              id="statement" 
               className="min-h-[120px] text-lg font-bold italic border-2 rounded-xl"
               value={statement}
               onChange={(e) => setStatement(e.target.value)}
-              placeholder="Saisissez l'énoncé de la question ou l'étude de cas..."
+              placeholder="Étude de cas ou énoncé..."
             />
           </div>
 
           {imageUrl && (
-            <div className="space-y-2">
-              <div className="flex justify-between items-center px-2">
-                <Label className="font-black uppercase text-[10px] text-slate-400 italic">Illustration de l'étude de cas</Label>
-                <Button variant="ghost" size="sm" className="h-6 text-destructive font-black uppercase text-[10px]" onClick={() => setImageUrl('')}>
-                  <X className="h-3 w-3 mr-1" /> Supprimer l'image
-                </Button>
-              </div>
-              <div className="relative aspect-video w-full max-w-2xl mx-auto rounded-2xl overflow-hidden border-4 border-dashed border-primary/20 bg-slate-50 group">
-                <img 
-                  src={imageUrl} 
-                  alt="Aperçu" 
-                  className="object-contain w-full h-full"
-                />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <Button variant="secondary" className="font-black uppercase text-xs" onClick={() => fileInputRef.current?.click()}>Changer l'image</Button>
-                </div>
-              </div>
+            <div className="relative aspect-video w-full rounded-2xl overflow-hidden border-4 border-dashed border-primary/20 bg-slate-50 group">
+              <img src={imageUrl} alt="Preview" className="object-contain w-full h-full" />
+              <Button variant="destructive" size="icon" className="absolute top-4 right-4 h-10 w-10 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setImageUrl('')}><Trash2 /></Button>
             </div>
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 bg-slate-50 rounded-2xl border-2 border-dashed">
             <div className="space-y-2">
-              <Label className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-400 italic"><Tags className="h-3 w-3" /> Domaine</Label>
+              <Label className="text-[10px] font-black uppercase text-slate-400 italic">Domaine</Label>
               <Select value={domain} onValueChange={setDomain}>
                 <SelectTrigger className="h-12 rounded-lg font-bold italic border-2 bg-white"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -368,18 +357,18 @@ export default function ManageQuestionPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-400 italic"><Tags className="h-3 w-3" /> Approche</Label>
+              <Label className="text-[10px] font-black uppercase text-slate-400 italic">Approche</Label>
               <Select value={approach} onValueChange={setApproach}>
                 <SelectTrigger className="h-12 rounded-lg font-bold italic border-2 bg-white"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Predictive">Prédictif</SelectItem>
+                  <SelectItem value="Predictive">Waterfall</SelectItem>
                   <SelectItem value="Agile">Agile</SelectItem>
                   <SelectItem value="Hybrid">Hybride</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-400 italic"><Tags className="h-3 w-3" /> Niveau</Label>
+              <Label className="text-[10px] font-black uppercase text-slate-400 italic">Niveau</Label>
               <Select value={difficulty} onValueChange={setDifficulty}>
                 <SelectTrigger className="h-12 rounded-lg font-bold italic border-2 bg-white"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -391,23 +380,16 @@ export default function ManageQuestionPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between p-6 bg-slate-50 rounded-2xl border-2 border-dashed">
-            <div className="space-y-0.5">
-              <Label className="text-base font-black italic uppercase tracking-tight text-slate-700">Réponses multiples</Label>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Autoriser plusieurs bons choix.</p>
-            </div>
-            <Switch checked={isMultipleCorrect} onCheckedChange={setIsMultipleCorrect} />
-          </div>
-
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label className="font-black uppercase text-[10px] text-slate-400 italic">Options de réponse</Label>
-              <Button variant="outline" size="sm" onClick={handleAddOption} disabled={options.length >= 10} className="rounded-xl border-2 font-black uppercase text-[10px]">
-                <Plus className="mr-2 h-4 w-4" /> Ajouter Option
-              </Button>
+              <Label className="font-black uppercase text-[10px] text-slate-400 italic">Options de réponse (Cochez la/les bonne(s))</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-black uppercase text-slate-400 italic">Multi-choix ?</span>
+                <Switch checked={isMultipleCorrect} onCheckedChange={setIsMultipleCorrect} />
+              </div>
             </div>
 
-            <div className="grid gap-4">
+            <div className="grid gap-3">
               {options.map((opt, index) => (
                 <div key={opt.id} className="flex gap-4 items-start group">
                   <div className="pt-3">
@@ -418,7 +400,7 @@ export default function ManageQuestionPage() {
                         correctOptionIds.includes(opt.id) ? 'border-primary bg-primary' : 'border-slate-200 bg-white hover:border-primary/50'
                       )}
                     >
-                      {correctOptionIds.includes(opt.id) && <div className="h-2 w-2 bg-white rounded-full" />}
+                      {correctOptionIds.includes(opt.id) && <Check className="h-4 w-4 text-white" strokeWidth={4} />}
                     </div>
                   </div>
                   <Input 
@@ -428,13 +410,16 @@ export default function ManageQuestionPage() {
                       "h-14 font-bold italic border-2 rounded-xl transition-all",
                       correctOptionIds.includes(opt.id) ? "border-emerald-500 bg-emerald-50/50" : "bg-white"
                     )}
-                    placeholder={`Texte de l'option ${String.fromCharCode(65 + index)}...`}
+                    placeholder={`Option ${String.fromCharCode(65 + index)}...`}
                   />
-                  <Button variant="ghost" size="icon" onClick={() => handleRemoveOption(opt.id)} disabled={options.length <= 2} className="h-14 w-14 rounded-xl border-2 hover:bg-red-50 text-red-500 border-red-50">
-                    <Trash2 className="h-5 w-5" />
+                  <Button variant="ghost" size="icon" onClick={() => handleRemoveOption(opt.id)} disabled={options.length <= 2} className="h-14 w-14 rounded-xl border-2 hover:bg-red-50 text-red-500">
+                    <X className="h-5 w-5" />
                   </Button>
                 </div>
               ))}
+              <Button variant="outline" onClick={handleAddOption} disabled={options.length >= 6} className="h-12 border-dashed border-2 rounded-xl font-black uppercase italic text-[10px]">
+                <Plus className="mr-2 h-4 w-4" /> Ajouter une option
+              </Button>
             </div>
           </div>
 
@@ -444,17 +429,12 @@ export default function ManageQuestionPage() {
               className="min-h-[150px] italic font-bold text-slate-700 border-2 rounded-xl bg-slate-50/30"
               value={explanation}
               onChange={(e) => setExplanation(e.target.value)}
-              placeholder="Expliquez pourquoi c'est la bonne réponse..."
+              placeholder="Expliquez le raisonnement officiel..."
             />
-          </div>
-
-          <div className="flex items-center justify-between p-6 bg-slate-50 rounded-2xl border-2 border-dashed">
-            <div className="space-y-0.5"><Label className="text-base font-black italic uppercase tracking-tight text-slate-700">Statut Actif</Label></div>
-            <Switch checked={isActive} onCheckedChange={setIsActive} />
           </div>
         </CardContent>
         <CardFooter className="bg-slate-50/50 border-t p-8 flex justify-end">
-          <Button onClick={handleSubmit} disabled={isSubmitting} size="lg" className="px-12 rounded-2xl h-16 font-black uppercase tracking-widest shadow-xl bg-primary hover:scale-105 transition-transform">
+          <Button onClick={handleSubmit} disabled={isSubmitting} size="lg" className="px-12 rounded-2xl h-16 font-black uppercase tracking-widest shadow-xl bg-primary hover:scale-105 transition-transform italic">
             {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
             Enregistrer la Question
           </Button>
