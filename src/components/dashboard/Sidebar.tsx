@@ -174,6 +174,7 @@ export function Sidebar() {
 
             <div className="px-4 mt-8 mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 italic">Entraînement</div>
             <NavItem href="/dashboard/practice" icon={BookOpen} label="Pratique Libre" active={pathname === '/dashboard/practice'} />
+            <NavItem href="/dashboard/kill-mistake-selection" icon={Brain} label="Kill Mistake" active={pathname?.includes('kill-mistake')} />
             <NavItem href="/dashboard/exam" icon={Trophy} label="Simulation Examen" active={pathname === '/dashboard/exam'} />
             <NavItem href="/dashboard/history" icon={History} label="Historique" active={pathname === '/dashboard/history'} />
 

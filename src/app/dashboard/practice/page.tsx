@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
   Play, Layers, Globe, Loader2, 
-  Brain, ChevronRight, Info, CheckCircle2,
-  BookOpen, Settings2, Trophy, ArrowRight,
-  Tags, ChevronLeft, RotateCcw, Home
+  ChevronRight, Info, CheckCircle2,
+  BookOpen, Settings2, Trophy,
+  ChevronLeft, RotateCcw, Home
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -25,7 +25,6 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 const MODES = [
   { id: 'domain', name: 'Par Domaine', icon: Layers, desc: 'Ciblez People, Process ou Business.' },
   { id: 'approach', name: 'Par Approche', icon: Globe, desc: 'Agile, Prédictif ou Hybride.' },
-  { id: 'kill_mistake', name: 'Kill Mistake', icon: Brain, desc: 'Uniquement vos erreurs passées.', color: 'text-amber-500' },
 ];
 
 interface SessionHistoryItem {
@@ -484,14 +483,9 @@ function PracticeContent() {
   return (
     <div className="max-w-5xl mx-auto space-y-10 animate-fade-in py-8 px-4">
       <div className="space-y-4">
-        {mode === 'kill_mistake' && (
-          <Button variant="ghost" asChild className="hover:bg-primary/5 -ml-2 text-muted-foreground font-black uppercase tracking-widest text-xs">
-            <Link href="/dashboard/kill-mistake-selection"><ChevronLeft className="mr-2 h-3 w-3" /> Retour à la sélection</Link>
-          </Button>
-        )}
         <div className="space-y-2">
           <h1 className="text-4xl font-black italic uppercase tracking-tighter text-primary flex items-center gap-4">
-            <BookOpen className="h-10 w-10" /> {mode === 'kill_mistake' ? 'Entraînement Correctif' : 'Pratique Libre'} {isDemo && <span className="text-amber-500 text-sm">(DÉMO)</span>}
+            <BookOpen className="h-10 w-10" /> Pratique Libre {isDemo && <span className="text-amber-500 text-sm">(DÉMO)</span>}
           </h1>
           <p className="text-slate-500 font-bold uppercase tracking-widest text-xs italic">Ciblez vos faiblesses pour une réussite garantie</p>
         </div>
@@ -499,23 +493,17 @@ function PracticeContent() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {MODES.map((m) => (
               <Card 
                 key={m.id} 
-                onClick={() => {
-                  if (m.id === 'kill_mistake') {
-                    router.push('/dashboard/kill-mistake-selection');
-                  } else {
-                    setMode(m.id);
-                  }
-                }}
+                onClick={() => setMode(m.id)}
                 className={cn(
                   "cursor-pointer transition-all border-4 p-6 rounded-[28px] group hover:shadow-lg",
                   mode === m.id ? "border-primary bg-primary/5 shadow-inner" : "border-slate-100 hover:border-slate-200"
                 )}
               >
-                <m.icon className={cn("h-10 w-10 mb-4 transition-transform group-hover:scale-110", m.color || "text-primary")} />
+                <m.icon className={cn("h-10 w-10 mb-4 transition-transform group-hover:scale-110", "text-primary")} />
                 <h3 className="font-black italic uppercase text-sm tracking-tight mb-1">{m.name}</h3>
                 <p className="text-[10px] font-bold text-slate-400 leading-tight uppercase italic">{m.desc}</p>
               </Card>
@@ -569,20 +557,6 @@ function PracticeContent() {
                       <SelectItem value="Hybrid">HYBRIDE</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-              )}
-
-              {mode === 'kill_mistake' && (
-                <div className="md:col-span-2 bg-amber-50 p-4 rounded-xl border border-amber-100 space-y-2">
-                  <p className="text-xs font-black text-amber-700 uppercase italic">Filtres Kill Mistake actifs :</p>
-                  <div className="flex gap-2">
-                    <Badge variant="outline" className="bg-white border-amber-200 text-amber-700 font-black italic uppercase text-[10px]">
-                      Domaine: {filters.domain === 'all' ? 'Tous' : filters.domain}
-                    </Badge>
-                    <Badge variant="outline" className="bg-white border-amber-200 text-amber-700 font-black italic uppercase text-[10px]">
-                      Approche: {filters.approach === 'all' ? 'Toutes' : filters.approach}
-                    </Badge>
-                  </div>
                 </div>
               )}
             </div>
