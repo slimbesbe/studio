@@ -48,10 +48,13 @@ export default function StatisticsV2Page() {
   const stats = useMemo(() => {
     if (!rawAttempts || rawAttempts.length === 0) return null;
 
-    const avgScore = Math.round(rawAttempts.reduce((acc, a) => acc + (a.scorePercent || 0), 0) / rawAttempts.length);
+    const validAttempts = rawAttempts.filter(Boolean);
+    if (validAttempts.length === 0) return null;
+
+    const avgScore = Math.round(validAttempts.reduce((acc, a) => acc + (Number(a.scorePercent) || 0), 0) / validAttempts.length);
     
-    // Extraction de toutes les réponses individuelles pour des stats fines
-    const allResponses = rawAttempts.flatMap(a => a.responses || []);
+    // Extraction sécurisée des réponses
+    const allResponses = validAttempts.flatMap(a => (a.responses || []).filter(Boolean));
 
     // 1. Performance par Domaine
     const domains = ['People', 'Process', 'Business'];
@@ -59,14 +62,17 @@ export default function StatisticsV2Page() {
       const respForDomain = allResponses.filter(r => {
         const domainTag = r?.tags?.domain;
         if (!domainTag) return false;
-        return domainTag === d || (d === 'Process' && domainTag === 'Processus') || (d === 'Business' && domainTag === 'Business Environment');
+        return String(domainTag) === d || 
+               (d === 'Process' && String(domainTag) === 'Processus') || 
+               (d === 'Business' && String(domainTag).includes('Business'));
       });
-      const score = respForDomain.length > 0 
-        ? Math.round((respForDomain.filter(r => r.isCorrect).length / respForDomain.length) * 100)
+      const total = respForDomain.length;
+      const score = total > 0 
+        ? Math.round((respForDomain.filter(r => r.isCorrect).length / total) * 100)
         : 0;
       return { 
         name: d === 'Business' ? 'Business Env.' : d, 
-        score 
+        score: isNaN(score) ? 0 : score
       };
     });
 
@@ -74,44 +80,45 @@ export default function StatisticsV2Page() {
     const approaches = ['Predictive', 'Agile', 'Hybrid'];
     const performanceByApproach = approaches.map(a => {
       const respForApproach = allResponses.filter(r => r?.tags?.approach === a);
-      const score = respForApproach.length > 0 
-        ? Math.round((respForApproach.filter(r => r.isCorrect).length / respForApproach.length) * 100)
+      const total = respForApproach.length;
+      const score = total > 0 
+        ? Math.round((respForApproach.filter(r => r.isCorrect).length / total) * 100)
         : 0;
-      return { name: a === 'Predictive' ? 'Waterfall' : a, score };
-    });
-
-    // 3. Radar Data (Normalisé)
-    const radarData = [
-      { subject: 'Peop Pre', A: 0 },
-      { subject: 'Peop Agi', A: 0 },
-      { subject: 'Peop Hyb', A: 0 },
-      { subject: 'Proc Pre', A: 0 },
-      { subject: 'Proc Agi', A: 0 },
-      { subject: 'Proc Hyb', A: 0 },
-      { subject: 'Busi Pre', A: 0 },
-      { subject: 'Busi Agi', A: 0 },
-      { subject: 'Busi Hyb', A: 0 },
-    ].map(item => {
-      const [d, a] = item.subject.split(' ');
-      const dLong = d === 'Peop' ? 'People' : d === 'Proc' ? 'Process' : 'Business';
-      const aLong = a === 'Pre' ? 'Predictive' : a === 'Agi' ? 'Agile' : 'Hybrid';
-      
-      const match = allResponses.filter(r => {
-        const rDomain = r?.tags?.domain || '';
-        const rApproach = r?.tags?.approach || '';
-        return rDomain.toLowerCase().includes(dLong.substring(0, 3).toLowerCase()) && rApproach === aLong;
-      });
-      
-      return {
-        ...item,
-        A: match.length > 0 ? Math.round((match.filter(r => r.isCorrect).length / match.length) * 100) : 0
+      return { 
+        name: a === 'Predictive' ? 'Waterfall' : a, 
+        score: isNaN(score) ? 0 : score 
       };
     });
 
-    // 4. Confiance (Simulation basée sur le temps et les erreurs)
+    // 3. Radar Data
+    const radarLabels = [
+      { s: 'Peop Pre', d: 'People', a: 'Predictive' },
+      { s: 'Peop Agi', d: 'People', a: 'Agile' },
+      { s: 'Peop Hyb', d: 'People', a: 'Hybrid' },
+      { s: 'Proc Pre', d: 'Process', a: 'Predictive' },
+      { s: 'Proc Agi', d: 'Process', a: 'Agile' },
+      { s: 'Proc Hyb', d: 'Process', a: 'Hybrid' },
+      { s: 'Busi Pre', d: 'Business', a: 'Predictive' },
+      { s: 'Busi Agi', d: 'Business', a: 'Agile' },
+      { s: 'Busi Hyb', d: 'Business', a: 'Hybrid' },
+    ];
+
+    const radarData = radarLabels.map(item => {
+      const match = allResponses.filter(r => {
+        const rD = String(r?.tags?.domain || '').toLowerCase();
+        const rA = String(r?.tags?.approach || '');
+        return rD.includes(item.d.substring(0, 3).toLowerCase()) && rA === item.a;
+      });
+      const score = match.length > 0 ? Math.round((match.filter(r => r.isCorrect).length / match.length) * 100) : 0;
+      return { subject: item.s, A: isNaN(score) ? 0 : score };
+    });
+
+    // 4. Confidence
+    const mastery = Math.max(10, avgScore - 20);
+    const inProgress = Math.max(0, 100 - mastery - 15);
     const confidenceData = [
-      { name: 'Maîtrisé', value: Math.max(10, avgScore - 20), color: '#10b981' },
-      { name: 'En cours', value: 100 - Math.max(10, avgScore - 20) - 15, color: '#f97316' },
+      { name: 'Maîtrisé', value: mastery, color: '#10b981' },
+      { name: 'En cours', value: inProgress, color: '#f97316' },
       { name: 'Faible', value: 15, color: '#ef4444' },
     ];
 
@@ -144,7 +151,6 @@ export default function StatisticsV2Page() {
 
   return (
     <div className="space-y-8 animate-fade-in pb-20 max-w-7xl mx-auto px-4 py-6">
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[32px] shadow-xl border-2">
         <div className="flex items-center gap-6">
           <div className="bg-indigo-500/10 p-4 rounded-3xl">
@@ -164,8 +170,6 @@ export default function StatisticsV2Page() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        
-        {/* Card 1: Radar Chart */}
         <Card className="rounded-[32px] border-none shadow-xl bg-white p-10 flex flex-col h-[500px]">
           <div className="mb-6">
             <h3 className="text-lg font-black text-slate-900 uppercase italic tracking-tight">Radar de Compétences</h3>
@@ -183,7 +187,6 @@ export default function StatisticsV2Page() {
           </div>
         </Card>
 
-        {/* Card 2: Donut Confidence */}
         <Card className="rounded-[32px] border-none shadow-xl bg-white p-10 flex flex-col h-[500px]">
           <div className="mb-6">
             <h3 className="text-lg font-black text-slate-900 uppercase italic tracking-tight">Indicateurs de Maîtrise</h3>
@@ -223,7 +226,6 @@ export default function StatisticsV2Page() {
           </div>
         </Card>
 
-        {/* Card 3: Performance par Domaine */}
         <Card className="rounded-[32px] border-none shadow-xl bg-white p-10 flex flex-col h-[450px]">
           <div className="mb-8">
             <h3 className="text-lg font-black text-slate-900 uppercase italic tracking-tight">Performance par Domaine</h3>
@@ -232,32 +234,15 @@ export default function StatisticsV2Page() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={stats.performanceByDomain} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={{ stroke: '#94a3b8' }} 
-                  tickLine={false} 
-                  tick={{ fontSize: 11, fontWeight: 700, fill: '#475569' }} 
-                  dy={15}
-                />
-                <YAxis 
-                  domain={[0, 100]} 
-                  axisLine={{ stroke: '#94a3b8' }} 
-                  tickLine={false} 
-                  tick={{ fontSize: 11, fontWeight: 700, fill: '#475569' }} 
-                  ticks={[0, 25, 50, 75, 100]}
-                />
-                <Tooltip 
-                  cursor={{ fill: 'transparent' }}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontWeight: 'bold' }}
-                  formatter={(val) => [`${val}%`, 'Score']}
-                />
+                <XAxis dataKey="name" axisLine={{ stroke: '#94a3b8' }} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#475569' }} dy={15} />
+                <YAxis domain={[0, 100]} axisLine={{ stroke: '#94a3b8' }} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#475569' }} ticks={[0, 25, 50, 75, 100]} />
+                <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontWeight: 'bold' }} formatter={(val) => [`${val}%`, 'Score']} />
                 <Bar dataKey="score" fill="#1e3a8a" radius={[4, 4, 0, 0]} barSize={80} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </Card>
 
-        {/* Card 4: Performance par Approche */}
         <Card className="rounded-[32px] border-none shadow-xl bg-white p-10 flex flex-col h-[450px]">
           <div className="mb-8">
             <h3 className="text-lg font-black text-slate-900 uppercase italic tracking-tight">Performance par Approche</h3>
@@ -266,55 +251,15 @@ export default function StatisticsV2Page() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={stats.performanceByApproach} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={{ stroke: '#94a3b8' }} 
-                  tickLine={false} 
-                  tick={{ fontSize: 11, fontWeight: 700, fill: '#475569' }} 
-                  dy={15}
-                />
-                <YAxis 
-                  domain={[0, 100]} 
-                  axisLine={{ stroke: '#94a3b8' }} 
-                  tickLine={false} 
-                  tick={{ fontSize: 11, fontWeight: 700, fill: '#475569' }} 
-                  ticks={[0, 25, 50, 75, 100]}
-                />
-                <Tooltip 
-                  cursor={{ fill: 'transparent' }}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontWeight: 'bold' }}
-                  formatter={(val) => [`${val}%`, 'Score']}
-                />
+                <XAxis dataKey="name" axisLine={{ stroke: '#94a3b8' }} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#475569' }} dy={15} />
+                <YAxis domain={[0, 100]} axisLine={{ stroke: '#94a3b8' }} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#475569' }} ticks={[0, 25, 50, 75, 100]} />
+                <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontWeight: 'bold' }} formatter={(val) => [`${val}%`, 'Score']} />
                 <Bar dataKey="score" fill="#f97316" radius={[4, 4, 0, 0]} barSize={80} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </Card>
-
       </div>
-
-      {/* Focus / Call to Action */}
-      <Card className="rounded-[40px] border-none shadow-2xl bg-slate-900 text-white overflow-hidden relative group mt-12">
-        <CardContent className="p-12">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-12">
-            <div className="space-y-6 flex-1 text-center md:text-left">
-              <Badge className="bg-primary text-white border-none font-black uppercase italic text-[10px] py-1 px-4">Analyse du Coach</Badge>
-              <h2 className="text-4xl font-black italic uppercase tracking-tighter leading-tight">Optimisez votre préparation</h2>
-              <p className="text-slate-400 font-bold italic leading-relaxed text-lg max-w-xl">
-                Vos statistiques indiquent vos points forts et vos axes d'amélioration. Utilisez la <span className="text-white">Matrice Magique</span> pour renforcer les domaines où votre score est inférieur à 80%.
-              </p>
-              <Button asChild className="h-16 px-10 rounded-2xl bg-white text-slate-900 hover:bg-slate-100 font-black uppercase tracking-widest shadow-xl scale-105 transition-transform">
-                <Link href="/dashboard/practice" className="flex items-center gap-2">S'ENTRAÎNER CIBLÉ <ArrowRight className="h-5 w-5" /></Link>
-              </Button>
-            </div>
-            <div className="hidden md:block">
-              <div className="bg-white/5 p-10 rounded-[48px] border-2 border-white/5 backdrop-blur-sm">
-                <TrendingUp className="h-32 w-32 text-indigo-400" />
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

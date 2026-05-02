@@ -46,23 +46,30 @@ export default function SimulationReviewPage() {
 
   useEffect(() => {
     async function enrich() {
-      if (!attempt?.responses || attempt.responses.length === 0) {
+      if (!attempt?.responses) {
+        setIsLoadingQuestions(false);
+        return;
+      }
+
+      const responses = (attempt.responses || []).filter(Boolean);
+      if (responses.length === 0) {
         setIsLoadingQuestions(false);
         return;
       }
 
       setIsLoadingQuestions(true);
       try {
-        const questionIds = attempt.responses.map((r: any) => r.questionId);
+        const questionIds = responses.map((r: any) => r.questionId).filter(Boolean);
         const latestQuestions = await fetchQuestionsByIds(db, questionIds);
         
         let correctCount = 0;
-        const enriched = attempt.responses.map((resp: any) => {
+        const enriched = responses.map((resp: any) => {
+          if (!resp) return null;
           const q = latestQuestions.find(lq => lq.id === resp.questionId);
           if (!q) return { ...resp, missing: true };
 
-          const correctIds = q.correctOptionIds || [String(q.correctChoice || "1")];
-          const userChoices = resp.userChoices || (resp.userChoice ? [resp.userChoice] : []);
+          const correctIds = (q.correctOptionIds || [String(q.correctChoice || "1")]).map(String);
+          const userChoices = (resp.userChoices || (resp.userChoice ? [resp.userChoice] : [])).map(String);
           const isCorrect = userChoices.length === correctIds.length && userChoices.every(id => correctIds.includes(id));
           
           if (isCorrect) correctCount++;
@@ -81,13 +88,13 @@ export default function SimulationReviewPage() {
             explanation: q.explanation,
             tags: q.tags
           };
-        });
+        }).filter(Boolean);
 
         setEnrichedResponses(enriched);
         setStats({ 
           correct: correctCount, 
           total: enriched.length, 
-          percent: Math.round((correctCount / enriched.length) * 100) 
+          percent: enriched.length > 0 ? Math.round((correctCount / enriched.length) * 100) : 0
         });
       } catch (e) {
         console.error("Error enriching responses", e);
@@ -113,7 +120,7 @@ export default function SimulationReviewPage() {
           <Button variant="ghost" size="icon" asChild className="h-12 w-12 rounded-2xl border-2"><Link href="/dashboard/history"><ChevronLeft /></Link></Button>
           <div>
             <h1 className="text-3xl font-black text-primary italic uppercase tracking-tighter flex items-center gap-3">
-              <History className="h-8 w-8" /> Revue : {attempt.examId?.replace('exam', 'Examen ') || attempt.sessionId || 'Simulation'}
+              <History className="h-8 w-8" /> Revue : {String(attempt.examId || '').replace('exam', 'Examen ') || attempt.sessionId || 'Simulation'}
             </h1>
             <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-1 italic">
               Score Actuel : <span className="text-primary">{stats.percent}%</span> • {stats.correct}/{stats.total} correctes
@@ -126,14 +133,14 @@ export default function SimulationReviewPage() {
             <Button 
               variant={view === 'grid' ? 'default' : 'ghost'} 
               onClick={() => setView('grid')}
-              className={cn("h-12 px-6 rounded-xl font-black uppercase italic text-xs gap-2", view === 'grid' ? "shadow-lg" : "text-slate-500")}
+              className={cn("h-12 px-6 rounded-xl font-black uppercase italic text-xs gap-2", view === 'grid' ? "shadow-lg" : "text-slate-50")}
             >
               <LayoutGrid className="h-4 w-4" /> Tableau
             </Button>
             <Button 
               variant={view === 'linear' ? 'default' : 'ghost'} 
               onClick={() => setView('linear')}
-              className={cn("h-12 px-6 rounded-xl font-black uppercase italic text-xs gap-2", view === 'linear' ? "shadow-lg" : "text-slate-500")}
+              className={cn("h-12 px-6 rounded-xl font-black uppercase italic text-xs gap-2", view === 'linear' ? "shadow-lg" : "text-slate-50")}
             >
               <ListOrdered className="h-4 w-4" /> Question
             </Button>
@@ -171,20 +178,6 @@ export default function SimulationReviewPage() {
                 </button>
               ))}
             </div>
-            <div className="mt-12 flex flex-wrap justify-center gap-8 border-t pt-8">
-              <div className="flex items-center gap-2">
-                <div className="h-4 w-4 bg-emerald-500 rounded-md" />
-                <span className="text-xs font-black uppercase italic text-slate-500">Correcte</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-4 w-4 bg-red-500 rounded-md" />
-                <span className="text-xs font-black uppercase italic text-slate-500">Erreur</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-2 w-2 bg-blue-500 rounded-full" />
-                <span className="text-xs font-black uppercase italic text-slate-500">Mis à jour par Admin</span>
-              </div>
-            </div>
           </Card>
         ) : (
           <div className="space-y-6 h-full flex flex-col">
@@ -201,7 +194,7 @@ export default function SimulationReviewPage() {
               </div>
               <Badge className={cn(
                 "font-black italic px-6 py-2 rounded-xl text-white shadow-lg",
-                currentQ?.isCorrect ? "bg-emerald-500" : "bg-red-500"
+                currentQ?.isCorrect ? "bg-emerald-50" : "bg-red-50"
               )}>
                 {currentQ?.isCorrect ? "CORRECT" : "ERREUR"}
               </Badge>
@@ -218,45 +211,28 @@ export default function SimulationReviewPage() {
                     <Badge variant="secondary" className="bg-primary/5 text-primary border-none font-black italic uppercase text-[8px]">{currentQ?.tags?.approach || 'Agile'}</Badge>
                   </div>
                   <p className="text-2xl font-black text-slate-800 italic leading-relaxed">{currentQ?.text}</p>
-                  {currentQ?.imageUrl && (
-                    <div className="rounded-[2vh] overflow-hidden border-2 border-slate-100 bg-white p-[0.5vh] flex justify-center shadow-md">
-                      <img 
-                        src={currentQ.imageUrl} 
-                        alt="Illustration" 
-                        className="max-h-[45vh] w-full object-contain rounded-lg"
-                      />
-                    </div>
-                  )}
                 </div>
 
                 <div className="grid gap-4">
-                  {currentQ?.choices?.map((opt: string, idx: number) => {
+                  {(currentQ?.choices || []).map((opt: string, idx: number) => {
                     const optId = String(idx + 1);
-                    const userChoices = currentQ.userChoices || [];
-                    const correctOptionIds = currentQ.correctOptionIds || [];
-                    
+                    const userChoices = currentQ?.userChoices || [];
+                    const correctOptionIds = currentQ?.correctOptionIds || [];
                     const isUserSelection = userChoices.includes(optId);
                     const isCorrectOpt = correctOptionIds.includes(optId);
                     
                     return (
-                      <div 
-                        key={idx} 
-                        className={cn(
+                      <div key={idx} className={cn(
                           "p-6 rounded-2xl border-2 flex items-start gap-5 transition-all",
                           isCorrectOpt ? "border-emerald-500 bg-emerald-50 shadow-sm" : 
                           isUserSelection ? "border-red-500 bg-red-50" : "border-slate-100 opacity-60"
-                        )}
-                      >
+                        )}>
                         <div className={cn(
-                          "h-10 w-10 flex items-center justify-center font-black text-sm shrink-0 border-2",
-                          correctOptionIds.length > 1 ? "rounded-xl" : "rounded-full",
+                          "h-10 w-10 flex items-center justify-center font-black text-sm shrink-0 border-2 rounded-full",
                           isCorrectOpt ? "bg-emerald-500 text-white border-emerald-500" : 
                           isUserSelection ? "bg-red-500 text-white border-red-500" : "bg-white text-slate-400"
                         )}>{String.fromCharCode(65 + idx)}</div>
-                        <p className={cn(
-                          "flex-1 text-lg font-bold italic pt-1",
-                          isCorrectOpt ? "text-emerald-900" : isUserSelection ? "text-red-900" : "text-slate-500"
-                        )}>{opt}</p>
+                        <p className={cn("flex-1 text-lg font-bold italic pt-1", isCorrectOpt ? "text-emerald-900" : isUserSelection ? "text-red-900" : "text-slate-500")}>{opt}</p>
                       </div>
                     );
                   })}
@@ -264,7 +240,7 @@ export default function SimulationReviewPage() {
 
                 <div className="p-8 bg-slate-50 rounded-[32px] border-l-8 border-l-primary shadow-inner">
                   <h4 className="font-black text-primary uppercase italic text-xs mb-4 flex items-center gap-2">
-                    <Info className="h-4 w-4" /> Justification Mindset PMI® (Dernière version)
+                    <Info className="h-4 w-4" /> Justification Mindset PMI®
                   </h4>
                   <p className="text-lg font-bold italic text-slate-700 leading-relaxed whitespace-pre-wrap">
                     {currentQ?.explanation || "Aucune justification disponible."}
@@ -272,19 +248,10 @@ export default function SimulationReviewPage() {
                 </div>
               </CardContent>
               <CardFooter className="p-8 bg-slate-50/50 border-t flex justify-between gap-4 shrink-0">
-                <Button 
-                  variant="outline" 
-                  className="flex-1 h-14 rounded-2xl border-4 font-black uppercase tracking-widest italic" 
-                  onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
-                  disabled={currentIndex === 0}
-                >
+                <Button variant="outline" className="flex-1 h-14 rounded-2xl border-4 font-black uppercase tracking-widest italic" onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))} disabled={currentIndex === 0}>
                   <ChevronLeft className="mr-2 h-5 w-5" /> Précédent
                 </Button>
-                <Button 
-                  className="flex-1 h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest italic shadow-xl" 
-                  onClick={() => setCurrentIndex(Math.min(enrichedResponses.length - 1, currentIndex + 1))}
-                  disabled={currentIndex === enrichedResponses.length - 1}
-                >
+                <Button className="flex-1 h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest italic shadow-xl" onClick={() => setCurrentIndex(Math.min(enrichedResponses.length - 1, currentIndex + 1))} disabled={currentIndex === enrichedResponses.length - 1}>
                   Suivant <ChevronRight className="ml-2 h-5 w-5" />
                 </Button>
               </CardFooter>

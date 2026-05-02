@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useState, useEffect } from 'react';
@@ -50,7 +51,9 @@ export default function DashboardPage() {
   const { data: rawAttempts } = useCollection(attemptsQuery);
 
   const stats = useMemo(() => {
-    if (!rawAttempts || rawAttempts.length === 0) {
+    const validAttempts = (rawAttempts || []).filter(Boolean);
+    
+    if (validAttempts.length === 0) {
       return {
         readiness: 0,
         lastScore: 0,
@@ -62,19 +65,31 @@ export default function DashboardPage() {
       };
     }
 
-    const sorted = [...rawAttempts].sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
-    const validSorted = sorted.filter(a => a.submittedAt && isValid(a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt)));
+    const sorted = [...validAttempts].sort((a, b) => {
+      const timeA = a.submittedAt?.seconds || 0;
+      const timeB = b.submittedAt?.seconds || 0;
+      return timeB - timeA;
+    });
+
+    const attemptsWithValidDate = sorted.filter(a => {
+      if (!a.submittedAt) return false;
+      const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
+      return isValid(date);
+    });
     
-    const avgScore = validSorted.length > 0 ? Math.round(validSorted.reduce((acc, a) => acc + (a.scorePercent || 0), 0) / validSorted.length) : 0;
-    const lastScore = validSorted[0]?.scorePercent || 0;
-    const examCount = validSorted.filter(a => a.examId && a.examId.startsWith('exam')).length;
-    const questionsCount = validSorted.reduce((acc, a) => acc + (a.totalQuestions || 0), 0);
+    const avgScore = validAttempts.length > 0 
+      ? Math.round(validAttempts.reduce((acc, a) => acc + (Number(a.scorePercent) || 0), 0) / validAttempts.length) 
+      : 0;
     
-    const progressionData = [...validSorted].reverse().slice(-7).map((a) => {
+    const lastScore = attemptsWithValidDate[0]?.scorePercent || 0;
+    const examCount = validAttempts.filter(a => String(a.examId || '').startsWith('exam')).length;
+    const questionsCount = validAttempts.reduce((acc, a) => acc + (Number(a.totalQuestions) || 0), 0);
+    
+    const progressionData = [...attemptsWithValidDate].reverse().slice(-7).map((a) => {
       const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
       return {
         name: date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
-        val: a.scorePercent,
+        val: Number(a.scorePercent) || 0,
       };
     });
 
@@ -85,7 +100,7 @@ export default function DashboardPage() {
       avgScore,
       questionsCount,
       progressionData,
-      sortedAttempts: validSorted.slice(0, 5)
+      sortedAttempts: attemptsWithValidDate.slice(0, 5)
     };
   }, [rawAttempts]);
 
@@ -95,8 +110,6 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col space-y-8 animate-fade-in pb-12">
-      
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-4xl font-black italic text-slate-900 tracking-tighter uppercase leading-none">Tableau de Bord</h1>
@@ -109,10 +122,7 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      {/* Bento Grid */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        
-        {/* ROW 1: STRATEGIC */}
         <div className="md:col-span-4">
           <TargetExamDateCard profile={profile} />
         </div>
@@ -160,7 +170,6 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* ROW 2: ANALYTICAL */}
         <div className="md:col-span-4">
           <Card className="rounded-[32px] border-none shadow-xl p-8 space-y-6 bg-white h-full">
             <div className="flex items-center justify-between">
@@ -206,7 +215,6 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* ROW 3: RECENT ACTIVITY TABLE */}
         <div className="md:col-span-12">
           <Card className="rounded-[32px] border-none shadow-xl bg-white overflow-hidden">
             <CardHeader className="p-6 border-b bg-slate-50/50">
@@ -229,7 +237,7 @@ export default function DashboardPage() {
                     <TableRow key={i} className="border-b border-slate-50 h-20 hover:bg-slate-50 transition-colors">
                       <TableCell className="px-6">
                         <div className="flex flex-col">
-                          <span className="font-black text-slate-700 text-sm italic truncate uppercase">{a.examId ? a.examId.replace('exam', 'Simulation ') : a.sessionId || 'Sprint'}</span>
+                          <span className="font-black text-slate-700 text-sm italic truncate uppercase">{a.examId ? String(a.examId).replace('exam', 'Simulation ') : a.sessionId || 'Sprint'}</span>
                           <span className="text-[9px] font-bold text-slate-400 uppercase italic">
                             {a.submittedAt?.toDate ? a.submittedAt.toDate().toLocaleDateString() : 'Récemment'}
                           </span>
@@ -245,7 +253,7 @@ export default function DashboardPage() {
                       </TableCell>
                       <TableCell className="w-1/4 min-w-[150px]">
                         <div className="flex items-center gap-2">
-                          <Progress value={a.scorePercent} className="h-2" />
+                          <Progress value={Number(a.scorePercent) || 0} className="h-2" />
                         </div>
                       </TableCell>
                       <TableCell className="text-right pr-8">
@@ -263,7 +271,6 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
-
       </div>
     </div>
   );

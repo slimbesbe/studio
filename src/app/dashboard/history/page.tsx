@@ -54,43 +54,56 @@ export default function HistoryPage() {
 
   const safeGetTime = (ts: any) => {
     if (!ts) return 0;
-    const date = ts.toDate ? ts.toDate() : new Date(ts);
-    return isValid(date) ? date.getTime() : 0;
+    try {
+      const date = ts.toDate ? ts.toDate() : new Date(ts);
+      return isValid(date) ? date.getTime() : 0;
+    } catch {
+      return 0;
+    }
   };
 
   useEffect(() => {
     async function computeAll() {
-      if (!mounted || isUserLoading) return;
+      if (!mounted || isUserLoading || !db) return;
       
       setIsComputing(true);
       try {
-        const coachingAttempts = rawCoaching || [];
-        const quickQuizzes = rawQuickQuizzes || [];
+        const coachingAttempts = (rawCoaching || []).filter(Boolean);
+        const quickQuizzes = (rawQuickQuizzes || []).filter(Boolean);
         
-        // Compute standard coaching attempts
-        const allQuestionIds = Array.from(new Set(coachingAttempts.flatMap(r => r.responses?.map((resp: any) => resp.questionId) || [])));
+        // Extraction sécurisée des IDs de questions
+        const allQuestionIds = Array.from(new Set(
+          coachingAttempts.flatMap(attempt => 
+            (attempt.responses || [])
+              .filter((r: any) => r && r.questionId)
+              .map((r: any) => r.questionId)
+          )
+        ));
+
         const latestQuestions = allQuestionIds.length > 0 ? await fetchQuestionsByIds(db, allQuestionIds) : [];
         
         const coachingComputed = coachingAttempts.map(attempt => {
           let correct = 0;
-          const responsesCount = attempt.responses?.length || 0;
+          const responses = (attempt.responses || []).filter(Boolean);
+          const responsesCount = responses.length;
           
-          attempt.responses?.forEach((resp: any) => {
+          responses.forEach((resp: any) => {
             const q = latestQuestions.find(lq => lq.id === resp.questionId);
             if (!q) return;
-            const correctIds = q.correctOptionIds || [String(q.correctChoice || "1")];
-            const userChoices = resp.userChoices || (resp.userChoice ? [resp.userChoice] : []);
+            const correctIds = (q.correctOptionIds || [String(q.correctChoice || "1")]).map(String);
+            const userChoices = (resp.userChoices || (resp.userChoice ? [resp.userChoice] : [])).map(String);
             if (userChoices.length === correctIds.length && userChoices.every(id => correctIds.includes(id))) {
               correct++;
             }
           });
 
           let filterType: HistoryFilter = 'practice';
-          if (attempt.examId?.startsWith('exam')) filterType = 'exams';
+          const eId = attempt.examId || '';
+          if (eId.startsWith('exam')) filterType = 'exams';
           else if (attempt.context === 'matrix_sprint') filterType = 'matrice';
           else if (attempt.sessionId) filterType = 'exams'; 
 
-          const finalTotal = attempt.totalQuestions || responsesCount;
+          const finalTotal = attempt.totalQuestions || responsesCount || 0;
           const finalCorrect = attempt.correctCount !== undefined ? attempt.correctCount : correct;
 
           const displayDomain = attempt.matrixDomain === 'Process' ? 'Processus' : attempt.matrixDomain;
@@ -102,7 +115,7 @@ export default function HistoryPage() {
             scorePercent: attempt.scorePercent !== undefined ? attempt.scorePercent : (finalTotal > 0 ? Math.round((finalCorrect / finalTotal) * 100) : 0),
             correctCount: finalCorrect,
             totalQuestions: finalTotal,
-            displayTitle: attempt.examId ? attempt.examId.replace('exam', 'Simulation ') : 
+            displayTitle: eId ? eId.replace('exam', 'Simulation ') : 
                           attempt.context === 'matrix_sprint' ? `Sprint : ${displayDomain || '??'} x ${displayApproach || '??'}` :
                           attempt.sessionId ? `Session ${attempt.sessionId}` : 'Pratique Libre'
           };
@@ -113,7 +126,7 @@ export default function HistoryPage() {
           ...q,
           id: q.id,
           filterType: 'concepts' as const,
-          scorePercent: q.score,
+          scorePercent: q.score || 0,
           displayTitle: `Quiz : ${String(q.axisId || 'Inconnu').toUpperCase()}`,
           submittedAt: q.submittedAt,
           durationSec: 0,
@@ -133,7 +146,7 @@ export default function HistoryPage() {
   }, [rawCoaching, rawQuickQuizzes, db, mounted, isUserLoading]);
 
   const filteredResults = useMemo(() => {
-    return computedResults.filter(r => r.filterType === activeTab);
+    return computedResults.filter(r => r && r.filterType === activeTab);
   }, [computedResults, activeTab]);
 
   const chartData = useMemo(() => {
@@ -141,34 +154,47 @@ export default function HistoryPage() {
       .filter(res => {
         const ts = res.submittedAt;
         if (!ts) return false;
-        const date = ts.toDate ? ts.toDate() : new Date(ts);
-        return isValid(date);
+        try {
+          const date = ts.toDate ? ts.toDate() : new Date(ts);
+          return isValid(date);
+        } catch {
+          return false;
+        }
       })
       .reverse()
       .slice(-10)
       .map((res, i) => {
-        const date = res.submittedAt?.toDate ? res.submittedAt.toDate() : new Date(res.submittedAt);
+        let dateLabel = '-';
+        try {
+          const date = res.submittedAt?.toDate ? res.submittedAt.toDate() : new Date(res.submittedAt);
+          dateLabel = date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+        } catch {}
+        
         return {
           name: `T${i + 1}`,
-          score: res.scorePercent,
-          fullDate: date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+          score: Number(res.scorePercent) || 0,
+          fullDate: dateLabel
         };
       });
   }, [filteredResults]);
 
   const formatTime = (seconds: any) => {
-    if (!seconds) return '-';
-    const totalSeconds = Math.max(0, Number(seconds) || 0);
-    const m = Math.floor(totalSeconds / 60);
-    const s = totalSeconds % 60;
-    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+    const s = Number(seconds);
+    if (isNaN(s) || s <= 0) return '-';
+    const m = Math.floor(s / 60);
+    const rs = s % 60;
+    return m > 0 ? `${m}m ${rs}s` : `${rs}s`;
   };
 
-  const formatDate = (ts: any) => {
+  const formatDateLabel = (ts: any) => {
     if (!ts) return '-';
-    const date = ts?.toDate ? ts.toDate() : new Date(ts);
-    if (!isValid(date)) return 'Récemment';
-    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+    try {
+      const date = ts?.toDate ? ts.toDate() : new Date(ts);
+      if (!isValid(date)) return 'Récemment';
+      return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+    } catch {
+      return 'Récemment';
+    }
   };
 
   if (isUserLoading || isLoadingCoaching || isLoadingQuizzes || isComputing || !mounted) {
@@ -235,7 +261,7 @@ export default function HistoryPage() {
                             <div className="font-black text-sm text-slate-800 uppercase italic truncate max-w-[200px]">{res.displayTitle}</div>
                           </div>
                         </TableCell>
-                        <TableCell className="text-center text-xs font-bold text-slate-600 italic">{formatDate(res.submittedAt)}</TableCell>
+                        <TableCell className="text-center text-xs font-bold text-slate-600 italic">{formatDateLabel(res.submittedAt)}</TableCell>
                         <TableCell className="text-center">
                           <div className="flex flex-col items-center">
                             <span className={cn("text-xl font-black italic", res.scorePercent >= 75 ? 'text-emerald-500' : 'text-red-500')}>{res.scorePercent}%</span>
