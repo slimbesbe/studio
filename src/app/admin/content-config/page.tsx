@@ -41,12 +41,21 @@ const CONFIG_SECTIONS = [
     tag: 'Algorithme'
   },
   {
-    id: 'practice_questions',
-    title: 'Base Pratique Libre',
-    description: 'Gérez les questions pour les entraînements libres et les sprints thématiques.',
-    icon: BookOpen,
-    href: '/admin/questions?type=practice',
+    id: 'practice_domain',
+    title: 'Pratique : Domaines',
+    description: 'Ciblez People, Process ou Business. Importez et gérez vos questions par piliers.',
+    icon: Layers,
+    href: '/admin/questions?type=practice&filter=domain',
     color: 'bg-emerald-600',
+    tag: 'Entraînement'
+  },
+  {
+    id: 'practice_approach',
+    title: 'Pratique : Approches',
+    description: 'Agile, Prédictif ou Hybride. Importez et gérez vos questions par cycles de vie.',
+    icon: Globe,
+    href: '/admin/questions?type=practice&filter=approach',
+    color: 'bg-emerald-500',
     tag: 'Entraînement'
   },
   {
@@ -115,7 +124,7 @@ export default function ContentConfigHub() {
               <p className="text-slate-500 font-bold italic text-sm leading-relaxed min-h-[60px]">
                 {section.description}
               </p>
-              <Button asChild className={cn("w-full h-16 rounded-[24px] font-black uppercase tracking-widest text-xs italic shadow-xl group-hover:shadow-2xl transition-all", section.id.includes('questions') ? section.color : 'bg-slate-900')}>
+              <Button asChild className={cn("w-full h-16 rounded-[24px] font-black uppercase tracking-widest text-xs italic shadow-xl group-hover:shadow-2xl transition-all", section.id.includes('practice') || section.id.includes('exam') ? section.color : 'bg-slate-900')}>
                 <Link href={section.href} className="flex items-center justify-center gap-3">
                   Gérer cette section <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-2" />
                 </Link>
@@ -140,7 +149,7 @@ export default function ContentConfigHub() {
               <div className="space-y-2 text-center md:text-left">
                 <h4 className="text-xl font-black uppercase italic text-slate-800 tracking-tight">Architecture Étanche</h4>
                 <p className="text-sm font-bold text-slate-500 italic max-w-2xl leading-relaxed">
-                  Le système distingue désormais les questions de <strong>Pratique Libre</strong> (accessibles via la Matrice et l'entraînement) des questions de <strong>Simulations d'Examen</strong>. Une question peut toutefois appartenir aux deux banques si vous cochez les sources correspondantes lors de l'édition.
+                  Le système distingue désormais les questions de <strong>Pratique Libre</strong> des questions de <strong>Simulations d'Examen</strong>. Les interfaces "Domaines" et "Approches" vous permettent d'importer vos fichiers Excel de manière ciblée pour alimenter la matrice et les entraînements.
                 </p>
               </div>
             </div>

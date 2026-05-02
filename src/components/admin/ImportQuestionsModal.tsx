@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, CheckCircle2, FileSpreadsheet, XCircle, Upload, Info } from 'lucide-react';
+import { Loader2, CheckCircle2, FileSpreadsheet, XCircle, Upload, Info, Layers, Globe } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirebase, useUser } from '@/firebase';
 import { collection, doc, writeBatch, serverTimestamp } from 'firebase/firestore';
@@ -23,6 +23,7 @@ interface ImportQuestionsModalProps {
   isOpen: boolean;
   onClose: () => void;
   examId?: string;
+  filterType?: 'domain' | 'approach' | 'all';
 }
 
 interface ParsedQuestion {
@@ -39,7 +40,7 @@ interface ParsedQuestion {
   };
 }
 
-export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: ImportQuestionsModalProps) {
+export function ImportQuestionsModal({ isOpen, onClose, examId = 'general', filterType = 'all' }: ImportQuestionsModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -112,7 +113,6 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
 
         json.forEach((row, index) => {
           const lineNum = index + 2;
-          // Robust mapping
           const statement = row["Énoncé"] || row["ennocé"] || row["statement"] || row["text"] || row["Question"] || row["Énonce"];
           const justification = row["justification"] || row["Justification"] || row["explanation"] || row["Rationale"] || "";
           const correctValue = String(row["correct"] || row["Correct"] || row["Answer"] || row["bonne reponse"] || "");
@@ -134,7 +134,6 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
             return;
           }
 
-          // Handle single or multiple answers separated by comma
           const rawCorrects = correctValue.split(',').map(s => s.trim().toUpperCase());
           const mappedIds: string[] = [];
           
@@ -151,7 +150,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
              if (options.find(o => o.id === id)) mappedIds.push(id);
              else {
                isValidLine = false;
-               parseErrors.push({ line: lineNum, msg: `Réponse '${cid}' non reconnue dans les options.` });
+               parseErrors.push({ line: lineNum, msg: `Réponse '${cid}' non reconnue.` });
              }
           });
 
@@ -175,7 +174,6 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
         setParsedData(results);
         setErrors(parseErrors);
       } catch (err) {
-        console.error(err);
         toast({ variant: "destructive", title: "Erreur lecture fichier" });
       } finally {
         setIsParsing(false);
@@ -201,7 +199,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
           const questionId = q.questionCode ? `q_${examId}_${String(q.questionCode).replace(/[^a-zA-Z0-9]/g, '_')}` : generateId(q.statement, examId);
           const qRef = doc(db, 'questions', questionId);
 
-          const finalData = {
+          batch.set(qRef, {
             ...q,
             id: questionId,
             text: q.statement, 
@@ -212,22 +210,19 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
             createdBy: profile?.id || 'admin',
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
-            examId: examId,
+            examId: examId === 'general' ? null : examId,
             sourceIds: [examId]
-          };
-
-          batch.set(qRef, finalData, { merge: true });
+          }, { merge: true });
         });
 
         await batch.commit();
         setProgress(Math.round(((i + chunk.length) / total) * 100));
       }
 
-      toast({ title: "Importation terminée", description: `${total} questions ont été synchronisées.` });
+      toast({ title: "Importation terminée", description: `${total} questions synchronisées.` });
       onClose();
       setFile(null);
     } catch (e) {
-      console.error(e);
       toast({ variant: "destructive", title: "Erreur lors de l'import" });
     } finally {
       setIsImporting(false);
@@ -239,10 +234,11 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
       <DialogContent className="max-w-3xl rounded-[40px] p-10 border-4 shadow-3xl">
         <DialogHeader>
           <DialogTitle className="text-3xl font-black uppercase italic tracking-tighter text-emerald-600 flex items-center gap-3">
-            <FileSpreadsheet className="h-8 w-8" /> Importation Questions
+            {filterType === 'domain' ? <Layers className="h-8 w-8" /> : filterType === 'approach' ? <Globe className="h-8 w-8" /> : <FileSpreadsheet className="h-8 w-8" />}
+            Importation {filterType === 'domain' ? 'Domaines' : filterType === 'approach' ? 'Approches' : 'Questions'}
           </DialogTitle>
           <DialogDescription className="font-bold text-slate-500 italic uppercase text-[10px] tracking-widest mt-2">
-            Conversion automatique des colonnes et mappage A-&gt;1, B-&gt;2...
+            Vérifiez que votre fichier contient bien la colonne {filterType === 'domain' ? '"Domaine"' : filterType === 'approach' ? '"Approche"' : '"Domaine" et "Approche"'}.
           </DialogDescription>
         </DialogHeader>
 
@@ -253,7 +249,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
               className="border-4 border-dashed rounded-3xl p-16 text-center cursor-pointer hover:bg-slate-50 transition-all group border-slate-200 hover:border-emerald-500"
             >
               <Upload className="h-16 w-16 mx-auto text-slate-300 group-hover:text-emerald-500 mb-4 transition-transform group-hover:-translate-y-2" />
-              <p className="font-black uppercase italic text-slate-400 group-hover:text-emerald-600">Cliquez pour choisir votre fichier Excel</p>
+              <p className="font-black uppercase italic text-slate-400 group-hover:text-emerald-600">Sélectionnez le fichier Excel pour {filterType === 'domain' ? 'les Domaines' : filterType === 'approach' ? 'les Approches' : 'la Pratique'}</p>
               <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx,.xls" onChange={(e) => {
                 const f = e.target.files?.[0];
                 if (f) { setFile(f); parseFile(f); }
@@ -282,7 +278,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
               {isParsing && (
                 <div className="flex flex-col items-center py-4 gap-3">
                   <Loader2 className="animate-spin h-10 w-10 text-emerald-500" />
-                  <p className="font-black text-[10px] uppercase text-emerald-600 italic tracking-widest animate-pulse">Analyse des données en cours...</p>
+                  <p className="font-black text-[10px] uppercase text-emerald-600 italic tracking-widest animate-pulse">Analyse des données...</p>
                 </div>
               )}
             </div>
@@ -291,7 +287,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
           {isImporting && (
             <div className="space-y-4">
               <div className="flex justify-between items-end mb-1">
-                <p className="text-[10px] font-black uppercase text-emerald-600 italic">Progression de l'import</p>
+                <p className="text-[10px] font-black uppercase text-emerald-600 italic">Progression</p>
                 <p className="text-lg font-black text-emerald-600 italic">{progress}%</p>
               </div>
               <Progress value={progress} className="h-4 rounded-full bg-emerald-100" />

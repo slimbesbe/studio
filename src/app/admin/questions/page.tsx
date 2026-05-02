@@ -20,7 +20,9 @@ import {
   Filter,
   AlertTriangle,
   BookOpen,
-  Trophy
+  Trophy,
+  Layers,
+  Globe
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +44,7 @@ function QuestionsList() {
   
   // Détection du contexte (obligatoire)
   const contextType = searchParams.get('type') as 'practice' | 'exams' || 'practice';
+  const filterType = searchParams.get('filter') as 'domain' | 'approach' | 'all' || 'all';
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterExam, setFilterExam] = useState(contextType === 'practice' ? 'general' : 'exam1');
@@ -77,7 +80,6 @@ function QuestionsList() {
       const sources = q.sourceIds || [];
       
       // FILTRAGE STRICT PAR CONTEXTE
-      // On ne veut JAMAIS voir de questions d'examen en mode pratique et vice-versa
       if (contextType === 'practice') {
         if (!sources.includes('general')) return false;
       } else {
@@ -117,7 +119,6 @@ function QuestionsList() {
     if (userInputCode !== securityCode) return;
     setIsResetting(true);
     try {
-      // RESET CIBLÉ : On ne vide que les questions du contexte actuel !
       const batch = writeBatch(db);
       filteredQuestions.forEach(q => batch.delete(doc(db, 'questions', q.id)));
       await batch.commit();
@@ -147,11 +148,14 @@ function QuestionsList() {
     const ws = XLSX.utils.json_to_sheet(template);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Questions");
-    XLSX.writeFile(wb, `modele_import_${contextType}.xlsx`);
+    XLSX.writeFile(wb, `modele_import_${contextType}_${filterType}.xlsx`);
   };
 
   if (isLoading) return <div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
   if (!isAdmin) return null;
+
+  const PageIcon = contextType === 'exams' ? Trophy : (filterType === 'domain' ? Layers : filterType === 'approach' ? Globe : BookOpen);
+  const PageTitle = contextType === 'exams' ? 'Simulations d\'Examen' : (filterType === 'domain' ? 'Base Pratique : Focus Domaines' : filterType === 'approach' ? 'Base Pratique : Focus Approches' : 'Base Pratique Libre');
 
   return (
     <div className="space-y-8 animate-fade-in p-8 pb-32">
@@ -163,11 +167,11 @@ function QuestionsList() {
               "text-3xl font-black italic uppercase tracking-tighter flex items-center gap-3",
               contextType === 'practice' ? "text-emerald-600" : "text-primary"
             )}>
-              {contextType === 'practice' ? <BookOpen className="h-8 w-8" /> : <Trophy className="h-8 w-8" />}
-              {contextType === 'practice' ? 'Banque Pratique Libre' : 'Banque Simulations d\'Examen'}
+              <PageIcon className="h-8 w-8" />
+              {PageTitle}
             </h1>
             <p className="text-muted-foreground mt-1 uppercase tracking-widest text-[10px] font-bold italic">
-              Gestion isolée du contenu {contextType === 'practice' ? 'pour la matrice et l\'entraînement.' : 'pour les examens blancs.'}
+              {contextType === 'practice' ? `Gestion du contenu pour les entraînements par ${filterType === 'domain' ? 'domaines' : 'approches'}.` : 'Gestion isolée du contenu pour les examens blancs.'}
             </p>
           </div>
         </div>
@@ -182,7 +186,7 @@ function QuestionsList() {
             <Upload className="mr-2 h-5 w-5" /> Importer
           </Button>
           <Button asChild className={cn("h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs italic shadow-xl", contextType === 'practice' ? 'bg-emerald-600' : 'bg-primary')}>
-            <Link href={`/admin/manage-question/${contextType === 'practice' ? 'general' : filterExam === 'all_exams' ? 'exam1' : filterExam}/new`}>
+            <Link href={`/admin/manage-question/${contextType === 'practice' ? 'general' : filterExam === 'all_exams' ? 'exam1' : filterExam}/new?filter=${filterType}`}>
               <Plus className="mr-2 h-5 w-5" /> Créer Question
             </Link>
           </Button>
@@ -280,7 +284,8 @@ function QuestionsList() {
       <ImportQuestionsModal 
         isOpen={isImportModalOpen} 
         onClose={() => setIsImportModalOpen(false)} 
-        examId={contextType === 'practice' ? 'general' : filterExam === 'all_exams' ? 'exam1' : filterExam} 
+        examId={contextType === 'practice' ? 'general' : filterExam === 'all_exams' ? 'exam1' : filterExam}
+        filterType={filterType}
       />
 
       <Dialog open={isResetModalOpen} onOpenChange={(val) => !isResetting && setIsResetModalOpen(val)}>
