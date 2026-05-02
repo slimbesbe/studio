@@ -11,8 +11,7 @@ import {
   CheckCircle2,
   Trophy,
   ChevronLeft,
-  Zap,
-  Target
+  Zap
 } from 'lucide-react';
 import { useUser, useFirestore } from '@/firebase';
 import { startTrainingSession, submitPracticeAnswer } from '@/lib/services/practice-service';
@@ -32,7 +31,6 @@ function MatrixSprintContent() {
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
-  const router = useRouter();
   const searchParams = useSearchParams();
   
   const domain = searchParams.get('domain') || 'People';
@@ -68,16 +66,23 @@ function MatrixSprintContent() {
   };
 
   const handleNext = async () => {
-    if (selectedChoices.length > 0 && !correction) {
-      await handleRevealCorrection();
+    let currentCorrection = correction;
+    let currentHistory = [...sessionHistory];
+
+    // Si l'utilisateur n'a pas encore cliqué sur "Vérifier", on le fait maintenant
+    if (selectedChoices.length > 0 && !currentCorrection) {
+      currentCorrection = await handleRevealCorrection();
     }
+
+    if (!currentCorrection) return; // Sécurité : on ne passe pas sans réponse
 
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setSelectedChoices([]);
       setCorrection(null);
     } else {
-      await saveFinalResults();
+      // Fin du sprint : on utilise le dernier état complet de l'historique
+      await saveFinalResults(currentHistory);
       setStep('summary');
     }
   };
@@ -95,44 +100,49 @@ function MatrixSprintContent() {
     }
   };
 
-  const handleRevealCorrection = async () => {
-    if (selectedChoices.length === 0 || isSubmitting) return;
+  const handleRevealCorrection = async (): Promise<any> => {
+    if (selectedChoices.length === 0 || isSubmitting) return null;
     setIsSubmitting(true);
     try {
       const res = await submitPracticeAnswer(db, user!.uid, questions[currentIndex].id, selectedChoices);
       setCorrection(res);
       
-      setSessionHistory(prev => [
-        ...prev, 
-        { 
-          question: questions[currentIndex], 
-          userChoices: selectedChoices, 
-          correction: res 
-        }
-      ]);
+      const newHistoryItem = { 
+        question: questions[currentIndex], 
+        userChoices: selectedChoices, 
+        correction: res 
+      };
 
-      if (res.isCorrect) setSessionResults(prev => ({ ...prev, correct: prev.correct + 1 }));
+      setSessionHistory(prev => [...prev, newHistoryItem]);
+
+      if (res.isCorrect) {
+        setSessionResults(prev => ({ ...prev, correct: prev.correct + 1 }));
+      }
+      return res;
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur lors de la correction" });
+      return null;
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const saveFinalResults = async () => {
-    if (sessionHistory.length === 0) return;
+  const saveFinalResults = async (finalHistory: SessionHistoryItem[]) => {
+    if (finalHistory.length === 0) return;
     const duration = Math.floor((Date.now() - startTime) / 1000);
     try {
-      // Architecture DYNAMIQUE : On ne stocke que les IDs et les réponses
       await addDoc(collection(db, 'coachingAttempts'), {
         userId: user!.uid,
         durationSec: duration,
         submittedAt: serverTimestamp(),
-        responses: sessionHistory.map(h => ({
+        responses: finalHistory.map(h => ({
           questionId: h.question.id,
-          userChoices: h.userChoices
+          userChoices: h.userChoices,
+          isCorrect: h.correction.isCorrect, // Stockage explicite du résultat pour les stats
+          tags: h.question.tags || {}
         })),
-        context: 'matrix_sprint'
+        context: 'matrix_sprint',
+        scorePercent: Math.round((finalHistory.filter(h => h.correction.isCorrect).length / finalHistory.length) * 100)
       });
     } catch (e) {
       console.error("Error saving matrix sprint results", e);
@@ -163,7 +173,7 @@ function MatrixSprintContent() {
           <div className="bg-slate-50 p-6 rounded-3xl border-2 border-dashed border-primary/10">
             <p className="text-lg font-bold italic text-slate-600 leading-relaxed">
               Objectif : <span className="text-primary font-black">5 Questions</span> ciblées sur cette intersection.<br />
-              Atteignez <span className="text-emerald-500 font-black">80%</span> pour passer la cellule en vert.
+              Atteignez <span className="text-emerald-500 font-black">80%</span> pour valider la cellule.
             </p>
           </div>
           <Button size="lg" onClick={handleStart} disabled={isLoading} className="h-20 w-full rounded-[28px] bg-primary hover:bg-primary/90 text-2xl font-black uppercase tracking-widest shadow-2xl scale-105 transition-transform">
@@ -179,22 +189,22 @@ function MatrixSprintContent() {
     return (
       <div className="max-w-4xl mx-auto space-y-6 animate-fade-in py-8 px-4">
         <div className="flex justify-between items-center">
-          <Badge variant="outline" className="text-sm font-black italic border-2 px-4 py-1 bg-white">
+          <Badge variant="outline" className="text-sm font-black italic border-2 px-4 py-1 bg-white shadow-sm">
             QUESTION {currentIndex + 1} / {questions.length}
           </Badge>
-          <Badge className="bg-primary/10 text-primary border-none font-black italic uppercase tracking-widest text-[10px]">
+          <Badge className="bg-primary text-white border-none font-black italic uppercase tracking-widest text-[9px] px-3 shadow-md">
             SPRINT MATRICE
           </Badge>
         </div>
 
         <Card className="shadow-2xl border-t-8 border-t-primary rounded-[32px] overflow-hidden bg-white">
-          <CardHeader className="p-8 pb-4">
+          <CardHeader className="p-10 pb-4">
             <div className="space-y-6">
-              <CardTitle className="text-xl leading-relaxed font-black italic text-slate-800">
+              <CardTitle className="text-2xl leading-relaxed font-black italic text-slate-800">
                 {q.statement || q.text}
               </CardTitle>
               {q.imageUrl && (
-                <div className="rounded-[2vh] overflow-hidden border-2 border-slate-100 bg-white p-[0.5vh] flex justify-center shadow-md">
+                <div className="rounded-2xl overflow-hidden border-2 border-slate-100 bg-white p-1 flex justify-center shadow-md">
                   <img 
                     src={q.imageUrl} 
                     alt="Illustration" 
@@ -204,34 +214,34 @@ function MatrixSprintContent() {
               )}
             </div>
           </CardHeader>
-          <CardContent className="p-8 space-y-4">
+          <CardContent className="p-10 space-y-4">
             <div className="grid gap-3">
               {(q.options || q.choices || []).map((opt: any, idx: number) => {
-                const choiceId = opt.id || String(idx + 1);
+                const choiceId = String(opt.id || idx + 1);
                 const isSelected = selectedChoices.includes(choiceId);
-                const isCorrect = correction?.correctOptionIds?.includes(choiceId);
+                const isCorrect = correction?.correctOptionIds?.map(String).includes(choiceId);
                 
                 return (
                   <div 
                     key={idx} 
                     onClick={() => toggleChoice(choiceId, q.isMultipleCorrect)}
                     className={cn(
-                      "p-5 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-4 shadow-sm",
+                      "p-6 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-5 shadow-sm",
                       isSelected && !correction ? "border-primary bg-primary/5 scale-[1.01]" : "border-slate-100 hover:border-slate-300",
-                      correction && isCorrect ? "border-emerald-500 bg-emerald-50" : "",
-                      correction && isSelected && !isCorrect ? "border-red-500 bg-red-50" : ""
+                      correction && isCorrect ? "border-emerald-500 bg-emerald-50 shadow-inner" : "",
+                      correction && isSelected && !isCorrect ? "border-red-500 bg-red-50 shadow-inner" : ""
                     )}
                   >
                     <div className={cn(
-                      "h-8 w-8 flex items-center justify-center font-black text-xs shrink-0 border-2",
+                      "h-10 w-10 flex items-center justify-center font-black text-sm shrink-0 border-2",
                       q.isMultipleCorrect ? "rounded-xl" : "rounded-full",
                       isSelected ? "bg-primary text-white border-primary" : "bg-white text-slate-400",
                       correction && isCorrect ? "bg-emerald-500 text-white border-emerald-500" : "",
-                      correction && isSelected && !isCorrect ? "border-red-500 text-red-500" : ""
+                      correction && isSelected && !isCorrect ? "bg-red-500 text-red-500" : ""
                     )}>
                       {String.fromCharCode(65 + idx)}
                     </div>
-                    <div className={cn("flex-1 text-sm font-bold italic pt-1", isSelected ? "text-slate-900" : "text-slate-600")}>
+                    <div className={cn("flex-1 text-lg font-bold italic pt-1", isSelected ? "text-slate-900" : "text-slate-600")}>
                       {opt.text || opt}
                     </div>
                   </div>
@@ -240,11 +250,11 @@ function MatrixSprintContent() {
             </div>
 
             {correction && (
-              <div className="mt-8 p-6 bg-slate-50 rounded-[24px] border-l-8 border-l-primary animate-slide-up shadow-inner">
-                <h4 className="font-black text-primary flex items-center gap-2 mb-3 uppercase tracking-widest italic text-xs">
-                  <span className="flex items-center justify-center h-4 w-4 rounded-full bg-primary/10"><Info className="h-3 w-3" /></span> Justification Mindset
+              <div className="mt-8 p-8 bg-slate-50 rounded-[32px] border-l-8 border-l-primary animate-slide-up shadow-inner">
+                <h4 className="font-black text-primary flex items-center gap-2 mb-4 uppercase tracking-widest italic text-xs">
+                   Justification Mindset PMI®
                 </h4>
-                <div className="text-sm font-bold italic text-slate-700 leading-relaxed whitespace-pre-wrap">
+                <div className="text-lg font-bold italic text-slate-700 leading-relaxed whitespace-pre-wrap">
                   {correction.explanation}
                 </div>
               </div>
@@ -253,18 +263,18 @@ function MatrixSprintContent() {
           <CardFooter className="p-8 bg-slate-50/50 border-t flex justify-between gap-4">
             <Button 
               variant="outline" 
-              className="flex-1 h-14 rounded-xl border-2 font-black uppercase tracking-widest text-xs" 
+              className="flex-1 h-16 rounded-2xl border-4 font-black uppercase tracking-widest italic text-sm" 
               onClick={handleRevealCorrection}
               disabled={selectedChoices.length === 0 || !!correction || isSubmitting}
             >
-              Vérifier
+              {isSubmitting ? <Loader2 className="animate-spin h-5 w-5" /> : "Vérifier"}
             </Button>
             <Button 
-              className="flex-1 h-14 rounded-xl bg-primary font-black uppercase tracking-widest text-xs shadow-xl" 
+              className="flex-1 h-16 rounded-2xl bg-primary hover:bg-primary/90 font-black uppercase tracking-widest italic shadow-xl text-sm group" 
               onClick={handleNext}
               disabled={(selectedChoices.length === 0 && !correction) || isSubmitting}
             >
-              {currentIndex < questions.length - 1 ? "Suivant" : "Résultats"} <ChevronRight className="ml-2 h-4 w-4" />
+              {currentIndex < questions.length - 1 ? "Suivant" : "Voir les résultats"} <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
             </Button>
           </CardFooter>
         </Card>
@@ -287,7 +297,7 @@ function MatrixSprintContent() {
             <Button className="w-full h-16 rounded-2xl bg-primary font-black uppercase tracking-widest shadow-xl text-lg italic" onClick={() => { setStep('review'); setCurrentIndex(0); }}>
               Revoir les réponses
             </Button>
-            <Button variant="outline" className="w-full h-16 rounded-2xl border-4 font-black uppercase tracking-widest text-lg italic" asChild>
+            <Button variant="outline" className="w-full h-16 rounded-2xl border-4 font-black uppercase tracking-widest text-lg italic hover:bg-slate-50 transition-colors" asChild>
               <Link href="/dashboard/matrice">Retour à la matrice</Link>
             </Button>
           </div>
@@ -298,22 +308,25 @@ function MatrixSprintContent() {
 
   if (step === 'review') {
     const item = sessionHistory[currentIndex];
+    if (!item) return null;
     const { question: q, userChoices, correction: corr } = item;
     return (
       <div className="max-w-4xl mx-auto space-y-6 animate-fade-in py-8 px-4">
         <div className="flex justify-between items-center bg-white p-6 rounded-3xl shadow-lg border-2">
           <Button variant="ghost" className="font-black italic uppercase tracking-widest" onClick={() => setStep('summary')}><ChevronLeft className="mr-2 h-4 w-4" /> Score</Button>
-          <Badge variant="outline" className="text-sm font-black italic border-2 px-4 py-1">REVUE {currentIndex + 1} / 5</Badge>
-          <Badge className={corr.isCorrect ? "bg-emerald-500" : "bg-red-500"}>{corr.isCorrect ? "CORRECT" : "ERREUR"}</Badge>
+          <Badge variant="outline" className="text-sm font-black italic border-2 px-4 py-1">REVUE QUESTION {currentIndex + 1} / 5</Badge>
+          <Badge className={cn("text-white font-black italic px-4 py-1 rounded-lg shadow-md", corr.isCorrect ? "bg-emerald-500" : "bg-red-500")}>
+            {corr.isCorrect ? "CORRECT" : "ERREUR"}
+          </Badge>
         </div>
         <Card className={cn("shadow-2xl border-t-8 rounded-[32px] overflow-hidden bg-white", corr.isCorrect ? "border-t-emerald-500" : "border-t-red-500")}>
-          <CardHeader className="p-8 pb-4">
+          <CardHeader className="p-10 pb-4">
             <div className="space-y-6">
-              <CardTitle className="text-xl leading-relaxed font-black italic text-slate-800">
+              <CardTitle className="text-2xl leading-relaxed font-black italic text-slate-800">
                 {q.statement || q.text}
               </CardTitle>
               {q.imageUrl && (
-                <div className="rounded-[2vh] overflow-hidden border-2 border-slate-100 bg-white p-[0.5vh] flex justify-center shadow-md">
+                <div className="rounded-2xl overflow-hidden border-2 border-slate-100 bg-white p-1 flex justify-center shadow-md">
                   <img 
                     src={q.imageUrl} 
                     alt="Illustration" 
@@ -323,25 +336,25 @@ function MatrixSprintContent() {
               )}
             </div>
           </CardHeader>
-          <CardContent className="p-8 space-y-4">
+          <CardContent className="p-10 space-y-4">
             <div className="grid gap-3">
               {(q.options || q.choices || []).map((opt: any, idx: number) => {
-                const choiceId = opt.id || String(idx + 1);
-                const isSelected = userChoices.includes(choiceId);
-                const isCorrect = corr.correctOptionIds?.includes(choiceId);
+                const choiceId = String(opt.id || idx + 1);
+                const isSelected = userChoices.map(String).includes(choiceId);
+                const isCorrect = corr.correctOptionIds?.map(String).includes(choiceId);
                 return (
-                  <div key={idx} className={cn("p-5 rounded-2xl border-2 flex items-start gap-4 shadow-sm", isCorrect ? "border-emerald-500 bg-emerald-50" : isSelected ? "border-red-500 bg-red-50" : "border-slate-100")}>
-                    <div className={cn("h-8 w-8 flex items-center justify-center font-black text-xs shrink-0 border-2", isCorrect ? "bg-emerald-500 text-white border-emerald-500" : isSelected ? "bg-red-500 text-white border-red-500" : "bg-white text-slate-400")}>{String.fromCharCode(65 + idx)}</div>
-                    <p className={cn("flex-1 text-sm font-bold italic pt-1", isCorrect ? "text-emerald-900" : isSelected ? "text-red-900" : "text-slate-500")}>{opt.text || opt}</p>
+                  <div key={idx} className={cn("p-6 rounded-2xl border-2 flex items-start gap-5 transition-all shadow-sm", isCorrect ? "border-emerald-500 bg-emerald-50" : isSelected ? "border-red-500 bg-red-50" : "border-slate-100 opacity-60")}>
+                    <div className={cn("h-10 w-10 flex items-center justify-center font-black text-sm shrink-0 border-2", isCorrect ? "bg-emerald-500 text-white border-emerald-500" : isSelected ? "bg-red-500 text-white border-red-500" : "bg-white text-slate-400")}>{String.fromCharCode(65 + idx)}</div>
+                    <p className={cn("flex-1 text-lg font-bold italic pt-1", isCorrect ? "text-emerald-900" : isSelected ? "text-red-900" : "text-slate-500")}>{opt.text || opt}</p>
                   </div>
                 );
               })}
             </div>
-            <div className="p-8 bg-slate-50 rounded-[32px] border-l-8 border-l-primary shadow-inner font-bold italic text-slate-700 leading-relaxed whitespace-pre-wrap">{corr.explanation}</div>
+            <div className="mt-8 p-8 bg-slate-50 rounded-[32px] border-l-8 border-l-primary shadow-inner font-bold italic text-slate-700 leading-relaxed whitespace-pre-wrap">{corr.explanation}</div>
           </CardContent>
           <CardFooter className="p-8 bg-slate-50/50 border-t flex justify-between gap-4">
-            <Button variant="outline" className="flex-1 h-14 rounded-xl border-2 font-black uppercase tracking-widest text-xs" onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))} disabled={currentIndex === 0}>Précédent</Button>
-            <Button className="flex-1 h-14 rounded-xl bg-primary font-black uppercase tracking-widest text-xs shadow-xl" onClick={() => setCurrentIndex(Math.min(sessionHistory.length - 1, currentIndex + 1))} disabled={currentIndex === sessionHistory.length - 1}>Suivant</Button>
+            <Button variant="outline" className="flex-1 h-14 rounded-xl border-4 font-black uppercase tracking-widest text-xs italic" onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))} disabled={currentIndex === 0}>Précédent</Button>
+            <Button className="flex-1 h-14 rounded-xl bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest text-xs shadow-xl italic" onClick={() => setCurrentIndex(Math.min(sessionHistory.length - 1, currentIndex + 1))} disabled={currentIndex === sessionHistory.length - 1}>Suivant</Button>
           </CardFooter>
         </Card>
       </div>

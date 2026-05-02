@@ -100,39 +100,41 @@ export async function submitPracticeAnswer(
   if (!qDoc.exists()) throw new Error("Question non trouvée");
   
   const qData = qDoc.data();
-  const userChoices = Array.isArray(selectedChoiceIds) ? selectedChoiceIds : [selectedChoiceIds];
-  const correctOptionIds = qData.correctOptionIds || [String(qData.correctChoice)];
+  const userChoices = (Array.isArray(selectedChoiceIds) ? selectedChoiceIds : [selectedChoiceIds]).map(id => String(id));
+  
+  // Robust correct IDs mapping (handle legacy correctChoice and numeric types)
+  const correctOptionIds = (qData.correctOptionIds || [qData.correctChoice || "1"]).map((id: any) => String(id));
 
   const isCorrect = userChoices.length === correctOptionIds.length && 
                     userChoices.every(id => correctOptionIds.includes(id));
 
   // Log minimal attempt
   const attemptRef = doc(collection(db, 'users', userId, 'attempts'));
-  await setDoc(attemptRef, {
+  setDoc(attemptRef, {
     questionId,
     selectedChoiceIds: userChoices,
     context,
     answeredAt: serverTimestamp()
-  });
+  }).catch(() => {});
 
   // Update KillMistakes (Base de données dynamique)
   const kmRef = doc(db, 'users', userId, 'killMistakes', questionId);
   if (!isCorrect) {
-    await setDoc(kmRef, {
+    setDoc(kmRef, {
       status: 'wrong',
       wrongCount: increment(1),
       lastWrongAt: serverTimestamp(),
       questionId,
       lastSelectedChoiceIds: userChoices,
       tags: qData.tags || {}
-    }, { merge: true });
+    }, { merge: true }).catch(() => {});
   } else {
-    await setDoc(kmRef, {
+    setDoc(kmRef, {
       status: 'corrected',
       lastCorrectAt: serverTimestamp(),
       questionId,
       tags: qData.tags || {}
-    }, { merge: true });
+    }, { merge: true }).catch(() => {});
   }
 
   return { 
