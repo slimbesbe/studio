@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from 'next/link';
@@ -59,13 +60,13 @@ export function Sidebar() {
   const { user, isUserLoading, profile } = useUser();
   const auth = useAuth();
   const db = useFirestore();
-  const [conceptsOpen, setConceptsOpen] = useState(pathname.includes('/concepts'));
+  const [conceptsOpen, setConceptsOpen] = useState(pathname?.includes('/concepts') || false);
   
-  const [isAdminMode, setIsAdminMode] = useState(pathname.startsWith('/admin'));
+  const [isAdminMode, setIsAdminMode] = useState(pathname?.startsWith('/admin') || false);
 
   useEffect(() => {
-    if (pathname.startsWith('/admin')) setIsAdminMode(true);
-    if (pathname.startsWith('/dashboard')) setIsAdminMode(false);
+    if (pathname?.startsWith('/admin')) setIsAdminMode(true);
+    if (pathname?.startsWith('/dashboard')) setIsAdminMode(false);
   }, [pathname]);
 
   if (isUserLoading || !user) {
@@ -91,9 +92,9 @@ export function Sidebar() {
     }
   };
 
-  const initials = profile?.firstName && profile?.lastName 
-    ? `${profile.firstName[0]}${profile.lastName[0]}`.toUpperCase()
-    : user?.email?.[0].toUpperCase() || '?';
+  const initials = profile?.firstName?.charAt(0) && profile?.lastName?.charAt(0)
+    ? `${profile.firstName.charAt(0)}${profile.lastName.charAt(0)}`.toUpperCase()
+    : user?.email?.charAt(0).toUpperCase() || '?';
 
   return (
     <div className="flex flex-col h-full bg-white text-slate-600 w-full lg:w-64 border-r border-slate-100 shadow-[10px_0_30px_rgba(0,0,0,0.02)]">
@@ -139,10 +140,10 @@ export function Sidebar() {
               <CollapsibleTrigger asChild>
                 <button className={cn(
                   "flex items-center justify-between w-full px-4 py-3 rounded-xl text-[13px] font-bold transition-all hover:bg-slate-50 group",
-                  pathname.includes('/concepts') ? "text-primary bg-primary/5" : "text-slate-500"
+                  pathname?.includes('/concepts') ? "text-primary bg-primary/5" : "text-slate-500"
                 )}>
                   <div className="flex items-center gap-3">
-                    <BookMarked className={cn("h-5 w-5", pathname.includes('/concepts') ? "text-primary" : "text-slate-400 group-hover:text-slate-600")} />
+                    <BookMarked className={cn("h-5 w-5", pathname?.includes('/concepts') ? "text-primary" : "text-slate-400 group-hover:text-slate-600")} />
                     <span>Concepts de base</span>
                   </div>
                   <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", conceptsOpen && "rotate-180")} />
@@ -183,14 +184,14 @@ export function Sidebar() {
           <>
             <div className="px-4 mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 italic">Pilotage Admin</div>
             <NavItem href="/admin/dashboard" icon={LayoutDashboard} label="Cockpit Admin" active={pathname === '/admin/dashboard'} />
-            <NavItem href="/admin/content-config" icon={Settings2} label="Configuration contenu" active={pathname.startsWith('/admin/content-config')} />
-            <NavItem href="/admin/coaching" icon={GraduationCap} label="Sessions Coaching" active={pathname.startsWith('/admin/coaching')} />
-            <NavItem href="/admin/questions" icon={BookCopy} label="Banque Questions" active={pathname.startsWith('/admin/questions')} />
-            <NavItem href="/admin/messages" icon={Inbox} label="Boîte Messages" active={pathname.startsWith('/admin/messages')} />
-            <NavItem href="/admin/logs" icon={ClipboardList} label="Logs Utilisateurs" active={pathname.startsWith('/admin/logs')} />
-            <NavItem href="/admin/users" icon={Users} label="Utilisateurs" active={pathname.startsWith('/admin/users')} />
+            <NavItem href="/admin/content-config" icon={Settings2} label="Configuration contenu" active={pathname?.startsWith('/admin/content-config')} />
+            <NavItem href="/admin/coaching" icon={GraduationCap} label="Sessions Coaching" active={pathname?.startsWith('/admin/coaching')} />
+            <NavItem href="/admin/questions" icon={BookCopy} label="Banque Questions" active={pathname?.startsWith('/admin/questions')} />
+            <NavItem href="/admin/messages" icon={Inbox} label="Boîte Messages" active={pathname?.startsWith('/admin/messages')} />
+            <NavItem href="/admin/logs" icon={ClipboardList} label="Logs Utilisateurs" active={pathname?.startsWith('/admin/logs')} />
+            <NavItem href="/admin/users" icon={Users} label="Utilisateurs" active={pathname?.startsWith('/admin/users')} />
             <div className="pt-4">
-              <NavItem href="/admin/maintenance" icon={Database} label="Maintenance" active={pathname.startsWith('/admin/maintenance')} />
+              <NavItem href="/admin/maintenance" icon={Database} label="Maintenance" active={pathname?.startsWith('/admin/maintenance')} />
             </div>
           </>
         )}

@@ -46,7 +46,7 @@ export default function StatisticsV2Page() {
   const { data: rawAttempts, isLoading } = useCollection(attemptsQuery);
 
   const stats = useMemo(() => {
-    if (!rawAttempts || rawAttempts.length === 0) return null;
+    if (!Array.isArray(rawAttempts) || rawAttempts.length === 0) return null;
 
     const validAttempts = rawAttempts.filter(Boolean);
     if (validAttempts.length === 0) return null;
@@ -54,22 +54,21 @@ export default function StatisticsV2Page() {
     const avgScore = Math.round(validAttempts.reduce((acc, a) => acc + (Number(a.scorePercent) || 0), 0) / validAttempts.length);
     
     // Extraction sécurisée des réponses
-    const allResponses = validAttempts.flatMap(a => (a.responses || []).filter(Boolean));
+    const allResponses = validAttempts.flatMap(a => Array.isArray(a.responses) ? a.responses.filter(Boolean) : []);
 
     // 1. Performance par Domaine
     const domains = ['People', 'Process', 'Business'];
     const performanceByDomain = domains.map(d => {
       const respForDomain = allResponses.filter(r => {
-        const domainTag = r?.tags?.domain;
-        if (!domainTag) return false;
-        return String(domainTag) === d || 
-               (d === 'Process' && String(domainTag) === 'Processus') || 
-               (d === 'Business' && String(domainTag).includes('Business'));
+        const domainTag = String(r?.tags?.domain || '');
+        return domainTag === d || 
+               (d === 'Process' && domainTag === 'Processus') || 
+               (d === 'Business' && domainTag.includes('Business'));
       });
       const total = respForDomain.length;
-      const score = total > 0 
-        ? Math.round((respForDomain.filter(r => r.isCorrect).length / total) * 100)
-        : 0;
+      const correctOnes = respForDomain.filter(r => r.isCorrect).length;
+      const score = total > 0 ? Math.round((correctOnes / total) * 100) : 0;
+      
       return { 
         name: d === 'Business' ? 'Business Env.' : d, 
         score: isNaN(score) ? 0 : score
@@ -79,11 +78,11 @@ export default function StatisticsV2Page() {
     // 2. Performance par Approche
     const approaches = ['Predictive', 'Agile', 'Hybrid'];
     const performanceByApproach = approaches.map(a => {
-      const respForApproach = allResponses.filter(r => r?.tags?.approach === a);
+      const respForApproach = allResponses.filter(r => String(r?.tags?.approach || '') === a);
       const total = respForApproach.length;
-      const score = total > 0 
-        ? Math.round((respForApproach.filter(r => r.isCorrect).length / total) * 100)
-        : 0;
+      const correctOnes = respForApproach.filter(r => r.isCorrect).length;
+      const score = total > 0 ? Math.round((correctOnes / total) * 100) : 0;
+      
       return { 
         name: a === 'Predictive' ? 'Waterfall' : a, 
         score: isNaN(score) ? 0 : score 
@@ -109,7 +108,8 @@ export default function StatisticsV2Page() {
         const rA = String(r?.tags?.approach || '');
         return rD.includes(item.d.substring(0, 3).toLowerCase()) && rA === item.a;
       });
-      const score = match.length > 0 ? Math.round((match.filter(r => r.isCorrect).length / match.length) * 100) : 0;
+      const total = match.length;
+      const score = total > 0 ? Math.round((match.filter(r => r.isCorrect).length / total) * 100) : 0;
       return { subject: item.s, A: isNaN(score) ? 0 : score };
     });
 
@@ -133,7 +133,7 @@ export default function StatisticsV2Page() {
     };
   }, [rawAttempts]);
 
-  if (isUserLoading || !mounted || isLoading) {
+  if (!mounted || isUserLoading || isLoading) {
     return <div className="min-h-[70vh] flex items-center justify-center bg-slate-50"><Loader2 className="h-12 w-12 animate-spin text-indigo-600" /></div>;
   }
 

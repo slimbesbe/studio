@@ -37,7 +37,7 @@ export default function MatriceMagiquePage() {
 
   const configRef = useMemoFirebase(() => doc(db, 'config', 'matrice'), [db]);
   const { data: config } = useDoc(configRef);
-  const successThreshold = config?.successThreshold || 80;
+  const successThreshold = Number(config?.successThreshold) || 80;
 
   const attemptsQuery = useMemoFirebase(() => {
     if (isUserLoading || !user?.uid) return null;
@@ -53,17 +53,19 @@ export default function MatriceMagiquePage() {
   const matriceStats = useMemo(() => {
     const stats: Record<string, { totalScore: number, attemptsCount: number }> = {};
     
-    attempts?.forEach(att => {
-      const d = att.matrixDomain;
-      const a = att.matrixApproach;
-      
-      if (d && a) {
-        const key = `${d}-${a}`;
-        if (!stats[key]) stats[key] = { totalScore: 0, attemptsCount: 0 };
-        stats[key].attemptsCount++;
-        stats[key].totalScore += (att.scorePercent || 0);
-      }
-    });
+    if (Array.isArray(attempts)) {
+      attempts.filter(Boolean).forEach(att => {
+        const d = att.matrixDomain;
+        const a = att.matrixApproach;
+        
+        if (d && a) {
+          const key = `${d}-${a}`;
+          if (!stats[key]) stats[key] = { totalScore: 0, attemptsCount: 0 };
+          stats[key].attemptsCount++;
+          stats[key].totalScore += (Number(att.scorePercent) || 0);
+        }
+      });
+    }
 
     return stats;
   }, [attempts]);
@@ -146,7 +148,7 @@ export default function MatriceMagiquePage() {
                 {APPROACHES.map(a => {
                   const key = `${d.id}-${a.id}`;
                   const data = matriceStats[key];
-                  const percent = data ? Math.round((data.totalScore / data.attemptsCount)) : null;
+                  const percent = data && data.attemptsCount > 0 ? Math.round((data.totalScore / data.attemptsCount)) : null;
                   const styles = getCellStyles(percent);
 
                   return (

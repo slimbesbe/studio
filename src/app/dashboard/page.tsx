@@ -51,7 +51,7 @@ export default function DashboardPage() {
   const { data: rawAttempts } = useCollection(attemptsQuery);
 
   const stats = useMemo(() => {
-    const validAttempts = (rawAttempts || []).filter(Boolean);
+    const validAttempts = Array.isArray(rawAttempts) ? rawAttempts.filter(Boolean) : [];
     
     if (validAttempts.length === 0) {
       return {
@@ -66,15 +66,19 @@ export default function DashboardPage() {
     }
 
     const sorted = [...validAttempts].sort((a, b) => {
-      const timeA = a.submittedAt?.seconds || 0;
-      const timeB = b.submittedAt?.seconds || 0;
+      const timeA = Number(a.submittedAt?.seconds || 0);
+      const timeB = Number(b.submittedAt?.seconds || 0);
       return timeB - timeA;
     });
 
     const attemptsWithValidDate = sorted.filter(a => {
       if (!a.submittedAt) return false;
-      const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
-      return isValid(date);
+      try {
+        const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
+        return isValid(date);
+      } catch {
+        return false;
+      }
     });
     
     const avgScore = validAttempts.length > 0 
@@ -86,9 +90,13 @@ export default function DashboardPage() {
     const questionsCount = validAttempts.reduce((acc, a) => acc + (Number(a.totalQuestions) || 0), 0);
     
     const progressionData = [...attemptsWithValidDate].reverse().slice(-7).map((a) => {
-      const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
+      let dateLabel = '-';
+      try {
+        const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
+        dateLabel = date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+      } catch {}
       return {
-        name: date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
+        name: dateLabel,
         val: Number(a.scorePercent) || 0,
       };
     });
@@ -104,7 +112,7 @@ export default function DashboardPage() {
     };
   }, [rawAttempts]);
 
-  if (isUserLoading || !mounted) {
+  if (!mounted || isUserLoading) {
     return <div className="min-h-[70vh] flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-[#1d4ed8]" /></div>;
   }
 
@@ -135,7 +143,7 @@ export default function DashboardPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={[{ name: 'Used', value: profile?.totalTimeSpent || 0 }, { name: 'Free', value: 36000 }]}
+                      data={[{ name: 'Used', value: Number(profile?.totalTimeSpent) || 0 }, { name: 'Free', value: 36000 }]}
                       cx="50%" cy="50%" innerRadius="60%" outerRadius="90%" paddingAngle={5} dataKey="value"
                     >
                       <Cell fill="#1d4ed8" />
@@ -145,7 +153,7 @@ export default function DashboardPage() {
                 </ResponsiveContainer>
               </div>
               <div>
-                <p className="text-4xl font-black italic text-slate-900 leading-none">{Math.floor((profile?.totalTimeSpent || 0) / 3600)}h</p>
+                <p className="text-4xl font-black italic text-slate-900 leading-none">{Math.floor((Number(profile?.totalTimeSpent) || 0) / 3600)}h</p>
                 <p className="text-[10px] font-bold text-slate-400 uppercase leading-tight italic mt-1">Temps cumulé</p>
               </div>
             </div>
@@ -237,7 +245,7 @@ export default function DashboardPage() {
                     <TableRow key={i} className="border-b border-slate-50 h-20 hover:bg-slate-50 transition-colors">
                       <TableCell className="px-6">
                         <div className="flex flex-col">
-                          <span className="font-black text-slate-700 text-sm italic truncate uppercase">{a.examId ? String(a.examId).replace('exam', 'Simulation ') : a.sessionId || 'Sprint'}</span>
+                          <span className="font-black text-slate-700 text-sm italic truncate uppercase">{a.examId ? String(a.examId).replace('exam', 'Simulation ') : (a.displayTitle || a.sessionId || 'Sprint')}</span>
                           <span className="text-[9px] font-bold text-slate-400 uppercase italic">
                             {a.submittedAt?.toDate ? a.submittedAt.toDate().toLocaleDateString() : 'Récemment'}
                           </span>

@@ -68,15 +68,15 @@ export default function HistoryPage() {
       
       setIsComputing(true);
       try {
-        const coachingAttempts = (rawCoaching || []).filter(Boolean);
-        const quickQuizzes = (rawQuickQuizzes || []).filter(Boolean);
+        const coachingAttempts = Array.isArray(rawCoaching) ? rawCoaching.filter(Boolean) : [];
+        const quickQuizzes = Array.isArray(rawQuickQuizzes) ? rawQuickQuizzes.filter(Boolean) : [];
         
         // Extraction sécurisée des IDs de questions
         const allQuestionIds = Array.from(new Set(
           coachingAttempts.flatMap(attempt => 
-            (attempt.responses || [])
+            (Array.isArray(attempt.responses) ? attempt.responses : [])
               .filter((r: any) => r && r.questionId)
-              .map((r: any) => r.questionId)
+              .map((r: any) => String(r.questionId))
           )
         ));
 
@@ -84,7 +84,7 @@ export default function HistoryPage() {
         
         const coachingComputed = coachingAttempts.map(attempt => {
           let correct = 0;
-          const responses = (attempt.responses || []).filter(Boolean);
+          const responses = Array.isArray(attempt.responses) ? attempt.responses.filter(Boolean) : [];
           const responsesCount = responses.length;
           
           responses.forEach((resp: any) => {
@@ -98,25 +98,25 @@ export default function HistoryPage() {
           });
 
           let filterType: HistoryFilter = 'practice';
-          const eId = attempt.examId || '';
+          const eId = String(attempt.examId || '');
           if (eId.startsWith('exam')) filterType = 'exams';
           else if (attempt.context === 'matrix_sprint') filterType = 'matrice';
           else if (attempt.sessionId) filterType = 'exams'; 
 
-          const finalTotal = attempt.totalQuestions || responsesCount || 0;
-          const finalCorrect = attempt.correctCount !== undefined ? attempt.correctCount : correct;
+          const finalTotal = Number(attempt.totalQuestions) || responsesCount || 0;
+          const finalCorrect = attempt.correctCount !== undefined ? Number(attempt.correctCount) : correct;
 
-          const displayDomain = attempt.matrixDomain === 'Process' ? 'Processus' : attempt.matrixDomain;
-          const displayApproach = attempt.matrixApproach === 'Predictive' ? 'Waterfall' : attempt.matrixApproach;
+          const displayDomain = attempt.matrixDomain === 'Process' ? 'Processus' : (attempt.matrixDomain || '??');
+          const displayApproach = attempt.matrixApproach === 'Predictive' ? 'Waterfall' : (attempt.matrixApproach || '??');
 
           return {
             ...attempt,
             filterType,
-            scorePercent: attempt.scorePercent !== undefined ? attempt.scorePercent : (finalTotal > 0 ? Math.round((finalCorrect / finalTotal) * 100) : 0),
+            scorePercent: attempt.scorePercent !== undefined ? Number(attempt.scorePercent) : (finalTotal > 0 ? Math.round((finalCorrect / finalTotal) * 100) : 0),
             correctCount: finalCorrect,
             totalQuestions: finalTotal,
             displayTitle: eId ? eId.replace('exam', 'Simulation ') : 
-                          attempt.context === 'matrix_sprint' ? `Sprint : ${displayDomain || '??'} x ${displayApproach || '??'}` :
+                          attempt.context === 'matrix_sprint' ? `Sprint : ${displayDomain} x ${displayApproach}` :
                           attempt.sessionId ? `Session ${attempt.sessionId}` : 'Pratique Libre'
           };
         });
@@ -126,12 +126,12 @@ export default function HistoryPage() {
           ...q,
           id: q.id,
           filterType: 'concepts' as const,
-          scorePercent: q.score || 0,
+          scorePercent: Number(q.score || 0),
           displayTitle: `Quiz : ${String(q.axisId || 'Inconnu').toUpperCase()}`,
           submittedAt: q.submittedAt,
           durationSec: 0,
-          totalQuestions: q.totalQuestions || 5,
-          correctCount: q.correctCount || 0
+          totalQuestions: Number(q.totalQuestions || 5),
+          correctCount: Number(q.correctCount || 0)
         }));
 
         const combined = [...coachingComputed, ...quizComputed].sort((a, b) => safeGetTime(b.submittedAt) - safeGetTime(a.submittedAt));
@@ -146,6 +146,7 @@ export default function HistoryPage() {
   }, [rawCoaching, rawQuickQuizzes, db, mounted, isUserLoading]);
 
   const filteredResults = useMemo(() => {
+    if (!Array.isArray(computedResults)) return [];
     return computedResults.filter(r => r && r.filterType === activeTab);
   }, [computedResults, activeTab]);
 
@@ -197,7 +198,7 @@ export default function HistoryPage() {
     }
   };
 
-  if (isUserLoading || isLoadingCoaching || isLoadingQuizzes || isComputing || !mounted) {
+  if (!mounted || isUserLoading || isLoadingCoaching || isLoadingQuizzes || isComputing) {
     return <div className="min-h-[70vh] flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
