@@ -20,6 +20,7 @@ export interface PracticeFilters {
   domain?: string;
   approach?: string;
   difficulty?: string;
+  sourceType?: 'matrix' | 'practice' | 'exam' | 'all';
 }
 
 /**
@@ -34,14 +35,20 @@ export async function startTrainingSession(
 ) {
   if (mode === 'kill_mistake') {
     let constraints = [where('status', '==', 'wrong')];
+    
+    // Filtres par Axe (PMP)
     if (filters.domain && filters.domain !== 'all') constraints.push(where('tags.domain', '==', filters.domain));
     if (filters.approach && filters.approach !== 'all') constraints.push(where('tags.approach', '==', filters.approach));
+    
+    // Filtres par Thème d'activité (Idem Historique)
+    if (filters.sourceType && filters.sourceType !== 'all') {
+      constraints.push(where('sourceType', '==', filters.sourceType));
+    }
 
     const kmSnap = await getDocs(query(collection(db, 'users', userId, 'killMistakes'), ...constraints, limit(100)));
     const kmIds = kmSnap.docs.map(d => d.id);
     if (kmIds.length === 0) throw new Error("Aucune erreur correspondant à ces critères !");
     
-    // Fetch current question details in batches
     return fetchQuestionsByIds(db, kmIds, questionCount);
   } else {
     let questionsRef = collection(db, 'questions');
@@ -87,14 +94,13 @@ export async function fetchQuestionsByIds(db: Firestore, ids: string[], count: n
 
 /**
  * Soumet une réponse et met à jour la base Kill Mistake.
- * Note: On ne stocke plus le score ou l'explication dans la tentative.
  */
 export async function submitPracticeAnswer(
   db: Firestore,
   userId: string,
   questionId: string,
   selectedChoiceIds: string | string[],
-  context: "training" | "exam" = "training"
+  context: "training" | "exam" | "matrix" = "training"
 ) {
   const qDoc = await getDoc(doc(db, 'questions', questionId));
   if (!qDoc.exists()) throw new Error("Question non trouvée");
@@ -102,39 +108,33 @@ export async function submitPracticeAnswer(
   const qData = qDoc.data();
   const userChoices = (Array.isArray(selectedChoiceIds) ? selectedChoiceIds : [selectedChoiceIds]).map(id => String(id));
   
-  // Robust correct IDs mapping (handle legacy correctChoice and numeric types)
-  const correctOptionIds = (qData.correctOptionIds || [qData.correctChoice || "1"]).map((id: any) => String(id));
+  const correctOptionIds = (qData.correctOptionIds || [String(qData.correctChoice || "1")]).map(id => String(id));
 
   const isCorrect = userChoices.length === correctOptionIds.length && 
                     userChoices.every(id => correctOptionIds.includes(id));
 
-  // Log minimal attempt
-  const attemptRef = doc(collection(db, 'users', userId, 'attempts'));
-  setDoc(attemptRef, {
-    questionId,
-    selectedChoiceIds: userChoices,
-    context,
-    answeredAt: serverTimestamp()
-  }).catch(() => {});
-
-  // Update KillMistakes (Base de données dynamique)
+  // Update KillMistakes
   const kmRef = doc(db, 'users', userId, 'killMistakes', questionId);
+  const sourceType = context === 'matrix' ? 'matrix' : context === 'exam' ? 'exam' : 'practice';
+
   if (!isCorrect) {
-    setDoc(kmRef, {
+    await setDoc(kmRef, {
       status: 'wrong',
       wrongCount: increment(1),
       lastWrongAt: serverTimestamp(),
       questionId,
       lastSelectedChoiceIds: userChoices,
-      tags: qData.tags || {}
-    }, { merge: true }).catch(() => {});
+      tags: qData.tags || {},
+      sourceType // On enregistre le thème de l'erreur
+    }, { merge: true });
   } else {
-    setDoc(kmRef, {
+    await setDoc(kmRef, {
       status: 'corrected',
       lastCorrectAt: serverTimestamp(),
       questionId,
-      tags: qData.tags || {}
-    }, { merge: true }).catch(() => {});
+      tags: qData.tags || {},
+      // On ne change pas le sourceType initial s'il existe déjà
+    }, { merge: true });
   }
 
   return { 

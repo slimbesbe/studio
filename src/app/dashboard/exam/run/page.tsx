@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, Suspense, useCallback } from 'react';
 import { useUser, useFirestore } from '@/firebase';
-import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, setDoc, increment } from 'firebase/firestore';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
@@ -109,7 +109,6 @@ function ExamRunContent() {
 
   const SECTION_SIZE = 60;
 
-  // Persistence logic
   const triggerSave = useCallback((override?: Partial<any>) => {
     if (!user || !examId) return;
     
@@ -184,7 +183,6 @@ function ExamRunContent() {
       timer = setInterval(() => {
         setTimeLeft(prev => {
           const next = prev - 1;
-          // Sauvegarde automatique du temps toutes les 30 secondes
           if (next > 0 && next % 30 === 0) triggerSave({ timeLeft: next });
           return next;
         });
@@ -194,30 +192,6 @@ function ExamRunContent() {
     }
     return () => clearInterval(timer);
   }, [viewMode, isPaused, timeLeft, result, isLoading, questions.length, triggerSave]);
-
-  useEffect(() => {
-    let timer: any;
-    if (viewMode === 'break' && breakTimeLeft > 0) {
-      timer = setInterval(() => setBreakTimeLeft(prev => prev - 1), 1000);
-    } else if (breakTimeLeft === 0 && viewMode === 'break') {
-      startNextSection();
-    }
-    return () => clearInterval(timer);
-  }, [viewMode, breakTimeLeft]);
-
-  const formatMMSS = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
-
-  const { start: sectionStart, end: sectionEnd } = useMemo(() => {
-    const start = (currentSection - 1) * SECTION_SIZE;
-    const end = Math.min(currentSection * SECTION_SIZE - 1, questions.length - 1);
-    return { start, end };
-  }, [currentSection, questions.length]);
-
-  const currentSectionQuestions = useMemo(() => questions.slice(sectionStart, sectionEnd + 1), [questions, sectionStart, sectionEnd]);
 
   const toggleFlag = () => {
     const qId = questions[currentIndex].id;
@@ -238,20 +212,6 @@ function ExamRunContent() {
     triggerSave({ answers: nextAnswers });
   };
 
-  const startNextSection = () => {
-    if (currentSection < 3) {
-      const nextIdx = currentSection * SECTION_SIZE;
-      if (nextIdx < questions.length) {
-        const nextSec = currentSection + 1;
-        setCurrentSection(nextSec);
-        setCurrentIndex(nextIdx);
-        setViewMode('question');
-        setBreakTimeLeft(10 * 60);
-        triggerSave({ currentIndex: nextIdx, currentSection: nextSec });
-      } else { finishExam(); }
-    } else { finishExam(); }
-  };
-
   const finishExam = async () => {
     if (isSubmitting || questions.length === 0) return;
     setIsSubmitting(true);
@@ -259,12 +219,14 @@ function ExamRunContent() {
     let correct = 0;
     const domainStats: Record<string, { correct: number, total: number }> = { 'People': { correct: 0, total: 0 }, 'Process': { correct: 0, total: 0 }, 'Business': { correct: 0, total: 0 } };
     const approachStats: Record<string, { correct: number, total: number }> = { 'Predictive': { correct: 0, total: 0 }, 'Agile': { correct: 0, total: 0 }, 'Hybrid': { correct: 0, total: 0 } };
-    
-    const minimalResponses: any[] = [];
+    const responses: any[] = [];
+
+    // CRITICAL: Update Kill Mistake database with Exam results
+    const batch = writeBatch(db);
 
     questions.forEach(q => {
-      const correctIds = q.correctOptionIds || [String(q.correctChoice || "1")];
-      const userChoices = answers[q.id] || [];
+      const correctIds = (q.correctOptionIds || [String(q.correctChoice || "1")]).map(id => String(id));
+      const userChoices = (answers[q.id] || []).map(id => String(id));
       const isUserCorrect = userChoices.length === correctIds.length && userChoices.every(id => correctIds.includes(id));
       
       if (isUserCorrect) correct++;
@@ -275,46 +237,55 @@ function ExamRunContent() {
       const approach = q.tags?.approach || 'Predictive';
       if (approachStats[approach]) { approachStats[approach].total++; if (isUserCorrect) approachStats[approach].correct++; }
 
-      minimalResponses.push({
-        questionId: q.id,
-        userChoices
-      });
+      responses.push({ questionId: q.id, userChoices, isCorrect: isUserCorrect, tags: q.tags || {} });
+
+      // Kill Mistake sync
+      const kmRef = doc(db, 'users', user!.uid, 'killMistakes', q.id);
+      if (!isUserCorrect && userChoices.length > 0) {
+        setDoc(kmRef, {
+          status: 'wrong',
+          wrongCount: increment(1),
+          lastWrongAt: serverTimestamp(),
+          questionId: q.id,
+          lastSelectedChoiceIds: userChoices,
+          tags: q.tags || {},
+          sourceType: 'exam' // IDENTIFICATION DU THEME
+        }, { merge: true });
+      } else if (isUserCorrect) {
+        setDoc(kmRef, {
+          status: 'corrected',
+          lastCorrectAt: serverTimestamp(),
+          questionId: q.id,
+          tags: q.tags || {}
+        }, { merge: true });
+      }
     });
 
     const percent = Math.round((correct / questions.length) * 100);
     const finalData = {
-      examId, 
-      userId: user?.uid, 
-      durationSec: totalTime - timeLeft, 
-      submittedAt: serverTimestamp(), 
-      responses: minimalResponses
+      examId, userId: user?.uid, scorePercent: percent, correctCount: correct, totalQuestions: questions.length,
+      durationSec: totalTime - timeLeft, submittedAt: serverTimestamp(), responses,
+      domainBreakdown: domainStats, approachBreakdown: approachStats
     };
 
-    const resultData = {
-      ...finalData,
-      scorePercent: percent,
-      correctCount: correct,
-      totalQuestions: questions.length,
-      domainBreakdown: domainStats,
-      approachBreakdown: approachStats
-    };
-
-    setResult(resultData);
-    setViewMode('result');
-
-    // Clean up state and save result
-    if (user) clearExamState(db, user.uid);
-    
-    addDoc(collection(db, 'coachingAttempts'), finalData)
-      .then(() => {
-        logActivity(db, user!.uid, 'exam_completed', { examId, score: percent });
-      })
-      .finally(() => {
-        setIsSubmitting(false);
-      });
+    try {
+      await addDoc(collection(db, 'coachingAttempts'), finalData);
+      if (user) clearExamState(db, user.uid);
+      setResult(finalData);
+      setViewMode('result');
+      logActivity(db, user!.uid, 'exam_completed', { examId, score: percent });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Erreur sauvegarde" });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  if (isLoading) return <div className="h-full w-full flex items-center justify-center"><Loader2 className="animate-spin h-[8vh] w-[8vh] text-primary" /></div>;
+  const formatMMSS = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
 
   if (viewMode === 'result' && result) {
     return (
@@ -336,80 +307,10 @@ function ExamRunContent() {
                 <p className="text-[5vh] font-black italic text-slate-800 tracking-tighter">{Math.ceil(result.durationSec / 60)}m</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-[4vh] flex-none">
-              <div className="space-y-[2vh]">
-                <h3 className="text-[1.5vh] font-black italic uppercase tracking-tight flex items-center gap-2"><Layers className="h-[2vh] w-[2vh] text-[#1d4ed8]" /> Domains</h3>
-                {Object.entries(result.domainBreakdown || {}).map(([domain, data]: any) => {
-                  const dScore = data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0;
-                  return (
-                    <div key={domain} className="space-y-[0.5vh]">
-                      <div className="flex justify-between text-[1.1vh] font-black uppercase italic text-slate-500"><span>{domain}</span><span>{dScore}%</span></div>
-                      <Progress value={dScore} className="h-[1vh]" />
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="space-y-[2vh]">
-                <h3 className="text-[1.5vh] font-black italic uppercase tracking-tight flex items-center gap-2"><Globe className="h-[2vh] w-[2vh] text-orange-500" /> Approaches</h3>
-                <div className="grid grid-cols-3 gap-[1vh]">
-                  {Object.entries(result.approachBreakdown || {}).map(([app, data]: any) => (
-                    <div key={app} className="bg-slate-50 p-[1.5vh] rounded-xl border-2 border-dashed border-slate-200 text-center">
-                      <p className="text-[0.8vh] font-black text-slate-400 uppercase">{app === 'Predictive' ? 'Waterfall' : app}</p>
-                      <p className="text-[2vh] font-black italic text-slate-800">{data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0}%</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
           </div>
           <div className="flex-none p-[3vh] border-t-2 border-dashed flex gap-[2vh] bg-slate-50">
             <Button variant="outline" className="flex-1 h-8vh rounded-2xl border-4 font-black uppercase text-[1.5vh]" asChild><Link href="/dashboard/history">HISTORIQUE</Link></Button>
             <Button className="flex-1 h-8vh rounded-2xl bg-[#1d4ed8] font-black uppercase text-[1.5vh] shadow-xl" asChild><Link href="/dashboard">TABLEAU DE BORD</Link></Button>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
-  if (viewMode === 'break') {
-    return (
-      <div className="h-full w-full bg-slate-50 flex items-center justify-center p-[4vh]">
-        <Card className="max-w-[60vh] w-full rounded-[4vh] shadow-2xl p-[6vh] text-center space-y-[4vh] bg-white border-t-8 border-t-emerald-500 flex flex-col items-center">
-          <div className="bg-emerald-50 h-[12vh] w-[12vh] rounded-[3vh] flex items-center justify-center shadow-inner"><Clock className="h-[6vh] w-[6vh] text-emerald-600" /></div>
-          <div className="space-y-[1vh]"><h2 className="text-[4vh] font-black italic uppercase text-emerald-600">Break</h2><p className="text-[1.8vh] font-bold text-slate-500 italic">10 minutes rest period.</p></div>
-          <div className="text-[8vh] font-black italic tabular-nums text-slate-800 bg-slate-50 w-full py-[4vh] rounded-3xl border-2 border-dashed border-emerald-100">{formatMMSS(breakTimeLeft)}</div>
-          <Button onClick={startNextSection} className="h-8vh w-full rounded-2xl bg-emerald-600 font-black uppercase text-[2vh] shadow-xl">RESUME NOW</Button>
-        </Card>
-      </div>
-    );
-  }
-
-  if (viewMode === 'review') {
-    return (
-      <div className="h-full w-full bg-slate-50 p-[4vh] overflow-hidden flex flex-col animate-fade-in gap-[4vh]">
-        <div className="text-center flex-none"><h1 className="text-[4vh] font-black italic uppercase text-primary">Review Section {currentSection}</h1></div>
-        <Card className="flex-1 rounded-[4vh] shadow-2xl border-none bg-white p-[4vh] flex flex-col min-h-0">
-          <div className="flex-1 overflow-y-auto grid grid-cols-10 gap-[1vh] content-start custom-scrollbar">
-            {currentSectionQuestions.map((q, idx) => {
-              const globalIdx = sectionStart + idx;
-              const isAnswered = (answers[q.id]?.length || 0) > 0;
-              const isFlagged = flagged[q.id];
-              return (
-                <button key={q.id} onClick={() => { setCurrentIndex(globalIdx); setViewMode('question'); }} className={cn("aspect-square rounded-xl font-black text-[1.5vh] transition-all flex items-center justify-center relative border-2", isFlagged ? "bg-amber-100 border-amber-400 text-amber-700" : isAnswered ? "bg-primary/10 border-primary/20 text-primary" : "bg-white text-slate-300 border-slate-100")}>
-                  {globalIdx + 1}{isFlagged && <Flag className="absolute -top-1 -right-1 w-[1.2vh] h-[1.2vh] text-amber-600 fill-current" />}
-                </button>
-              );
-            })}
-          </div>
-          <div className="flex-none flex flex-col sm:flex-row gap-[2vh] pt-[4vh]">
-            <Button variant="outline" className="flex-1 h-8vh rounded-2xl border-4 font-black uppercase text-[1.5vh]" onClick={() => setViewMode('question')}>BACK TO QUESTIONS</Button>
-            <Button 
-              className="flex-1 h-8vh rounded-2xl bg-red-600 font-black uppercase text-[1.5vh] shadow-xl text-white" 
-              onClick={currentSection < 3 && (currentSection * SECTION_SIZE < questions.length) ? () => setViewMode('break') : finishExam}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? <Loader2 className="animate-spin h-[3vh] w-[3vh]" /> : (currentSection < 3 && (currentSection * SECTION_SIZE < questions.length) ? "FINISH & BREAK" : "FINISH EXAM")}
-            </Button>
           </div>
         </Card>
       </div>
@@ -422,11 +323,10 @@ function ExamRunContent() {
 
   return (
     <div className="h-full w-full bg-slate-50 flex flex-col overflow-hidden relative">
-      {/* HEADER : VH BASED */}
       <header className="flex-none bg-black text-white px-[4vw] py-[1.5vh] flex items-center justify-between shadow-xl z-50 h-[8vh]">
         <div className="flex items-center gap-[1vw]">
-          <Button variant="ghost" size="sm" onClick={() => { setIsPaused(true); triggerSave(); }} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-[5vh] px-[2vw] text-[1.2vh]"><Pause className="h-[1.5vh] w-[1.5vh] mr-2" /> Pause</Button>
-          <Button variant="ghost" size="sm" onClick={() => setShowCalculator(true)} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-[5vh] px-[2vw] text-[1.2vh]"><CalcIcon className="h-[1.5vh] w-[1.5vh] mr-2" /> Calculator</Button>
+          <Button variant="ghost" onClick={() => setIsPaused(true)} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-[5vh] px-[2vw] text-[1.2vh]"><Pause className="h-[1.5vh] w-[1.5vh] mr-2" /> Pause</Button>
+          <Button variant="ghost" onClick={() => setShowCalculator(true)} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-[5vh] px-[2vw] text-[1.2vh]"><CalcIcon className="h-[1.5vh] w-[1.5vh] mr-2" /> Calculator</Button>
         </div>
         <div className="text-center font-black italic uppercase tracking-widest text-[clamp(0.8rem,2vh,1.5rem)]">Question {currentIndex + 1} of {questions.length}</div>
         <div className="flex items-center gap-[2vw]">
@@ -437,37 +337,20 @@ function ExamRunContent() {
         </div>
       </header>
 
-      {/* MAIN CONTENT : STRETCHED */}
       <main className="flex-1 p-[2vh] flex flex-col min-h-0 w-full max-w-[1200px] mx-auto gap-[1.5vh]">
-        <div className="flex-none space-y-[0.5vh]">
-          <Progress value={progressPercent} className="h-[0.8vh] rounded-full" />
-          <div className="flex justify-between text-[1vh] font-black text-slate-400 uppercase tracking-widest italic">
-            <span>Section {currentSection} / 3</span><span>{Math.round(progressPercent)}% Complété</span>
-          </div>
-        </div>
-        
+        <Progress value={progressPercent} className="h-[0.8vh] rounded-full" />
         <Card className="flex-1 rounded-[3vh] shadow-2xl border-none bg-white overflow-hidden flex flex-col min-h-0">
           <CardContent className="flex-1 overflow-y-auto p-[4vh] flex flex-col gap-[3vh] custom-scrollbar">
             <div className="flex-none space-y-[2vh]">
               {currentQuestion?.isMultipleCorrect && <Badge className="bg-indigo-100 text-indigo-600 border-none font-black italic uppercase text-[1vh] py-[0.5vh] px-[2vh]">Multiple Selection</Badge>}
               <h2 className="text-[clamp(1rem,2.2vh,1.8rem)] font-black text-slate-800 italic leading-relaxed">{currentQuestion?.text}</h2>
-              {currentQuestion?.imageUrl && (
-                <div className="rounded-[2vh] overflow-hidden border-2 border-slate-100 bg-white p-[0.5vh] flex justify-center shadow-md group relative">
-                  <img 
-                    src={currentQuestion.imageUrl} 
-                    alt="Case illustration" 
-                    className="max-h-[45vh] w-full object-contain rounded-lg transition-transform duration-300 hover:scale-[1.01]" 
-                  />
-                </div>
-              )}
             </div>
-
             <div className="grid gap-[1vh] flex-none">
               {currentQuestion?.choices?.map((opt: string, idx: number) => {
                 const optId = String(idx + 1);
                 const isSelected = currentAnswers.includes(optId);
                 return (
-                  <button key={idx} onClick={() => toggleAnswer(currentQuestion.id, optId, currentQuestion.isMultipleCorrect)} className={cn("p-[2vh] rounded-xl border-2 transition-all text-left flex items-center gap-[2vh] shadow-sm flex-shrink min-h-0", isSelected ? "border-primary bg-primary/5 scale-[1.01]" : "border-slate-100 bg-white hover:border-slate-300")}>
+                  <button key={idx} onClick={() => toggleAnswer(currentQuestion.id, optId, currentQuestion.isMultipleCorrect)} className={cn("p-[2vh] rounded-xl border-2 transition-all text-left flex items-center gap-[2vh] shadow-sm", isSelected ? "border-primary bg-primary/5 scale-[1.01]" : "border-slate-100 bg-white hover:border-slate-300")}>
                     <div className={cn("h-[4vh] w-[4vh] flex items-center justify-center font-black text-[1.5vh] shrink-0 border-2", currentQuestion.isMultipleCorrect ? "rounded-lg" : "rounded-full", isSelected ? "bg-primary text-white border-primary" : "bg-white text-slate-400")}>{String.fromCharCode(65 + idx)}</div>
                     <span className={cn("flex-1 text-[clamp(0.8rem,1.8vh,1.2rem)] font-black italic", isSelected ? "text-slate-900" : "text-slate-600")}>{opt}</span>
                   </button>
@@ -478,54 +361,21 @@ function ExamRunContent() {
         </Card>
       </main>
 
-      {/* FOOTER : VH BASED */}
       <footer className="flex-none h-[10vh] bg-white border-t-2 px-[4vw] flex items-center justify-between shadow-2xl z-40">
-        <div className="flex items-center gap-[1vw]">
-          <Button variant="outline" className="h-[6vh] px-[2vw] rounded-xl border-2 font-black uppercase text-[1.2vh] italic" onClick={() => { const next = Math.max(0, currentIndex - 1); setCurrentIndex(next); triggerSave({ currentIndex: next }); }} disabled={currentIndex === sectionStart}><ChevronLeft className="mr-2 h-[1.5vh] w-[1.5vh]" /> Previous</Button>
-          <Button variant="outline" onClick={() => setShowNavigator(!showNavigator)} className="h-[6vh] px-[2vw] rounded-xl border-2 font-black uppercase text-[1.2vh] italic"><LayoutGrid className="mr-2 h-[1.5vh] w-[1.5vh]" /> Navigator</Button>
+        <Button variant="outline" className="h-[6vh] px-[2vw] rounded-xl border-2 font-black uppercase text-[1.2vh] italic" onClick={() => { const next = Math.max(0, currentIndex - 1); setCurrentIndex(next); triggerSave({ currentIndex: next }); }} disabled={currentIndex === 0}><ChevronLeft className="mr-2 h-[1.5vh] w-[1.5vh]" /> Previous</Button>
+        <div className="flex gap-[1vw]">
+           <Button variant="outline" onClick={() => setViewMode('review')} className="h-[6vh] px-[2vw] rounded-xl border-2 font-black uppercase text-[1.2vh] italic">Review Section</Button>
+           {currentIndex === questions.length - 1 ? (
+             <Button onClick={finishExam} disabled={isSubmitting} className="h-[6vh] px-[3vw] rounded-xl bg-red-600 text-white font-black uppercase text-[1.2vh] italic shadow-xl">Finish Exam</Button>
+           ) : (
+             <Button onClick={() => { const next = currentIndex + 1; setCurrentIndex(next); triggerSave({ currentIndex: next }); }} className="h-[6vh] px-[3vw] rounded-xl bg-primary text-white font-black uppercase text-[1.2vh] italic shadow-xl">Next <ChevronRight className="ml-2 h-4 w-4" /></Button>
+           )}
         </div>
-        {currentIndex === sectionEnd || currentIndex === questions.length - 1 ? (
-          <Button onClick={() => setViewMode('review')} className="h-[6vh] px-[3vw] rounded-xl bg-red-600 text-white font-black uppercase text-[1.2vh] italic shadow-xl">REVIEW SECTION {currentSection}</Button>
-        ) : (
-          <Button onClick={() => { const next = currentIndex + 1; setCurrentIndex(next); triggerSave({ currentIndex: next }); }} className="h-[6vh] px-[3vw] rounded-xl bg-primary text-white font-black uppercase text-[1.2vh] italic shadow-xl">Next <ChevronRight className="ml-2 h-4 w-4" /></Button>
-        )}
       </footer>
-
-      {/* NAVIGATOR OVERLAY */}
-      {showNavigator && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center pb-[12vh] px-[2vw] pointer-events-none">
-          <Card className="w-full max-w-[1000px] p-[3vh] rounded-[3vh] shadow-3xl bg-white border-4 border-primary/20 pointer-events-auto animate-slide-up h-[40vh] flex flex-col">
-            <div className="flex justify-between items-center mb-[2vh] flex-none">
-              <h3 className="text-[2vh] font-black italic uppercase text-primary">Navigator - Section {currentSection}</h3>
-              <Button variant="ghost" size="icon" onClick={() => setShowNavigator(false)} className="rounded-full h-[4vh] w-[4vh] border-2"><X className="h-[2vh] w-[2vh]" /></Button>
-            </div>
-            <div className="flex-1 overflow-y-auto grid grid-cols-10 gap-[1vh] content-start p-[1vh] custom-scrollbar">
-              {currentSectionQuestions.map((q, idx) => {
-                const globalIdx = sectionStart + idx;
-                const isAnswered = (answers[q.id]?.length || 0) > 0;
-                const isCurrent = globalIdx === currentIndex;
-                const isFlagged = flagged[q.id];
-                return (
-                  <button key={q.id} onClick={() => { setCurrentIndex(globalIdx); setShowNavigator(false); triggerSave({ currentIndex: globalIdx }); }} className={cn("aspect-square rounded-lg font-black text-[1.2vh] transition-all relative border-2 flex items-center justify-center", isCurrent ? "border-primary bg-primary text-white scale-110 z-10" : isFlagged ? "bg-amber-100 border-amber-400 text-amber-700" : isAnswered ? "bg-primary/10 border-primary/20 text-primary" : "bg-slate-50 border-slate-100 text-slate-300")}>
-                    {globalIdx + 1}{isFlagged && <Flag className="absolute -top-1 -right-1 w-[1vh] h-[1vh] text-amber-600 fill-current" />}
-                  </button>
-                );
-              })}
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {showCalculator && <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none"><div className="pointer-events-auto"><Calculator onClose={() => setShowCalculator(false)} /></div></div>}
-      {isPaused && <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center pointer-events-auto text-center space-y-[4vh] flex-col"><h2 className="text-[8vh] font-black uppercase italic text-white tracking-tighter">EXAM IN PAUSE</h2><Button onClick={() => setIsPaused(false)} className="h-[12vh] px-[8vw] rounded-[3vh] bg-white text-black text-[3vh] font-black uppercase shadow-2xl hover:scale-110 transition-transform">RESUME</Button></div>}
     </div>
   );
 }
 
 export default function ExamRunPage() {
-  return (
-    <Suspense fallback={<div className="h-full w-full flex items-center justify-center"><Loader2 className="animate-spin h-[8vh] w-[8vh] text-primary" /></div>}>
-      <ExamRunContent />
-    </Suspense>
-  );
+  return <Suspense fallback={<Loader2 className="animate-spin" />}><ExamRunContent /></Suspense>;
 }
