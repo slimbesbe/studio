@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useMemo, Suspense } from 'react';
+import { useState, useMemo, Suspense, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, orderBy, deleteDoc, doc, limit, getDocs, writeBatch } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
@@ -18,7 +19,9 @@ import {
   ChevronLeft,
   Filter,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  BookOpen,
+  Trophy
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -30,16 +33,28 @@ import { useToast } from '@/hooks/use-toast';
 import { ImportQuestionsModal } from '@/components/admin/ImportQuestionsModal';
 import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
+import { useSearchParams } from 'next/navigation';
 
 function QuestionsList() {
   const { profile } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  
+  // Detection du type (practice ou exams)
+  const contextType = searchParams.get('type') || 'all';
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filterExam, setFilterExam] = useState('all');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
-  // States pour réinitialisation
+  // Initialisation du filtre selon le contexte
+  useEffect(() => {
+    if (contextType === 'practice') setFilterExam('general');
+    else if (contextType === 'exams') setFilterExam('exam1');
+    else setFilterExam('all');
+  }, [contextType]);
+
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [securityCode, setSecurityCode] = useState('');
   const [userInputCode, setUserInputCode] = useState('');
@@ -61,9 +76,18 @@ function QuestionsList() {
       const codeMatch = (q.questionCode || '').toLowerCase().includes(searchTerm.toLowerCase());
       
       const sources = q.sourceIds || [];
-      const matchExam = filterExam === 'all' || 
-                       sources.includes(filterExam) || 
-                       (filterExam === 'general' && (!q.examId || q.examId === 'general'));
+      
+      // Filtrage complexe
+      let matchExam = false;
+      if (filterExam === 'all') {
+        matchExam = true;
+      } else if (filterExam === 'exams_only') {
+        matchExam = sources.some(s => s.startsWith('exam'));
+      } else if (filterExam === 'general') {
+        matchExam = sources.includes('general') || (!q.examId && (!q.sourceIds || q.sourceIds.length === 0));
+      } else {
+        matchExam = sources.includes(filterExam);
+      }
       
       return (textMatch || codeMatch) && matchExam;
     });
@@ -131,28 +155,42 @@ function QuestionsList() {
 
   if (!isAdmin) return null;
 
+  const getPageTitle = () => {
+    if (contextType === 'practice') return "Banque Pratique Libre";
+    if (contextType === 'exams') return "Banque Simulations d'Examen";
+    return "Banque Centrale de Questions";
+  };
+
+  const getPageIcon = () => {
+    if (contextType === 'practice') return <BookOpen className="h-8 w-8 text-emerald-600" />;
+    if (contextType === 'exams') return <Trophy className="h-8 w-8 text-primary" />;
+    return <BookCopy className="h-8 w-8 text-primary" />;
+  };
+
   return (
     <div className="space-y-8 animate-fade-in p-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild className="h-14 w-14 rounded-2xl border-2"><Link href="/admin/dashboard"><ChevronLeft className="h-6 w-6" /></Link></Button>
+          <Button variant="ghost" size="icon" asChild className="h-14 w-14 rounded-2xl border-2"><Link href="/admin/content-config"><ChevronLeft className="h-6 w-6" /></Link></Button>
           <div>
             <h1 className="text-3xl font-black italic uppercase tracking-tighter text-primary flex items-center gap-3">
-              <BookCopy className="h-8 w-8" /> Banque de Questions
+              {getPageIcon()} {getPageTitle()}
             </h1>
-            <p className="text-muted-foreground mt-1 uppercase tracking-widest text-[10px] font-bold italic">Gérez séparément les questions de pratique et d'examens.</p>
+            <p className="text-muted-foreground mt-1 uppercase tracking-widest text-[10px] font-bold italic">
+              {contextType === 'practice' ? 'Questions pour la Matrice et l\'entraînement.' : 'Questions réservées aux simulations 1 à 5.'}
+            </p>
           </div>
         </div>
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" onClick={downloadTemplate} className="h-14 px-6 rounded-2xl font-black uppercase tracking-widest text-xs italic border-2 hover:bg-slate-50">
             <Download className="mr-2 h-4 w-4" /> Modèle
           </Button>
-          <Button variant="outline" onClick={handleOpenReset} className="h-14 px-6 rounded-2xl font-black uppercase text-xs italic border-2 text-destructive border-destructive/20 hover:bg-destructive/5"><Trash2 className="mr-2 h-4 w-4" /> Vider la banque</Button>
+          <Button variant="outline" onClick={handleOpenReset} className="h-14 px-6 rounded-2xl font-black uppercase text-xs italic border-2 text-destructive border-destructive/20 hover:bg-destructive/5"><Trash2 className="mr-2 h-4 w-4" /> Vider base</Button>
           <Button onClick={() => setIsImportModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 h-14 px-8 rounded-2xl font-black uppercase tracking-widest shadow-xl transition-transform">
-            <Upload className="mr-2 h-5 w-5" /> Importer Excel
+            <Upload className="mr-2 h-5 w-5" /> Importer
           </Button>
           <Button asChild className="bg-primary h-14 px-8 rounded-2xl font-black uppercase tracking-widest shadow-xl transition-transform">
-            <Link href="/admin/manage-question/general/new"><Plus className="mr-2 h-5 w-5" /> Créer</Link>
+            <Link href={`/admin/manage-question/${filterExam === 'all' || filterExam === 'exams_only' ? 'general' : filterExam}/new`}><Plus className="mr-2 h-5 w-5" /> Créer</Link>
           </Button>
         </div>
       </div>
@@ -172,17 +210,18 @@ function QuestionsList() {
             <SelectTrigger className="h-16 rounded-[24px] border-2 font-black italic shadow-sm bg-white">
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-primary" />
-                <SelectValue placeholder="Toutes les bases" />
+                <SelectValue placeholder="Choisir une base" />
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Toutes les questions</SelectItem>
+              {contextType === 'all' && <SelectItem value="all">Toutes les questions</SelectItem>}
               <SelectItem value="general">Pratique Libre</SelectItem>
-              <SelectItem value="exam1">Simulation Examen 1</SelectItem>
-              <SelectItem value="exam2">Simulation Examen 2</SelectItem>
-              <SelectItem value="exam3">Simulation Examen 3</SelectItem>
-              <SelectItem value="exam4">Simulation Examen 4</SelectItem>
-              <SelectItem value="exam5">Simulation Examen 5</SelectItem>
+              <SelectItem value="exams_only">Toutes les Simulations</SelectItem>
+              <SelectItem value="exam1">Examen 1</SelectItem>
+              <SelectItem value="exam2">Examen 2</SelectItem>
+              <SelectItem value="exam3">Examen 3</SelectItem>
+              <SelectItem value="exam4">Examen 4</SelectItem>
+              <SelectItem value="exam5">Examen 5</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -200,10 +239,12 @@ function QuestionsList() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredQuestions.map((q) => (
+              {filteredQuestions.length === 0 ? (
+                <TableRow><TableCell colSpan={4} className="h-64 text-center font-black uppercase italic tracking-widest text-slate-300">Aucune question dans ce filtre.</TableCell></TableRow>
+              ) : filteredQuestions.map((q) => (
                 <TableRow key={q.id} className="h-24 hover:bg-slate-50 transition-all border-b last:border-0 group">
                   <TableCell className="px-10">
-                    <span className="font-mono font-black text-primary text-xs bg-primary/5 px-2 py-1 rounded-lg border border-primary/10">
+                    <span className="font-mono font-black text-primary text-[10px] bg-primary/5 px-2 py-1 rounded-lg border border-primary/10">
                       {q.questionCode || '---'}
                     </span>
                   </TableCell>
@@ -221,6 +262,9 @@ function QuestionsList() {
                           {s === 'general' ? 'PRATIQUE' : s.replace('exam', 'E')}
                         </Badge>
                       ))}
+                      {(q.sourceIds || []).length === 0 && (
+                        <Badge className="text-[7px] font-black uppercase italic py-0 border-none bg-slate-100 text-slate-400">NON CLASSÉ</Badge>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="text-right px-10">
@@ -243,7 +287,7 @@ function QuestionsList() {
       <ImportQuestionsModal 
         isOpen={isImportModalOpen} 
         onClose={() => setIsImportModalOpen(false)} 
-        examId={filterExam !== 'all' ? filterExam : 'general'} 
+        examId={filterExam !== 'all' && filterExam !== 'exams_only' ? filterExam : 'general'} 
       />
 
       <Dialog open={isResetModalOpen} onOpenChange={(val) => !isResetting && setIsResetModalOpen(val)}>

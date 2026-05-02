@@ -13,7 +13,9 @@ import {
   ChevronLeft,
   ShieldCheck,
   RotateCcw,
-  LayoutGrid
+  LayoutGrid,
+  Trophy,
+  BookOpen
 } from 'lucide-react';
 import Link from 'next/link';
 import { useUser } from '@/firebase';
@@ -39,6 +41,24 @@ const CONFIG_SECTIONS = [
     tag: 'Algorithme'
   },
   {
+    id: 'practice_questions',
+    title: 'Base Pratique Libre',
+    description: 'Gérez les questions pour les entraînements libres et les sprints thématiques.',
+    icon: BookOpen,
+    href: '/admin/questions?type=practice',
+    color: 'bg-emerald-600',
+    tag: 'Entraînement'
+  },
+  {
+    id: 'exam_questions',
+    title: 'Simulations d\'Examen',
+    description: 'Configurez les questions exclusives aux 5 examens blancs officiels.',
+    icon: Trophy,
+    href: '/admin/questions?type=exams',
+    color: 'bg-primary',
+    tag: 'Certification'
+  },
+  {
     id: 'approaches',
     title: 'Vision Approches',
     description: 'Waterfall, Agile, Hybride : Focus, Jargon et Quiz par approche.',
@@ -53,17 +73,8 @@ const CONFIG_SECTIONS = [
     description: 'People, Process et Business : Configuration des 3 piliers.',
     icon: Layers,
     href: '/admin/content-config/domains',
-    color: 'bg-emerald-500',
+    color: 'bg-indigo-400',
     tag: 'Concepts'
-  },
-  {
-    id: 'questions',
-    title: 'Banque de Questions',
-    description: 'Contrôlez les questions pour la Matrice Magique et la Pratique Libre.',
-    icon: BookCopy,
-    href: '/admin/questions',
-    color: 'bg-primary',
-    tag: 'Entraînement'
   }
 ];
 
@@ -81,7 +92,7 @@ export default function ContentConfigHub() {
           <h1 className="text-4xl font-black italic uppercase tracking-tighter text-primary flex items-center gap-4">
             <Settings2 className="h-10 w-10 text-accent" /> Configuration Contenu
           </h1>
-          <p className="text-muted-foreground mt-1 uppercase tracking-widest text-xs font-bold italic">Pilotez chaque mot de votre plateforme de coaching.</p>
+          <p className="text-muted-foreground mt-1 uppercase tracking-widest text-xs font-bold italic">Séparez vos banques de questions et gérez vos concepts.</p>
         </div>
       </div>
 
@@ -98,13 +109,13 @@ export default function ContentConfigHub() {
                   {section.tag}
                 </span>
               </div>
-              <CardTitle className="text-2xl font-black italic uppercase tracking-tight text-slate-900">{section.title}</CardTitle>
+              <CardTitle className="text-2xl font-black italic uppercase tracking-tight text-slate-900 leading-tight">{section.title}</CardTitle>
             </CardHeader>
             <CardContent className="p-10 pt-0 space-y-8">
               <p className="text-slate-500 font-bold italic text-sm leading-relaxed min-h-[60px]">
                 {section.description}
               </p>
-              <Button asChild className={cn("w-full h-16 rounded-[24px] font-black uppercase tracking-widest text-xs italic shadow-xl group-hover:shadow-2xl transition-all", section.id === 'questions' ? 'bg-primary' : 'bg-slate-900')}>
+              <Button asChild className={cn("w-full h-16 rounded-[24px] font-black uppercase tracking-widest text-xs italic shadow-xl group-hover:shadow-2xl transition-all", section.id.includes('questions') ? section.color : 'bg-slate-900')}>
                 <Link href={section.href} className="flex items-center justify-center gap-3">
                   Gérer cette section <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-2" />
                 </Link>
@@ -117,19 +128,19 @@ export default function ContentConfigHub() {
       <div className="pt-10 space-y-6">
         <div className="flex items-center gap-3 px-2">
           <ShieldCheck className="h-5 w-5 text-emerald-500" />
-          <h3 className="font-black uppercase italic tracking-widest text-slate-400 text-sm">Aide à la Maintenance</h3>
+          <h3 className="font-black uppercase italic tracking-widest text-slate-400 text-sm">Séparation des Flux</h3>
         </div>
         
         <Card className="rounded-[40px] border-4 border-dashed border-slate-200 bg-slate-50 overflow-hidden">
           <CardContent className="p-10">
             <div className="flex flex-col md:flex-row items-center gap-8">
               <div className="bg-white p-6 rounded-3xl shadow-sm border-2 border-slate-100">
-                <RotateCcw className="h-10 w-10 text-primary" />
+                <BookCopy className="h-10 w-10 text-primary" />
               </div>
               <div className="space-y-2 text-center md:text-left">
-                <h4 className="text-xl font-black uppercase italic text-slate-800 tracking-tight">Gestion des réinitialisations</h4>
+                <h4 className="text-xl font-black uppercase italic text-slate-800 tracking-tight">Architecture Étanche</h4>
                 <p className="text-sm font-bold text-slate-500 italic max-w-2xl leading-relaxed">
-                  Pour vider le contenu d'une section ou d'un onglet spécifique (ex: Matrice ou Mindsets), rendez-vous directement dans la section concernée. Des boutons de maintenance ciblés y sont disponibles.
+                  Le système distingue désormais les questions de <strong>Pratique Libre</strong> (accessibles via la Matrice et l'entraînement) des questions de <strong>Simulations d'Examen</strong>. Une question peut toutefois appartenir aux deux banques si vous cochez les sources correspondantes lors de l'édition.
                 </p>
               </div>
             </div>
