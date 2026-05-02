@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
@@ -194,7 +193,7 @@ export default function SimulationReviewPage() {
               </div>
               <Badge className={cn(
                 "font-black italic px-6 py-2 rounded-xl text-white shadow-lg",
-                currentQ?.isCorrect ? "bg-emerald-50" : "bg-red-50"
+                currentQ?.isCorrect ? "bg-emerald-500" : "bg-red-500"
               )}>
                 {currentQ?.isCorrect ? "CORRECT" : "ERREUR"}
               </Badge>
@@ -211,6 +210,16 @@ export default function SimulationReviewPage() {
                     <Badge variant="secondary" className="bg-primary/5 text-primary border-none font-black italic uppercase text-[8px]">{currentQ?.tags?.approach || 'Agile'}</Badge>
                   </div>
                   <p className="text-2xl font-black text-slate-800 italic leading-relaxed">{currentQ?.text}</p>
+                  
+                  {currentQ?.imageUrl && (
+                    <div className="rounded-[2vh] overflow-hidden border-2 border-slate-100 bg-white p-1 flex justify-center shadow-md">
+                      <img 
+                        src={currentQ.imageUrl} 
+                        alt="Question illustration" 
+                        className="max-h-[40vh] w-full object-contain rounded-lg"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid gap-4">

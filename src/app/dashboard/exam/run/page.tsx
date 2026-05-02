@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, Suspense, useCallback } from 'react';
 import { useUser, useFirestore } from '@/firebase';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, setDoc, increment } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, setDoc, increment, writeBatch } from 'firebase/firestore';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
@@ -221,7 +221,6 @@ function ExamRunContent() {
     const approachStats: Record<string, { correct: number, total: number }> = { 'Predictive': { correct: 0, total: 0 }, 'Agile': { correct: 0, total: 0 }, 'Hybrid': { correct: 0, total: 0 } };
     const responses: any[] = [];
 
-    // CRITICAL: Update Kill Mistake database with Exam results
     const batch = writeBatch(db);
 
     questions.forEach(q => {
@@ -239,20 +238,19 @@ function ExamRunContent() {
 
       responses.push({ questionId: q.id, userChoices, isCorrect: isUserCorrect, tags: q.tags || {} });
 
-      // Kill Mistake sync
       const kmRef = doc(db, 'users', user!.uid, 'killMistakes', q.id);
       if (!isUserCorrect && userChoices.length > 0) {
-        setDoc(kmRef, {
+        batch.set(kmRef, {
           status: 'wrong',
           wrongCount: increment(1),
           lastWrongAt: serverTimestamp(),
           questionId: q.id,
           lastSelectedChoiceIds: userChoices,
           tags: q.tags || {},
-          sourceType: 'exam' // IDENTIFICATION DU THEME
+          sourceType: 'exam'
         }, { merge: true });
       } else if (isUserCorrect) {
-        setDoc(kmRef, {
+        batch.set(kmRef, {
           status: 'corrected',
           lastCorrectAt: serverTimestamp(),
           questionId: q.id,
@@ -269,6 +267,7 @@ function ExamRunContent() {
     };
 
     try {
+      await batch.commit();
       await addDoc(collection(db, 'coachingAttempts'), finalData);
       if (user) clearExamState(db, user.uid);
       setResult(finalData);
@@ -344,6 +343,16 @@ function ExamRunContent() {
             <div className="flex-none space-y-[2vh]">
               {currentQuestion?.isMultipleCorrect && <Badge className="bg-indigo-100 text-indigo-600 border-none font-black italic uppercase text-[1vh] py-[0.5vh] px-[2vh]">Multiple Selection</Badge>}
               <h2 className="text-[clamp(1rem,2.2vh,1.8rem)] font-black text-slate-800 italic leading-relaxed">{currentQuestion?.text}</h2>
+              
+              {currentQuestion?.imageUrl && (
+                <div className="rounded-[2vh] overflow-hidden border-2 border-slate-100 bg-white p-[0.5vh] flex justify-center shadow-md mt-[1vh]">
+                  <img 
+                    src={currentQuestion.imageUrl} 
+                    alt="Question Illustration" 
+                    className="max-h-[40vh] w-full object-contain rounded-lg"
+                  />
+                </div>
+              )}
             </div>
             <div className="grid gap-[1vh] flex-none">
               {currentQuestion?.choices?.map((opt: string, idx: number) => {
@@ -372,6 +381,7 @@ function ExamRunContent() {
            )}
         </div>
       </footer>
+      {showCalculator && <Calculator onClose={() => setShowCalculator(false)} />}
     </div>
   );
 }
