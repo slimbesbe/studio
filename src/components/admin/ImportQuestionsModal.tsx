@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef } from 'react';
@@ -113,27 +112,34 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general', filt
 
         json.forEach((row, index) => {
           const lineNum = index + 2;
-          const statement = row["Énoncé"] || row["ennocé"] || row["statement"] || row["text"] || row["Question"] || row["Énonce"];
-          const justification = row["justification"] || row["Justification"] || row["explanation"] || row["Rationale"] || "";
-          const correctValue = String(row["correct"] || row["Correct"] || row["Answer"] || row["bonne reponse"] || "");
-          const code = row["Code"] || row["code question"] || row["questionCode"] || row["id"];
+          
+          // Mapping flexible des colonnes (incluant le nouveau format)
+          const statement = row["Scénario / Question"] || row["Énoncé"] || row["ennocé"] || row["statement"] || row["text"] || row["Question"] || row["Énonce"];
+          const justification = row["Justification"] || row["justification"] || row["explanation"] || row["Rationale"] || "";
+          const correctValue = String(row["Réponse Correcte"] || row["correct"] || row["Correct"] || row["Answer"] || row["bonne reponse"] || "");
+          const code = row["Numéro"] || row["Code"] || row["code question"] || row["questionCode"] || row["id"];
           
           if (!statement) {
             parseErrors.push({ line: lineNum, msg: "Énoncé manquant." });
             return;
           }
 
+          // Détection des options (format Option A, Option B... ou option1, option2...)
           const options: { id: string, text: string }[] = [];
-          for (let i = 1; i <= 5; i++) {
-            const optVal = row[`option ${i}`] || row[`option${i}`] || row[`choice${i}`] || row[`opt${i}`] || row[`Choix${i}`] || row[`Choix ${i}`];
-            if (optVal) options.push({ id: String(i), text: String(optVal) });
-          }
+          ['A', 'B', 'C', 'D', 'E'].forEach((letter, i) => {
+            const optKey = `Option ${letter}`;
+            const optVal = row[optKey] || row[`option ${i+1}`] || row[`option${i+1}`] || row[`choice${i+1}`] || row[`opt${i+1}`] || row[`Choix${i+1}`] || row[`Choix ${i+1}`];
+            if (optVal) {
+              options.push({ id: String(i + 1), text: String(optVal) });
+            }
+          });
 
           if (options.length < 2) {
             parseErrors.push({ line: lineNum, msg: "Moins de 2 options trouvées." });
             return;
           }
 
+          // Traitement de la réponse correcte (A, B, C, D -> 1, 2, 3, 4)
           const rawCorrects = correctValue.split(',').map(s => s.trim().toUpperCase());
           const mappedIds: string[] = [];
           
@@ -141,26 +147,28 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general', filt
           rawCorrects.forEach(cid => {
              if (!cid) return;
              let id = "";
+             // Si c'est une lettre A-E, on convertit
              if (['A','B','C','D','E'].includes(cid[0])) {
                id = (cid.charCodeAt(0) - 64).toString();
              } else {
+               // Sinon on prend la valeur brute (ex: "1")
                id = cid;
              }
              
              if (options.find(o => o.id === id)) mappedIds.push(id);
              else {
                isValidLine = false;
-               parseErrors.push({ line: lineNum, msg: `Réponse '${cid}' non reconnue.` });
+               parseErrors.push({ line: lineNum, msg: `Réponse '${cid}' non reconnue dans les options disponibles.` });
              }
           });
 
           if (isValidLine && mappedIds.length > 0) {
             results.push({
-              statement,
+              statement: String(statement).trim(),
               options,
               correctOptionIds: mappedIds,
               isMultipleCorrect: mappedIds.length > 1,
-              explanation: justification,
+              explanation: String(justification).trim(),
               questionCode: code ? String(code).trim() : '',
               tags: {
                 domain: normalizeTag('domain', row["Domaine"] || row["domaine"] || row["Domain"]),
@@ -196,6 +204,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general', filt
         const chunk = parsedData.slice(i, i + batchSize);
         
         chunk.forEach((q) => {
+          // Génération d'un ID stable basé sur le code ou le contenu
           const questionId = q.questionCode ? `q_${examId}_${String(q.questionCode).replace(/[^a-zA-Z0-9]/g, '_')}` : generateId(q.statement, examId);
           const qRef = doc(db, 'questions', questionId);
 
@@ -219,7 +228,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general', filt
         setProgress(Math.round(((i + chunk.length) / total) * 100));
       }
 
-      toast({ title: "Importation terminée", description: `${total} questions synchronisées.` });
+      toast({ title: "Importation terminée", description: `${total} questions synchronisées avec succès.` });
       onClose();
       setFile(null);
     } catch (e) {
@@ -238,7 +247,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general', filt
             Importation {filterType === 'domain' ? 'Domaines' : filterType === 'approach' ? 'Approches' : 'Questions'}
           </DialogTitle>
           <DialogDescription className="font-bold text-slate-500 italic uppercase text-[10px] tracking-widest mt-2">
-            Vérifiez que votre fichier contient bien la colonne {filterType === 'domain' ? '"Domaine"' : filterType === 'approach' ? '"Approche"' : '"Domaine" et "Approche"'}.
+            Format supporté : "Scénario / Question", "Option A-D", "Réponse Correcte" et "Justification".
           </DialogDescription>
         </DialogHeader>
 
@@ -249,7 +258,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general', filt
               className="border-4 border-dashed rounded-3xl p-16 text-center cursor-pointer hover:bg-slate-50 transition-all group border-slate-200 hover:border-emerald-500"
             >
               <Upload className="h-16 w-16 mx-auto text-slate-300 group-hover:text-emerald-500 mb-4 transition-transform group-hover:-translate-y-2" />
-              <p className="font-black uppercase italic text-slate-400 group-hover:text-emerald-600">Sélectionnez le fichier Excel pour {filterType === 'domain' ? 'les Domaines' : filterType === 'approach' ? 'les Approches' : 'la Pratique'}</p>
+              <p className="font-black uppercase italic text-slate-400 group-hover:text-emerald-600">Sélectionnez le fichier Excel</p>
               <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx,.xls" onChange={(e) => {
                 const f = e.target.files?.[0];
                 if (f) { setFile(f); parseFile(f); }

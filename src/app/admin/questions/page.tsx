@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, Suspense, useEffect } from 'react';
@@ -132,23 +131,24 @@ function QuestionsList() {
   };
 
   const downloadTemplate = () => {
+    // Modèle mis à jour pour correspondre à la demande utilisateur (Format Capture d'écran)
     const template = [{
-      "Code": "PMP-001",
-      "Énoncé": "Exemple de question...",
-      "option1": "Choix A",
-      "option2": "Choix B",
-      "option3": "Choix C",
-      "option4": "Choix D",
-      "Justification": "Explication PMI mindset...",
-      "correct": "C",
-      "Domaine": "People",
-      "Approche": "Agile",
+      "Numéro": "1",
+      "Domaine": "PROCESSUS",
+      "Approche": "Predictive",
+      "Scénario / Question": "Lors de la phase d'exécution d'un projet prédictif, le client vous contacte...",
+      "Option A": "Accepter la demande...",
+      "Option B": "Demander au client de soumettre une demande de changement...",
+      "Option C": "Refuser la demande...",
+      "Option D": "Mettre à jour le registre des risques...",
+      "Réponse Correcte": "B",
+      "Justification": "Toute modification du périmètre de référence dans un projet prédictif...",
       "Difficulté": "Medium"
     }];
     const ws = XLSX.utils.json_to_sheet(template);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Questions");
-    XLSX.writeFile(wb, `modele_import_${contextType}_${filterType}.xlsx`);
+    XLSX.writeFile(wb, `modele_import_simulux_${contextType}.xlsx`);
   };
 
   if (isLoading) return <div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
