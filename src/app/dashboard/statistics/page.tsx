@@ -57,14 +57,15 @@ export default function StatisticsV2Page() {
     const domains = ['People', 'Process', 'Business'];
     const performanceByDomain = domains.map(d => {
       const respForDomain = allResponses.filter(r => {
-        const domainTag = r.tags?.domain;
+        const domainTag = r?.tags?.domain;
+        if (!domainTag) return false;
         return domainTag === d || (d === 'Process' && domainTag === 'Processus') || (d === 'Business' && domainTag === 'Business Environment');
       });
       const score = respForDomain.length > 0 
         ? Math.round((respForDomain.filter(r => r.isCorrect).length / respForDomain.length) * 100)
         : 0;
       return { 
-        name: d === 'Business' ? 'Business Environment' : d, 
+        name: d === 'Business' ? 'Business Env.' : d, 
         score 
       };
     });
@@ -72,11 +73,11 @@ export default function StatisticsV2Page() {
     // 2. Performance par Approche
     const approaches = ['Predictive', 'Agile', 'Hybrid'];
     const performanceByApproach = approaches.map(a => {
-      const respForApproach = allResponses.filter(r => r.tags?.approach === a);
+      const respForApproach = allResponses.filter(r => r?.tags?.approach === a);
       const score = respForApproach.length > 0 
         ? Math.round((respForApproach.filter(r => r.isCorrect).length / respForApproach.length) * 100)
         : 0;
-      return { name: a, score };
+      return { name: a === 'Predictive' ? 'Waterfall' : a, score };
     });
 
     // 3. Radar Data (Normalisé)
@@ -91,15 +92,15 @@ export default function StatisticsV2Page() {
       { subject: 'Busi Agi', A: 0 },
       { subject: 'Busi Hyb', A: 0 },
     ].map(item => {
-      // Simulation pour le radar si pas assez de données croisées, sinon calcul réel
       const [d, a] = item.subject.split(' ');
       const dLong = d === 'Peop' ? 'People' : d === 'Proc' ? 'Process' : 'Business';
       const aLong = a === 'Pre' ? 'Predictive' : a === 'Agi' ? 'Agile' : 'Hybrid';
       
-      const match = allResponses.filter(r => 
-        (r.tags?.domain?.startsWith(dLong.substring(0,3))) && 
-        (r.tags?.approach === aLong)
-      );
+      const match = allResponses.filter(r => {
+        const rDomain = r?.tags?.domain || '';
+        const rApproach = r?.tags?.approach || '';
+        return rDomain.toLowerCase().includes(dLong.substring(0, 3).toLowerCase()) && rApproach === aLong;
+      });
       
       return {
         ...item,
@@ -109,9 +110,9 @@ export default function StatisticsV2Page() {
 
     // 4. Confiance (Simulation basée sur le temps et les erreurs)
     const confidenceData = [
-      { name: 'Sûr', value: 15, color: '#10b981' },
-      { name: 'Hésitant', value: 70, color: '#f97316' },
-      { name: 'Au hasard', value: 15, color: '#ef4444' },
+      { name: 'Maîtrisé', value: Math.max(10, avgScore - 20), color: '#10b981' },
+      { name: 'En cours', value: 100 - Math.max(10, avgScore - 20) - 15, color: '#f97316' },
+      { name: 'Faible', value: 15, color: '#ef4444' },
     ];
 
     return {
@@ -126,7 +127,7 @@ export default function StatisticsV2Page() {
   }, [rawAttempts]);
 
   if (isUserLoading || !mounted || isLoading) {
-    return <div className="h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-12 w-12 animate-spin text-indigo-600" /></div>;
+    return <div className="min-h-[70vh] flex items-center justify-center bg-slate-50"><Loader2 className="h-12 w-12 animate-spin text-indigo-600" /></div>;
   }
 
   if (!stats) {
@@ -185,8 +186,8 @@ export default function StatisticsV2Page() {
         {/* Card 2: Donut Confidence */}
         <Card className="rounded-[32px] border-none shadow-xl bg-white p-10 flex flex-col h-[500px]">
           <div className="mb-6">
-            <h3 className="text-lg font-black text-slate-900 uppercase italic tracking-tight">Confiance vs. Connaissances</h3>
-            <p className="text-[10px] font-bold text-slate-400 uppercase italic">Comment vous sentez-vous lors des questions ?</p>
+            <h3 className="text-lg font-black text-slate-900 uppercase italic tracking-tight">Indicateurs de Maîtrise</h3>
+            <p className="text-[10px] font-bold text-slate-400 uppercase italic">Distribution de votre compréhension globale</p>
           </div>
           <div className="flex-1 w-full flex flex-col items-center justify-center">
             <ResponsiveContainer width="100%" height={280}>
@@ -298,9 +299,9 @@ export default function StatisticsV2Page() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-12">
             <div className="space-y-6 flex-1 text-center md:text-left">
               <Badge className="bg-primary text-white border-none font-black uppercase italic text-[10px] py-1 px-4">Analyse du Coach</Badge>
-              <h2 className="text-4xl font-black italic uppercase tracking-tighter leading-tight">Prêt à passer au niveau supérieur ?</h2>
+              <h2 className="text-4xl font-black italic uppercase tracking-tighter leading-tight">Optimisez votre préparation</h2>
               <p className="text-slate-400 font-bold italic leading-relaxed text-lg max-w-xl">
-                Vos statistiques indiquent une maîtrise solide des processus, mais une hésitation sur le domaine <span className="text-white">Business Environment</span>. Concentrez vos prochains sprints sur ce pilier.
+                Vos statistiques indiquent vos points forts et vos axes d'amélioration. Utilisez la <span className="text-white">Matrice Magique</span> pour renforcer les domaines où votre score est inférieur à 80%.
               </p>
               <Button asChild className="h-16 px-10 rounded-2xl bg-white text-slate-900 hover:bg-slate-100 font-black uppercase tracking-widest shadow-xl scale-105 transition-transform">
                 <Link href="/dashboard/practice" className="flex items-center gap-2">S'ENTRAÎNER CIBLÉ <ArrowRight className="h-5 w-5" /></Link>

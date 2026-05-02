@@ -32,7 +32,6 @@ export default function HistoryPage() {
     setMounted(true);
   }, []);
 
-  // 1. Fetch Coaching Attempts (Exams, Matrix, Practice)
   const coachingQuery = useMemoFirebase(() => {
     if (isUserLoading || !user?.uid || !db) return null;
     return query(
@@ -43,7 +42,6 @@ export default function HistoryPage() {
 
   const { data: rawCoaching, isLoading: isLoadingCoaching } = useCollection(coachingQuery);
 
-  // 2. Fetch Quick Quiz Attempts (Concepts)
   const quickQuizQuery = useMemoFirebase(() => {
     if (isUserLoading || !user?.uid || !db) return null;
     return query(
@@ -54,20 +52,26 @@ export default function HistoryPage() {
 
   const { data: rawQuickQuizzes, isLoading: isLoadingQuizzes } = useCollection(quickQuizQuery);
 
+  const safeGetTime = (ts: any) => {
+    if (!ts) return 0;
+    const date = ts.toDate ? ts.toDate() : new Date(ts);
+    return isValid(date) ? date.getTime() : 0;
+  };
+
   useEffect(() => {
     async function computeAll() {
-      if (!rawCoaching && !rawQuickQuizzes) {
-        setIsComputing(false);
-        return;
-      }
-
+      if (!mounted || isUserLoading) return;
+      
       setIsComputing(true);
       try {
+        const coachingAttempts = rawCoaching || [];
+        const quickQuizzes = rawQuickQuizzes || [];
+        
         // Compute standard coaching attempts
-        const allQuestionIds = Array.from(new Set((rawCoaching || []).flatMap(r => r.responses?.map((resp: any) => resp.questionId) || [])));
+        const allQuestionIds = Array.from(new Set(coachingAttempts.flatMap(r => r.responses?.map((resp: any) => resp.questionId) || [])));
         const latestQuestions = allQuestionIds.length > 0 ? await fetchQuestionsByIds(db, allQuestionIds) : [];
         
-        const coachingComputed = (rawCoaching || []).map(attempt => {
+        const coachingComputed = coachingAttempts.map(attempt => {
           let correct = 0;
           const responsesCount = attempt.responses?.length || 0;
           
@@ -81,7 +85,6 @@ export default function HistoryPage() {
             }
           });
 
-          // Classification logic
           let filterType: HistoryFilter = 'practice';
           if (attempt.examId?.startsWith('exam')) filterType = 'exams';
           else if (attempt.context === 'matrix_sprint') filterType = 'matrice';
@@ -106,19 +109,20 @@ export default function HistoryPage() {
         });
 
         // Compute quick quizzes (Concepts)
-        const quizComputed = (rawQuickQuizzes || []).map(q => ({
+        const quizComputed = quickQuizzes.map(q => ({
           ...q,
           id: q.id,
           filterType: 'concepts' as const,
           scorePercent: q.score,
-          displayTitle: `Quiz : ${q.axisId.toUpperCase()}`,
+          displayTitle: `Quiz : ${String(q.axisId || 'Inconnu').toUpperCase()}`,
           submittedAt: q.submittedAt,
           durationSec: 0,
           totalQuestions: q.totalQuestions || 5,
           correctCount: q.correctCount || 0
         }));
 
-        setComputedResults([...coachingComputed, ...quizComputed].sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0)));
+        const combined = [...coachingComputed, ...quizComputed].sort((a, b) => safeGetTime(b.submittedAt) - safeGetTime(a.submittedAt));
+        setComputedResults(combined);
       } catch (e) {
         console.error("Score merge error", e);
       } finally {
@@ -126,7 +130,7 @@ export default function HistoryPage() {
       }
     }
     computeAll();
-  }, [rawCoaching, rawQuickQuizzes, db]);
+  }, [rawCoaching, rawQuickQuizzes, db, mounted, isUserLoading]);
 
   const filteredResults = useMemo(() => {
     return computedResults.filter(r => r.filterType === activeTab);
@@ -134,7 +138,12 @@ export default function HistoryPage() {
 
   const chartData = useMemo(() => {
     return [...filteredResults]
-      .filter(res => res.submittedAt && isValid(res.submittedAt?.toDate ? res.submittedAt.toDate() : new Date(res.submittedAt)))
+      .filter(res => {
+        const ts = res.submittedAt;
+        if (!ts) return false;
+        const date = ts.toDate ? ts.toDate() : new Date(ts);
+        return isValid(date);
+      })
       .reverse()
       .slice(-10)
       .map((res, i) => {
