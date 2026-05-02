@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, Suspense } from 'react';
@@ -19,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { logActivity } from '@/lib/services/logging-service';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 const MODES = [
   { id: 'domain', name: 'Par Domaine', icon: Layers, desc: 'Ciblez People, Process ou Business.' },
@@ -56,6 +58,7 @@ function PracticeContent() {
   const [selectedChoices, setSelectedChoices] = useState<string[]>([]);
   const [correction, setCorrection] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [startTime, setStartTime] = useState<number>(0);
 
   // History for post-session review
   const [sessionHistory, setSessionHistory] = useState<SessionHistoryItem[]>([]);
@@ -76,6 +79,7 @@ function PracticeContent() {
       setSessionHistory([]);
       setStep('session');
       setCurrentIndex(0);
+      setStartTime(Date.now());
       setSessionResults({ correct: 0, total: data.length });
       
       // Log practice start
@@ -97,6 +101,7 @@ function PracticeContent() {
       setSelectedChoices([]);
       setCorrection(null);
     } else {
+      await saveSessionSummary();
       setStep('summary');
     }
   };
@@ -135,6 +140,33 @@ function PracticeContent() {
       toast({ variant: "destructive", title: "Erreur lors de la correction" });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const saveSessionSummary = async () => {
+    if (isDemo || !user) return;
+    
+    const duration = Math.floor((Date.now() - startTime) / 1000);
+    const score = Math.round((sessionResults.correct / questions.length) * 100);
+
+    try {
+      await addDoc(collection(db, 'coachingAttempts'), {
+        userId: user.uid,
+        scorePercent: score,
+        correctCount: sessionResults.correct,
+        totalQuestions: questions.length,
+        durationSec: duration,
+        submittedAt: serverTimestamp(),
+        context: 'training',
+        responses: sessionHistory.map(h => ({
+          questionId: h.question.id,
+          userChoices: h.userChoices,
+          isCorrect: h.correction.isCorrect,
+          tags: h.question.tags || {}
+        }))
+      });
+    } catch (e) {
+      console.error("Failed to save practice summary", e);
     }
   };
 
@@ -219,7 +251,7 @@ function PracticeContent() {
                       q.isMultipleCorrect ? "rounded-xl" : "rounded-full",
                       isSelected ? "bg-primary text-white border-primary" : "bg-white text-slate-400",
                       correction && isCorrect ? "bg-emerald-500 text-white border-emerald-500" : "",
-                      correction && isSelected && !isCorrect ? "border-red-500 text-red-500" : ""
+                      correction && isSelected && !isCorrect ? "bg-red-500 text-red-500" : ""
                     )}>
                       {String.fromCharCode(65 + idx)}
                     </div>
