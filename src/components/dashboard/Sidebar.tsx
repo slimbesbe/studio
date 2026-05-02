@@ -76,7 +76,6 @@ export function Sidebar() {
   const isProfileAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
 
   const handleSignOut = async () => {
-    // Log logout action
     await logActivity(db, user.uid, 'logout');
     await signOut(auth);
     router.push('/');
@@ -92,9 +91,15 @@ export function Sidebar() {
     }
   };
 
-  const initials = profile?.firstName?.charAt(0) && profile?.lastName?.charAt(0)
-    ? `${profile.firstName.charAt(0)}${profile.lastName.charAt(0)}`.toUpperCase()
-    : user?.email?.charAt(0).toUpperCase() || '?';
+  // Safe initials extraction
+  const getInitials = () => {
+    if (profile?.firstName && profile?.lastName) {
+      return (profile.firstName.charAt(0) + profile.lastName.charAt(0)).toUpperCase();
+    }
+    if (profile?.firstName) return profile.firstName.charAt(0).toUpperCase();
+    if (user?.email) return user.email.charAt(0).toUpperCase();
+    return '?';
+  };
 
   return (
     <div className="flex flex-col h-full bg-white text-slate-600 w-full lg:w-64 border-r border-slate-100 shadow-[10px_0_30px_rgba(0,0,0,0.02)]">
@@ -201,7 +206,7 @@ export function Sidebar() {
       <div className="p-6 border-t border-slate-50 bg-white">
         <div className="flex items-center gap-4 mb-6">
           <div className="h-10 w-10 rounded-xl flex items-center justify-center text-white font-black bg-gradient-to-br from-primary to-accent shadow-lg italic">
-            {initials}
+            {getInitials()}
           </div>
           <div className="flex-1 overflow-hidden">
             <p className="text-xs font-black text-slate-900 truncate italic leading-tight">{profile?.firstName || 'Utilisateur'}</p>

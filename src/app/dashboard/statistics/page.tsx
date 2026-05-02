@@ -51,19 +51,23 @@ export default function StatisticsV2Page() {
     const validAttempts = rawAttempts.filter(Boolean);
     if (validAttempts.length === 0) return null;
 
-    const avgScore = Math.round(validAttempts.reduce((acc, a) => acc + (Number(a.scorePercent) || 0), 0) / validAttempts.length);
+    const totalScoreSum = validAttempts.reduce((acc, a) => acc + (Number(a.scorePercent) || 0), 0);
+    const avgScore = Math.round(totalScoreSum / validAttempts.length);
     
     // Extraction sécurisée des réponses
-    const allResponses = validAttempts.flatMap(a => Array.isArray(a.responses) ? a.responses.filter(Boolean) : []);
+    const allResponses = validAttempts.flatMap(a => {
+      if (!a || !Array.isArray(a.responses)) return [];
+      return a.responses.filter(Boolean);
+    });
 
     // 1. Performance par Domaine
     const domains = ['People', 'Process', 'Business'];
     const performanceByDomain = domains.map(d => {
       const respForDomain = allResponses.filter(r => {
-        const domainTag = String(r?.tags?.domain || '');
-        return domainTag === d || 
-               (d === 'Process' && domainTag === 'Processus') || 
-               (d === 'Business' && domainTag.includes('Business'));
+        if (!r || !r.tags) return false;
+        const domainTag = String(r.tags.domain || '').toLowerCase();
+        const target = d.toLowerCase();
+        return domainTag.includes(target) || (target === 'process' && domainTag === 'processus');
       });
       const total = respForDomain.length;
       const correctOnes = respForDomain.filter(r => r.isCorrect).length;
@@ -71,21 +75,24 @@ export default function StatisticsV2Page() {
       
       return { 
         name: d === 'Business' ? 'Business Env.' : d, 
-        score: isNaN(score) ? 0 : score
+        score: Number(score) || 0
       };
     });
 
     // 2. Performance par Approche
     const approaches = ['Predictive', 'Agile', 'Hybrid'];
     const performanceByApproach = approaches.map(a => {
-      const respForApproach = allResponses.filter(r => String(r?.tags?.approach || '') === a);
+      const respForApproach = allResponses.filter(r => {
+        if (!r || !r.tags) return false;
+        return String(r.tags.approach || '').toLowerCase() === a.toLowerCase();
+      });
       const total = respForApproach.length;
       const correctOnes = respForApproach.filter(r => r.isCorrect).length;
       const score = total > 0 ? Math.round((correctOnes / total) * 100) : 0;
       
       return { 
         name: a === 'Predictive' ? 'Waterfall' : a, 
-        score: isNaN(score) ? 0 : score 
+        score: Number(score) || 0 
       };
     });
 
@@ -104,17 +111,19 @@ export default function StatisticsV2Page() {
 
     const radarData = radarLabels.map(item => {
       const match = allResponses.filter(r => {
-        const rD = String(r?.tags?.domain || '').toLowerCase();
-        const rA = String(r?.tags?.approach || '');
-        return rD.includes(item.d.substring(0, 3).toLowerCase()) && rA === item.a;
+        if (!r || !r.tags) return false;
+        const rD = String(r.tags.domain || '').toLowerCase();
+        const rA = String(r.tags.approach || '').toLowerCase();
+        return rD.includes(item.d.substring(0, 3).toLowerCase()) && rA === item.a.toLowerCase();
       });
       const total = match.length;
       const score = total > 0 ? Math.round((match.filter(r => r.isCorrect).length / total) * 100) : 0;
-      return { subject: item.s, A: isNaN(score) ? 0 : score };
+      return { subject: item.s, A: Number(score) || 0 };
     });
 
     // 4. Confidence
-    const mastery = Math.max(10, avgScore - 20);
+    const masteryScore = Number(avgScore) || 0;
+    const mastery = Math.max(10, masteryScore - 20);
     const inProgress = Math.max(0, 100 - mastery - 15);
     const confidenceData = [
       { name: 'Maîtrisé', value: mastery, color: '#10b981' },

@@ -65,25 +65,24 @@ export default function DashboardPage() {
       };
     }
 
-    const sorted = [...validAttempts].sort((a, b) => {
-      const timeA = Number(a.submittedAt?.seconds || 0);
-      const timeB = Number(b.submittedAt?.seconds || 0);
-      return timeB - timeA;
-    });
-
-    const attemptsWithValidDate = sorted.filter(a => {
-      if (!a.submittedAt) return false;
-      try {
-        const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
-        return isValid(date);
-      } catch {
-        return false;
-      }
-    });
+    const attemptsWithValidDate = validAttempts
+      .filter(a => {
+        if (!a || !a.submittedAt) return false;
+        try {
+          const date = a.submittedAt.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
+          return isValid(date);
+        } catch {
+          return false;
+        }
+      })
+      .sort((a, b) => {
+        const timeA = Number(a.submittedAt?.seconds || 0);
+        const timeB = Number(b.submittedAt?.seconds || 0);
+        return timeB - timeA;
+      });
     
-    const avgScore = validAttempts.length > 0 
-      ? Math.round(validAttempts.reduce((acc, a) => acc + (Number(a.scorePercent) || 0), 0) / validAttempts.length) 
-      : 0;
+    const totalScoreSum = validAttempts.reduce((acc, a) => acc + (Number(a.scorePercent) || 0), 0);
+    const avgScore = totalScoreSum > 0 ? Math.round(totalScoreSum / validAttempts.length) : 0;
     
     const lastScore = attemptsWithValidDate[0]?.scorePercent || 0;
     const examCount = validAttempts.filter(a => String(a.examId || '').startsWith('exam')).length;
@@ -116,6 +115,8 @@ export default function DashboardPage() {
     return <div className="min-h-[70vh] flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-[#1d4ed8]" /></div>;
   }
 
+  const studyTimeUsed = Number(profile?.totalTimeSpent) || 0;
+
   return (
     <div className="flex flex-col space-y-8 animate-fade-in pb-12">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -143,7 +144,7 @@ export default function DashboardPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={[{ name: 'Used', value: Number(profile?.totalTimeSpent) || 0 }, { name: 'Free', value: 36000 }]}
+                      data={[{ name: 'Used', value: studyTimeUsed }, { name: 'Free', value: 36000 }]}
                       cx="50%" cy="50%" innerRadius="60%" outerRadius="90%" paddingAngle={5} dataKey="value"
                     >
                       <Cell fill="#1d4ed8" />
@@ -153,7 +154,7 @@ export default function DashboardPage() {
                 </ResponsiveContainer>
               </div>
               <div>
-                <p className="text-4xl font-black italic text-slate-900 leading-none">{Math.floor((Number(profile?.totalTimeSpent) || 0) / 3600)}h</p>
+                <p className="text-4xl font-black italic text-slate-900 leading-none">{Math.floor(studyTimeUsed / 3600)}h</p>
                 <p className="text-[10px] font-bold text-slate-400 uppercase leading-tight italic mt-1">Temps cumulé</p>
               </div>
             </div>
@@ -254,9 +255,9 @@ export default function DashboardPage() {
                       <TableCell className="text-center">
                         <Badge className={cn(
                           "font-black italic text-xs px-3 py-1 rounded-lg border-none",
-                          a.scorePercent >= 75 ? "bg-emerald-50 text-emerald-600" : "bg-indigo-50 text-indigo-600"
+                          Number(a.scorePercent) >= 75 ? "bg-emerald-50 text-emerald-600" : "bg-indigo-50 text-indigo-600"
                         )}>
-                          {a.scorePercent}%
+                          {Number(a.scorePercent) || 0}%
                         </Badge>
                       </TableCell>
                       <TableCell className="w-1/4 min-w-[150px]">

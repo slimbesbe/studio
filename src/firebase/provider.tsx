@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect, useRef } from 'react';
@@ -94,10 +95,14 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         
         let isExpired = false;
         if (profileData.expiresAt) {
-          const expiryDate = profileData.expiresAt instanceof Timestamp 
-            ? profileData.expiresAt.toDate() 
-            : new Date(profileData.expiresAt);
-          if (expiryDate < new Date()) isExpired = true;
+          try {
+            const expiryDate = profileData.expiresAt instanceof Timestamp 
+              ? profileData.expiresAt.toDate() 
+              : new Date(profileData.expiresAt);
+            if (expiryDate < new Date()) isExpired = true;
+          } catch {
+            isExpired = false;
+          }
         }
 
         const currentStatus = isExpired ? 'expired' : (profileData.status || 'active');
@@ -136,14 +141,10 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     return () => unsubscribe();
   }, [firestore, user]);
 
-  // Gestion du premier login et des notifications asynchrones
+  // Gestion du premier login
   useEffect(() => {
     if (!firestore || !user || user.isAnonymous || !profile || profile.firstLoginAt) return;
-    
-    const isHardcodedAdmin = (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) || 
-                             ADMIN_UIDS.includes(user.uid);
-                             
-    if (isHardcodedAdmin || welcomeTriggered.current === user.uid) return;
+    if (welcomeTriggered.current === user.uid) return;
     
     welcomeTriggered.current = user.uid;
     

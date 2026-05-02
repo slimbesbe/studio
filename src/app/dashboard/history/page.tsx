@@ -73,21 +73,24 @@ export default function HistoryPage() {
         
         // Extraction sécurisée des IDs de questions
         const allQuestionIds = Array.from(new Set(
-          coachingAttempts.flatMap(attempt => 
-            (Array.isArray(attempt.responses) ? attempt.responses : [])
+          coachingAttempts.flatMap(attempt => {
+            if (!attempt || !Array.isArray(attempt.responses)) return [];
+            return attempt.responses
               .filter((r: any) => r && r.questionId)
-              .map((r: any) => String(r.questionId))
-          )
+              .map((r: any) => String(r.questionId));
+          })
         ));
 
         const latestQuestions = allQuestionIds.length > 0 ? await fetchQuestionsByIds(db, allQuestionIds) : [];
         
         const coachingComputed = coachingAttempts.map(attempt => {
+          if (!attempt) return null;
+          
           let correct = 0;
           const responses = Array.isArray(attempt.responses) ? attempt.responses.filter(Boolean) : [];
-          const responsesCount = responses.length;
           
           responses.forEach((resp: any) => {
+            if (!resp || !resp.questionId) return;
             const q = latestQuestions.find(lq => lq.id === resp.questionId);
             if (!q) return;
             const correctIds = (q.correctOptionIds || [String(q.correctChoice || "1")]).map(String);
@@ -103,7 +106,7 @@ export default function HistoryPage() {
           else if (attempt.context === 'matrix_sprint') filterType = 'matrice';
           else if (attempt.sessionId) filterType = 'exams'; 
 
-          const finalTotal = Number(attempt.totalQuestions) || responsesCount || 0;
+          const finalTotal = Number(attempt.totalQuestions) || responses.length || 0;
           const finalCorrect = attempt.correctCount !== undefined ? Number(attempt.correctCount) : correct;
 
           const displayDomain = attempt.matrixDomain === 'Process' ? 'Processus' : (attempt.matrixDomain || '??');
@@ -119,20 +122,22 @@ export default function HistoryPage() {
                           attempt.context === 'matrix_sprint' ? `Sprint : ${displayDomain} x ${displayApproach}` :
                           attempt.sessionId ? `Session ${attempt.sessionId}` : 'Pratique Libre'
           };
-        });
+        }).filter(Boolean);
 
         // Compute quick quizzes (Concepts)
-        const quizComputed = quickQuizzes.map(q => ({
-          ...q,
-          id: q.id,
-          filterType: 'concepts' as const,
-          scorePercent: Number(q.score || 0),
-          displayTitle: `Quiz : ${String(q.axisId || 'Inconnu').toUpperCase()}`,
-          submittedAt: q.submittedAt,
-          durationSec: 0,
-          totalQuestions: Number(q.totalQuestions || 5),
-          correctCount: Number(q.correctCount || 0)
-        }));
+        const quizComputed = quickQuizzes.map(q => {
+          if (!q) return null;
+          return {
+            ...q,
+            filterType: 'concepts' as const,
+            scorePercent: Number(q.score || 0),
+            displayTitle: `Quiz : ${String(q.axisId || 'Inconnu').toUpperCase()}`,
+            submittedAt: q.submittedAt,
+            durationSec: 0,
+            totalQuestions: Number(q.totalQuestions || 5),
+            correctCount: Number(q.correctCount || 0)
+          };
+        }).filter(Boolean);
 
         const combined = [...coachingComputed, ...quizComputed].sort((a, b) => safeGetTime(b.submittedAt) - safeGetTime(a.submittedAt));
         setComputedResults(combined);
@@ -153,10 +158,9 @@ export default function HistoryPage() {
   const chartData = useMemo(() => {
     return [...filteredResults]
       .filter(res => {
-        const ts = res.submittedAt;
-        if (!ts) return false;
+        if (!res || !res.submittedAt) return false;
         try {
-          const date = ts.toDate ? ts.toDate() : new Date(ts);
+          const date = res.submittedAt.toDate ? res.submittedAt.toDate() : new Date(res.submittedAt);
           return isValid(date);
         } catch {
           return false;
