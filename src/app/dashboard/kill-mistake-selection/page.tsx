@@ -18,6 +18,7 @@ import {
 import Link from 'next/link';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
+import { cn } from '@/lib/utils';
 
 export default function KillMistakeSelectionPage() {
   const { user } = useUser();
