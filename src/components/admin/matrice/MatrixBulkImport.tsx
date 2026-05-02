@@ -18,8 +18,7 @@ import {
   FileSpreadsheet, 
   XCircle, 
   Upload, 
-  AlertTriangle,
-  Info
+  AlertTriangle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirebase } from '@/firebase';
@@ -107,27 +106,36 @@ export function MatrixBulkImport({ isOpen, onClose }: { isOpen: boolean, onClose
         const chunk = allRows.slice(i, i + batchSize);
         
         chunk.forEach((row: any) => {
-          const statement = row["Énoncé"] || row.statement;
-          const code = row["Code"] || row.questionCode;
-          const correct = String(row.correct || row.Answer || "");
+          // Robust detection of statement/text column
+          const statement = row["Énoncé"] || row["ennocé"] || row["statement"] || row["text"] || row["Question"];
+          const code = row["Code"] || row["code question"] || row["questionCode"];
+          const correctValue = String(row["correct"] || row["bonne reponse"] || row["Correct"] || row["Answer"] || "");
+          const justification = row["justification"] || row["Justification"] || row["explanation"] || "";
           
           if (!statement) return;
 
+          // Detect options with or without spaces
           const options = [];
-          for (let k = 1; k <= 4; k++) {
-            const optVal = row[`option${k}`];
+          for (let k = 1; k <= 5; k++) {
+            const optVal = row[`option ${k}`] || row[`option${k}`] || row[`Choix ${k}`] || row[`Choix${k}`] || row[`Choice ${k}`];
             if (optVal) options.push({ id: String(k), text: String(optVal) });
           }
 
-          const correctIds = [];
-          const firstChar = correct.trim().toUpperCase()[0];
-          if (['A','B','C','D'].includes(firstChar)) {
-            correctIds.push((firstChar.charCodeAt(0) - 64).toString());
+          if (options.length === 0) return;
+
+          // Map A,B,C,D to 1,2,3,4
+          const correctIds: string[] = [];
+          const rawCorrect = correctValue.trim().toUpperCase();
+          if (['A', 'B', 'C', 'D', 'E'].includes(rawCorrect[0])) {
+            const idx = rawCorrect.charCodeAt(0) - 64;
+            correctIds.push(String(idx));
           } else {
-            correctIds.push(correct.trim() || "1");
+            // Fallback to numeric or the value itself
+            const numericValue = parseInt(rawCorrect);
+            correctIds.push(isNaN(numericValue) ? "1" : String(numericValue));
           }
 
-          const id = code ? `q_matrice_${code.replace(/[^a-zA-Z0-9]/g, '_')}` : `q_matrice_${Math.random().toString(36).substr(2, 9)}`;
+          const id = code ? `q_matrice_${String(code).replace(/[^a-zA-Z0-9]/g, '_')}` : `q_matrice_${Math.random().toString(36).substr(2, 9)}`;
           const qRef = doc(db, 'questions', id);
 
           batch.set(qRef, {
@@ -138,14 +146,14 @@ export function MatrixBulkImport({ isOpen, onClose }: { isOpen: boolean, onClose
             choices: options.map(o => o.text),
             correctOptionIds: correctIds,
             correctChoice: correctIds[0],
-            explanation: row["Justification"] || row.explanation || "",
+            explanation: justification,
             isActive: true,
-            questionCode: code || id,
+            questionCode: code ? String(code) : id,
             updatedAt: serverTimestamp(),
             tags: {
               domain: row.domain,
               approach: row.approach,
-              difficulty: row["Difficulté"] || "Medium"
+              difficulty: row["Difficulté"] || row["difficulté"] || row["Difficulty"] || "Medium"
             },
             sourceIds: ['general']
           }, { merge: true });
@@ -158,6 +166,7 @@ export function MatrixBulkImport({ isOpen, onClose }: { isOpen: boolean, onClose
       toast({ title: "Importation Matrice Réussie", description: `${total} questions synchronisées.` });
       onClose();
     } catch (e) {
+      console.error(e);
       toast({ variant: "destructive", title: "Erreur import" });
     } finally {
       setIsImporting(false);
@@ -174,7 +183,7 @@ export function MatrixBulkImport({ isOpen, onClose }: { isOpen: boolean, onClose
             <FileSpreadsheet className="h-8 w-8" /> Importation Matrice (9 Feuilles)
           </DialogTitle>
           <DialogDescription className="font-bold text-slate-500 italic uppercase text-[10px] tracking-widest mt-2">
-            Importation massive par domaines et approches.
+            Importation massive par domaines et approches (Mapping A->1, B->2...).
           </DialogDescription>
         </DialogHeader>
 

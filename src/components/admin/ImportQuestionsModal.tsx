@@ -112,10 +112,11 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
 
         json.forEach((row, index) => {
           const lineNum = index + 2;
-          const statement = row["Énoncé"] || row.statement || row.text || row["Question"];
-          const justification = row["Justification"] || row.explanation || row.Rationale || "";
-          const correct = String(row.correct || row.Correct || row.Answer || "");
-          const code = row["Code"] || row.questionCode || row.id;
+          // Robust mapping
+          const statement = row["Énoncé"] || row["ennocé"] || row["statement"] || row["text"] || row["Question"];
+          const justification = row["justification"] || row["Justification"] || row["explanation"] || row["Rationale"] || "";
+          const correctValue = String(row["correct"] || row["Correct"] || row["Answer"] || row["bonne reponse"] || "");
+          const code = row["Code"] || row["code question"] || row["questionCode"] || row["id"];
           
           if (!statement) {
             parseErrors.push({ line: lineNum, msg: "Énoncé manquant." });
@@ -124,32 +125,37 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
 
           const options: { id: string, text: string }[] = [];
           for (let i = 1; i <= 5; i++) {
-            const optVal = row[`option${i}`] || row[`choice${i}`] || row[`opt${i}`] || row[`Choix${i}`];
+            const optVal = row[`option ${i}`] || row[`option${i}`] || row[`choice${i}`] || row[`opt${i}`] || row[`Choix${i}`] || row[`Choix ${i}`];
             if (optVal) options.push({ id: String(i), text: String(optVal) });
           }
 
           if (options.length < 2) {
-            parseErrors.push({ line: lineNum, msg: "Moins de 2 options." });
+            parseErrors.push({ line: lineNum, msg: "Moins de 2 options trouvées." });
             return;
           }
 
-          const correctIds = correct.split(',').map(s => s.trim().toUpperCase());
+          // Handle single or multiple answers separated by comma
+          const rawCorrects = correctValue.split(',').map(s => s.trim().toUpperCase());
           const mappedIds: string[] = [];
           
           let isValidLine = true;
-          correctIds.forEach(cid => {
-             let id = cid;
-             if (['A','B','C','D','E'].includes(cid)) {
+          rawCorrects.forEach(cid => {
+             if (!cid) return;
+             let id = "";
+             if (['A','B','C','D','E'].includes(cid[0])) {
                id = (cid.charCodeAt(0) - 64).toString();
+             } else {
+               id = cid;
              }
+             
              if (options.find(o => o.id === id)) mappedIds.push(id);
              else {
                isValidLine = false;
-               parseErrors.push({ line: lineNum, msg: `Réponse '${cid}' non trouvée dans les options.` });
+               parseErrors.push({ line: lineNum, msg: `Réponse '${cid}' non reconnue dans les options.` });
              }
           });
 
-          if (isValidLine) {
+          if (isValidLine && mappedIds.length > 0) {
             results.push({
               statement,
               options,
@@ -158,9 +164,9 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
               explanation: justification,
               questionCode: code ? String(code).trim() : '',
               tags: {
-                domain: normalizeTag('domain', row["Domaine"] || row["Domain"]),
-                approach: normalizeTag('approach', row["Approche"] || row["Approach"]),
-                difficulty: normalizeTag('difficulty', row["Difficulté"] || row["Difficulty"] || row["Niveau"] || row["Level"]),
+                domain: normalizeTag('domain', row["Domaine"] || row["domaine"] || row["Domain"]),
+                approach: normalizeTag('approach', row["Approche"] || row["approche"] || row["Approach"]),
+                difficulty: normalizeTag('difficulty', row["Difficulté"] || row["difficulté"] || row["Difficulty"] || row["Niveau"]),
               }
             });
           }
@@ -169,6 +175,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
         setParsedData(results);
         setErrors(parseErrors);
       } catch (err) {
+        console.error(err);
         toast({ variant: "destructive", title: "Erreur lecture fichier" });
       } finally {
         setIsParsing(false);
@@ -191,15 +198,15 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
         const chunk = parsedData.slice(i, i + batchSize);
         
         chunk.forEach((q) => {
-          const questionId = q.questionCode ? `q_${examId}_${q.questionCode.replace(/[^a-zA-Z0-9]/g, '_')}` : generateId(q.statement, examId);
+          const questionId = q.questionCode ? `q_${examId}_${String(q.questionCode).replace(/[^a-zA-Z0-9]/g, '_')}` : generateId(q.statement, examId);
           const qRef = doc(db, 'questions', questionId);
 
           const finalData = {
             ...q,
             id: questionId,
-            text: q.statement, // ensure legacy compatibility
-            choices: q.options.map(o => o.text), // ensure legacy compatibility
-            correctChoice: q.correctOptionIds[0], // ensure legacy compatibility
+            text: q.statement, 
+            choices: q.options.map(o => o.text),
+            correctChoice: q.correctOptionIds[0],
             questionCode: q.questionCode || questionId,
             isActive: true,
             createdBy: profile?.id || 'admin',
@@ -232,10 +239,10 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
       <DialogContent className="max-w-3xl rounded-[40px] p-10 border-4 shadow-3xl">
         <DialogHeader>
           <DialogTitle className="text-3xl font-black uppercase italic tracking-tighter text-emerald-600 flex items-center gap-3">
-            <FileSpreadsheet className="h-8 w-8" /> Importation Massive
+            <FileSpreadsheet className="h-8 w-8" /> Importation Questions
           </DialogTitle>
           <DialogDescription className="font-bold text-slate-500 italic uppercase text-[10px] tracking-widest mt-2">
-            Ajoutez des centaines de questions. Le champ "Code" est fortement recommandé.
+            Conversion automatique des colonnes et mappage A->1, B->2...
           </DialogDescription>
         </DialogHeader>
 
