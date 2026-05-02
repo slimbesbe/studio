@@ -149,7 +149,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         }
 
         const currentStatus = isExpired ? 'expired' : (profileData.status || 'active');
-        const finalRole = isHardcodedAdmin ? (profileData.role || 'super_admin') : 'user';
+        const finalRole = isHardcodedAdmin ? (profileData.role || 'super_admin') : (profileData.role || 'user');
 
         setProfile({ 
           ...profileData, 
