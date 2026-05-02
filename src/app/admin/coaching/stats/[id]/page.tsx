@@ -20,7 +20,7 @@ export default function GroupStatsDashboard() {
   const db = useFirestore();
 
   // LISTE BLANCHE MATÉRIELLE DE SÉCURITÉ
-  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com'];
+  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com', 'jedgrira1@gmail.com'];
   const isHardcodedAdmin = user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
 
   const groupRef = useMemoFirebase(() => doc(db, 'coachingGroups', groupId), [db, groupId]);
@@ -115,7 +115,7 @@ export default function GroupStatsDashboard() {
                 const avg = scoresList.length > 0 ? Math.round(scoresList.reduce((a, b) => a + b, 0) / scoresList.length) : null;
 
                 return (
-                  <TableRow key={p.id} className="h-20 hover:bg-slate-50 transition-all border-b last:border-0">
+                  <TableRow key={p.id} className="h-20 hover:bg-slate-50 transition-all border-b last:border-0 group">
                     <TableCell className="px-10 font-black italic uppercase text-slate-800">{p.firstName} {p.lastName}</TableCell>
                     {['S2', 'S3', 'S4', 'S5', 'S6'].map(sId => {
                       const lastAttempt = [...userAttempts].filter(a => a.sessionId === sId).sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0))[0];
