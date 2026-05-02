@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect, useRef } from 'react';
@@ -55,7 +54,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   const [isUserLoading, setIsUserLoading] = useState(true);
   const [userError, setUserError] = useState<Error | null>(null);
   
-  // Verrou pour empêcher la duplication du message de bienvenue pendant la session
   const welcomeTriggered = useRef<string | null>(null);
 
   useEffect(() => {
@@ -66,7 +64,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         setProfile(null);
         setIsUserLoading(false);
       } else {
-        // Log login action
         logActivity(firestore, firebaseUser.uid, 'login', { email: firebaseUser.email });
       }
     }, (error) => {
@@ -95,51 +92,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       if (docSnap.exists()) {
         const profileData = docSnap.data();
         
-        // --- FIRST LOGIN DETECTION & NOTIFICATION ---
-        if (!profileData.firstLoginAt && !isHardcodedAdmin && !user.isAnonymous && welcomeTriggered.current !== user.uid) {
-          welcomeTriggered.current = user.uid;
-          
-          const now = serverTimestamp();
-          const firstName = profileData.firstName || 'Nouvel';
-          const lastName = profileData.lastName || 'Utilisateur';
-          const fullName = `${firstName} ${lastName}`;
-          
-          // 1. Update user profile (Atomic update)
-          setDoc(userDocRef, { firstLoginAt: now }, { merge: true }).catch(err => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-              path: userDocRef.path,
-              operation: 'update',
-              requestResourceData: { firstLoginAt: now }
-            }));
-          });
-          
-          // 2. Create internal support message (Welcome)
-          const supportMsgRef = collection(firestore, 'supportMessages');
-          const supportMsgData = {
-            userId: user.uid,
-            userEmail: user.email,
-            userName: fullName,
-            subject: "Bienvenue",
-            message: `Première connexion détectée pour ${fullName}. Bienvenue sur la plateforme Simu-lux !`,
-            type: 'welcome',
-            status: 'unread',
-            createdAt: now
-          };
-          addDoc(supportMsgRef, supportMsgData).catch(err => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-              path: supportMsgRef.path,
-              operation: 'create',
-              requestResourceData: supportMsgData
-            }));
-          });
-          
-          // 3. Trigger Admin Email Alert
-          sendAdminAlertOnFirstLogin(firestore, fullName, user.email || user.uid);
-          
-          // 4. Log activity
-          logActivity(firestore, user.uid, 'first_login');
-        }
-
         let isExpired = false;
         if (profileData.expiresAt) {
           const expiryDate = profileData.expiresAt instanceof Timestamp 
@@ -184,15 +136,47 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     return () => unsubscribe();
   }, [firestore, user]);
 
+  // Gestion du premier login et des notifications asynchrones
+  useEffect(() => {
+    if (!firestore || !user || user.isAnonymous || !profile || profile.firstLoginAt) return;
+    
+    const isHardcodedAdmin = (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) || 
+                             ADMIN_UIDS.includes(user.uid);
+                             
+    if (isHardcodedAdmin || welcomeTriggered.current === user.uid) return;
+    
+    welcomeTriggered.current = user.uid;
+    
+    const now = serverTimestamp();
+    const fullName = `${profile.firstName || 'Nouvel'} ${profile.lastName || 'Utilisateur'}`;
+    const userDocRef = doc(firestore, 'users', user.uid);
+    
+    setDoc(userDocRef, { firstLoginAt: now }, { merge: true }).catch(() => {});
+    
+    const supportMsgRef = collection(firestore, 'supportMessages');
+    addDoc(supportMsgRef, {
+      userId: user.uid,
+      userEmail: user.email,
+      userName: fullName,
+      subject: "Bienvenue",
+      message: `Première connexion détectée pour ${fullName}. Bienvenue sur la plateforme Simu-lux !`,
+      type: 'welcome',
+      status: 'unread',
+      createdAt: now
+    }).catch(() => {});
+    
+    sendAdminAlertOnFirstLogin(firestore, fullName, user.email || user.uid);
+    logActivity(firestore, user.uid, 'first_login');
+  }, [firestore, user, profile]);
+
   useEffect(() => {
     if (!firestore || !user || user.isAnonymous || !profile || profile.role !== 'user') return;
     const interval = setInterval(() => {
       const userRef = doc(firestore, 'users', user.uid);
-      const updateData = { 
+      setDoc(userRef, { 
         totalTimeSpent: increment(60),
         lastLoginAt: serverTimestamp() 
-      };
-      setDoc(userRef, updateData, { merge: true }).catch(() => {});
+      }, { merge: true }).catch(() => {});
     }, 60000);
     return () => clearInterval(interval);
   }, [firestore, user, profile]);
