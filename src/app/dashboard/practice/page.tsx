@@ -92,16 +92,50 @@ function PracticeContent() {
   };
 
   const handleNext = async () => {
-    if (selectedChoices.length > 0 && !correction) {
-      await handleRevealCorrection();
+    let currentCorrection = correction;
+    let currentHistory = [...sessionHistory];
+    let currentCorrectCount = sessionResults.correct;
+
+    // 1. Reveal correction if not done
+    if (selectedChoices.length > 0 && !currentCorrection) {
+      setIsSubmitting(true);
+      try {
+        const res = await submitPracticeAnswer(db, user!.uid, questions[currentIndex].id, selectedChoices);
+        currentCorrection = res;
+        setCorrection(res);
+        
+        const newHistoryItem = { 
+          question: questions[currentIndex], 
+          userChoices: selectedChoices, 
+          correction: res 
+        };
+        
+        currentHistory.push(newHistoryItem);
+        setSessionHistory(currentHistory);
+
+        if (res.isCorrect) {
+          currentCorrectCount += 1;
+          setSessionResults(prev => ({ ...prev, correct: prev.correct + 1 }));
+        }
+      } catch (e) {
+        toast({ variant: "destructive", title: "Erreur" });
+        setIsSubmitting(false);
+        return;
+      } finally {
+        setIsSubmitting(false);
+      }
     }
 
+    if (!currentCorrection) return;
+
+    // 2. Decide if move to next or finish
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setSelectedChoices([]);
       setCorrection(null);
     } else {
-      await saveSessionSummary();
+      // Final save
+      await saveSessionSummary(currentHistory, currentCorrectCount);
       setStep('summary');
     }
   };
@@ -120,7 +154,7 @@ function PracticeContent() {
   };
 
   const handleRevealCorrection = async () => {
-    if (selectedChoices.length === 0 || isSubmitting) return;
+    if (selectedChoices.length === 0 || isSubmitting || correction) return;
     setIsSubmitting(true);
     try {
       const res = await submitPracticeAnswer(db, user!.uid, questions[currentIndex].id, selectedChoices);
@@ -143,22 +177,23 @@ function PracticeContent() {
     }
   };
 
-  const saveSessionSummary = async () => {
+  const saveSessionSummary = async (finalHistory: SessionHistoryItem[], finalCorrect: number) => {
     if (isDemo || !user) return;
     
     const duration = Math.floor((Date.now() - startTime) / 1000);
-    const score = Math.round((sessionResults.correct / questions.length) * 100);
+    const totalCount = questions.length;
+    const score = Math.round((finalCorrect / totalCount) * 100);
 
     try {
       await addDoc(collection(db, 'coachingAttempts'), {
         userId: user.uid,
         scorePercent: score,
-        correctCount: sessionResults.correct,
-        totalQuestions: questions.length,
+        correctCount: finalCorrect,
+        totalQuestions: totalCount,
         durationSec: duration,
         submittedAt: serverTimestamp(),
         context: 'training',
-        responses: sessionHistory.map(h => ({
+        responses: finalHistory.map(h => ({
           questionId: h.question.id,
           userChoices: h.userChoices,
           isCorrect: h.correction.isCorrect,

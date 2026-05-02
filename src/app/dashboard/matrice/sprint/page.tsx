@@ -56,7 +56,6 @@ function MatrixSprintContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sessionHistory, setSessionHistory] = useState<SessionHistoryItem[]>([]);
 
-  // Fetch attempts for history and chart - Simplified query to avoid index issues
   const attemptsQuery = useMemoFirebase(() => {
     if (isUserLoading || !user?.uid) return null;
     return query(
@@ -77,8 +76,8 @@ function MatrixSprintContent() {
       .sort((a, b) => (a.submittedAt?.seconds || 0) - (b.submittedAt?.seconds || 0))
       .map((a, i) => {
         const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
-        const correctCount = a.responses?.filter((r: any) => r.isCorrect).length || 0;
-        const totalCount = a.responses?.length || 5;
+        const correctCount = a.correctCount !== undefined ? a.correctCount : (a.responses?.filter((r: any) => r.isCorrect).length || 0);
+        const totalCount = a.totalQuestions || a.responses?.length || 5;
         return {
           id: a.id,
           name: `T${i + 1}`,
@@ -108,20 +107,49 @@ function MatrixSprintContent() {
 
   const handleNext = async () => {
     let currentCorrection = correction;
+    let currentHistory = [...sessionHistory];
+    let currentCorrectCount = sessionResults.correct;
 
+    // 1. Si l'utilisateur n'a pas cliqué sur "Vérifier", on le fait pour lui
     if (selectedChoices.length > 0 && !currentCorrection) {
-      currentCorrection = await handleRevealCorrection();
+      setIsSubmitting(true);
+      try {
+        const res = await submitPracticeAnswer(db, user!.uid, questions[currentIndex].id, selectedChoices);
+        currentCorrection = res;
+        setCorrection(res);
+        
+        const newHistoryItem = { 
+          question: questions[currentIndex], 
+          userChoices: selectedChoices, 
+          correction: res 
+        };
+        
+        currentHistory.push(newHistoryItem);
+        setSessionHistory(currentHistory);
+
+        if (res.isCorrect) {
+          currentCorrectCount += 1;
+          setSessionResults(prev => ({ ...prev, correct: prev.correct + 1 }));
+        }
+      } catch (e) {
+        toast({ variant: "destructive", title: "Erreur lors de la validation" });
+        setIsSubmitting(false);
+        return;
+      } finally {
+        setIsSubmitting(false);
+      }
     }
 
     if (!currentCorrection) return;
 
+    // 2. Navigation ou Fin
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setSelectedChoices([]);
       setCorrection(null);
     } else {
-      // Use current index state combined with corrections
-      await saveFinalResults();
+      // C'était la dernière question
+      await saveFinalResults(currentHistory, currentCorrectCount);
       setStep('summary');
     }
   };
@@ -140,7 +168,7 @@ function MatrixSprintContent() {
   };
 
   const handleRevealCorrection = async (): Promise<any> => {
-    if (selectedChoices.length === 0 || isSubmitting) return null;
+    if (selectedChoices.length === 0 || isSubmitting || correction) return null;
     setIsSubmitting(true);
     try {
       const res = await submitPracticeAnswer(db, user!.uid, questions[currentIndex].id, selectedChoices);
@@ -166,21 +194,17 @@ function MatrixSprintContent() {
     }
   };
 
-  const saveFinalResults = async () => {
-    // Note: sessionHistory is updated via setSessionHistory, so we use a closure or the current state
-    // In summary step, sessionHistory will be full. 
-    // For immediate save, we use the results accumulated
+  const saveFinalResults = async (finalHistory: SessionHistoryItem[], finalCorrect: number) => {
     const duration = Math.floor((Date.now() - startTime) / 1000);
-    const correctCount = sessionResults.correct;
     const totalCount = questions.length;
-    const percent = Math.round((correctCount / totalCount) * 100);
+    const percent = Math.round((finalCorrect / totalCount) * 100);
 
     try {
       await addDoc(collection(db, 'coachingAttempts'), {
         userId: user!.uid,
         durationSec: duration,
         submittedAt: serverTimestamp(),
-        responses: sessionHistory.map(h => ({
+        responses: finalHistory.map(h => ({
           questionId: h.question.id,
           userChoices: h.userChoices,
           isCorrect: h.correction.isCorrect,
@@ -189,7 +213,9 @@ function MatrixSprintContent() {
         context: 'matrix_sprint',
         matrixDomain: domain,
         matrixApproach: approach,
-        scorePercent: percent
+        scorePercent: percent,
+        correctCount: finalCorrect,
+        totalQuestions: totalCount
       });
     } catch (e) {
       console.error("Error saving matrix sprint results", e);
@@ -229,7 +255,6 @@ function MatrixSprintContent() {
           </Button>
         </Card>
 
-        {/* History & Progression Section */}
         <div className="space-y-8 animate-slide-up">
           <div className="flex items-center gap-3 px-4">
             <HistoryIcon className="h-6 w-6 text-primary" />
@@ -237,7 +262,6 @@ function MatrixSprintContent() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* History Table */}
             <Card className="rounded-[40px] shadow-xl border-none bg-white overflow-hidden">
               <CardHeader className="bg-slate-50/50 p-6 border-b">
                 <CardTitle className="text-[10px] font-black uppercase tracking-widest italic text-slate-400">Dernières tentatives</CardTitle>
@@ -268,7 +292,6 @@ function MatrixSprintContent() {
               </Table>
             </Card>
 
-            {/* Progression Chart */}
             <Card className="rounded-[40px] shadow-xl border-none bg-white p-8 space-y-6 flex flex-col justify-center">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[10px] font-black uppercase tracking-widest italic text-slate-400">Courbe d'évolution</span>
@@ -394,7 +417,7 @@ function MatrixSprintContent() {
               onClick={handleNext}
               disabled={(selectedChoices.length === 0 && !correction) || isSubmitting}
             >
-              {currentIndex < questions.length - 1 ? "Suivant" : "Terminer"} <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+              {isSubmitting ? <Loader2 className="animate-spin h-5 w-5" /> : (currentIndex < questions.length - 1 ? "Suivant" : "Terminer")} <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
             </Button>
           </CardFooter>
         </Card>
@@ -434,7 +457,7 @@ function MatrixSprintContent() {
       <div className="max-w-4xl mx-auto space-y-6 animate-fade-in py-8 px-4">
         <div className="flex justify-between items-center bg-white p-6 rounded-3xl shadow-lg border-2">
           <Button variant="ghost" className="font-black italic uppercase tracking-widest" onClick={() => setStep('summary')}><ChevronLeft className="mr-2 h-4 w-4" /> Score</Button>
-          <Badge variant="outline" className="text-sm font-black italic border-2 px-4 py-1">REVUE QUESTION {currentIndex + 1} / 5</Badge>
+          <Badge variant="outline" className="text-sm font-black italic border-2 px-4 py-1">REVUE QUESTION {currentIndex + 1} / {questions.length}</Badge>
           <Badge className={cn("text-white font-black italic px-4 py-1 rounded-lg shadow-md", corr.isCorrect ? "bg-emerald-500" : "bg-red-500")}>
             {corr.isCorrect ? "CORRECT" : "ERREUR"}
           </Badge>
