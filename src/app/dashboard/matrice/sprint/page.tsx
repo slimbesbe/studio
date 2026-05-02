@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,15 +11,22 @@ import {
   CheckCircle2,
   Trophy,
   ChevronLeft,
-  Zap
+  Zap,
+  TrendingUp,
+  History as HistoryIcon
 } from 'lucide-react';
-import { useUser, useFirestore } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { startTrainingSession, submitPracticeAnswer } from '@/lib/services/practice-service';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, query, where, orderBy } from 'firebase/firestore';
+import { 
+  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell 
+} from 'recharts';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { isValid } from 'date-fns';
 
 interface SessionHistoryItem {
   question: any;
@@ -28,7 +35,7 @@ interface SessionHistoryItem {
 }
 
 function MatrixSprintContent() {
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   const searchParams = useSearchParams();
@@ -47,6 +54,40 @@ function MatrixSprintContent() {
   const [correction, setCorrection] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sessionHistory, setSessionHistory] = useState<SessionHistoryItem[]>([]);
+
+  // Fetch attempts for history and chart
+  const attemptsQuery = useMemoFirebase(() => {
+    if (isUserLoading || !user?.uid) return null;
+    return query(
+      collection(db, 'coachingAttempts'), 
+      where('userId', '==', user.uid),
+      where('context', '==', 'matrix_sprint'),
+      where('matrixDomain', '==', domain),
+      where('matrixApproach', '==', approach),
+      orderBy('submittedAt', 'desc')
+    );
+  }, [db, user?.uid, isUserLoading, domain, approach]);
+
+  const { data: pastAttempts, isLoading: isLoadingHistory } = useCollection(attemptsQuery);
+
+  const historyData = useMemo(() => {
+    if (!pastAttempts) return [];
+    return [...pastAttempts]
+      .filter(a => a.submittedAt && isValid(a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt)))
+      .reverse()
+      .map((a, i) => {
+        const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
+        const correctCount = a.responses?.filter((r: any) => r.isCorrect).length || 0;
+        const totalCount = a.responses?.length || 5;
+        return {
+          id: a.id,
+          name: `T${i + 1}`,
+          date: date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
+          score: a.scorePercent || Math.round((correctCount / totalCount) * 100),
+          ratio: `${correctCount} / ${totalCount}`
+        };
+      });
+  }, [pastAttempts]);
 
   const handleStart = async () => {
     setIsLoading(true);
@@ -69,19 +110,17 @@ function MatrixSprintContent() {
     let currentCorrection = correction;
     let currentHistory = [...sessionHistory];
 
-    // Si l'utilisateur n'a pas encore cliqué sur "Vérifier", on le fait maintenant
     if (selectedChoices.length > 0 && !currentCorrection) {
       currentCorrection = await handleRevealCorrection();
     }
 
-    if (!currentCorrection) return; // Sécurité : on ne passe pas sans réponse
+    if (!currentCorrection) return;
 
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setSelectedChoices([]);
       setCorrection(null);
     } else {
-      // Fin du sprint : on utilise le dernier état complet de l'historique
       await saveFinalResults(currentHistory);
       setStep('summary');
     }
@@ -130,6 +169,9 @@ function MatrixSprintContent() {
   const saveFinalResults = async (finalHistory: SessionHistoryItem[]) => {
     if (finalHistory.length === 0) return;
     const duration = Math.floor((Date.now() - startTime) / 1000);
+    const correctCount = finalHistory.filter(h => h.correction.isCorrect).length;
+    const percent = Math.round((correctCount / finalHistory.length) * 100);
+
     try {
       await addDoc(collection(db, 'coachingAttempts'), {
         userId: user!.uid,
@@ -138,11 +180,13 @@ function MatrixSprintContent() {
         responses: finalHistory.map(h => ({
           questionId: h.question.id,
           userChoices: h.userChoices,
-          isCorrect: h.correction.isCorrect, // Stockage explicite du résultat pour les stats
+          isCorrect: h.correction.isCorrect,
           tags: h.question.tags || {}
         })),
         context: 'matrix_sprint',
-        scorePercent: Math.round((finalHistory.filter(h => h.correction.isCorrect).length / finalHistory.length) * 100)
+        matrixDomain: domain,
+        matrixApproach: approach,
+        scorePercent: percent
       });
     } catch (e) {
       console.error("Error saving matrix sprint results", e);
@@ -157,29 +201,102 @@ function MatrixSprintContent() {
 
   if (step === 'intro') {
     return (
-      <div className="max-w-3xl mx-auto py-12 px-4 space-y-8 animate-fade-in">
+      <div className="max-w-4xl mx-auto py-12 px-4 space-y-12 animate-fade-in pb-32">
         <Button variant="ghost" asChild className="hover:bg-primary/5 -ml-2 text-muted-foreground font-black uppercase tracking-widest text-[10px]">
           <Link href="/dashboard/matrice"><ChevronLeft className="mr-2 h-3 w-3" /> Retour à la matrice</Link>
         </Button>
+
         <Card className="rounded-[60px] border-none shadow-2xl bg-white p-12 text-center space-y-8 overflow-hidden relative">
           <div className="absolute -top-10 -right-10 bg-primary/10 h-40 w-40 rounded-full" />
-          <div className="bg-primary/5 w-24 h-24 rounded-[32px] flex items-center justify-center mx-auto shadow-inner">
+          <div className="bg-primary/5 w-24 h-24 rounded-[32px] flex items-center justify-center mx-auto shadow-inner relative z-10">
             <Zap className="h-12 w-12 text-primary fill-primary ml-1" />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2 relative z-10">
             <h2 className="text-4xl font-black italic uppercase tracking-tighter text-slate-900">Sprint Magique</h2>
             <p className="text-slate-500 font-bold uppercase tracking-widest text-xs italic">{getLabel(domain)} x {getLabel(approach)}</p>
           </div>
-          <div className="bg-slate-50 p-6 rounded-3xl border-2 border-dashed border-primary/10">
+          <div className="bg-slate-50 p-6 rounded-3xl border-2 border-dashed border-primary/10 relative z-10">
             <p className="text-lg font-bold italic text-slate-600 leading-relaxed">
               Objectif : <span className="text-primary font-black">5 Questions</span> ciblées sur cette intersection.<br />
               Atteignez <span className="text-emerald-500 font-black">80%</span> pour valider la cellule.
             </p>
           </div>
-          <Button size="lg" onClick={handleStart} disabled={isLoading} className="h-20 w-full rounded-[28px] bg-primary hover:bg-primary/90 text-2xl font-black uppercase tracking-widest shadow-2xl scale-105 transition-transform">
+          <Button size="lg" onClick={handleStart} disabled={isLoading} className="h-20 w-full rounded-[28px] bg-primary hover:bg-primary/90 text-2xl font-black uppercase tracking-widest shadow-2xl scale-105 transition-transform relative z-10">
             {isLoading ? <Loader2 className="animate-spin h-8 w-8" /> : "LANCER LE DÉFI"}
           </Button>
         </Card>
+
+        {/* History & Progression Section */}
+        <div className="space-y-8 animate-slide-up">
+          <div className="flex items-center gap-3 px-4">
+            <HistoryIcon className="h-6 w-6 text-primary" />
+            <h3 className="text-2xl font-black italic uppercase tracking-tight text-slate-900">Analyse de Performance</h3>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* History Table */}
+            <Card className="rounded-[40px] shadow-xl border-none bg-white overflow-hidden">
+              <CardHeader className="bg-slate-50/50 p-6 border-b">
+                <CardTitle className="text-[10px] font-black uppercase tracking-widest italic text-slate-400">Dernières tentatives</CardTitle>
+              </CardHeader>
+              <Table>
+                <TableHeader className="bg-white">
+                  <TableRow className="h-14 border-b-2">
+                    <TableHead className="px-8 font-black uppercase text-[9px] tracking-widest">Date</TableHead>
+                    <TableHead className="font-black uppercase text-[9px] tracking-widest text-center">Ratio</TableHead>
+                    <TableHead className="px-8 font-black uppercase text-[9px] tracking-widest text-right">Score</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoadingHistory ? (
+                    <TableRow><TableCell colSpan={3} className="h-40 text-center"><Loader2 className="animate-spin mx-auto h-6 w-6 text-primary" /></TableCell></TableRow>
+                  ) : historyData.length === 0 ? (
+                    <TableRow><TableCell colSpan={3} className="h-40 text-center font-bold italic text-slate-300">Aucun historique sur ce segment.</TableCell></TableRow>
+                  ) : (
+                    historyData.slice().reverse().slice(0, 5).map((a) => (
+                      <TableRow key={a.id} className="h-16 border-b last:border-0 hover:bg-slate-50 transition-colors">
+                        <TableCell className="px-8 font-bold italic text-sm text-slate-600">{a.date}</TableCell>
+                        <TableCell className="text-center font-black italic text-slate-400">{a.ratio}</TableCell>
+                        <TableCell className="px-8 text-right font-black italic text-primary text-lg">{a.score}%</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </Card>
+
+            {/* Progression Chart */}
+            <Card className="rounded-[40px] shadow-xl border-none bg-white p-8 space-y-6 flex flex-col justify-center">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-black uppercase tracking-widest italic text-slate-400">Courbe d'évolution</span>
+                <Badge variant="outline" className="font-black italic uppercase text-[8px] border-2 border-emerald-100 text-emerald-600 bg-emerald-50 px-3">Objectif : 80%</Badge>
+              </div>
+              <div className="h-[250px] w-full">
+                {historyData.length > 1 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={historyData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94a3b8' }} dy={10} />
+                      <YAxis hide domain={[0, 100]} />
+                      <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontWeight: 'bold' }} />
+                      <Bar dataKey="score" radius={[8, 8, 0, 0]} barSize={40}>
+                        {historyData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.score >= 80 ? '#10b981' : entry.score >= 60 ? '#f59e0b' : '#ef4444'} />
+                        ))}
+                      </Bar>
+                      <Line type="monotone" dataKey="score" stroke="#6366f1" strokeWidth={4} dot={{ r: 6, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4">
+                    <TrendingUp className="h-12 w-12 opacity-20" />
+                    <p className="font-black uppercase italic tracking-widest text-[10px]">Data insuffisante pour le graphique</p>
+                  </div>
+                )}
+              </div>
+            </Card>
+          </div>
+        </div>
       </div>
     );
   }
