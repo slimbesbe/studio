@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, Suspense, useMemo } from 'react';
@@ -55,7 +56,7 @@ function MatrixSprintContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sessionHistory, setSessionHistory] = useState<SessionHistoryItem[]>([]);
 
-  // Fetch attempts for history and chart
+  // Fetch attempts for history and chart - Simplified query to avoid index issues
   const attemptsQuery = useMemoFirebase(() => {
     if (isUserLoading || !user?.uid) return null;
     return query(
@@ -63,8 +64,7 @@ function MatrixSprintContent() {
       where('userId', '==', user.uid),
       where('context', '==', 'matrix_sprint'),
       where('matrixDomain', '==', domain),
-      where('matrixApproach', '==', approach),
-      orderBy('submittedAt', 'desc')
+      where('matrixApproach', '==', approach)
     );
   }, [db, user?.uid, isUserLoading, domain, approach]);
 
@@ -74,7 +74,7 @@ function MatrixSprintContent() {
     if (!pastAttempts) return [];
     return [...pastAttempts]
       .filter(a => a.submittedAt && isValid(a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt)))
-      .reverse()
+      .sort((a, b) => (a.submittedAt?.seconds || 0) - (b.submittedAt?.seconds || 0))
       .map((a, i) => {
         const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
         const correctCount = a.responses?.filter((r: any) => r.isCorrect).length || 0;
@@ -83,7 +83,7 @@ function MatrixSprintContent() {
           id: a.id,
           name: `T${i + 1}`,
           date: date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
-          score: a.scorePercent || Math.round((correctCount / totalCount) * 100),
+          score: a.scorePercent !== undefined ? a.scorePercent : Math.round((correctCount / totalCount) * 100),
           ratio: `${correctCount} / ${totalCount}`
         };
       });
@@ -108,7 +108,6 @@ function MatrixSprintContent() {
 
   const handleNext = async () => {
     let currentCorrection = correction;
-    let currentHistory = [...sessionHistory];
 
     if (selectedChoices.length > 0 && !currentCorrection) {
       currentCorrection = await handleRevealCorrection();
@@ -121,7 +120,8 @@ function MatrixSprintContent() {
       setSelectedChoices([]);
       setCorrection(null);
     } else {
-      await saveFinalResults(currentHistory);
+      // Use current index state combined with corrections
+      await saveFinalResults();
       setStep('summary');
     }
   };
@@ -166,18 +166,21 @@ function MatrixSprintContent() {
     }
   };
 
-  const saveFinalResults = async (finalHistory: SessionHistoryItem[]) => {
-    if (finalHistory.length === 0) return;
+  const saveFinalResults = async () => {
+    // Note: sessionHistory is updated via setSessionHistory, so we use a closure or the current state
+    // In summary step, sessionHistory will be full. 
+    // For immediate save, we use the results accumulated
     const duration = Math.floor((Date.now() - startTime) / 1000);
-    const correctCount = finalHistory.filter(h => h.correction.isCorrect).length;
-    const percent = Math.round((correctCount / finalHistory.length) * 100);
+    const correctCount = sessionResults.correct;
+    const totalCount = questions.length;
+    const percent = Math.round((correctCount / totalCount) * 100);
 
     try {
       await addDoc(collection(db, 'coachingAttempts'), {
         userId: user!.uid,
         durationSec: duration,
         submittedAt: serverTimestamp(),
-        responses: finalHistory.map(h => ({
+        responses: sessionHistory.map(h => ({
           questionId: h.question.id,
           userChoices: h.userChoices,
           isCorrect: h.correction.isCorrect,
@@ -253,7 +256,7 @@ function MatrixSprintContent() {
                   ) : historyData.length === 0 ? (
                     <TableRow><TableCell colSpan={3} className="h-40 text-center font-bold italic text-slate-300">Aucun historique sur ce segment.</TableCell></TableRow>
                   ) : (
-                    historyData.slice().reverse().slice(0, 5).map((a) => (
+                    [...historyData].reverse().slice(0, 5).map((a) => (
                       <TableRow key={a.id} className="h-16 border-b last:border-0 hover:bg-slate-50 transition-colors">
                         <TableCell className="px-8 font-bold italic text-sm text-slate-600">{a.date}</TableCell>
                         <TableCell className="text-center font-black italic text-slate-400">{a.ratio}</TableCell>
@@ -272,7 +275,7 @@ function MatrixSprintContent() {
                 <Badge variant="outline" className="font-black italic uppercase text-[8px] border-2 border-emerald-100 text-emerald-600 bg-emerald-50 px-3">Objectif : 80%</Badge>
               </div>
               <div className="h-[250px] w-full">
-                {historyData.length > 1 ? (
+                {historyData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={historyData}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -391,7 +394,7 @@ function MatrixSprintContent() {
               onClick={handleNext}
               disabled={(selectedChoices.length === 0 && !correction) || isSubmitting}
             >
-              {currentIndex < questions.length - 1 ? "Suivant" : "Voir les résultats"} <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+              {currentIndex < questions.length - 1 ? "Suivant" : "Terminer"} <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
             </Button>
           </CardFooter>
         </Card>

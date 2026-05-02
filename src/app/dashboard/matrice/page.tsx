@@ -19,14 +19,14 @@ import { useToast } from '@/hooks/use-toast';
 
 const DOMAINS = [
   { id: 'People', label: 'People' },
-  { id: 'Process', label: 'Process' },
+  { id: 'Process', label: 'Processus' },
   { id: 'Business', label: 'Business Environment' }
 ];
 
 const APPROACHES = [
-  { id: 'Predictive', label: 'PREDICTIVE' },
+  { id: 'Predictive', label: 'WATERFALL' },
   { id: 'Agile', label: 'AGILE' },
-  { id: 'Hybrid', label: 'HYBRID' }
+  { id: 'Hybrid', label: 'HYBRIDE' }
 ];
 
 export default function MatriceMagiquePage() {
@@ -51,24 +51,18 @@ export default function MatriceMagiquePage() {
   const { data: attempts, isLoading } = useCollection(attemptsQuery);
 
   const matriceStats = useMemo(() => {
-    const stats: Record<string, { score: number, count: number }> = {};
+    const stats: Record<string, { totalScore: number, attemptsCount: number }> = {};
     
     attempts?.forEach(att => {
-      att.responses?.forEach((resp: any) => {
-        let d = resp.tags?.domain;
-        let a = resp.tags?.approach;
-        
-        if (d === 'Processus' || d === 'Process') d = 'Process';
-        if (d === 'People') d = 'People';
-        if (d === 'Business' || d === 'Business Environment') d = 'Business';
-        
-        if (d && a) {
-          const key = `${d}-${a}`;
-          if (!stats[key]) stats[key] = { score: 0, count: 0 };
-          stats[key].count++;
-          if (resp.isCorrect) stats[key].score++;
-        }
-      });
+      const d = att.matrixDomain;
+      const a = att.matrixApproach;
+      
+      if (d && a) {
+        const key = `${d}-${a}`;
+        if (!stats[key]) stats[key] = { totalScore: 0, attemptsCount: 0 };
+        stats[key].attemptsCount++;
+        stats[key].totalScore += (att.scorePercent || 0);
+      }
     });
 
     return stats;
@@ -116,7 +110,7 @@ export default function MatriceMagiquePage() {
       <header className="flex-none flex justify-between items-end px-4 h-[6vh]">
         <div className="flex flex-col">
           <h1 className="text-[clamp(1.2rem,3.5vh,2.5rem)] font-black italic uppercase tracking-tighter text-slate-900 leading-none">Matrice Magique</h1>
-          <p className="text-slate-500 font-bold uppercase tracking-widest text-[clamp(0.5rem,1.2vh,0.8rem)] italic leading-none mt-1">Ciblez vos faiblesses • Seuil : {successThreshold}%</p>
+          <p className="text-slate-500 font-bold uppercase tracking-widest text-[clamp(0.5rem,1.2vh,0.8rem)] italic leading-none mt-1">Ciblez vos faiblesses • Seuil de maîtrise : {successThreshold}%</p>
         </div>
         <Button 
           variant="outline" 
@@ -125,7 +119,7 @@ export default function MatriceMagiquePage() {
           className="h-[5vh] px-4 rounded-xl border-2 font-black uppercase text-[1vh] text-red-500 hover:bg-red-50 gap-2"
         >
           {isResetting ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />} 
-          Reset
+          Reset Scores
         </Button>
       </header>
 
@@ -152,7 +146,7 @@ export default function MatriceMagiquePage() {
                 {APPROACHES.map(a => {
                   const key = `${d.id}-${a.id}`;
                   const data = matriceStats[key];
-                  const percent = data ? Math.round((data.score / data.count) * 100) : null;
+                  const percent = data ? Math.round((data.totalScore / data.attemptsCount)) : null;
                   const styles = getCellStyles(percent);
 
                   return (
@@ -160,14 +154,16 @@ export default function MatriceMagiquePage() {
                       key={key} 
                       href={`/dashboard/matrice/sprint?domain=${d.id}&approach=${a.id}`}
                       className={cn(
-                        "rounded-[2.5vh] border-4 transition-all duration-300 flex flex-col items-center justify-center relative group overflow-hidden hover:scale-[1.02] hover:shadow-lg",
+                        "rounded-[2.5vh] border-4 transition-all duration-300 flex flex-col items-center justify-center relative group overflow-hidden hover:scale-[1.02] hover:shadow-lg text-center px-4",
                         styles
                       )}
                     >
                       {percent !== null ? (
                         <>
-                          <span className="text-[4.5vh] font-black italic tracking-tighter leading-none">{data.score}/{data.count}</span>
-                          <span className="text-[1vh] font-black uppercase mt-[0.5vh] opacity-80">{percent}%</span>
+                          <span className="text-[3vh] font-black italic tracking-tighter leading-none mb-1">
+                            {data.attemptsCount} {data.attemptsCount > 1 ? 'tentatives' : 'tentative'}
+                          </span>
+                          <span className="text-[1.2vh] font-black uppercase opacity-80">{percent}% en moyenne</span>
                         </>
                       ) : (
                         <div className="flex flex-col items-center opacity-30">
