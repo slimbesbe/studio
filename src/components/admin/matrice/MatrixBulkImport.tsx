@@ -107,7 +107,7 @@ export function MatrixBulkImport({ isOpen, onClose }: { isOpen: boolean, onClose
         
         chunk.forEach((row: any) => {
           // Robust detection of statement/text column
-          const statement = row["Énoncé"] || row["ennocé"] || row["statement"] || row["text"] || row["Question"];
+          const statement = row["Énoncé"] || row["ennocé"] || row["statement"] || row["text"] || row["Question"] || row["Énonce"];
           const code = row["Code"] || row["code question"] || row["questionCode"];
           const correctValue = String(row["correct"] || row["bonne reponse"] || row["Correct"] || row["Answer"] || "");
           const justification = row["justification"] || row["Justification"] || row["explanation"] || "";
@@ -183,7 +183,7 @@ export function MatrixBulkImport({ isOpen, onClose }: { isOpen: boolean, onClose
             <FileSpreadsheet className="h-8 w-8" /> Importation Matrice (9 Feuilles)
           </DialogTitle>
           <DialogDescription className="font-bold text-slate-500 italic uppercase text-[10px] tracking-widest mt-2">
-            Importation massive par domaines et approches (Mapping A->1, B->2...).
+            Importation massive par domaines et approches (Mapping A-&gt;1, B-&gt;2...).
           </DialogDescription>
         </DialogHeader>
 

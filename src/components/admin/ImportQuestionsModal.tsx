@@ -113,7 +113,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
         json.forEach((row, index) => {
           const lineNum = index + 2;
           // Robust mapping
-          const statement = row["Énoncé"] || row["ennocé"] || row["statement"] || row["text"] || row["Question"];
+          const statement = row["Énoncé"] || row["ennocé"] || row["statement"] || row["text"] || row["Question"] || row["Énonce"];
           const justification = row["justification"] || row["Justification"] || row["explanation"] || row["Rationale"] || "";
           const correctValue = String(row["correct"] || row["Correct"] || row["Answer"] || row["bonne reponse"] || "");
           const code = row["Code"] || row["code question"] || row["questionCode"] || row["id"];
@@ -242,7 +242,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general' }: Im
             <FileSpreadsheet className="h-8 w-8" /> Importation Questions
           </DialogTitle>
           <DialogDescription className="font-bold text-slate-500 italic uppercase text-[10px] tracking-widest mt-2">
-            Conversion automatique des colonnes et mappage A->1, B->2...
+            Conversion automatique des colonnes et mappage A-&gt;1, B-&gt;2...
           </DialogDescription>
         </DialogHeader>
 
