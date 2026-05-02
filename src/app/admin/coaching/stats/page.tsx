@@ -19,7 +19,7 @@ export default function CoachingStatsGroups() {
   const [filterPartner, setFilterPartner] = useState('all');
   
   // SÉCURITÉ MATÉRIELLE STRICTE - DOUBLE VÉRIFICATION
-  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com'];
+  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com', 'jedgrira1@gmail.com'];
   const isAuthorizedAdmin = user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
 
   const isSA = isAuthorizedAdmin && profile?.role === 'super_admin';

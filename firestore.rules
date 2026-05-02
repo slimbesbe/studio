@@ -12,15 +12,16 @@ service cloud.firestore {
         request.auth.uid == "vwyrAnNtQkSojYSEEK2qkRB5feh2" || 
         request.auth.uid == "GPgreBe1JzZYbEHQGn3xIdcQGQs1" ||
         request.auth.uid == "ve5V0MUPoccuOdBNGYsz6QYY89L2" ||
+        request.auth.uid == "Adknzym5N6cMeJnYbCRaAdBrA0r1" ||
         (request.auth.token.email != null && (
           request.auth.token.email.lower() == "slim.besbes@yahoo.fr" ||
-          request.auth.token.email.lower() == "contact@inovexio.com"
+          request.auth.token.email.lower() == "contact@inovexio.com" ||
+          request.auth.token.email.lower() == "jedgrira1@gmail.com"
         ))
       );
     }
 
     // 1. SERVICES SYSTÈME (Priorité Haute)
-    // Permettre la création de logs et d'emails pour le suivi
     match /userLogs/{logId} {
       allow create: if isSignedIn();
       allow read: if isAdmin();
@@ -72,16 +73,16 @@ service cloud.firestore {
 
     // 4. RÉSULTATS ET TENTATIVES
     match /coachingAttempts/{attemptId} {
-      allow read: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid));
+      allow read: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow delete: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid));
+      allow delete: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
       allow update: if isAdmin();
     }
 
     match /quickQuizAttempts/{attemptId} {
-      allow read: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid));
+      allow read: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow delete: if isSignedIn() && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid));
+      allow delete: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
       allow update: if isAdmin();
     }
 

@@ -31,7 +31,7 @@ export default function UserLogsPage() {
   const [actionFilter, setActionFilter] = useState('all');
 
   // WHITELIST SÉCURITÉ
-  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com'];
+  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com', 'jedgrira1@gmail.com'];
   const isAuthorizedAdmin = user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
 
   // 1. Fetch Real-time Logs - Protected by whitelist

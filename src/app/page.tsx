@@ -26,7 +26,7 @@ export default function Home() {
   const db = useFirestore();
   const { toast } = useToast();
 
-  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com'];
+  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com', 'jedgrira1@gmail.com'];
   const MASTER_PASS = '147813';
 
   useEffect(() => {
