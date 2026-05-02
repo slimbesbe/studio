@@ -76,8 +76,8 @@ function MatrixSprintContent() {
       .sort((a, b) => (a.submittedAt?.seconds || 0) - (b.submittedAt?.seconds || 0))
       .map((a, i) => {
         const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
-        const correctCount = a.correctCount !== undefined ? a.correctCount : (a.responses?.filter((r: any) => r.isCorrect).length || 0);
         const totalCount = a.totalQuestions || a.responses?.length || 5;
+        const correctCount = a.correctCount !== undefined ? a.correctCount : Math.round(((a.scorePercent || 0) * totalCount) / 100);
         return {
           id: a.id,
           name: `T${i + 1}`,
@@ -106,51 +106,51 @@ function MatrixSprintContent() {
   };
 
   const handleNext = async () => {
-    let currentCorrection = correction;
-    let currentHistory = [...sessionHistory];
-    let currentCorrectCount = sessionResults.correct;
+    setIsSubmitting(true);
+    try {
+      let currentCorrection = correction;
+      let currentChoices = selectedChoices;
 
-    // 1. Si l'utilisateur n'a pas cliqué sur "Vérifier", on le fait pour lui
-    if (selectedChoices.length > 0 && !currentCorrection) {
-      setIsSubmitting(true);
-      try {
-        const res = await submitPracticeAnswer(db, user!.uid, questions[currentIndex].id, selectedChoices);
+      // 1. Force verification if not done
+      if (!currentCorrection && currentChoices.length > 0) {
+        const res = await submitPracticeAnswer(db, user!.uid, questions[currentIndex].id, currentChoices);
         currentCorrection = res;
-        setCorrection(res);
-        
-        const newHistoryItem = { 
-          question: questions[currentIndex], 
-          userChoices: selectedChoices, 
-          correction: res 
-        };
-        
-        currentHistory.push(newHistoryItem);
-        setSessionHistory(currentHistory);
+      }
 
-        if (res.isCorrect) {
-          currentCorrectCount += 1;
-          setSessionResults(prev => ({ ...prev, correct: prev.correct + 1 }));
-        }
-      } catch (e) {
-        toast({ variant: "destructive", title: "Erreur lors de la validation" });
+      if (!currentCorrection) {
         setIsSubmitting(false);
         return;
-      } finally {
-        setIsSubmitting(false);
       }
-    }
 
-    if (!currentCorrection) return;
+      // 2. Build complete history for this step
+      const currentHistoryItem = { 
+        question: questions[currentIndex], 
+        userChoices: currentChoices, 
+        correction: currentCorrection 
+      };
+      
+      // Clean existing entry for same question to avoid duplicates if "Verify" was clicked
+      const filteredHistory = sessionHistory.filter(h => h.question.id !== questions[currentIndex].id);
+      const finalHistory = [...filteredHistory, currentHistoryItem];
+      
+      const correctCount = finalHistory.filter(h => h.correction.isCorrect).length;
 
-    // 2. Navigation ou Fin
-    if (currentIndex < questions.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-      setSelectedChoices([]);
-      setCorrection(null);
-    } else {
-      // C'était la dernière question
-      await saveFinalResults(currentHistory, currentCorrectCount);
-      setStep('summary');
+      // 3. Navigation or Finish
+      if (currentIndex < questions.length - 1) {
+        setSessionHistory(finalHistory);
+        setSessionResults({ correct: correctCount, total: questions.length });
+        setCurrentIndex(currentIndex + 1);
+        setSelectedChoices([]);
+        setCorrection(null);
+      } else {
+        // C'était la dernière question
+        await saveFinalResults(finalHistory, correctCount);
+        setStep('summary');
+      }
+    } catch (e) {
+      toast({ variant: "destructive", title: "Erreur" });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -180,11 +180,15 @@ function MatrixSprintContent() {
         correction: res 
       };
 
-      setSessionHistory(prev => [...prev, newHistoryItem]);
+      setSessionHistory(prev => {
+        const filtered = prev.filter(h => h.question.id !== questions[currentIndex].id);
+        return [...filtered, newHistoryItem];
+      });
 
-      if (res.isCorrect) {
-        setSessionResults(prev => ({ ...prev, correct: prev.correct + 1 }));
-      }
+      setSessionResults(prev => {
+        const correct = res.isCorrect ? prev.correct + 1 : prev.correct;
+        return { ...prev, correct };
+      });
       return res;
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur lors de la correction" });

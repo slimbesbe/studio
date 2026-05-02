@@ -82,7 +82,6 @@ function PracticeContent() {
       setStartTime(Date.now());
       setSessionResults({ correct: 0, total: data.length });
       
-      // Log practice start
       logActivity(db, user!.uid, 'practice_started', { mode, filters, count: finalCount });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Erreur", description: e.message });
@@ -92,51 +91,49 @@ function PracticeContent() {
   };
 
   const handleNext = async () => {
-    let currentCorrection = correction;
-    let currentHistory = [...sessionHistory];
-    let currentCorrectCount = sessionResults.correct;
+    setIsSubmitting(true);
+    try {
+      let currentCorrection = correction;
+      let currentChoices = selectedChoices;
 
-    // 1. Reveal correction if not done
-    if (selectedChoices.length > 0 && !currentCorrection) {
-      setIsSubmitting(true);
-      try {
-        const res = await submitPracticeAnswer(db, user!.uid, questions[currentIndex].id, selectedChoices);
+      // 1. Force verification if not done
+      if (!currentCorrection && currentChoices.length > 0) {
+        const res = await submitPracticeAnswer(db, user!.uid, questions[currentIndex].id, currentChoices);
         currentCorrection = res;
-        setCorrection(res);
-        
-        const newHistoryItem = { 
-          question: questions[currentIndex], 
-          userChoices: selectedChoices, 
-          correction: res 
-        };
-        
-        currentHistory.push(newHistoryItem);
-        setSessionHistory(currentHistory);
+      }
 
-        if (res.isCorrect) {
-          currentCorrectCount += 1;
-          setSessionResults(prev => ({ ...prev, correct: prev.correct + 1 }));
-        }
-      } catch (e) {
-        toast({ variant: "destructive", title: "Erreur" });
+      if (!currentCorrection) {
         setIsSubmitting(false);
         return;
-      } finally {
-        setIsSubmitting(false);
       }
-    }
 
-    if (!currentCorrection) return;
+      // 2. Build complete history for this step
+      const currentHistoryItem = { 
+        question: questions[currentIndex], 
+        userChoices: currentChoices, 
+        correction: currentCorrection 
+      };
+      
+      const filteredHistory = sessionHistory.filter(h => h.question.id !== questions[currentIndex].id);
+      const finalHistory = [...filteredHistory, currentHistoryItem];
+      
+      const correctCount = finalHistory.filter(h => h.correction.isCorrect).length;
 
-    // 2. Decide if move to next or finish
-    if (currentIndex < questions.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-      setSelectedChoices([]);
-      setCorrection(null);
-    } else {
-      // Final save
-      await saveSessionSummary(currentHistory, currentCorrectCount);
-      setStep('summary');
+      // 3. Navigation or Finish
+      if (currentIndex < questions.length - 1) {
+        setSessionHistory(finalHistory);
+        setSessionResults({ correct: correctCount, total: questions.length });
+        setCurrentIndex(currentIndex + 1);
+        setSelectedChoices([]);
+        setCorrection(null);
+      } else {
+        await saveSessionSummary(finalHistory, correctCount);
+        setStep('summary');
+      }
+    } catch (e) {
+      toast({ variant: "destructive", title: "Erreur" });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -160,16 +157,21 @@ function PracticeContent() {
       const res = await submitPracticeAnswer(db, user!.uid, questions[currentIndex].id, selectedChoices);
       setCorrection(res);
       
-      setSessionHistory(prev => [
-        ...prev, 
-        { 
-          question: questions[currentIndex], 
-          userChoices: selectedChoices, 
-          correction: res 
-        }
-      ]);
+      const newHistoryItem = { 
+        question: questions[currentIndex], 
+        userChoices: selectedChoices, 
+        correction: res 
+      };
 
-      if (res.isCorrect) setSessionResults(prev => ({ ...prev, correct: prev.correct + 1 }));
+      setSessionHistory(prev => {
+        const filtered = prev.filter(h => h.question.id !== questions[currentIndex].id);
+        return [...filtered, newHistoryItem];
+      });
+
+      setSessionResults(prev => {
+        const correct = res.isCorrect ? prev.correct + 1 : prev.correct;
+        return { ...prev, correct };
+      });
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur lors de la correction" });
     } finally {

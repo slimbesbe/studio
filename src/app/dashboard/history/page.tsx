@@ -69,7 +69,7 @@ export default function HistoryPage() {
         
         const coachingComputed = (rawCoaching || []).map(attempt => {
           let correct = 0;
-          const total = attempt.responses?.length || 0;
+          const responsesCount = attempt.responses?.length || 0;
           
           attempt.responses?.forEach((resp: any) => {
             const q = latestQuestions.find(lq => lq.id === resp.questionId);
@@ -85,16 +85,22 @@ export default function HistoryPage() {
           let filterType: HistoryFilter = 'practice';
           if (attempt.examId?.startsWith('exam')) filterType = 'exams';
           else if (attempt.context === 'matrix_sprint') filterType = 'matrice';
-          else if (attempt.sessionId) filterType = 'exams'; // Coaching sessions are also "official" exams/sessions
+          else if (attempt.sessionId) filterType = 'exams'; 
+
+          const finalTotal = attempt.totalQuestions || responsesCount;
+          const finalCorrect = attempt.correctCount !== undefined ? attempt.correctCount : correct;
+
+          const displayDomain = attempt.matrixDomain === 'Process' ? 'Processus' : attempt.matrixDomain;
+          const displayApproach = attempt.matrixApproach === 'Predictive' ? 'Waterfall' : attempt.matrixApproach;
 
           return {
             ...attempt,
             filterType,
-            scorePercent: attempt.scorePercent !== undefined ? attempt.scorePercent : (total > 0 ? Math.round((correct / total) * 100) : 0),
-            correctCount: attempt.correctCount || correct,
-            totalQuestions: attempt.totalQuestions || total,
+            scorePercent: attempt.scorePercent !== undefined ? attempt.scorePercent : (finalTotal > 0 ? Math.round((finalCorrect / finalTotal) * 100) : 0),
+            correctCount: finalCorrect,
+            totalQuestions: finalTotal,
             displayTitle: attempt.examId ? attempt.examId.replace('exam', 'Simulation ') : 
-                          attempt.context === 'matrix_sprint' ? `Sprint : ${attempt.matrixDomain} x ${attempt.matrixApproach}` :
+                          attempt.context === 'matrix_sprint' ? `Sprint : ${displayDomain || '??'} x ${displayApproach || '??'}` :
                           attempt.sessionId ? `Session ${attempt.sessionId}` : 'Pratique Libre'
           };
         });
@@ -107,7 +113,9 @@ export default function HistoryPage() {
           scorePercent: q.score,
           displayTitle: `Quiz : ${q.axisId.toUpperCase()}`,
           submittedAt: q.submittedAt,
-          durationSec: 0
+          durationSec: 0,
+          totalQuestions: q.totalQuestions || 5,
+          correctCount: q.correctCount || 0
         }));
 
         setComputedResults([...coachingComputed, ...quizComputed].sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0)));
