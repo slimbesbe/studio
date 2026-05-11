@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useState, useMemo, Suspense, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, deleteDoc, doc, limit, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, query, orderBy, deleteDoc, doc, limit, writeBatch } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -14,10 +15,8 @@ import {
   Trash2, 
   Pencil, 
   Loader2, 
-  BookCopy, 
   ChevronLeft,
   Filter,
-  AlertTriangle,
   BookOpen,
   Trophy,
   Layers,
@@ -41,18 +40,20 @@ function QuestionsList() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
   
-  // Détection du contexte (obligatoire)
   const contextType = searchParams.get('type') as 'practice' | 'exams' || 'practice';
-  const filterType = searchParams.get('filter') as 'domain' | 'approach' | 'all' || 'all';
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterExam, setFilterExam] = useState(contextType === 'practice' ? 'general' : 'exam1');
+  const [filterDomain, setFilterDomain] = useState('all');
+  const [filterApproach, setFilterApproach] = useState('all');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
-  // Sécurité : Réinitialiser le filtre si le contexte change
   useEffect(() => {
-    if (contextType === 'practice') setFilterExam('general');
-    else if (contextType === 'exams') setFilterExam('exam1');
+    if (contextType === 'practice') {
+      setFilterExam('general');
+    } else if (contextType === 'exams') {
+      setFilterExam('exam1');
+    }
   }, [contextType]);
 
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
@@ -62,7 +63,6 @@ function QuestionsList() {
 
   const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
 
-  // Chargement des questions avec une limite de sécurité
   const questionsQuery = useMemoFirebase(() => {
     if (!isAdmin) return null;
     return query(collection(db, 'questions'), orderBy('updatedAt', 'desc'), limit(2000));
@@ -78,24 +78,30 @@ function QuestionsList() {
       
       const sources = q.sourceIds || [];
       
-      // FILTRAGE STRICT PAR CONTEXTE
+      // FILTRAGE STRICT PAR CONTEXTE (PRATIQUE vs EXAMS)
       if (contextType === 'practice') {
         if (!sources.includes('general')) return false;
       } else {
         if (!sources.some(s => s.startsWith('exam'))) return false;
       }
 
-      // Filtrage par sous-catégorie (ex: Examen 1, Examen 2...)
-      let matchSubFilter = false;
-      if (filterExam === 'all_exams') {
-        matchSubFilter = sources.some(s => s.startsWith('exam'));
-      } else {
-        matchSubFilter = sources.includes(filterExam);
+      // Filtrage par sous-catégorie (Examen 1, 2...)
+      let matchSubFilter = true;
+      if (contextType === 'exams') {
+        if (filterExam === 'all_exams') {
+          matchSubFilter = sources.some(s => s.startsWith('exam'));
+        } else {
+          matchSubFilter = sources.includes(filterExam);
+        }
       }
+
+      // Filtrage par Domaine/Approche
+      const matchDomain = filterDomain === 'all' || q.tags?.domain === filterDomain;
+      const matchApproach = filterApproach === 'all' || q.tags?.approach === filterApproach;
       
-      return (textMatch || codeMatch) && matchSubFilter;
+      return (textMatch || codeMatch) && matchSubFilter && matchDomain && matchApproach;
     });
-  }, [questions, searchTerm, filterExam, contextType]);
+  }, [questions, searchTerm, filterExam, filterDomain, filterApproach, contextType]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Voulez-vous vraiment supprimer cette question ?')) return;
@@ -121,7 +127,7 @@ function QuestionsList() {
       const batch = writeBatch(db);
       filteredQuestions.forEach(q => batch.delete(doc(db, 'questions', q.id)));
       await batch.commit();
-      toast({ title: `La banque ${contextType === 'practice' ? 'Pratique' : 'Examens'} a été vidée.` });
+      toast({ title: `La base a été vidée.` });
       setIsResetModalOpen(false);
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur" });
@@ -131,31 +137,30 @@ function QuestionsList() {
   };
 
   const downloadTemplate = () => {
-    // Modèle mis à jour pour correspondre à la demande utilisateur (Format Capture d'écran)
     const template = [{
       "Numéro": "1",
       "Domaine": "PROCESSUS",
       "Approche": "Predictive",
-      "Scénario / Question": "Lors de la phase d'exécution d'un projet prédictif, le client vous contacte...",
-      "Option A": "Accepter la demande...",
-      "Option B": "Demander au client de soumettre une demande de changement...",
-      "Option C": "Refuser la demande...",
-      "Option D": "Mettre à jour le registre des risques...",
+      "Scénario / Question": "Lors de la phase d'exécution d'un projet prédictif...",
+      "Option A": "Option 1",
+      "Option B": "Option 2",
+      "Option C": "Option 3",
+      "Option D": "Option 4",
       "Réponse Correcte": "B",
-      "Justification": "Toute modification du périmètre de référence dans un projet prédictif...",
+      "Justification": "Explication...",
       "Difficulté": "Medium"
     }];
     const ws = XLSX.utils.json_to_sheet(template);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Questions");
-    XLSX.writeFile(wb, `modele_import_simulux_${contextType}.xlsx`);
+    XLSX.writeFile(wb, `modele_simulux_${contextType}.xlsx`);
   };
 
   if (isLoading) return <div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
   if (!isAdmin) return null;
 
-  const PageIcon = contextType === 'exams' ? Trophy : (filterType === 'domain' ? Layers : filterType === 'approach' ? Globe : BookOpen);
-  const PageTitle = contextType === 'exams' ? 'Simulations d\'Examen' : (filterType === 'domain' ? 'Base Pratique : Focus Domaines' : filterType === 'approach' ? 'Base Pratique : Focus Approches' : 'Base Pratique Libre');
+  const PageIcon = contextType === 'exams' ? Trophy : BookOpen;
+  const PageTitle = contextType === 'exams' ? 'Simulations d\'Examen' : 'Base Pratique Libre';
 
   return (
     <div className="space-y-8 animate-fade-in p-8 pb-32">
@@ -171,7 +176,7 @@ function QuestionsList() {
               {PageTitle}
             </h1>
             <p className="text-muted-foreground mt-1 uppercase tracking-widest text-[10px] font-bold italic">
-              {contextType === 'practice' ? `Gestion du contenu pour les entraînements par ${filterType === 'domain' ? 'domaines' : 'approches'}.` : 'Gestion isolée du contenu pour les examens blancs.'}
+              {contextType === 'practice' ? "Gestion centralisée du contenu d'entraînement libre." : 'Gestion isolée des examens blancs.'}
             </p>
           </div>
         </div>
@@ -186,32 +191,29 @@ function QuestionsList() {
             <Upload className="mr-2 h-5 w-5" /> Importer
           </Button>
           <Button asChild className={cn("h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs italic shadow-xl", contextType === 'practice' ? 'bg-emerald-600' : 'bg-primary')}>
-            <Link href={`/admin/manage-question/${contextType === 'practice' ? 'general' : filterExam === 'all_exams' ? 'exam1' : filterExam}/new?filter=${filterType}`}>
+            <Link href={`/admin/manage-question/${contextType === 'practice' ? 'general' : filterExam === 'all_exams' ? 'exam1' : filterExam}/new`}>
               <Plus className="mr-2 h-5 w-5" /> Créer Question
             </Link>
           </Button>
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
+      <div className="flex flex-wrap gap-4 items-center bg-white p-6 rounded-[32px] shadow-sm border-2">
+        <div className="relative flex-1 min-w-[300px]">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
           <Input 
             value={searchTerm} 
             onChange={(e) => setSearchTerm(e.target.value)} 
             placeholder="Rechercher par énoncé ou code..." 
-            className="h-16 rounded-[24px] pl-12 font-bold italic border-2 shadow-sm bg-white"
+            className="h-14 rounded-2xl pl-12 font-bold italic border-2 bg-slate-50/50"
           />
         </div>
         
-        {contextType === 'exams' && (
-          <div className="w-full md:w-72">
+        {contextType === 'exams' ? (
+          <div className="w-full md:w-64">
             <Select value={filterExam} onValueChange={setFilterExam}>
-              <SelectTrigger className="h-16 rounded-[24px] border-2 font-black italic shadow-sm bg-white text-primary">
-                <div className="flex items-center gap-2">
-                  <Filter className="h-4 w-4" />
-                  <SelectValue />
-                </div>
+              <SelectTrigger className="h-14 rounded-2xl border-2 font-black italic bg-white text-primary">
+                <div className="flex items-center gap-2"><Filter className="h-4 w-4" /><SelectValue /></div>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all_exams">Toutes les Simulations</SelectItem>
@@ -220,6 +222,31 @@ function QuestionsList() {
                 <SelectItem value="exam3">Examen 3</SelectItem>
                 <SelectItem value="exam4">Examen 4</SelectItem>
                 <SelectItem value="exam5">Examen 5</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-3 w-full md:w-auto">
+            <Select value={filterDomain} onValueChange={setFilterDomain}>
+              <SelectTrigger className="h-14 w-48 rounded-2xl border-2 font-black italic bg-white text-emerald-600">
+                <div className="flex items-center gap-2"><Layers className="h-4 w-4" /><SelectValue placeholder="Domaine" /></div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous Domaines</SelectItem>
+                <SelectItem value="People">People</SelectItem>
+                <SelectItem value="Process">Processus</SelectItem>
+                <SelectItem value="Business">Business</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterApproach} onValueChange={setFilterApproach}>
+              <SelectTrigger className="h-14 w-48 rounded-2xl border-2 font-black italic bg-white text-emerald-600">
+                <div className="flex items-center gap-2"><Globe className="h-4 w-4" /><SelectValue placeholder="Approche" /></div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes Approches</SelectItem>
+                <SelectItem value="Predictive">Waterfall</SelectItem>
+                <SelectItem value="Agile">Agile</SelectItem>
+                <SelectItem value="Hybrid">Hybride</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -285,7 +312,6 @@ function QuestionsList() {
         isOpen={isImportModalOpen} 
         onClose={() => setIsImportModalOpen(false)} 
         examId={contextType === 'practice' ? 'general' : filterExam === 'all_exams' ? 'exam1' : filterExam}
-        filterType={filterType}
       />
 
       <Dialog open={isResetModalOpen} onOpenChange={(val) => !isResetting && setIsResetModalOpen(val)}>
