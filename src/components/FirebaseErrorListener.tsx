@@ -6,21 +6,23 @@ import { FirestorePermissionError } from '@/firebase/errors';
 
 /**
  * Composant invisible qui écoute les erreurs de permission Firestore émises globalement.
- * En développement, il affiche l'erreur dans la console pour faciliter le débogage des règles.
+ * En développement, il affiche l'erreur de manière détaillée pour faciliter le débogage.
  */
 export function FirebaseErrorListener() {
   useEffect(() => {
     const handleError = (error: FirestorePermissionError) => {
-      // On logue l'erreur de manière détaillée pour l'agent et le développeur
-      console.error('Firestore Permission Denied:', {
-        path: error.request.path,
-        method: error.request.method,
-        auth: error.request.auth?.uid,
-        data: error.request.resource?.data
-      });
+      // On logue l'erreur de manière explicite pour éviter les affichages vides "{}"
+      const { path, method, auth, resource } = error.request;
       
-      // Note: On ne "throw" plus ici pendant le rendu pour éviter de casser l'application entière.
-      // Next.js affichera l'erreur si elle n'est pas gérée localement par un try/catch ou un .catch().
+      console.group('🔥 Firestore Permission Denied');
+      console.error('Message:', error.message);
+      console.error('Path:', path);
+      console.error('Method:', method);
+      console.error('User UID:', auth?.uid || 'Unauthenticated');
+      if (resource?.data) {
+        console.error('Request Data:', resource.data);
+      }
+      console.groupEnd();
     };
 
     errorEmitter.on('permission-error', handleError);
