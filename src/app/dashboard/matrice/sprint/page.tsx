@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, Suspense, useMemo } from 'react';
@@ -91,7 +90,8 @@ function MatrixSprintContent() {
   const handleStart = async () => {
     setIsLoading(true);
     try {
-      const data = await startTrainingSession(db, user!.uid, 'domain', { domain, approach }, 5);
+      // Utilisation du mode 'matrix' pour une recherche plus flexible et robuste
+      const data = await startTrainingSession(db, user!.uid, 'matrix', { domain, approach }, 5);
       setQuestions(data);
       setSessionHistory([]);
       setStartTime(Date.now());
@@ -111,9 +111,8 @@ function MatrixSprintContent() {
       let currentCorrection = correction;
       let currentChoices = selectedChoices;
 
-      // 1. Force verification if not done
       if (!currentCorrection && currentChoices.length > 0) {
-        const res = await submitPracticeAnswer(db, user!.uid, questions[currentIndex].id, currentChoices);
+        const res = await submitPracticeAnswer(db, user!.uid, questions[currentIndex].id, currentChoices, 'matrix');
         currentCorrection = res;
       }
 
@@ -122,20 +121,17 @@ function MatrixSprintContent() {
         return;
       }
 
-      // 2. Build complete history for this step
       const currentHistoryItem = { 
         question: questions[currentIndex], 
         userChoices: currentChoices, 
         correction: currentCorrection 
       };
       
-      // Clean existing entry for same question to avoid duplicates if "Verify" was clicked
       const filteredHistory = sessionHistory.filter(h => h.question.id !== questions[currentIndex].id);
       const finalHistory = [...filteredHistory, currentHistoryItem];
       
       const correctCount = finalHistory.filter(h => h.correction.isCorrect).length;
 
-      // 3. Navigation or Finish
       if (currentIndex < questions.length - 1) {
         setSessionHistory(finalHistory);
         setSessionResults({ correct: correctCount, total: questions.length });
@@ -143,7 +139,6 @@ function MatrixSprintContent() {
         setSelectedChoices([]);
         setCorrection(null);
       } else {
-        // C'était la dernière question
         await saveFinalResults(finalHistory, correctCount);
         setStep('summary');
       }
@@ -171,7 +166,7 @@ function MatrixSprintContent() {
     if (selectedChoices.length === 0 || isSubmitting || correction) return null;
     setIsSubmitting(true);
     try {
-      const res = await submitPracticeAnswer(db, user!.uid, questions[currentIndex].id, selectedChoices);
+      const res = await submitPracticeAnswer(db, user!.uid, questions[currentIndex].id, selectedChoices, 'matrix');
       setCorrection(res);
       
       const newHistoryItem = { 

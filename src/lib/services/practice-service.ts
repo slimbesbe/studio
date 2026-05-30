@@ -37,7 +37,10 @@ export async function startTrainingSession(
     let constraints = [where('status', '==', 'wrong')];
     
     // Filtres par Axe (PMP)
-    if (filters.domain && filters.domain !== 'all') constraints.push(where('tags.domain', '==', filters.domain));
+    if (filters.domain && filters.domain !== 'all') {
+      const domainVal = filters.domain === 'Processus' ? 'Process' : filters.domain;
+      constraints.push(where('tags.domain', 'in', [domainVal, 'Processus', 'Process']));
+    }
     if (filters.approach && filters.approach !== 'all') constraints.push(where('tags.approach', '==', filters.approach));
     
     // Filtres par Thème d'activité (Idem Historique)
@@ -52,18 +55,54 @@ export async function startTrainingSession(
     return fetchQuestionsByIds(db, kmIds, questionCount);
   } else {
     let questionsRef = collection(db, 'questions');
-    let constraints = [
-      where('isActive', '==', true),
-      where('sourceIds', 'array-contains', 'general')
-    ];
     
-    if (filters.domain && filters.domain !== 'all') constraints.push(where('tags.domain', '==', filters.domain));
-    if (filters.approach && filters.approach !== 'all') constraints.push(where('tags.approach', '==', filters.approach));
+    // Pour la matrice, on est plus souple sur la source pour éviter de bloquer si l'import n'a pas mis 'general'
+    const isMatrix = mode === 'matrix';
+    
+    let constraints: any[] = [
+      where('isActive', '==', true)
+    ];
+
+    // Si on n'est pas en mode matrice, on force le silo 'general' (Pratique Libre)
+    if (!isMatrix) {
+      constraints.push(where('sourceIds', 'array-contains', 'general'));
+    }
+    
+    // Gestion robuste du domaine (Process vs Processus)
+    if (filters.domain && filters.domain !== 'all') {
+      if (filters.domain === 'Process' || filters.domain === 'Processus') {
+        constraints.push(where('tags.domain', 'in', ['Process', 'Processus']));
+      } else {
+        constraints.push(where('tags.domain', '==', filters.domain));
+      }
+    }
+    
+    if (filters.approach && filters.approach !== 'all') {
+      constraints.push(where('tags.approach', '==', filters.approach));
+    }
     
     const q = query(questionsRef, ...constraints, limit(200));
     const snap = await getDocs(q);
     
     if (snap.empty) {
+      // Fallback : si on cherchait dans 'general' et qu'on n'a rien, on essaie sans le filtre de silo
+      if (!isMatrix) {
+        const fallbackQ = query(questionsRef, where('isActive', '==', true), limit(200));
+        const fallbackSnap = await getDocs(fallbackQ);
+        if (fallbackSnap.empty) {
+          throw new Error("Aucune question disponible dans la base de données.");
+        }
+        // Filtrage manuel pour les tags
+        const pool = fallbackSnap.docs.map(d => ({...d.data(), id: d.id})).filter((q: any) => {
+          const dMatch = filters.domain === 'all' || q.tags?.domain === filters.domain || (filters.domain === 'Process' && q.tags?.domain === 'Processus');
+          const aMatch = filters.approach === 'all' || q.tags?.approach === filters.approach;
+          return dMatch && aMatch;
+        });
+        
+        if (pool.length === 0) throw new Error("Aucune question trouvée pour ces critères.");
+        return pool.sort(() => 0.5 - Math.random()).slice(0, questionCount === 0 ? pool.length : questionCount);
+      }
+      
       throw new Error("Aucune question de pratique disponible pour ces critères.");
     }
 
