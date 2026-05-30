@@ -25,6 +25,7 @@ export interface PracticeFilters {
 
 /**
  * Charge un pool de questions pour une session d'entraînement.
+ * Rendu extrêmement robuste pour la Matrice Magique.
  */
 export async function startTrainingSession(
   db: Firestore, 
@@ -36,14 +37,12 @@ export async function startTrainingSession(
   if (mode === 'kill_mistake') {
     let constraints = [where('status', '==', 'wrong')];
     
-    // Filtres par Axe (PMP)
     if (filters.domain && filters.domain !== 'all') {
       const domainVal = filters.domain === 'Processus' ? 'Process' : filters.domain;
       constraints.push(where('tags.domain', 'in', [domainVal, 'Processus', 'Process']));
     }
     if (filters.approach && filters.approach !== 'all') constraints.push(where('tags.approach', '==', filters.approach));
     
-    // Filtres par Thème d'activité (Idem Historique)
     if (filters.sourceType && filters.sourceType !== 'all') {
       constraints.push(where('sourceType', '==', filters.sourceType));
     }
@@ -55,59 +54,87 @@ export async function startTrainingSession(
     return fetchQuestionsByIds(db, kmIds, questionCount);
   } else {
     let questionsRef = collection(db, 'questions');
-    
-    // Pour la matrice, on est plus souple sur la source pour éviter de bloquer si l'import n'a pas mis 'general'
     const isMatrix = mode === 'matrix';
     
-    let constraints: any[] = [
-      where('isActive', '==', true)
-    ];
+    // Normalisation des filtres pour la recherche Firestore
+    const domainSearch = filters.domain || 'all';
+    const approachSearch = filters.approach || 'all';
 
-    // Si on n'est pas en mode matrice, on force le silo 'general' (Pratique Libre)
+    // 1. TENTATIVE DE REQUÊTE DIRECTE OPTIMISÉE
+    let constraints: any[] = [where('isActive', '==', true)];
+
     if (!isMatrix) {
       constraints.push(where('sourceIds', 'array-contains', 'general'));
     }
     
-    // Gestion robuste du domaine (Process vs Processus)
-    if (filters.domain && filters.domain !== 'all') {
-      if (filters.domain === 'Process' || filters.domain === 'Processus') {
-        constraints.push(where('tags.domain', 'in', ['Process', 'Processus']));
-      } else {
-        constraints.push(where('tags.domain', '==', filters.domain));
-      }
+    // Ajout des filtres si spécifiés
+    if (domainSearch !== 'all') {
+      const d = domainSearch === 'Processus' ? 'Process' : domainSearch;
+      constraints.push(where('tags.domain', 'in', [d, 'Process', 'Processus']));
     }
     
-    if (filters.approach && filters.approach !== 'all') {
-      constraints.push(where('tags.approach', '==', filters.approach));
+    if (approachSearch !== 'all') {
+      const a = (approachSearch === 'Waterfall' || approachSearch === 'Cascad') ? 'Predictive' : approachSearch;
+      constraints.push(where('tags.approach', 'in', [a, 'Predictive', 'Waterfall', 'cascad']));
     }
     
-    const q = query(questionsRef, ...constraints, limit(200));
-    const snap = await getDocs(q);
-    
-    if (snap.empty) {
-      // Fallback : si on cherchait dans 'general' et qu'on n'a rien, on essaie sans le filtre de silo
-      if (!isMatrix) {
-        const fallbackQ = query(questionsRef, where('isActive', '==', true), limit(200));
-        const fallbackSnap = await getDocs(fallbackQ);
-        if (fallbackSnap.empty) {
-          throw new Error("Aucune question disponible dans la base de données.");
-        }
-        // Filtrage manuel pour les tags
-        const pool = fallbackSnap.docs.map(d => ({...d.data(), id: d.id})).filter((q: any) => {
-          const dMatch = filters.domain === 'all' || q.tags?.domain === filters.domain || (filters.domain === 'Process' && q.tags?.domain === 'Processus');
-          const aMatch = filters.approach === 'all' || q.tags?.approach === filters.approach;
-          return dMatch && aMatch;
-        });
-        
-        if (pool.length === 0) throw new Error("Aucune question trouvée pour ces critères.");
+    try {
+      const q = query(questionsRef, ...constraints, limit(100));
+      const snap = await getDocs(q);
+      
+      if (!snap.empty) {
+        const pool = snap.docs.map(d => ({...d.data(), id: d.id}));
         return pool.sort(() => 0.5 - Math.random()).slice(0, questionCount === 0 ? pool.length : questionCount);
       }
-      
-      throw new Error("Aucune question de pratique disponible pour ces critères.");
+    } catch (e) {
+      console.warn("Direct query failed or indices missing, switching to manual fallback", e);
     }
 
-    const pool = snap.docs.map(d => ({...d.data(), id: d.id}));
-    return pool.sort(() => 0.5 - Math.random()).slice(0, questionCount === 0 ? pool.length : questionCount);
+    // 2. STRATÉGIE DE REPLI (FALLBACK) : SCAN LARGE + FILTRAGE MÉMOIRE
+    // Indispensable si l'index Firestore n'est pas encore prêt ou si les tags sont mixtes
+    const fallbackQ = query(questionsRef, where('isActive', '==', true), limit(500));
+    const fallbackSnap = await getDocs(fallbackQ);
+    
+    if (fallbackSnap.empty) {
+      throw new Error("La banque de questions est vide. Veuillez importer des questions.");
+    }
+
+    const filteredPool = fallbackSnap.docs.map(d => ({...d.data(), id: d.id})).filter((q: any) => {
+      if (!q.tags) return false;
+      
+      // Filtrage Domaine (Souple)
+      let domainMatch = true;
+      if (domainSearch !== 'all') {
+        const targetD = domainSearch.toLowerCase();
+        const questionD = String(q.tags.domain || '').toLowerCase();
+        domainMatch = questionD.includes(targetD) || 
+                      (targetD.includes('proc') && questionD.includes('proc')) ||
+                      (targetD.includes('peop') && questionD.includes('peop')) ||
+                      (targetD.includes('busi') && questionD.includes('busi'));
+      }
+
+      // Filtrage Approche (Souple)
+      let approachMatch = true;
+      if (approachSearch !== 'all') {
+        const targetA = approachSearch.toLowerCase();
+        const questionA = String(q.tags.approach || '').toLowerCase();
+        approachMatch = questionA.includes(targetA) || 
+                        ((targetA.includes('pred') || targetA.includes('water')) && (questionA.includes('pred') || questionA.includes('water'))) ||
+                        (targetA.includes('agile') && questionA.includes('agile')) ||
+                        (targetA.includes('hybr') && questionA.includes('hybr'));
+      }
+
+      // Filtrage Silo (Optionnel pour Matrix)
+      let siloMatch = isMatrix ? true : (q.sourceIds?.includes('general'));
+
+      return domainMatch && approachMatch && siloMatch;
+    });
+
+    if (filteredPool.length === 0) {
+      throw new Error(`Aucune question trouvée pour le segment : ${domainSearch} / ${approachSearch}. Vérifiez vos tags dans la banque de questions.`);
+    }
+
+    return filteredPool.sort(() => 0.5 - Math.random()).slice(0, questionCount === 0 ? filteredPool.length : questionCount);
   }
 }
 
@@ -119,9 +146,10 @@ export async function fetchQuestionsByIds(db: Firestore, ids: string[], count: n
   
   const results: any[] = [];
   const batchSize = 30;
+  const uniqueIds = Array.from(new Set(ids)).filter(Boolean);
   
-  for (let i = 0; i < ids.length; i += batchSize) {
-    const chunk = ids.slice(i, i + batchSize);
+  for (let i = 0; i < uniqueIds.length; i += batchSize) {
+    const chunk = uniqueIds.slice(i, i + batchSize);
     const q = query(collection(db, 'questions'), where(documentId(), 'in', chunk));
     const snap = await getDocs(q);
     snap.docs.forEach(d => results.push({ ...d.data(), id: d.id }));
@@ -152,7 +180,6 @@ export async function submitPracticeAnswer(
   const isCorrect = userChoices.length === correctOptionIds.length && 
                     userChoices.every(id => correctOptionIds.includes(id));
 
-  // Update KillMistakes
   const kmRef = doc(db, 'users', userId, 'killMistakes', questionId);
   const sourceType = context === 'matrix' ? 'matrix' : context === 'exam' ? 'exam' : 'practice';
 
@@ -164,15 +191,14 @@ export async function submitPracticeAnswer(
       questionId,
       lastSelectedChoiceIds: userChoices,
       tags: qData.tags || {},
-      sourceType // On enregistre le thème de l'erreur
+      sourceType 
     }, { merge: true });
   } else {
     await setDoc(kmRef, {
       status: 'corrected',
       lastCorrectAt: serverTimestamp(),
       questionId,
-      tags: qData.tags || {},
-      // On ne change pas le sourceType initial s'il existe déjà
+      tags: qData.tags || {}
     }, { merge: true });
   }
 
