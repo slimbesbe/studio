@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, Suspense, useCallback } from 'react';
 import { useUser, useFirestore } from '@/firebase';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, setDoc, increment, writeBatch } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, increment, writeBatch } from 'firebase/firestore';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
@@ -23,8 +23,9 @@ import {
   Info,
   MoveLeft,
   MoveRight,
-  Layers,
-  Globe
+  Coffee,
+  CheckCircle2,
+  AlertTriangle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,9 @@ import { logActivity } from '@/lib/services/logging-service';
 import { saveExamState, getExamState, clearExamState } from '@/lib/services/exam-state-service';
 
 type ViewMode = 'question' | 'review' | 'break' | 'result';
+
+const SECTION_SIZE = 60;
+const BREAK_DURATION = 10 * 60; // 10 minutes in seconds
 
 function PerformanceScale({ score }: { score: number }) {
   const isPass = score >= 70;
@@ -100,14 +104,11 @@ function ExamRunContent() {
   const [totalTime, setTotalTime] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
-  const [showNavigator, setShowNavigator] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [breakTimeLeft, setBreakTimeLeft] = useState(10 * 60);
+  const [breakTimeLeft, setBreakTimeLeft] = useState(BREAK_DURATION);
   const [currentSection, setCurrentSection] = useState(1);
-
-  const SECTION_SIZE = 60;
 
   const triggerSave = useCallback((override?: Partial<any>) => {
     if (!user || !examId) return;
@@ -193,6 +194,22 @@ function ExamRunContent() {
     return () => clearInterval(timer);
   }, [viewMode, isPaused, timeLeft, result, isLoading, questions.length, triggerSave]);
 
+  useEffect(() => {
+    let breakTimer: any;
+    if (viewMode === 'break' && breakTimeLeft > 0) {
+      breakTimer = setInterval(() => {
+        setBreakTimeLeft(prev => {
+          if (prev <= 1) {
+            startNextSection();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(breakTimer);
+  }, [viewMode, breakTimeLeft]);
+
   const toggleFlag = () => {
     const qId = questions[currentIndex].id;
     const nextFlags = { ...flagged, [qId]: !flagged[qId] };
@@ -210,6 +227,28 @@ function ExamRunContent() {
     }
     setAnswers(nextAnswers);
     triggerSave({ answers: nextAnswers });
+  };
+
+  const startNextSection = () => {
+    const nextS = currentSection + 1;
+    setCurrentSection(nextS);
+    setCurrentIndex((nextS - 1) * SECTION_SIZE);
+    setBreakTimeLeft(BREAK_DURATION);
+    setViewMode('question');
+    triggerSave({ currentSection: nextS, currentIndex: (nextS - 1) * SECTION_SIZE });
+  };
+
+  const handleFinishSection = () => {
+    setViewMode('review');
+  };
+
+  const startBreak = () => {
+    if (currentSection === 3 || questions.length <= currentSection * SECTION_SIZE) {
+      finishExam();
+    } else {
+      setViewMode('break');
+      setBreakTimeLeft(BREAK_DURATION);
+    }
   };
 
   const finishExam = async () => {
@@ -286,6 +325,16 @@ function ExamRunContent() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  const currentSectionQuestions = useMemo(() => {
+    const start = (currentSection - 1) * SECTION_SIZE;
+    const end = Math.min(currentSection * SECTION_SIZE, questions.length);
+    return questions.slice(start, end);
+  }, [currentSection, questions]);
+
+  const displayedTotalCount = useMemo(() => {
+    return Math.min(currentSection * SECTION_SIZE, questions.length);
+  }, [currentSection, questions]);
+
   if (viewMode === 'result' && result) {
     return (
       <div className="h-full w-full bg-[#F8FAFC] p-[2vh] overflow-hidden flex flex-col animate-fade-in">
@@ -316,6 +365,94 @@ function ExamRunContent() {
     );
   }
 
+  if (viewMode === 'break') {
+    return (
+      <div className="h-screen w-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-8 animate-fade-in">
+        <Card className="max-w-2xl w-full rounded-[48px] border-none shadow-3xl bg-white p-16 text-center space-y-10">
+          <div className="bg-indigo-50 w-24 h-24 rounded-[32px] flex items-center justify-center mx-auto shadow-inner">
+            <Coffee className="h-12 w-12 text-indigo-600 animate-pulse" />
+          </div>
+          <div className="space-y-4">
+            <h2 className="text-4xl font-black italic uppercase tracking-tighter text-slate-900">Pause Obligatoire</h2>
+            <p className="text-slate-500 font-bold uppercase tracking-widest text-xs italic">Section {currentSection} terminée • Rechargez vos batteries</p>
+          </div>
+          
+          <div className="bg-slate-50 p-10 rounded-[40px] border-4 border-dashed border-slate-100">
+            <p className="text-7xl font-black italic text-indigo-600 tracking-tighter tabular-nums">
+              {formatMMSS(breakTimeLeft)}
+            </p>
+            <p className="text-[10px] font-black uppercase text-slate-400 mt-4 tracking-[0.2em]">Temps de repos conseillé</p>
+          </div>
+
+          <div className="space-y-4">
+            <Button onClick={startNextSection} className="h-16 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest shadow-xl text-sm italic">
+              REPRENDRE L'EXAMEN MAINTENANT
+            </Button>
+            <p className="text-[9px] font-bold text-slate-400 uppercase italic">L'examen reprendra automatiquement à la fin du chrono.</p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (viewMode === 'review') {
+    return (
+      <div className="h-full w-full bg-slate-50 flex flex-col overflow-hidden animate-fade-in">
+        <header className="flex-none bg-black text-white px-[4vw] py-[2vh] flex items-center justify-between shadow-xl z-50">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center"><LayoutGrid className="h-5 w-5" /></div>
+            <h1 className="text-xl font-black italic uppercase tracking-tighter">Review Section {currentSection}</h1>
+          </div>
+          <div className="text-[2.5vh] font-black italic tabular-nums">{formatMMSS(timeLeft)}</div>
+        </header>
+
+        <main className="flex-1 p-[4vh] overflow-y-auto custom-scrollbar">
+          <div className="max-w-6xl mx-auto space-y-10">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <StatItem label="Answered" val={currentSectionQuestions.filter(q => answers[q.id]?.length > 0).length} color="text-emerald-500" />
+              <StatItem label="Unanswered" val={currentSectionQuestions.filter(q => !answers[q.id] || answers[q.id].length === 0).length} color="text-red-500" />
+              <StatItem label="Flagged" val={currentSectionQuestions.filter(q => flagged[q.id]).length} color="text-amber-500" />
+              <StatItem label="Total in Section" val={currentSectionQuestions.length} color="text-slate-400" />
+            </div>
+
+            <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-3">
+              {currentSectionQuestions.map((q, idx) => {
+                const globalIdx = (currentSection - 1) * SECTION_SIZE + idx;
+                const isAnswered = answers[q.id]?.length > 0;
+                const isFlagged = flagged[q.id];
+                return (
+                  <button
+                    key={q.id}
+                    onClick={() => { setCurrentIndex(globalIdx); setViewMode('question'); }}
+                    className={cn(
+                      "h-14 w-full rounded-xl font-black text-sm transition-all border-4 flex items-center justify-center relative hover:scale-110",
+                      isFlagged ? "border-amber-400 bg-amber-50 text-amber-700" :
+                      isAnswered ? "border-emerald-400 bg-emerald-50 text-emerald-700" :
+                      "border-slate-200 bg-white text-slate-400"
+                    )}
+                  >
+                    {globalIdx + 1}
+                    {isFlagged && <div className="absolute -top-1 -right-1 h-3 w-3 bg-amber-500 rounded-full border-2 border-white" />}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="bg-white p-8 rounded-[32px] shadow-xl border-4 border-slate-100 space-y-6">
+              <div className="flex items-start gap-4 text-slate-500 italic font-bold text-sm">
+                <Info className="h-5 w-5 text-indigo-500 shrink-0 mt-0.5" />
+                <p>Attention : Une fois que vous aurez validé cette section et pris votre pause, vous ne pourrez plus modifier vos réponses pour les questions 1 à {displayedTotalCount}.</p>
+              </div>
+              <Button onClick={startBreak} className="w-full h-16 rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-lg shadow-2xl transition-transform hover:scale-[1.01]">
+                {currentSection === 3 ? "FINISH EXAM" : "CONFIRM SECTION & TAKE BREAK"}
+              </Button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   const currentQuestion = questions[currentIndex];
   const progressPercent = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
   const currentAnswers = answers[currentQuestion?.id] || [];
@@ -327,7 +464,9 @@ function ExamRunContent() {
           <Button variant="ghost" onClick={() => setIsPaused(true)} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-[5vh] px-[2vw] text-[1.2vh]"><Pause className="h-[1.5vh] w-[1.5vh] mr-2" /> Pause</Button>
           <Button variant="ghost" onClick={() => setShowCalculator(true)} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-[5vh] px-[2vw] text-[1.2vh]"><CalcIcon className="h-[1.5vh] w-[1.5vh] mr-2" /> Calculator</Button>
         </div>
-        <div className="text-center font-black italic uppercase tracking-widest text-[clamp(0.8rem,2vh,1.5rem)]">Question {currentIndex + 1} of {questions.length}</div>
+        <div className="text-center font-black italic uppercase tracking-widest text-[clamp(0.8rem,2vh,1.5rem)]">
+          Question {currentIndex + 1} of {displayedTotalCount}
+        </div>
         <div className="flex items-center gap-[2vw]">
           <Button variant="ghost" onClick={toggleFlag} className={cn("h-[5vh] px-[2vw] rounded-full border border-white/30 text-[1.2vh]", flagged[currentQuestion?.id] ? "bg-amber-500 text-white border-amber-400" : "text-white")}>
             <Flag className={cn("h-[1.5vh] w-[1.5vh] mr-2", flagged[currentQuestion?.id] && "fill-current")} /> Flag
@@ -371,17 +510,26 @@ function ExamRunContent() {
       </main>
 
       <footer className="flex-none h-[10vh] bg-white border-t-2 px-[4vw] flex items-center justify-between shadow-2xl z-40">
-        <Button variant="outline" className="h-[6vh] px-[2vw] rounded-xl border-2 font-black uppercase text-[1.2vh] italic" onClick={() => { const next = Math.max(0, currentIndex - 1); setCurrentIndex(next); triggerSave({ currentIndex: next }); }} disabled={currentIndex === 0}><ChevronLeft className="mr-2 h-[1.5vh] w-[1.5vh]" /> Previous</Button>
+        <Button variant="outline" className="h-[6vh] px-[2vw] rounded-xl border-2 font-black uppercase text-[1.2vh] italic" onClick={() => { const next = Math.max((currentSection - 1) * SECTION_SIZE, currentIndex - 1); setCurrentIndex(next); triggerSave({ currentIndex: next }); }} disabled={currentIndex === (currentSection - 1) * SECTION_SIZE}><ChevronLeft className="mr-2 h-[1.5vh] w-[1.5vh]" /> Previous</Button>
         <div className="flex gap-[1vw]">
-           <Button variant="outline" onClick={() => setViewMode('review')} className="h-[6vh] px-[2vw] rounded-xl border-2 font-black uppercase text-[1.2vh] italic">Review Section</Button>
-           {currentIndex === questions.length - 1 ? (
-             <Button onClick={finishExam} disabled={isSubmitting} className="h-[6vh] px-[3vw] rounded-xl bg-red-600 text-white font-black uppercase text-[1.2vh] italic shadow-xl">Finish Exam</Button>
+           <Button variant="outline" onClick={handleFinishSection} className="h-[6vh] px-[2vw] rounded-xl border-2 font-black uppercase text-[1.2vh] italic">Review Section</Button>
+           {currentIndex === displayedTotalCount - 1 ? (
+             <Button onClick={handleFinishSection} className="h-[6vh] px-[3vw] rounded-xl bg-indigo-600 text-white font-black uppercase text-[1.2vh] italic shadow-xl">Review & Break</Button>
            ) : (
              <Button onClick={() => { const next = currentIndex + 1; setCurrentIndex(next); triggerSave({ currentIndex: next }); }} className="h-[6vh] px-[3vw] rounded-xl bg-primary text-white font-black uppercase text-[1.2vh] italic shadow-xl">Next <ChevronRight className="ml-2 h-4 w-4" /></Button>
            )}
         </div>
       </footer>
       {showCalculator && <Calculator onClose={() => setShowCalculator(false)} />}
+    </div>
+  );
+}
+
+function StatItem({ label, val, color }: any) {
+  return (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border-2 border-slate-50 flex flex-col items-center justify-center">
+      <p className={cn("text-3xl font-black italic leading-none mb-2", color)}>{val}</p>
+      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 italic">{label}</p>
     </div>
   );
 }
