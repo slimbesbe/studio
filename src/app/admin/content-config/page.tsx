@@ -41,21 +41,12 @@ const CONFIG_SECTIONS = [
     tag: 'Algorithme'
   },
   {
-    id: 'practice_domain',
-    title: 'Pratique : Domaines',
-    description: 'Ciblez People, Process ou Business. Importez et gérez vos questions par piliers.',
-    icon: Layers,
-    href: '/admin/questions?type=practice&filter=domain',
+    id: 'practice_all',
+    title: 'Base Pratique Libre',
+    description: 'Gérez l\'intégralité des questions d\'entraînement. Filtrez par domaines ou approches dans une vue unique.',
+    icon: BookOpen,
+    href: '/admin/questions?type=practice',
     color: 'bg-emerald-600',
-    tag: 'Entraînement'
-  },
-  {
-    id: 'practice_approach',
-    title: 'Pratique : Approches',
-    description: 'Agile, Prédictif ou Hybride. Importez et gérez vos questions par cycles de vie.',
-    icon: Globe,
-    href: '/admin/questions?type=practice&filter=approach',
-    color: 'bg-emerald-500',
     tag: 'Entraînement'
   },
   {
@@ -149,7 +140,7 @@ export default function ContentConfigHub() {
               <div className="space-y-2 text-center md:text-left">
                 <h4 className="text-xl font-black uppercase italic text-slate-800 tracking-tight">Architecture Étanche</h4>
                 <p className="text-sm font-bold text-slate-500 italic max-w-2xl leading-relaxed">
-                  Le système distingue désormais les questions de <strong>Pratique Libre</strong> des questions de <strong>Simulations d'Examen</strong>. Les interfaces "Domaines" et "Approches" vous permettent d'importer vos fichiers Excel de manière ciblée pour alimenter la matrice et les entraînements.
+                  Le système distingue désormais les questions de <strong>Pratique Libre</strong> des questions de <strong>Simulations d'Examen</strong>. Utilisez les filtres intégrés pour gérer vos questions par Domaine ou par Approche sans quitter l'interface.
                 </p>
               </div>
             </div>

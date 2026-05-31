@@ -24,8 +24,9 @@ service cloud.firestore {
       );
     }
 
-    // 1. SERVICES SYSTÈME (Priorité Haute)
+    // 1. SERVICES SYSTÈME
     match /userLogs/{logId} {
+      // Autorise la création de logs pour tout utilisateur connecté (y compris anonyme)
       allow create: if isSignedIn();
       allow read: if isAdmin();
     }
