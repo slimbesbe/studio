@@ -25,7 +25,7 @@ import {
   MoveRight,
   Coffee,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
   Layers,
   Globe,
   ListChecks,
@@ -399,16 +399,22 @@ function ExamRunContent() {
   if (viewMode === 'review') {
     return (
       <div className="h-full w-full bg-slate-50 flex flex-col overflow-hidden animate-fade-in">
-        <header className="flex-none bg-black text-white px-[4vw] py-[2vh] flex items-center justify-between shadow-xl z-50">
-          <div className="flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center"><LayoutGrid className="h-5 w-5" /></div>
-            <h1 className="text-xl font-black italic uppercase tracking-tighter">Review Section {currentSection}</h1>
+        <header className="flex-none bg-black text-white px-[4vw] py-[1.5vh] flex items-center justify-between shadow-xl z-50 h-[8vh]">
+          <div className="flex items-center gap-[1vw]">
+            <Button variant="ghost" onClick={() => setViewMode('question')} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-[5vh] px-[2vw] text-[1.2vh]">
+              <Play className="h-[1.5vh] w-[1.5vh] mr-2 fill-white" /> Resume Exam
+            </Button>
           </div>
-          <div className="text-[2.5vh] font-black italic tabular-nums">{formatMMSS(timeLeft)}</div>
+          <div className="text-center font-black italic uppercase tracking-widest text-[clamp(0.8rem,2vh,1.5rem)]">
+            Review Section {currentSection}
+          </div>
+          <div className="text-[3vh] font-black italic tabular-nums">{formatMMSS(timeLeft)}</div>
         </header>
 
         <main className="flex-1 p-[4vh] overflow-y-auto custom-scrollbar">
-          <div className="max-w-6xl mx-auto space-y-10">
+          <div className="max-w-6xl mx-auto space-y-[4vh]">
+            
+            {/* Statistiques de la section */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               <StatItem label="Answered" val={currentSectionQuestions.filter(q => answers[q.id]?.length > 0).length} color="text-emerald-500" />
               <StatItem label="Unanswered" val={currentSectionQuestions.filter(q => !answers[q.id] || answers[q.id].length === 0).length} color="text-red-500" />
@@ -416,29 +422,33 @@ function ExamRunContent() {
               <StatItem label="Total in Section" val={currentSectionQuestions.length} color="text-slate-400" />
             </div>
 
-            <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-3">
-              {currentSectionQuestions.map((q, idx) => {
-                const globalIdx = (currentSection - 1) * SECTION_SIZE + idx;
-                const isAnswered = answers[q.id]?.length > 0;
-                const isFlagged = flagged[q.id];
-                return (
-                  <button
-                    key={q.id}
-                    onClick={() => { setCurrentIndex(globalIdx); setViewMode('question'); }}
-                    className={cn(
-                      "h-14 w-full rounded-xl font-black text-sm transition-all border-4 flex items-center justify-center relative hover:scale-110",
-                      isFlagged ? "border-amber-400 bg-amber-50 text-amber-700" :
-                      isAnswered ? "border-emerald-400 bg-emerald-50 text-emerald-700" :
-                      "border-slate-200 bg-white text-slate-400"
-                    )}
-                  >
-                    {globalIdx + 1}
-                    {isFlagged && <div className="absolute -top-1 -right-1 h-3 w-3 bg-amber-500 rounded-full border-2 border-white" />}
-                  </button>
-                );
-              })}
-            </div>
+            {/* Grille des questions */}
+            <Card className="rounded-[3vh] border-none shadow-xl bg-white p-[4vh]">
+              <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-[1vh]">
+                {currentSectionQuestions.map((q, idx) => {
+                  const globalIdx = (currentSection - 1) * SECTION_SIZE + idx;
+                  const isAnswered = answers[q.id]?.length > 0;
+                  const isFlagged = flagged[q.id];
+                  return (
+                    <button
+                      key={q.id}
+                      onClick={() => { setCurrentIndex(globalIdx); setViewMode('question'); }}
+                      className={cn(
+                        "aspect-square rounded-xl flex items-center justify-center font-black text-[1.5vh] transition-all hover:scale-110 relative border-2",
+                        isFlagged ? "bg-amber-50 border-amber-500 text-amber-600 shadow-md" :
+                        isAnswered ? "bg-blue-50 border-[#1d4ed8] text-[#1d4ed8]" :
+                        "bg-slate-50 border-slate-200 text-slate-400"
+                      )}
+                    >
+                      {globalIdx + 1}
+                      {isFlagged && <Flag className="absolute -top-1 -right-1 h-[1.5vh] w-[1.5vh] fill-current" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </Card>
 
+            {/* Avertissement et bouton d'action */}
             <div className="bg-white p-8 rounded-[32px] shadow-xl border-4 border-slate-100 space-y-6">
               <div className="flex items-start gap-4 text-slate-500 italic font-bold text-sm">
                 <Info className="h-5 w-5 text-indigo-500 shrink-0 mt-0.5" />
@@ -448,66 +458,9 @@ function ExamRunContent() {
                 {currentSection === 3 ? "FINISH EXAM" : "CONFIRM SECTION & TAKE BREAK"}
               </Button>
             </div>
+
           </div>
         </main>
-  if (viewMode === 'review') {
-    return (
-      <div className="h-full w-full bg-slate-50 flex flex-col overflow-hidden animate-fade-in">
-        <header className="flex-none bg-black text-white px-[4vw] py-[1.5vh] flex items-center justify-between shadow-xl z-50 h-[8vh]">
-          <div className="flex items-center gap-[1vw]">
-            <Button variant="ghost" onClick={() => setViewMode('question')} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-[5vh] px-[2vw] text-[1.2vh]"><Play className="h-[1.5vh] w-[1.5vh] mr-2 fill-white" /> Resume Exam</Button>
-          </div>
-          <div className="text-center font-black italic uppercase tracking-widest text-[clamp(0.8rem,2vh,1.5rem)]">Review Section</div>
-          <div className="text-[3vh] font-black italic tabular-nums">{formatMMSS(timeLeft)}</div>
-        </header>
-
-        <main className="flex-1 p-[4vh] overflow-y-auto custom-scrollbar">
-          <div className="max-w-6xl mx-auto space-y-[4vh]">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-[2vh]">
-               <div className="bg-white p-[2vh] rounded-[2vh] shadow-sm border flex items-center gap-[1vw]">
-                  <div className="h-[2vh] w-[2vh] bg-[#1d4ed8] rounded-full" />
-                  <span className="font-bold text-[1.2vh] uppercase text-slate-500">Answered</span>
-               </div>
-               <div className="bg-white p-[2vh] rounded-[2vh] shadow-sm border flex items-center gap-[1vw]">
-                  <div className="h-[2vh] w-[2vh] bg-slate-200 rounded-full" />
-                  <span className="font-bold text-[1.2vh] uppercase text-slate-500">Not Answered</span>
-               </div>
-               <div className="bg-white p-[2vh] rounded-[2vh] shadow-sm border flex items-center gap-[1vw]">
-                  <div className="h-[2vh] w-[2vh] bg-amber-500 rounded-full" />
-                  <span className="font-bold text-[1.2vh] uppercase text-slate-500">Flagged</span>
-               </div>
-            </div>
-
-            <Card className="rounded-[3vh] border-none shadow-xl bg-white p-[4vh]">
-              <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-15 gap-[1vh]">
-                {questions.map((q, idx) => {
-                  const isAnswered = answers[q.id]?.length > 0;
-                  const isFlagged = flagged[q.id];
-                  return (
-                    <button
-                      key={q.id}
-                      onClick={() => { setCurrentIndex(idx); setViewMode('question'); }}
-                      className={cn(
-                        "aspect-square rounded-xl flex items-center justify-center font-black text-[1.5vh] transition-all hover:scale-110 relative border-2",
-                        isFlagged ? "bg-amber-50 border-amber-500 text-amber-600 shadow-md" :
-                        isAnswered ? "bg-blue-50 border-[#1d4ed8] text-[#1d4ed8]" :
-                        "bg-slate-50 border-slate-200 text-slate-400"
-                      )}
-                    >
-                      {idx + 1}
-                      {isFlagged && <Flag className="absolute -top-1 -right-1 h-[1vh] w-[1vh] fill-current" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </Card>
-          </div>
-        </main>
-
-        <footer className="flex-none h-[10vh] bg-white border-t-2 px-[4vw] flex items-center justify-end shadow-2xl z-40 gap-[1vw]">
-          <Button variant="outline" className="h-[6vh] px-[2vw] rounded-xl border-2 font-black uppercase text-[1.2vh] italic" onClick={() => setViewMode('question')}>Continue Exam</Button>
-          <Button onClick={finishExam} disabled={isSubmitting} className="h-[6vh] px-[3vw] rounded-xl bg-red-600 text-white font-black uppercase text-[1.2vh] italic shadow-xl">Finish Exam</Button>
-        </footer>
       </div>
     );
   }
