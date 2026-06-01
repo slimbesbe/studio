@@ -1,8 +1,7 @@
-
 'use client';
 
 import { useUser } from '@/firebase';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -11,78 +10,99 @@ import {
   DialogDescription,
   DialogFooter
 } from '@/components/ui/dialog';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 /**
- * DemoGuard surveille les interactions de l'utilisateur en mode Démo.
- * Affiche un message d'alerte après un certain nombre de clics.
+ * DemoGuard - Système de protection globale pour le mode démo.
+ * Intercepte les interactions critiques et affiche une alerte restrictive.
  */
 export function DemoGuard({ children }: { children: React.ReactNode }) {
   const { user } = useUser();
-  const [clickCount, setClickCount] = useState(0);
   const [showModal, setShowModal] = useState(false);
 
+  // Le mode démo est actif si l'utilisateur est anonyme
+  const isDemo = user?.isAnonymous;
+
+  /**
+   * Gestionnaire d'interception centralisé.
+   * On utilise la phase de capture (true) pour bloquer l'événement 
+   * avant qu'il n'atteigne les composants enfants.
+   */
+  const handleGlobalIntercept = useCallback((e: MouseEvent) => {
+    if (!isDemo) return;
+
+    const target = e.target as HTMLElement;
+    
+    // On cible les éléments interactifs déclencheurs d'actions
+    // On exclut les liens (<a>) pour permettre la navigation et la visualisation
+    const interactiveTarget = target.closest('button, input[type="submit"], input[type="button"], [role="button"], [type="radio"], [type="checkbox"]');
+
+    if (interactiveTarget) {
+      // Sécurité : On ne bloque pas les interactions à l'intérieur de la modale d'alerte elle-même
+      if (interactiveTarget.closest('[role="dialog"]')) return;
+
+      // Neutralisation totale de l'action
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Déclenchement de l'alerte visuelle
+      setShowModal(true);
+    }
+  }, [isDemo]);
+
   useEffect(() => {
-    if (!user?.isAnonymous) return;
+    if (isDemo) {
+      // Ajout de l'écouteur en phase de capture pour une priorité maximale
+      window.addEventListener('click', handleGlobalIntercept, true);
+      return () => window.removeEventListener('click', handleGlobalIntercept, true);
+    }
+  }, [isDemo, handleGlobalIntercept]);
 
-    const handleGlobalClick = (e: MouseEvent) => {
-      if ((e.target as HTMLElement).closest('[role="dialog"]')) return;
-
-      setClickCount((prev) => {
-        const next = prev + 1;
-        // Déclenchement de l'alerte après 15 clics pour permettre une exploration correcte
-        if (next >= 15) {
-          setShowModal(true);
-        }
-        return next;
-      });
-    };
-
-    window.addEventListener('mousedown', handleGlobalClick);
-    return () => window.removeEventListener('mousedown', handleGlobalClick);
-  }, [user]);
-
-  if (!user?.isAnonymous) return <>{children}</>;
+  // Si pas en mode démo, on rend les enfants normalement sans logique d'interception
+  if (!isDemo) return <>{children}</>;
 
   return (
     <>
       {children}
+      
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="rounded-[32px] p-8 border-8 border-destructive shadow-2xl bg-white z-[999] max-w-lg animate-in fade-in zoom-in duration-300">
-          <DialogHeader className="flex flex-col items-center gap-4">
-            <div className="bg-destructive p-4 rounded-full animate-bounce shadow-xl">
-              <ShieldAlert className="h-12 w-12 text-white" />
-            </div>
-            <div className="space-y-1 text-center">
-              <DialogTitle className="text-5xl font-black text-destructive uppercase italic tracking-tighter leading-none">
-                ATTENTION !
-              </DialogTitle>
-              <p className="text-[10px] font-black text-destructive/60 uppercase tracking-[0.4em]">ACCÈS RESTREINT</p>
-            </div>
-            <div className="h-1 w-32 bg-destructive/20 rounded-full" />
-            <DialogDescription className="text-xl font-black text-slate-900 text-center leading-relaxed uppercase tracking-tight pt-2 italic">
-              Vous êtes en mode <span className="text-destructive underline underline-offset-4">DÉMO</span>.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="rounded-[40px] p-0 border-none shadow-3xl bg-white overflow-hidden max-w-md animate-in fade-in zoom-in duration-300">
+          {/* Bandeau d'alerte rouge très visible */}
+          <div className="bg-destructive h-4 w-full" />
           
-          <div className="py-6 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 mt-4">
-            <p className="text-sm font-bold text-center text-slate-600 px-6 leading-relaxed uppercase">
-              Veuillez contacter l'administrateur pour un <span className="text-primary">accès complet</span> (Login et Mot de passe).
-            </p>
-          </div>
+          <div className="p-10 text-center space-y-8">
+            <div className="bg-destructive/10 w-24 h-24 rounded-[40px] flex items-center justify-center mx-auto shadow-inner animate-pulse">
+              <ShieldAlert className="h-12 w-12 text-destructive" />
+            </div>
+            
+            <div className="space-y-4">
+              <DialogTitle className="text-3xl font-black text-destructive uppercase italic tracking-tighter leading-tight px-4">
+                ALERTE : Fonctionnalité restreinte
+              </DialogTitle>
+              <DialogDescription className="text-lg font-bold text-slate-600 italic">
+                Veuillez contacter l'administrateur.
+              </DialogDescription>
+            </div>
 
-          <DialogFooter className="mt-8 justify-center sm:justify-center">
+            <div className="bg-slate-50 p-6 rounded-3xl border-4 border-dashed border-slate-100">
+              <div className="flex items-center gap-3 text-slate-400 mb-2 justify-center">
+                <Lock className="h-4 w-4" />
+                <span className="text-[10px] font-black uppercase tracking-widest italic">Accès limité (Mode Démo)</span>
+              </div>
+              <p className="text-[11px] font-bold text-slate-500 leading-relaxed italic">
+                Pour enregistrer vos scores, accéder au coaching personnalisé et passer les examens officiels, veuillez vous identifier avec vos accès professionnels.
+              </p>
+            </div>
+
             <Button 
-              onClick={() => {
-                setShowModal(false);
-                setClickCount(0);
-              }}
-              className="h-14 w-full rounded-2xl bg-destructive hover:bg-destructive/90 text-white font-black uppercase tracking-widest text-lg shadow-lg transition-all active:scale-95"
+              onClick={() => setShowModal(false)}
+              className="h-16 w-full rounded-[24px] bg-destructive hover:bg-red-700 text-white font-black uppercase tracking-widest text-lg shadow-2xl transition-all active:scale-95"
             >
               J'AI COMPRIS
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </>

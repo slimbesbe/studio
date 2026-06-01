@@ -17,13 +17,13 @@ import {
   Flag, 
   Pause, 
   Calculator as CalcIcon,
-  Trophy,
   X,
   LayoutGrid,
   Info,
   MoveLeft,
   MoveRight,
   Coffee,
+  Trophy,
   CheckCircle2,
   AlertTriangle,
   Layers,
@@ -98,6 +98,9 @@ function ExamRunContent() {
   
   const examId = searchParams.get('id');
   const shouldResume = searchParams.get('resume') === 'true';
+
+  // --- NOUVEAU : DETECTION DU MODE DEMO ---
+  const isDemo = searchParams.get('demo') === 'true' || user?.isAnonymous || !examId;
   
   const [questions, setQuestions] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -114,8 +117,17 @@ function ExamRunContent() {
   const [breakTimeLeft, setBreakTimeLeft] = useState(BREAK_DURATION);
   const [currentSection, setCurrentSection] = useState(1);
 
+  // --- NOUVEAU : ALERTE ROUGE ---
+  const triggerDemoAlert = useCallback(() => {
+    toast({
+      variant: "destructive",
+      title: "Action Impossible - Mode Démo",
+      description: "La version démo ne permet que la visualisation des interfaces. Veuillez contacter l'administrateur pour débloquer toutes les options.",
+    });
+  }, [toast]);
+
   const triggerSave = useCallback((override?: Partial<any>) => {
-    if (!user || !examId) return;
+    if (isDemo || !user || !examId) return; // Ne pas sauvegarder en mode démo
     
     const state = {
       examId,
@@ -124,21 +136,25 @@ function ExamRunContent() {
       answers: override?.answers ?? answers,
       flagged: override?.flagged ?? flagged,
       timeLeft: override?.timeLeft ?? timeLeft,
-      currentSection: 1, // simplified for now
+      currentSection: 1, 
     };
     saveExamState(db, user.uid, state);
-  }, [db, user, examId, currentIndex, answers, flagged, timeLeft]);
+  }, [db, user, examId, currentIndex, answers, flagged, timeLeft, isDemo]);
 
   useEffect(() => {
     async function fetchQuestions() {
-      if (!examId || !user || !db) return;
+      const targetExamId = examId || "demo-placeholder";
       setIsLoading(true);
       try {
         const qRef = collection(db, 'questions');
-        const q = query(qRef, where('sourceIds', 'array-contains', examId), where('isActive', '==', true));
+        // Si on est en mode démo sans examId, on charge juste des questions actives aléatoires
+        const q = examId 
+          ? query(qRef, where('sourceIds', 'array-contains', targetExamId), where('isActive', '==', true))
+          : query(qRef, where('isActive', '==', true));
+          
         const snap = await getDocs(q);
         if (snap.empty) {
-          toast({ variant: "destructive", title: "Examen vide" });
+          toast({ variant: "destructive", title: "Aucune donnée disponible" });
           router.push('/dashboard/exam');
           return;
         }
@@ -155,9 +171,9 @@ function ExamRunContent() {
         let initialAnswers = {};
         let initialFlags = {};
 
-        if (shouldResume) {
+        if (shouldResume && !isDemo && user) {
           const state = await getExamState(db, user.uid);
-          if (state && state.examId === examId) {
+          if (state && state.examId === targetExamId) {
             initialTime = state.timeLeft;
             initialIdx = state.currentIndex;
             initialAnswers = state.answers || {};
@@ -171,13 +187,15 @@ function ExamRunContent() {
         setAnswers(initialAnswers);
         setFlagged(initialFlags);
 
-        logActivity(db, user.uid, shouldResume ? 'exam_resumed' : 'exam_started', { examId });
+        if (user && !isDemo) {
+          logActivity(db, user.uid, shouldResume ? 'exam_resumed' : 'exam_started', { examId: targetExamId });
+        }
       } catch (e) {
         toast({ variant: "destructive", title: "Erreur" });
       } finally { setIsLoading(false); }
     }
     fetchQuestions();
-  }, [db, examId, user, router, toast, shouldResume]);
+  }, [db, examId, user, router, toast, shouldResume, isDemo]);
 
   useEffect(() => {
     let timer: any;
@@ -190,10 +208,14 @@ function ExamRunContent() {
         });
       }, 1000);
     } else if (timeLeft === 0 && !result && viewMode === 'question' && !isLoading && questions.length > 0) {
-      finishExam();
+      if (isDemo) {
+        triggerDemoAlert();
+      } else {
+        finishExam();
+      }
     }
     return () => clearInterval(timer);
-  }, [viewMode, isPaused, timeLeft, result, isLoading, questions.length, triggerSave]);
+  }, [viewMode, isPaused, timeLeft, result, isLoading, questions.length, triggerSave, isDemo, triggerDemoAlert]);
 
   useEffect(() => {
     let breakTimer: any;
@@ -211,7 +233,9 @@ function ExamRunContent() {
     return () => clearInterval(breakTimer);
   }, [viewMode, breakTimeLeft]);
 
+  // --- NOUVEAU : BLOQUAGES ---
   const toggleFlag = () => {
+    if (isDemo) { triggerDemoAlert(); return; }
     const qId = questions[currentIndex].id;
     const nextFlags = { ...flagged, [qId]: !flagged[qId] };
     setFlagged(nextFlags);
@@ -219,6 +243,7 @@ function ExamRunContent() {
   };
 
   const toggleAnswer = (qId: string, optId: string, isMultiple: boolean) => {
+    if (isDemo) { triggerDemoAlert(); return; }
     const current = answers[qId] || [];
     let nextAnswers;
     if (isMultiple) {
@@ -230,20 +255,8 @@ function ExamRunContent() {
     triggerSave({ answers: nextAnswers });
   };
 
-  const startNextSection = () => {
-    const nextS = currentSection + 1;
-    setCurrentSection(nextS);
-    setCurrentIndex((nextS - 1) * SECTION_SIZE);
-    setBreakTimeLeft(BREAK_DURATION);
-    setViewMode('question');
-    triggerSave({ currentSection: nextS, currentIndex: (nextS - 1) * SECTION_SIZE });
-  };
-
-  const handleFinishSection = () => {
-    setViewMode('review');
-  };
-
   const startBreak = () => {
+    if (isDemo) { triggerDemoAlert(); return; }
     if (currentSection === 3 || questions.length <= currentSection * SECTION_SIZE) {
       finishExam();
     } else {
@@ -253,6 +266,7 @@ function ExamRunContent() {
   };
 
   const finishExam = async () => {
+    if (isDemo) { triggerDemoAlert(); return; }
     if (isSubmitting || questions.length === 0) return;
     setIsSubmitting(true);
     
@@ -318,6 +332,19 @@ function ExamRunContent() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const startNextSection = () => {
+    const nextS = currentSection + 1;
+    setCurrentSection(nextS);
+    setCurrentIndex((nextS - 1) * SECTION_SIZE);
+    setBreakTimeLeft(BREAK_DURATION);
+    setViewMode('question');
+    triggerSave({ currentSection: nextS, currentIndex: (nextS - 1) * SECTION_SIZE });
+  };
+
+  const handleFinishSection = () => {
+    setViewMode('review');
   };
 
   const formatMMSS = (seconds: number) => {
@@ -414,7 +441,6 @@ function ExamRunContent() {
         <main className="flex-1 p-[4vh] overflow-y-auto custom-scrollbar">
           <div className="max-w-6xl mx-auto space-y-[4vh]">
             
-            {/* Statistiques de la section */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               <StatItem label="Answered" val={currentSectionQuestions.filter(q => answers[q.id]?.length > 0).length} color="text-emerald-500" />
               <StatItem label="Unanswered" val={currentSectionQuestions.filter(q => !answers[q.id] || answers[q.id].length === 0).length} color="text-red-500" />
@@ -422,7 +448,6 @@ function ExamRunContent() {
               <StatItem label="Total in Section" val={currentSectionQuestions.length} color="text-slate-400" />
             </div>
 
-            {/* Grille des questions */}
             <Card className="rounded-[3vh] border-none shadow-xl bg-white p-[4vh]">
               <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-[1vh]">
                 {currentSectionQuestions.map((q, idx) => {
@@ -448,7 +473,6 @@ function ExamRunContent() {
               </div>
             </Card>
 
-            {/* Avertissement et bouton d'action */}
             <div className="bg-white p-8 rounded-[32px] shadow-xl border-4 border-slate-100 space-y-6">
               <div className="flex items-start gap-4 text-slate-500 italic font-bold text-sm">
                 <Info className="h-5 w-5 text-indigo-500 shrink-0 mt-0.5" />
@@ -474,7 +498,7 @@ function ExamRunContent() {
       <header className="flex-none bg-black text-white px-[4vw] py-[1.5vh] flex items-center justify-between shadow-xl z-50 h-[8vh]">
         <div className="flex items-center gap-[1vw]">
           <Button variant="ghost" onClick={() => setIsPaused(true)} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-[5vh] px-[2vw] text-[1.2vh]"><Pause className="h-[1.5vh] w-[1.5vh] mr-2" /> Pause</Button>
-          <Button variant="ghost" onClick={() => setShowCalculator(true)} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-[5vh] px-[2vw] text-[1.2vh]"><CalcIcon className="h-[1.5vh] w-[1.5vh] mr-2" /> Calculator</Button>
+          <Button variant="ghost" onClick={() => isDemo ? triggerDemoAlert() : setShowCalculator(true)} className="text-white hover:bg-white/10 rounded-full border border-white/30 h-[5vh] px-[2vw] text-[1.2vh]"><CalcIcon className="h-[1.5vh] w-[1.5vh] mr-2" /> Calculator</Button>
         </div>
         <div className="text-center font-black italic uppercase tracking-widest text-[clamp(0.8rem,2vh,1.5rem)]">
           Question {currentIndex + 1} of {displayedTotalCount}
