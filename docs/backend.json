@@ -4,7 +4,7 @@
     "User": {
       "title": "User",
       "type": "object",
-      "description": "Utilisateur Simu-lux avec statistiques de performance et accès coaching.",
+      "description": "Utilisateur Simu-lux avec statistiques de performance et sécurité anti-partage.",
       "properties": {
         "id": { "type": "string" },
         "email": { "type": "string" },
@@ -12,13 +12,21 @@
         "lastName": { "type": "string" },
         "role": { "type": "string", "enum": ["super_admin", "admin", "coach", "partner", "user", "demo"] },
         "status": { "type": "string", "enum": ["active", "disabled", "expired", "suspended", "pending"] },
+        "isLocked": { "type": "boolean", "description": "Verrouillage de sécurité anti-partage" },
+        "lockReason": { "type": "string", "enum": ["multi-device", "admin-lock"] },
+        "activeSession": {
+          "type": "object",
+          "properties": {
+            "deviceId": { "type": "string" },
+            "lastSeen": { "type": "string", "format": "date-time" }
+          }
+        },
         "accessType": { "type": "string", "enum": ["simulation", "coaching", "coaching_simulation", "simulation_only", "coaching_only", "simulation_and_coaching"] },
         "groupId": { "type": "string" },
-        "partnerId": { "type": "string", "description": "ID du partenaire B2B si applicable" },
+        "partnerId": { "type": "string" },
         "assignedCoachId": { "type": "string" },
         "validUntil": { "type": "string", "format": "date-time" },
-        "targetExamDate": { "type": "string", "format": "date-time", "description": "Date cible de l'examen PMP" },
-        "targetExamDateUpdatedAt": { "type": "string", "format": "date-time" },
+        "targetExamDate": { "type": "string", "format": "date-time" },
         "simulationsCount": { "type": "number" },
         "averageScore": { "type": "number" },
         "totalTimeSpent": { "type": "number" },
@@ -67,72 +75,6 @@
         "isPublished": { "type": "boolean" },
         "updatedAt": { "type": "string", "format": "date-time" }
       }
-    },
-    "CoachingGroup": {
-      "title": "CoachingGroup",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "description": { "type": "string" },
-        "coachId": { "type": "string" },
-        "partnerId": { "type": "string" },
-        "status": { "type": "string", "enum": ["active", "archived", "draft"] },
-        "maxUsers": { "type": "number" },
-        "startDate": { "type": "string", "format": "date-time" },
-        "endDate": { "type": "string", "format": "date-time" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      }
-    },
-    "CoachingAttempt": {
-      "title": "CoachingAttempt",
-      "type": "object",
-      "properties": {
-        "userId": { "type": "string" },
-        "groupId": { "type": "string" },
-        "sessionId": { "type": "string" },
-        "scorePercent": { "type": "number" },
-        "correctCount": { "type": "number" },
-        "totalQuestions": { "type": "number" },
-        "durationSec": { "type": "number" },
-        "submittedAt": { "type": "string", "format": "date-time" }
-      }
-    },
-    "QuickQuizAttempt": {
-      "title": "QuickQuizAttempt",
-      "type": "object",
-      "properties": {
-        "userId": { "type": "string" },
-        "axisId": { "type": "string" },
-        "category": { "type": "string", "enum": ["approach", "domain"] },
-        "score": { "type": "number" },
-        "correctCount": { "type": "number" },
-        "totalQuestions": { "type": "number" },
-        "submittedAt": { "type": "string", "format": "date-time" }
-      }
-    },
-    "Question": {
-      "title": "Question",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "index": { "type": "number" },
-        "text": { "type": "string" },
-        "imageUrl": { "type": "string" },
-        "choices": { "type": "array", "items": { "type": "string" } },
-        "correctChoice": { "type": "string" },
-        "correctChoiceIds": { "type": "array", "items": { "type": "string" } },
-        "explanation": { "type": "string" },
-        "tags": {
-          "type": "object",
-          "properties": {
-            "domain": { "type": "string" },
-            "approach": { "type": "string" },
-            "difficulty": { "type": "string" }
-          }
-        }
-      }
     }
   },
   "auth": {
@@ -153,24 +95,12 @@
         "definition": { "schema": { "$ref": "#/backend/entities/ChatMessage" }, "description": "Historique des chats IA" }
       },
       {
-        "path": "/coachingSessions/{sessionId}",
-        "definition": { "schema": { "$ref": "#/backend/entities/CoachingSession" }, "description": "Configuration S1..S6" }
-      },
-      {
-        "path": "/coachingGroups/{groupId}",
-        "definition": { "schema": { "$ref": "#/backend/entities/CoachingGroup" }, "description": "Groupes de participants" }
-      },
-      {
-        "path": "/coachingAttempts/{attemptId}",
-        "definition": { "schema": { "$ref": "#/backend/entities/CoachingAttempt" }, "description": "Scores coaching et simulations" }
-      },
-      {
-        "path": "/quickQuizAttempts/{attemptId}",
-        "definition": { "schema": { "$ref": "#/backend/entities/QuickQuizAttempt" }, "description": "Scores des quiz rapides par axe" }
-      },
-      {
         "path": "/users/{userId}",
-        "definition": { "schema": { "$ref": "#/backend/entities/User" }, "description": "Profils participants" }
+        "definition": { "schema": { "$ref": "#/backend/entities/User" }, "description": "Profils participants avec champs de sécurité" }
+      },
+      {
+        "path": "/mail/{mailId}",
+        "definition": { "schema": { "type": "object" }, "description": "Emails sortants (Extension Trigger Email)" }
       }
     ]
   }

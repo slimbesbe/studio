@@ -4,12 +4,13 @@
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect, useRef } from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore, doc, onSnapshot, Timestamp, setDoc, serverTimestamp, increment, collection, addDoc } from 'firebase/firestore';
-import { Auth, User, onAuthStateChanged } from 'firebase/auth';
+import { Auth, User, onAuthStateChanged, signOut } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { logActivity } from '@/lib/services/logging-service';
 import { sendAdminAlertOnFirstLogin } from '@/lib/services/mail-service';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { useRouter } from 'next/navigation';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -54,6 +55,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   const [profile, setProfile] = useState<any | null>(null);
   const [isUserLoading, setIsUserLoading] = useState(true);
   const [userError, setUserError] = useState<Error | null>(null);
+  const router = useRouter();
   
   const welcomeTriggered = useRef<string | null>(null);
 
@@ -74,6 +76,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     return () => unsubscribe();
   }, [auth, firestore]);
 
+  // Listener temps réel sur le document utilisateur pour le verrouillage anti-partage
   useEffect(() => {
     if (!firestore || !user) {
       if (!user) {
@@ -89,10 +92,20 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     const isHardcodedAdmin = (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) || 
                              ADMIN_UIDS.includes(user.uid);
 
-    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+    const unsubscribe = onSnapshot(userDocRef, async (docSnap) => {
       if (docSnap.exists()) {
         const profileData = docSnap.data();
         
+        // PROTECTION GLOBALE : Déconnexion forcée si verrouillé
+        if (profileData.isLocked === true && !isHardcodedAdmin) {
+          console.warn("Compte verrouillé détecté - Déconnexion forcée.");
+          await signOut(auth);
+          localStorage.clear();
+          sessionStorage.clear();
+          router.push('/access-denied');
+          return;
+        }
+
         let isExpired = false;
         if (profileData.expiresAt) {
           try {
@@ -122,12 +135,13 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
           lastName: 'Simu-lux',
           role: 'super_admin',
           status: 'active',
+          isLocked: false,
           createdAt: serverTimestamp()
         };
         setDoc(userDocRef, initialAdmin, { merge: true }).catch(() => {});
         setProfile(initialAdmin);
       } else {
-        setProfile({ id: user.uid, email: user.email, role: 'user', status: 'active' });
+        setProfile({ id: user.uid, email: user.email, role: 'user', status: 'active', isLocked: false });
       }
       setIsUserLoading(false);
     }, (error) => {
@@ -139,7 +153,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     });
 
     return () => unsubscribe();
-  }, [firestore, user]);
+  }, [firestore, user, auth, router]);
 
   // Gestion du premier login
   useEffect(() => {
@@ -171,7 +185,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   }, [firestore, user, profile]);
 
   useEffect(() => {
-    if (!firestore || !user || user.isAnonymous || !profile || profile.role !== 'user') return;
+    if (!firestore || !user || user.isAnonymous || !profile || profile.role !== 'user' || profile.isLocked) return;
     const interval = setInterval(() => {
       const userRef = doc(firestore, 'users', user.uid);
       setDoc(userRef, { 

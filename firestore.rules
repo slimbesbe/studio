@@ -7,6 +7,11 @@ service cloud.firestore {
       return request.auth != null;
     }
     
+    function isNotLocked() {
+      // Un utilisateur verrouillé par la sécurité ne peut plus rien faire
+      return !isSignedIn() || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isLocked != true;
+    }
+    
     function isAdmin() {
       return isSignedIn() && (
         request.auth.uid in [
@@ -24,9 +29,12 @@ service cloud.firestore {
       );
     }
 
-    // 1. SERVICES SYSTÈME
+    // Sécurité globale : Pas d'accès si le compte est verrouillé (sauf pour l'admin)
+    match /{document=**} {
+      allow read, write: if isAdmin() || (isSignedIn() && isNotLocked());
+    }
+
     match /userLogs/{logId} {
-      // Autorise la création de logs pour tout utilisateur connecté (y compris anonyme)
       allow create: if isSignedIn();
       allow read: if isAdmin();
     }
@@ -41,83 +49,16 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // 2. PROFILS UTILISATEURS
     match /users/{userId} {
       allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow list: if isAdmin();
       allow create: if isSignedIn() && request.auth.uid == userId;
+      // Autorise l'update du champ isLocked lors du blocage automatique
       allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      allow delete: if isAdmin();
       
       match /{allSubcollections=**} {
-        allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+        allow read, write: if (request.auth.uid == userId || isAdmin()) && isNotLocked();
       }
-    }
-
-    // 3. CONTENUS ET CONFIGURATION
-    match /questions/{questionId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    match /coachingSessions/{sessionId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    match /coachingGroups/{groupId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    match /config/{configId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    // 4. RÉSULTATS ET TENTATIVES
-    match /coachingAttempts/{attemptId} {
-      allow read: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow delete: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
-      allow update: if isAdmin();
-    }
-
-    match /quickQuizAttempts/{attemptId} {
-      allow read: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow delete: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
-      allow update: if isAdmin();
-    }
-
-    // 5. RESSOURCES PÉDAGOGIQUES
-    match /mindsets/{mindsetId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-    
-    match /concepts_approaches/{approachId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-    
-    match /concepts_domains/{domainId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    // 6. CHATS IA
-    match /chats/{chatId} {
-      allow read, write: if isAdmin() || (isSignedIn() && request.auth.uid == chatId);
-      match /messages/{msgId} {
-        allow create: if isSignedIn() && (request.auth.uid == chatId || isAdmin());
-        allow read: if isSignedIn() && (request.auth.uid == chatId || isAdmin());
-      }
-    }
-
-    // 7. SÉCURITÉ GLOBALE POUR L'ADMINISTRATEUR
-    match /{document=**} {
-      allow read, write: if isAdmin();
     }
   }
 }

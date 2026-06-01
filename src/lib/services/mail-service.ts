@@ -34,13 +34,43 @@ Préparez-vous à dominer l'examen !`,
     createdAt: serverTimestamp()
   };
 
-  addDoc(mailRef, mailData).catch(async (error) => {
-    errorEmitter.emit('permission-error', new FirestorePermissionError({
-      path: mailRef.path,
-      operation: 'create',
-      requestResourceData: mailData
-    }));
-  });
+  addDoc(mailRef, mailData).catch(() => {});
+}
+
+/**
+ * Alerte de sécurité lors d'un blocage pour multi-appareils.
+ */
+export function sendSecurityLockEmails(db: Firestore, userEmail: string, userName: string) {
+  if (!db) return;
+
+  const mailRef = collection(db, 'mail');
+
+  // 1. Email pour l'utilisateur
+  addDoc(mailRef, {
+    to: userEmail,
+    message: {
+      subject: '⚠️ Compte Simu-lux verrouillé (Sécurité)',
+      text: `Bonjour ${userName},
+
+Votre compte a été bloqué pour non-respect des règles de sécurité (connexion simultanée ou multi-appareils détectée).
+
+Cette mesure vise à protéger l'intégrité de vos données et de nos contenus. 
+Pour récupérer votre accès, veuillez contacter immédiatement l'administrateur.`,
+    },
+    createdAt: serverTimestamp()
+  }).catch(() => {});
+
+  // 2. Email pour l'admin
+  addDoc(mailRef, {
+    to: ADMIN_EMAIL,
+    message: {
+      subject: '🚨 Alerte Sécurité : Compte Verrouillé',
+      text: `Alerte Sécurité : L'utilisateur ${userName} (${userEmail}) a tenté de se connecter en simultané ou depuis un nouvel appareil. 
+      
+Son compte a été automatiquement verrouillé par le système anti-partage.`,
+    },
+    createdAt: serverTimestamp()
+  }).catch(() => {});
 }
 
 /**
@@ -63,11 +93,5 @@ Suivi requis immédiatement.`,
     createdAt: serverTimestamp()
   };
 
-  addDoc(mailRef, mailData).catch(async (error) => {
-    errorEmitter.emit('permission-error', new FirestorePermissionError({
-      path: mailRef.path,
-      operation: 'create',
-      requestResourceData: mailData
-    }));
-  });
+  addDoc(mailRef, mailData).catch(() => {});
 }
