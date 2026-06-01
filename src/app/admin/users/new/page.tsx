@@ -191,14 +191,14 @@ export default function NewUserPage() {
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Email Professionnel</Label>
                   <div className="relative">
-                    <Mail className="absolute left-4 top-4 h-4 w-4 text-slate-300" />
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
                     <Input type="email" placeholder="votre@email.com" className="pl-10 h-12 rounded-xl font-bold italic border-2" required value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Mot de passe temporaire</Label>
                   <div className="relative">
-                    <Lock className="absolute left-4 top-4 h-4 w-4 text-slate-300" />
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
                     <Input type="text" placeholder="6 caractères min." className="pl-10 h-12 rounded-xl font-bold italic border-2" required value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
                   </div>
                 </div>
@@ -219,6 +219,7 @@ export default function NewUserPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="user">Élève / Candidat</SelectItem>
+                      <SelectItem value="demo">Compte de Démo (Restreint)</SelectItem>
                       <SelectItem value="coach">Coach / Formateur</SelectItem>
                       <SelectItem value="partner">Partenaire B2B</SelectItem>
                       <SelectItem value="admin">Administrateur</SelectItem>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useUser } from '@/firebase';
@@ -17,13 +18,14 @@ import { cn } from '@/lib/utils';
 /**
  * DemoGuard - Système de protection globale pour le mode démo.
  * Intercepte les interactions critiques et affiche une alerte restrictive.
+ * Fonctionne pour les utilisateurs anonymes OU avec le rôle 'demo'.
  */
 export function DemoGuard({ children }: { children: React.ReactNode }) {
-  const { user } = useUser();
+  const { user, profile } = useUser();
   const [showModal, setShowModal] = useState(false);
 
-  // Le mode démo est actif si l'utilisateur est anonyme
-  const isDemo = user?.isAnonymous;
+  // Le mode démo est actif si l'utilisateur est anonyme OU s'il a explicitement le rôle démo
+  const isDemo = user?.isAnonymous || profile?.role === 'demo';
 
   /**
    * Gestionnaire d'interception centralisé.
@@ -60,7 +62,7 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
     }
   }, [isDemo, handleGlobalIntercept]);
 
-  // Si pas en mode démo, on rend les enfants normalement sans logique d'interception
+  // Si pas en mode démo, on rend les enfants normalement
   if (!isDemo) return <>{children}</>;
 
   return (
@@ -68,7 +70,7 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
       {children}
       
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="rounded-[40px] p-0 border-none shadow-3xl bg-white overflow-hidden max-w-md animate-in fade-in zoom-in duration-300">
+        <DialogContent className="rounded-[40px] p-0 border-none shadow-3xl bg-white overflow-hidden max-w-md animate-in fade-in zoom-in duration-300 z-[9999]">
           {/* Bandeau d'alerte rouge très visible */}
           <div className="bg-destructive h-4 w-full" />
           

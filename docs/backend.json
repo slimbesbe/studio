@@ -10,7 +10,7 @@
         "email": { "type": "string" },
         "firstName": { "type": "string" },
         "lastName": { "type": "string" },
-        "role": { "type": "string", "enum": ["super_admin", "admin", "coach", "partner", "user"] },
+        "role": { "type": "string", "enum": ["super_admin", "admin", "coach", "partner", "user", "demo"] },
         "status": { "type": "string", "enum": ["active", "disabled", "expired", "suspended", "pending"] },
         "accessType": { "type": "string", "enum": ["simulation", "coaching", "coaching_simulation", "simulation_only", "coaching_only", "simulation_and_coaching"] },
         "groupId": { "type": "string" },
@@ -136,7 +136,7 @@
     }
   },
   "auth": {
-    "providers": ["password"]
+    "providers": ["password", "anonymous"]
   },
   "firestore": {
     "structure": [

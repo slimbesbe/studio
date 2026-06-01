@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Mail, Lock, Play, ShieldCheck, MailWarning, RefreshCw } from 'lucide-react';
 import { useAuth, useFirestore } from '@/firebase';
-import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail, signInAnonymously } from 'firebase/auth';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { SimuLuxLogo } from '@/components/dashboard/Sidebar';
@@ -106,8 +106,17 @@ export default function Home() {
     }
   };
 
-  const handleDemoRedirect = () => {
-    window.location.href = 'https://www.simu-lux.com/fr/signup';
+  const handleDemoLogin = async () => {
+    setIsLoading(true);
+    try {
+      await signInAnonymously(auth);
+      router.push('/dashboard');
+      toast({ title: "Mode Démo activé", description: "Bienvenue dans l'interface de démonstration." });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible d'activer le mode démo." });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -186,7 +195,8 @@ export default function Home() {
           <Button 
             variant="outline" 
             className="w-full h-12 border-2 border-accent text-accent hover:bg-accent/5 font-black uppercase italic text-xs tracking-widest rounded-xl" 
-            onClick={handleDemoRedirect}
+            onClick={handleDemoLogin}
+            disabled={isLoading}
           >
             <Play className="mr-2 h-4 w-4 fill-accent" />
             Explorer en mode DÉMO
