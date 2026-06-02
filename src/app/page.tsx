@@ -1,16 +1,16 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Mail, Lock, Play, ShieldCheck, ShieldAlert, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Loader2, Mail, Lock, Play, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { useAuth, useFirestore } from '@/firebase';
-import { signInWithEmailAndPassword, sendPasswordResetEmail, signInAnonymously, signOut } from 'firebase/auth';
-import { collection, query, where, getDocs, limit, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { signInWithEmailAndPassword, signInAnonymously, signOut } from 'firebase/auth';
+import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { SimuLuxLogo } from '@/components/dashboard/Sidebar';
 import { sendSecurityLockEmails } from '@/lib/services/mail-service';
@@ -28,7 +28,6 @@ export default function Home() {
 
   const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com', 'jedgrira1@gmail.com'];
 
-  // Fonction pour générer une empreinte de l'appareil
   const getDeviceFingerprint = () => {
     if (typeof window === 'undefined') return 'server';
     return `${navigator.userAgent}-${window.screen.width}x${window.screen.height}`;
@@ -47,53 +46,53 @@ export default function Home() {
       const userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, password);
       const user = userCredential.user;
 
-      // 2. Vérification du profil et de la session
+      // 2. Récupération directe du document utilisateur par UID
       const userDocRef = doc(db, 'users', user.uid);
-      const userDocSnap = await getDocs(query(collection(db, 'users'), where('email', '==', trimmedEmail), limit(1)));
+      const userDocSnap = await getDoc(userDocRef);
       
-      if (userDocSnap.empty) {
-        throw new Error("Profil introuvable.");
+      if (!userDocSnap.exists()) {
+        throw new Error("Profil introuvable en base.");
       }
 
-      const userData = userDocSnap.docs[0].data();
-
-      // Règle Super Admin : Pas de blocage session pour Slim
+      const userData = userDocSnap.data();
       const isSA = ADMIN_EMAILS.includes(trimmedEmail);
 
-      // BLOCAGE 1 : Compte déjà verrouillé
-      if (userData.isLocked) {
+      // BLOCAGE 1 : Compte déjà verrouillé historiquement
+      if (userData.isLocked === true) {
         await signOut(auth);
-        setErrorMessage("ALERTE : Votre compte a été bloqué pour non-respect des règles de sécurité (connexion simultanée ou multi-appareils). Veuillez contacter l'administrateur pour récupérer votre compte.");
+        setErrorMessage("ALERTE : Votre compte a été bloqué pour non-respect des règles de sécurité (connexion simultanée ou multi-appareils). Veuillez contacter l'administrateur.");
         return;
       }
 
-      // BLOCAGE 2 : Anti-partage de compte (sauf Admin)
+      // BLOCAGE 2 : Détection de connexion simultanée (autre appareil)
+      // On vérifie si une session existe ET si l'appareil est différent
       if (!isSA && userData.activeSession && userData.activeSession.deviceId !== currentFingerprint) {
-        // Détection de multi-device -> On verrouille le compte
-        await updateDoc(doc(db, 'users', user.uid), {
+        // Détection de multi-device -> On verrouille le compte immédiatement
+        await updateDoc(userDocRef, {
           isLocked: true,
           lockReason: 'multi-device',
           updatedAt: serverTimestamp()
         });
 
-        // Envoi des alertes emails
+        // Notifications emails pédagogiques
         sendSecurityLockEmails(db, trimmedEmail, `${userData.firstName} ${userData.lastName}`);
 
         await signOut(auth);
-        setErrorMessage("ALERTE : Votre compte a été bloqué pour non-respect des règles de sécurité (connexion simultanée ou multi-appareils). Veuillez contacter l'administrateur pour récupérer votre compte.");
+        setErrorMessage("ALERTE : Votre compte a été bloqué pour non-respect des règles de sécurité (connexion simultanée ou multi-appareils). Veuillez contacter l'administrateur.");
         return;
       }
 
-      // 3. Enregistrement de la session active
-      await updateDoc(doc(db, 'users', user.uid), {
+      // 3. Validation de la nouvelle session
+      await updateDoc(userDocRef, {
         activeSession: {
           deviceId: currentFingerprint,
           lastLogin: serverTimestamp()
         },
+        isLocked: false, // Sécurité : On s'assure qu'il n'est pas verrouillé ici
         updatedAt: serverTimestamp()
       });
       
-      if (isSA) {
+      if (isSA || userData.role === 'admin' || userData.role === 'super_admin') {
         router.push('/admin/dashboard');
       } else {
         router.push('/dashboard');
@@ -101,11 +100,15 @@ export default function Home() {
       
       toast({ title: "Connexion réussie" });
     } catch (error: any) {
-      console.error("Login error", error);
+      console.error("Login Error:", error);
+      let msg = "Email ou mot de passe incorrect.";
+      if (error.code === 'auth/user-not-found') msg = "Utilisateur introuvable.";
+      if (error.code === 'auth/wrong-password') msg = "Mot de passe incorrect.";
+      
       toast({
         variant: "destructive",
         title: "Échec d'identification",
-        description: "Email ou mot de passe incorrect."
+        description: msg
       });
     } finally {
       setIsLoading(false);
@@ -134,7 +137,7 @@ export default function Home() {
       <Card className="w-full max-w-md border-t-4 border-t-primary shadow-2xl overflow-hidden">
         <CardHeader className="space-y-1 bg-slate-50/50 border-b">
           <CardTitle className="text-2xl font-black text-center text-primary italic uppercase tracking-tight">Espace Membre</CardTitle>
-          <CardDescription className="text-center font-bold text-[10px] uppercase tracking-widest text-slate-400">Accès sécurisé v3.0</CardDescription>
+          <CardDescription className="text-center font-bold text-[10px] uppercase tracking-widest text-slate-400">Accès sécurisé Simu-lux</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 pt-8">
           
@@ -142,7 +145,7 @@ export default function Home() {
             <div className="bg-red-50 border-2 border-red-200 p-5 rounded-2xl animate-in slide-in-from-top-4 duration-300">
               <div className="flex items-center gap-3 text-red-600 mb-2">
                 <ShieldAlert className="h-6 w-6 shrink-0" />
-                <span className="font-black uppercase italic text-xs tracking-tight">Violation de sécurité détectée</span>
+                <span className="font-black uppercase italic text-xs tracking-tight">Sécurité Compromise</span>
               </div>
               <p className="text-[11px] font-bold text-red-700 leading-relaxed italic">
                 {errorMessage}
@@ -181,7 +184,7 @@ export default function Home() {
             </div>
             
             <Button type="submit" className="w-full font-black h-14 text-lg shadow-xl bg-primary hover:scale-[1.02] transition-transform uppercase italic tracking-widest" disabled={isLoading}>
-              {isLoading ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Vérification...</> : "Se connecter"}
+              {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Vérification...</> : "Se connecter"}
             </Button>
           </form>
 

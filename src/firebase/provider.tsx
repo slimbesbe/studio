@@ -12,14 +12,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { useRouter } from 'next/navigation';
 
-interface FirebaseProviderProps {
-  children: ReactNode;
-  firebaseApp: FirebaseApp;
-  firestore: Firestore;
-  auth: Auth;
-}
-
-export interface FirebaseContextState {
+interface FirebaseContextState {
   areServicesAvailable: boolean;
   firebaseApp: FirebaseApp | null;
   firestore: Firestore | null;
@@ -45,7 +38,7 @@ export const FirebaseContext = createContext<FirebaseContextState | undefined>(u
 const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com', 'jedgrira1@gmail.com'];
 const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1', 've5V0MUPoccuOdBNGYsz6QYY89L2', 'Adknzym5N6cMeJnYbCRaAdBrA0r1'];
 
-export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
+export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: FirebaseApp, firestore: Firestore, auth: Auth}> = ({
   children,
   firebaseApp,
   firestore,
@@ -99,10 +92,11 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         // PROTECTION GLOBALE : Déconnexion forcée si verrouillé
         if (profileData.isLocked === true && !isHardcodedAdmin) {
           console.warn("Compte verrouillé détecté - Déconnexion forcée.");
-          await signOut(auth);
+          // On vide tout pour empêcher toute réutilisation de session locale
           localStorage.clear();
           sessionStorage.clear();
-          router.push('/access-denied');
+          await signOut(auth);
+          router.replace('/access-denied');
           return;
         }
 
@@ -146,10 +140,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       setIsUserLoading(false);
     }, (error) => {
       setIsUserLoading(false);
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: userDocRef.path,
-        operation: 'get'
-      }));
+      // On n'émet pas d'erreur de permission ici car le signOut peut arriver juste après le lock
     });
 
     return () => unsubscribe();

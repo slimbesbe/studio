@@ -9,6 +9,7 @@ service cloud.firestore {
     
     function isNotLocked() {
       // Un utilisateur verrouillé par la sécurité ne peut plus rien faire
+      // On utilise getAfter() ou get() avec précaution
       return !isSignedIn() || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isLocked != true;
     }
     
@@ -29,10 +30,13 @@ service cloud.firestore {
       );
     }
 
-    // Sécurité globale : Pas d'accès si le compte est verrouillé (sauf pour l'admin)
-    match /{document=**} {
-      allow read, write: if isAdmin() || (isSignedIn() && isNotLocked());
-    }
+    // Sécurité globale pour les contenus : Pas d'accès si le compte est verrouillé
+    match /questions/{q} { allow read, write: if isAdmin() || (isSignedIn() && isNotLocked()); }
+    match /coachingSessions/{s} { allow read, write: if isAdmin() || (isSignedIn() && isNotLocked()); }
+    match /coachingAttempts/{a} { allow read, write: if isAdmin() || (isSignedIn() && isNotLocked()); }
+    match /mindsets/{m} { allow read, write: if isAdmin() || (isSignedIn() && isNotLocked()); }
+    match /concepts_approaches/{c} { allow read, write: if isAdmin() || (isSignedIn() && isNotLocked()); }
+    match /concepts_domains/{d} { allow read, write: if isAdmin() || (isSignedIn() && isNotLocked()); }
 
     match /userLogs/{logId} {
       allow create: if isSignedIn();
@@ -50,11 +54,16 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
+      // Autorise toujours la lecture de son propre profil (pour détecter le lock en UI)
       allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow list: if isAdmin();
       allow create: if isSignedIn() && request.auth.uid == userId;
-      // Autorise l'update du champ isLocked lors du blocage automatique
-      allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      
+      // Un utilisateur peut s'auto-verrouiller (détection auto) mais seul l'admin peut déverrouiller
+      allow update: if isSignedIn() && (
+        isAdmin() || 
+        (request.auth.uid == userId && resource.data.isLocked != true)
+      );
       
       match /{allSubcollections=**} {
         allow read, write: if (request.auth.uid == userId || isAdmin()) && isNotLocked();
