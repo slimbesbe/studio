@@ -12,17 +12,16 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, CheckCircle2, FileSpreadsheet, XCircle, Upload, Info, Layers, Globe } from 'lucide-react';
+import { Loader2, CheckCircle2, FileSpreadsheet, Upload, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useFirebase, useUser } from '@/firebase';
-import { collection, doc, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { useFirebase } from '@/firebase';
+import { doc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
-import { cn } from '@/lib/utils';
 
 interface ImportQuestionsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  examId?: string; // Represents the target silo ID (e.g., 'practice', 'matrix', or 'exam1')
+  examId?: string; 
 }
 
 interface ParsedQuestion {
@@ -45,10 +44,8 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'practice' }: I
   const [isImporting, setIsImporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [parsedData, setParsedData] = useState<ParsedQuestion[]>([]);
-  const [errors, setErrors] = useState<{line: number, msg: string}[]>([]);
   
   const { firestore: db } = useFirebase();
-  const { profile } = useUser();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -59,34 +56,23 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'practice' }: I
       if (type === 'approach') return 'Agile';
       return 'Medium';
     }
-
     if (type === 'domain') {
       if (val.includes('peop') || val.includes('gens')) return 'People';
       if (val.includes('proc')) return 'Process';
       if (val.includes('busi') || val.includes('affair')) return 'Business';
       return 'Process';
     }
-
     if (type === 'approach') {
       if (val.includes('pred') || val.includes('water') || val.includes('casc')) return 'Predictive';
       if (val.includes('agile')) return 'Agile';
       if (val.includes('hybr')) return 'Hybrid';
       return 'Agile';
     }
-
-    if (type === 'difficulty') {
-      if (val.includes('eas') || val.includes('faci')) return 'Easy';
-      if (val.includes('med') || val.includes('moy')) return 'Medium';
-      if (val.includes('har') || val.includes('diff')) return 'Hard';
-      return 'Medium';
-    }
-
     return val;
   };
 
   const parseFile = async (file: File) => {
     setIsParsing(true);
-    setErrors([]);
     setParsedData([]);
     
     const reader = new FileReader();
@@ -94,19 +80,14 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'practice' }: I
       try {
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: 'binary' });
-        const sheetName = workbook.SheetNames[0];
-        const json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]) as any[];
-
+        const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]) as any[];
         const results: ParsedQuestion[] = [];
-        const parseErrors: {line: number, msg: string}[] = [];
 
-        json.forEach((row, index) => {
-          const lineNum = index + 2;
+        json.forEach((row) => {
           const statement = row["Scénario / Question"] || row["Énoncé"] || row["statement"] || row["text"] || row["Question"];
           const justification = row["Justification"] || row["explanation"] || row["Rationale"] || "";
           const correctValue = String(row["Réponse Correcte"] || row["correct"] || row["Correct"] || row["Answer"] || "");
           const code = row["Numéro"] || row["Code"] || row["questionCode"];
-          
           if (!statement) return;
 
           const options: { id: string, text: string }[] = [];
@@ -119,7 +100,6 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'practice' }: I
 
           const rawCorrects = correctValue.split(',').map(s => s.trim().toUpperCase());
           const mappedIds: string[] = [];
-          
           rawCorrects.forEach(cid => {
              if (!cid) return;
              let id = ['A','B','C','D','E'].includes(cid[0]) ? (cid.charCodeAt(0) - 64).toString() : cid;
@@ -142,7 +122,6 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'practice' }: I
             });
           }
         });
-
         setParsedData(results);
       } catch (err) {
         toast({ variant: "destructive", title: "Erreur lecture" });
@@ -162,15 +141,23 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'practice' }: I
       const total = parsedData.length;
       const batchSize = 50;
       
-      // DETERMINATION DU SILO CIBLE
-      const targetSilo = examId === 'practice' ? 'practice' : examId === 'matrix' ? 'matrix' : 'exams';
+      // DÉTERMINATION STRICTE DU SILO CIBLE
+      // Si l'examId ressemble à 'exam1', 'exam2'... c'est le silo 'exams'
+      // Sinon on respecte 'practice' ou 'matrix'
+      let targetSilo = 'practice';
+      if (examId === 'matrix') targetSilo = 'matrix';
+      else if (examId?.startsWith('exam')) targetSilo = 'exams';
 
       for (let i = 0; i < total; i += batchSize) {
         const batch = writeBatch(db);
         const chunk = parsedData.slice(i, i + batchSize);
         
         chunk.forEach((q) => {
-          const questionId = q.questionCode ? `q_${targetSilo}_${String(q.questionCode).replace(/[^a-zA-Z0-9]/g, '_')}` : `q_${targetSilo}_${Math.random().toString(36).substr(2, 9)}`;
+          // ID UNIQUE POUR ÉVITER TOUTE COLLISION ENTRE SILOS
+          const questionId = q.questionCode 
+            ? `q_${targetSilo}_${String(q.questionCode).replace(/[^a-zA-Z0-9]/g, '_')}` 
+            : `q_${targetSilo}_${Math.random().toString(36).substr(2, 9)}`;
+            
           const qRef = doc(db, 'questions', questionId);
 
           batch.set(qRef, {
@@ -180,9 +167,8 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'practice' }: I
             choices: q.options.map(o => o.text),
             correctChoice: q.correctOptionIds[0],
             isActive: true,
-            createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
-            silo: targetSilo, // ISOLATION PHYSIQUE
+            silo: targetSilo, // PARTITIONNEMENT PHYSIQUE ABSOLU
             sourceIds: [examId],
             examId: targetSilo === 'exams' ? examId : null
           }, { merge: true });
@@ -207,10 +193,10 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'practice' }: I
       <DialogContent className="max-w-2xl rounded-[40px] p-10 border-4 shadow-3xl">
         <DialogHeader>
           <DialogTitle className="text-3xl font-black uppercase italic text-emerald-600 flex items-center gap-3">
-            <FileSpreadsheet className="h-8 w-8" /> Importation Silo : {examId.toUpperCase()}
+            <ShieldCheck className="h-8 w-8" /> Silo : {examId.toUpperCase()}
           </DialogTitle>
           <DialogDescription className="font-bold text-slate-500 italic uppercase text-[10px] mt-2">
-            Isolation garantie. Les données ne seront visibles que dans ce silo.
+            Les questions seront isolées physiquement dans ce compartiment.
           </DialogDescription>
         </DialogHeader>
 

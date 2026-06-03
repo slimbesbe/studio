@@ -51,7 +51,12 @@ export default function AdminMatriceConfig() {
 
   const matrixStats = useMemo(() => {
     const stats: Record<string, number> = {};
-    allQuestions?.forEach(q => {
+    if (!allQuestions) return stats;
+
+    allQuestions.forEach(q => {
+      // SÉCURITÉ SUPPLÉMENTAIRE : On re-vérifie le silo côté client pour une étanchéité parfaite
+      if (q.silo !== 'matrix') return;
+
       const d = q.tags?.domain === 'Processus' ? 'Process' : (q.tags?.domain || 'Process');
       const a = q.tags?.approach || 'Predictive';
       const key = `${d}-${a}`;
@@ -91,14 +96,13 @@ export default function AdminMatriceConfig() {
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" onClick={downloadModel} className="h-14 px-6 rounded-2xl font-black uppercase text-xs italic border-2 gap-2"><Download className="h-4 w-4" /> Modèle</Button>
           <Button onClick={() => setIsBulkImportOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg gap-2 text-white">
-            <Upload className="h-4 w-4" /> Import Global
+            <Upload className="h-4 w-4" /> Import Silo Matrix
           </Button>
         </div>
       </div>
 
       <div className="bg-white rounded-[60px] p-12 lg:p-20 shadow-2xl border-2 border-slate-50 overflow-x-auto">
         <div className="min-w-[1000px]">
-          {/* Header des colonnes (PREDICTIVE, AGILE, HYBRID) */}
           <div className="grid grid-cols-4 gap-8 mb-12">
             <div />
             {APPROACHES.map(a => (
@@ -110,7 +114,6 @@ export default function AdminMatriceConfig() {
             ))}
           </div>
 
-          {/* Corps de la Matrice (PEOPLE, PROCESS, BUSINESS) */}
           <div className="space-y-8">
             {DOMAINS.map(d => (
               <div key={d.id} className="grid grid-cols-4 gap-8 items-stretch">
