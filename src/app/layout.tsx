@@ -1,3 +1,4 @@
+
 'use client';
 
 import './globals.css';
@@ -26,7 +27,7 @@ export default function RootLayout({
       // Bloque Ctrl+C, Ctrl+U, Ctrl+P, Ctrl+S, Ctrl+Shift+I
       if (
         (e.ctrlKey || e.metaKey) && 
-        (e.key === 'c' || e.key === 'u' || e.key === 'p' || e.key === 's' || e.key === 'i' || e.key === 'j')
+        (['c', 'u', 'p', 's', 'i', 'j'].includes(e.key.toLowerCase()))
       ) {
         e.preventDefault();
       }
@@ -37,7 +38,7 @@ export default function RootLayout({
       }
     };
 
-    // 3. DÉSACTIVE L'ÉVÉNEMENT DE COPIE
+    // 3. DÉSACTIVE L'ÉVÉNEMENT DE COPIE (Simple preventDefault pour éviter Clipboard API Permission error)
     const handleCopy = (e: ClipboardEvent) => {
       e.preventDefault();
     };
