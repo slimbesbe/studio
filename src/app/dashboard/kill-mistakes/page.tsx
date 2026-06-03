@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo, Suspense } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { 
   Brain, 
   CheckCircle2, 
@@ -17,14 +18,16 @@ import {
   Trophy,
   Zap,
   Play,
-  Check
+  Check,
+  RotateCcw,
+  Home
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, doc, getDoc, writeBatch, serverTimestamp, increment } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { submitPracticeAnswer, startTrainingSession } from '@/lib/services/practice-service';
+import { startTrainingSession } from '@/lib/services/practice-service';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -50,13 +53,12 @@ function KillMistakesContent() {
 
   // State Session
   const [sessionQuestions, setSessionQuestions] = useState<any[]>([]);
-  const [currentSessionIdx, setCurrentSessionIdx] = useState(0);
+  const [currentIdx, setCurrentIdx] = useState(0);
   const [sessionAnswers, setSessionAnswers] = useState<Record<string, string[]>>({});
-  const [sessionStep, setStep] = useState<'intro' | 'session' | 'summary'>('intro');
+  const [sessionStep, setStep] = useState<'intro' | 'session' | 'summary' | 'review'>('intro');
   const [sessionResults, setSessionResults] = useState<{correct: number, total: number} | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingSession, setIsLoadingSession] = useState(false);
-  const [correction, setCorrection] = useState<any | null>(null);
 
   // Fetch Errors List
   const mistakesQuery = useMemoFirebase(() => {
@@ -97,21 +99,19 @@ function KillMistakesContent() {
     fetchDetails();
   }, [selectedMistake, mode, db]);
 
-  // --- ACTIONS ---
+  // --- ACTIONS SESSION ---
   const startSession = async () => {
     if (filteredMistakes.length === 0) return;
     setIsLoadingSession(true);
     try {
-      // Fetch actual question documents for the entire session
       const questions = await startTrainingSession(db, user!.uid, 'kill_mistake', { 
         sourceType: activeTheme,
         domain: filterDomain
-      }, 0); // 0 to get all available
+      }, 0); 
       
       setSessionQuestions(questions);
       setStep('session');
-      setCurrentSessionIdx(0);
-      setCorrection(null);
+      setCurrentIdx(0);
       setSessionAnswers({});
     } catch (e: any) {
       toast({ variant: "destructive", title: "Erreur", description: e.message });
@@ -120,56 +120,58 @@ function KillMistakesContent() {
     }
   };
 
-  const handleSessionAnswer = (choiceId: string, isMultiple: boolean) => {
-    if (correction) return;
-    const qId = sessionQuestions[currentSessionIdx].id;
+  const handleToggleAnswer = (choiceId: string, isMultiple: boolean) => {
+    const qId = sessionQuestions[currentIdx].id;
     const current = sessionAnswers[qId] || [];
     if (isMultiple) {
-      setSessionAnswers({ ...sessionAnswers, [qId]: current.includes(choiceId) ? current.filter(id => id !== choiceId) : [...current, choiceId] });
+      setSessionAnswers({ 
+        ...sessionAnswers, 
+        [qId]: current.includes(choiceId) ? current.filter(id => id !== choiceId) : [...current, choiceId] 
+      });
     } else {
       setSessionAnswers({ ...sessionAnswers, [qId]: [choiceId] });
     }
   };
 
-  const handleCheckAnswer = async () => {
-    const q = sessionQuestions[currentSessionIdx];
-    const userChoices = sessionAnswers[q.id] || [];
-    if (userChoices.length === 0) return;
-
+  const handleFinishSession = async () => {
     setIsSubmitting(true);
-    try {
-      const res = await submitPracticeAnswer(db, user!.uid, q.id, userChoices);
-      setCorrection(res);
-      if (res.isCorrect) {
-        setSessionResults(prev => ({
-          correct: (prev?.correct || 0) + 1,
-          total: (prev?.total || 0) + 1
-        }));
+    let correct = 0;
+    const batch = writeBatch(db);
+
+    sessionQuestions.forEach(q => {
+      const userChoices = sessionAnswers[q.id] || [];
+      const correctOptionIds = (q.correctOptionIds || [String(q.correctChoice || "1")]).map(String);
+      const isCorrect = userChoices.length === correctOptionIds.length && userChoices.every(id => correctOptionIds.includes(id));
+
+      if (isCorrect) correct++;
+
+      // Mise à jour Firestore Kill Mistake
+      const kmRef = doc(db, 'users', user!.uid, 'killMistakes', q.id);
+      if (isCorrect) {
+        batch.set(kmRef, { status: 'corrected', lastCorrectAt: serverTimestamp() }, { merge: true });
       } else {
-        setSessionResults(prev => ({
-          correct: prev?.correct || 0,
-          total: (prev?.total || 0) + 1
-        }));
+        batch.set(kmRef, { 
+          wrongCount: increment(1), 
+          lastWrongAt: serverTimestamp(),
+          lastSelectedChoiceIds: userChoices 
+        }, { merge: true });
       }
+    });
+
+    try {
+      await batch.commit();
+      setSessionResults({ correct, total: sessionQuestions.length });
+      setStep('summary');
     } catch (e) {
-      toast({ variant: "destructive", title: "Erreur lors de la validation" });
+      toast({ variant: "destructive", title: "Erreur sauvegarde" });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const nextOrFinish = () => {
-    if (currentSessionIdx < sessionQuestions.length - 1) {
-      setCurrentSessionIdx(currentSessionIdx + 1);
-      setCorrection(null);
-    } else {
-      setStep('summary');
-    }
-  };
-
   if (isLoadingMistakes) return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
 
-  // --- RENDU MODE SESSION (PURGE) ---
+  // --- RENDU MODE SESSION (SPRINT) ---
   if (mode === 'session') {
     if (sessionStep === 'intro') {
       return (
@@ -180,101 +182,110 @@ function KillMistakesContent() {
               <Play className="h-12 w-12 fill-white text-white ml-2" />
             </div>
             <div className="space-y-4 relative z-10">
-              <h1 className="text-5xl font-black italic uppercase tracking-tighter leading-tight">Session de Remédiation</h1>
+              <h1 className="text-5xl font-black italic uppercase tracking-tighter leading-tight">Sprint de Remédiation</h1>
               <p className="text-blue-100/70 font-bold italic text-lg max-w-xl mx-auto leading-relaxed">
-                Prêt à purger <span className="text-white font-black underline underline-offset-4">{filteredMistakes.length} erreurs</span> du silo {activeTheme.toUpperCase()} ?
+                Purger <span className="text-white font-black underline underline-offset-4">{filteredMistakes.length} questions</span> du silo {activeTheme.toUpperCase()}.
+                <br/>Répondez à tout pour obtenir votre note finale.
               </p>
             </div>
-            <div className="flex justify-center gap-4 relative z-10 pt-4">
-              <Button size="lg" onClick={startSession} disabled={isLoadingSession} className="h-20 px-16 rounded-[28px] bg-white text-[#1e3a8a] hover:bg-blue-50 text-2xl font-black uppercase tracking-widest shadow-2xl scale-105 transition-transform">
-                {isLoadingSession ? <Loader2 className="animate-spin h-8 w-8" /> : "DÉMARRER LA PURGE"}
-              </Button>
-            </div>
-          </Card>
-        </div>
-      );
-    }
-    if (sessionStep === 'summary' && sessionResults) {
-      return (
-        <div className="max-w-2xl mx-auto py-24 text-center space-y-10 animate-fade-in px-4">
-          <Card className="rounded-[40px] shadow-2xl border-none p-16 space-y-10 bg-white">
-            <div className="bg-emerald-50 h-24 w-24 rounded-[32px] flex items-center justify-center mx-auto shadow-inner">
-              <Trophy className="h-12 w-12 text-emerald-600" />
-            </div>
-            <div className="space-y-4">
-              <h1 className="text-4xl font-black italic uppercase tracking-tighter text-slate-900">Sprint Terminé !</h1>
-              <p className="text-6xl font-black text-primary italic">{Math.round((sessionResults.correct / sessionResults.total) * 100)}%</p>
-              <p className="text-lg font-bold text-slate-500 italic uppercase tracking-widest">
-                {sessionResults.correct} / {sessionResults.total} Corrigées
-              </p>
-            </div>
-            <Button asChild className="h-16 w-full rounded-2xl bg-slate-900 text-white font-black uppercase italic tracking-widest shadow-xl">
-              <Link href="/dashboard/kill-mistake-selection">RETOUR AU DASHBOARD</Link>
+            <Button size="lg" onClick={startSession} disabled={isLoadingSession} className="h-20 px-16 rounded-[28px] bg-white text-[#1e3a8a] hover:bg-blue-50 text-2xl font-black uppercase tracking-widest shadow-2xl scale-105 transition-transform relative z-10">
+              {isLoadingSession ? <Loader2 className="animate-spin h-8 w-8" /> : "LANCER LA SESSION"}
             </Button>
           </Card>
         </div>
       );
     }
+    
+    if (sessionStep === 'summary' && sessionResults) {
+      const score = Math.round((sessionResults.correct / sessionResults.total) * 100);
+      return (
+        <div className="max-w-2xl mx-auto py-24 text-center space-y-10 animate-fade-in px-4">
+          <Card className="rounded-[40px] shadow-2xl border-none p-16 space-y-10 bg-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-5"><Trophy className="h-32 w-32" /></div>
+            <div className="space-y-4">
+              <h1 className="text-4xl font-black italic uppercase tracking-tighter text-slate-900">Session Terminée</h1>
+              <div className="py-8">
+                <p className="text-8xl font-black text-primary italic tracking-tighter">{score}%</p>
+                <p className="text-lg font-bold text-slate-400 uppercase tracking-widest mt-2 italic">
+                  {sessionResults.correct} / {sessionResults.total} QUESTIONS RÉUSSIES
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Button asChild variant="outline" className="h-16 rounded-2xl border-4 font-black uppercase italic text-xs tracking-widest"><Link href="/dashboard/kill-mistakes?mode=analyze&theme=all">Analyse détaillée</Link></Button>
+              <Button asChild className="h-16 rounded-2xl bg-slate-900 text-white font-black uppercase italic tracking-widest shadow-xl"><Link href="/dashboard/kill-mistake-selection">Tableau de bord</Link></Button>
+            </div>
+          </Card>
+        </div>
+      );
+    }
 
-    const q = sessionQuestions[currentSessionIdx];
+    const q = sessionQuestions[currentIdx];
     if (!q) return null;
+    const progress = ((currentIdx + 1) / sessionQuestions.length) * 100;
 
     return (
       <div className="max-w-4xl mx-auto space-y-8 animate-fade-in py-8 px-4">
         <div className="flex justify-between items-center bg-white p-6 rounded-3xl shadow-lg border-2">
-          <Badge variant="outline" className="h-10 px-6 rounded-xl border-2 font-black italic">QUESTION {currentSessionIdx + 1} / {sessionQuestions.length}</Badge>
-          <div className="bg-[#1e3a8a] text-white px-4 py-1.5 rounded-full font-black text-[10px] uppercase italic">PURGE ACTIVE : {activeTheme.toUpperCase()}</div>
+          <Badge variant="outline" className="h-10 px-6 rounded-xl border-2 font-black italic">Q {currentIdx + 1} / {sessionQuestions.length}</Badge>
+          <Progress value={progress} className="w-48 h-3 rounded-full" />
+          <div className="bg-[#1e3a8a] text-white px-4 py-1.5 rounded-full font-black text-[9px] uppercase italic">MODE SPRINT</div>
         </div>
-        <Card className="rounded-[40px] shadow-2xl border-t-8 border-t-[#1e3a8a] overflow-hidden bg-white">
+
+        <Card className="rounded-[40px] shadow-2xl border-t-8 border-t-[#1e3a8a] overflow-hidden bg-white min-h-[400px]">
           <CardContent className="p-10 space-y-10">
             <p className="text-2xl font-black text-slate-800 italic leading-relaxed">{q.statement || q.text}</p>
+            
             <div className="grid gap-4">
               {(q.choices || q.options?.map((o:any)=>o.text) || []).map((optText: string, idx: number) => {
                 const choiceId = String(idx + 1);
                 const isSelected = (sessionAnswers[q.id] || []).includes(choiceId);
-                const isCorrect = correction?.correctOptionIds?.includes(choiceId);
                 
                 return (
                   <button 
                     key={idx} 
-                    onClick={() => handleSessionAnswer(choiceId, q.isMultipleCorrect)} 
+                    onClick={() => handleToggleAnswer(choiceId, q.isMultipleCorrect)} 
                     className={cn(
                       "p-6 rounded-2xl border-2 transition-all text-left flex items-start gap-5 shadow-sm",
-                      isSelected && !correction ? "border-[#1e3a8a] bg-blue-50/30 scale-[1.01]" : "border-slate-100",
-                      correction && isCorrect ? "border-emerald-500 bg-emerald-50" : "",
-                      correction && isSelected && !isCorrect ? "border-red-500 bg-red-50" : ""
+                      isSelected ? "border-[#1e3a8a] bg-blue-50/30 scale-[1.01]" : "border-slate-100 hover:border-slate-200"
                     )}
                   >
                     <div className={cn(
-                      "h-10 w-10 flex items-center justify-center font-black text-sm shrink-0 border-2 rounded-full",
-                      isSelected ? "bg-[#1e3a8a] text-white border-[#1e3a8a]" : "bg-white text-slate-400",
-                      correction && isCorrect ? "bg-emerald-500 text-white border-emerald-500" : "",
-                      correction && isSelected && !isCorrect ? "bg-red-500 text-white border-red-500" : ""
+                      "h-10 w-10 flex items-center justify-center font-black text-sm shrink-0 border-2",
+                      q.isMultipleCorrect ? "rounded-xl" : "rounded-full",
+                      isSelected ? "bg-[#1e3a8a] text-white border-[#1e3a8a]" : "bg-white text-slate-400"
                     )}>{String.fromCharCode(65 + idx)}</div>
-                    <span className="flex-1 text-lg font-bold italic pt-1 text-slate-700">{optText}</span>
+                    <span className={cn("flex-1 text-lg font-bold italic pt-1", isSelected ? "text-slate-900" : "text-slate-600")}>{optText}</span>
                   </button>
                 );
               })}
             </div>
-
-            {correction && (
-              <div className="mt-8 p-8 bg-slate-50 rounded-[32px] border-l-8 border-l-primary animate-slide-up shadow-inner">
-                <div className="flex items-center gap-3 text-indigo-600 mb-4">
-                  <Info className="h-6 w-6" />
-                  <h4 className="font-black uppercase italic tracking-widest text-xs">JUSTIFICATION DU MINDSET PMI®</h4>
-                </div>
-                <p className="text-lg font-bold italic text-slate-600 leading-relaxed whitespace-pre-wrap">{correction.explanation}</p>
-              </div>
-            )}
           </CardContent>
-          <CardFooter className="p-8 bg-slate-50 border-t flex justify-end gap-4">
-            {!correction ? (
-              <Button onClick={handleCheckAnswer} disabled={!sessionAnswers[q.id]?.length || isSubmitting} className="h-16 px-12 bg-indigo-600 rounded-2xl font-black uppercase tracking-widest shadow-xl">
-                {isSubmitting ? <Loader2 className="animate-spin h-6 w-6" /> : "VÉRIFIER"}
+          <CardFooter className="p-8 bg-slate-50 border-t flex justify-between gap-4">
+            <Button 
+              variant="outline" 
+              className="h-14 px-8 rounded-xl font-black uppercase italic border-2" 
+              onClick={() => setCurrentIdx(Math.max(0, currentIdx - 1))}
+              disabled={currentIdx === 0}
+            >
+              Précédent
+            </Button>
+            
+            {currentIdx === sessionQuestions.length - 1 ? (
+              <Button 
+                onClick={handleFinishSession} 
+                disabled={isSubmitting || !sessionAnswers[q.id]?.length} 
+                className="h-16 px-12 bg-emerald-600 hover:bg-emerald-700 rounded-2xl font-black uppercase tracking-widest shadow-xl"
+              >
+                {isSubmitting ? <Loader2 className="animate-spin h-6 w-6" /> : "TERMINER ET NOTER"}
               </Button>
             ) : (
-              <Button onClick={nextOrFinish} className="h-16 px-12 bg-[#1e3a8a] rounded-2xl font-black uppercase tracking-widest shadow-xl group">
-                {currentSessionIdx < sessionQuestions.length - 1 ? "SUIVANT" : "TERMINER"} <ChevronRight className="ml-2 h-6 w-6 group-hover:translate-x-1 transition-transform" />
+              <Button 
+                onClick={() => setCurrentIdx(currentIdx + 1)} 
+                disabled={!sessionAnswers[q.id]?.length} 
+                className="h-16 px-12 bg-indigo-600 rounded-2xl font-black uppercase tracking-widest shadow-xl group"
+              >
+                Suivant <ChevronRight className="ml-2 h-6 w-6 group-hover:translate-x-1 transition-transform" />
               </Button>
             )}
           </CardFooter>

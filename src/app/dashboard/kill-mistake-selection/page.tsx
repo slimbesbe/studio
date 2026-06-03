@@ -176,28 +176,28 @@ export default function KillMistakeSelectionPage() {
       </div>
 
       <Dialog open={isPurgeDialogOpen} onOpenChange={setIsPurgeDialogOpen}>
-        <DialogContent className="max-w-md rounded-[40px] p-10 border-4 border-[#1e3a8a] shadow-3xl bg-white">
-          <DialogHeader className="space-y-4">
-            <div className="bg-indigo-50 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto">
-              <ListFilter className="h-8 w-8 text-[#1e3a8a]" />
+        <DialogContent className="max-w-md rounded-[40px] p-0 border-4 border-[#1e3a8a] shadow-3xl bg-white overflow-hidden">
+          <DialogHeader className="p-10 pb-0 space-y-6">
+            <div className="bg-indigo-50 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
+              <ListFilter className="h-10 w-10 text-[#1e3a8a]" />
             </div>
-            <div className="text-center">
-              <DialogTitle className="text-2xl font-black uppercase italic text-slate-900">Type de Purge</DialogTitle>
-              <DialogDescription className="font-bold text-slate-500 italic mt-2">
+            <div className="text-center space-y-2">
+              <DialogTitle className="text-4xl font-black uppercase italic text-slate-900 tracking-tighter">TYPE DE PURGE</DialogTitle>
+              <DialogDescription className="font-bold text-slate-500 italic text-sm leading-relaxed px-4">
                 Quelle banque de questions souhaitez-vous purger ?
               </DialogDescription>
             </div>
           </DialogHeader>
 
-          <div className="grid gap-3 py-6">
+          <div className="p-10 pt-6 grid gap-4">
             <PurgeOption label="TOUTES MES ERREURS" count={stats.total} onClick={() => router.push('/dashboard/kill-mistakes?mode=session&theme=all')} />
             <PurgeOption label="MATRICE MAGIQUE" count={stats.matrix} onClick={() => router.push('/dashboard/kill-mistakes?mode=session&theme=matrix')} />
             <PurgeOption label="PRATIQUE LIBRE" count={stats.practice} onClick={() => router.push('/dashboard/kill-mistakes?mode=session&theme=practice')} />
             <PurgeOption label="SIMULATIONS EXAM" count={stats.exam} onClick={() => router.push('/dashboard/kill-mistakes?mode=session&theme=exam')} />
           </div>
 
-          <DialogFooter>
-            <Button variant="ghost" className="w-full font-black uppercase italic text-xs text-slate-400" onClick={() => setIsPurgeDialogOpen(false)}>Annuler</Button>
+          <DialogFooter className="bg-slate-50 p-6 flex justify-center">
+            <Button variant="ghost" className="font-black uppercase italic text-[10px] tracking-widest text-slate-400 hover:bg-transparent" onClick={() => setIsPurgeDialogOpen(false)}>ANNULER</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -230,10 +230,10 @@ function PurgeOption({ label, count, onClick }: { label: string, count: number, 
     <Button 
       onClick={onClick}
       variant="outline" 
-      className="h-14 justify-between px-6 rounded-2xl border-2 hover:bg-indigo-50 hover:border-indigo-200 group"
+      className="h-16 justify-between px-8 rounded-2xl border-2 border-slate-100 bg-slate-50/50 hover:bg-indigo-50 hover:border-indigo-200 transition-all group"
     >
-      <span className="font-black italic uppercase text-xs text-slate-700">{label}</span>
-      <Badge className="bg-indigo-100 text-[#1e3a8a] border-none font-black italic group-hover:bg-[#1e3a8a] group-hover:text-white transition-colors">
+      <span className="font-black italic uppercase text-xs text-slate-700 tracking-tight">{label}</span>
+      <Badge className="bg-indigo-100 text-[#1e3a8a] border-none font-black italic text-xs px-3 py-1 rounded-full group-hover:bg-[#1e3a8a] group-hover:text-white transition-colors">
         {count} Q
       </Badge>
     </Button>
