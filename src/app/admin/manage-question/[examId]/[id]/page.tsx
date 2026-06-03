@@ -68,6 +68,7 @@ export default function ManageQuestionPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statement, setStatement] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [showImageInput, setShowImageInput] = useState(false);
   const [explanation, setExplanation] = useState("");
   const [isMultipleCorrect, setIsMultipleCorrect] = useState(false);
   const [options, setOptions] = useState<Option[]>([
@@ -99,6 +100,7 @@ export default function ManageQuestionPage() {
     if (questionData && !isNew) {
       setStatement(questionData.statement || questionData.text || "");
       setImageUrl(questionData.imageUrl || "");
+      if (questionData.imageUrl) setShowImageInput(true);
       setExplanation(questionData.explanation || "");
       setIsMultipleCorrect(questionData.isMultipleCorrect || false);
       
@@ -245,7 +247,45 @@ export default function ManageQuestionPage() {
           </div>
 
           <div className="space-y-4">
-            <Label className="font-black uppercase text-[10px] text-slate-400 italic">Énoncé</Label>
+            <div className="flex items-center justify-between">
+              <Label className="font-black uppercase text-[10px] text-slate-400 italic">Énoncé</Label>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowImageInput(!showImageInput)}
+                className="h-10 px-4 rounded-xl border-2 font-black uppercase text-[10px] italic flex items-center gap-2 shadow-sm"
+              >
+                <ImageIcon className="h-4 w-4" /> 
+                {imageUrl ? "Modifier Image" : "Insérer Image"}
+              </Button>
+            </div>
+
+            {showImageInput && (
+              <div className="animate-slide-up p-6 bg-slate-50 rounded-2xl border-2 border-dashed space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-[9px] font-black uppercase text-primary italic">URL de l'image (Storage, Unsplash, etc.)</Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      value={imageUrl} 
+                      onChange={(e) => setImageUrl(e.target.value)} 
+                      placeholder="https://..." 
+                      className="h-12 rounded-xl border-2 font-bold italic bg-white"
+                    />
+                    {imageUrl && (
+                      <Button variant="ghost" size="icon" onClick={() => setImageUrl("")} className="h-12 w-12 rounded-xl text-red-500 border-2 bg-white">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {imageUrl && (
+                  <div className="border-2 rounded-xl overflow-hidden bg-white p-2 flex justify-center max-h-48 shadow-inner">
+                    <img src={imageUrl} alt="Preview" className="h-full object-contain rounded-lg" />
+                  </div>
+                )}
+              </div>
+            )}
+
             <Textarea 
               className="min-h-[120px] text-lg font-bold italic border-2 rounded-xl"
               value={statement}
