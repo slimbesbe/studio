@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
@@ -77,6 +76,9 @@ function KillMistakesContent() {
         if (activeTheme === 'practice') {
           return m.sourceType === 'practice' || m.sourceType === 'training' || !m.sourceType;
         }
+        if (activeTheme === 'exams') {
+          return m.sourceType === 'exams' || m.sourceType === 'exam';
+        }
         return m.sourceType === activeTheme;
       });
     }
@@ -123,7 +125,7 @@ function KillMistakesContent() {
 
       setSessionQuestions(questions);
       setStep('session');
-      setCurrentIndex(0);
+      setCurrentIdx(0);
       setSessionAnswers({});
     } catch (e: any) {
       toast({ variant: "destructive", title: "Erreur", description: e.message });
@@ -444,5 +446,9 @@ function KillMistakesContent() {
 }
 
 export default function KillMistakesPage() {
-  return <Suspense fallback={<Loader2 className="animate-spin" />}><KillMistakesContent /></Suspense>;
+  return (
+    <Suspense fallback={<Loader2 className="animate-spin" />}>
+      <KillMistakesContent />
+    </Suspense>
+  );
 }

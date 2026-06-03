@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo, useState } from 'react';
@@ -53,7 +52,7 @@ export default function KillMistakeSelectionPage() {
       total: mistakes.length,
       matrix: mistakes.filter(m => m.sourceType === 'matrix').length,
       practice: mistakes.filter(m => !m.sourceType || m.sourceType === 'practice' || m.sourceType === 'training').length,
-      exams: mistakes.filter(m => m.sourceType === 'exams').length,
+      exams: mistakes.filter(m => m.sourceType === 'exams' || m.sourceType === 'exam').length, // Handle both plurals
     };
   }, [mistakes]);
 

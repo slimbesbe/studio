@@ -99,7 +99,6 @@ function ExamRunContent() {
   const examId = searchParams.get('id');
   const shouldResume = searchParams.get('resume') === 'true';
 
-  // --- NOUVEAU : DETECTION DU MODE DEMO ---
   const isDemo = searchParams.get('demo') === 'true' || user?.isAnonymous || !examId;
   
   const [questions, setQuestions] = useState<any[]>([]);
@@ -117,7 +116,6 @@ function ExamRunContent() {
   const [breakTimeLeft, setBreakTimeLeft] = useState(BREAK_DURATION);
   const [currentSection, setCurrentSection] = useState(1);
 
-  // --- NOUVEAU : ALERTE ROUGE ---
   const triggerDemoAlert = useCallback(() => {
     toast({
       variant: "destructive",
@@ -127,7 +125,7 @@ function ExamRunContent() {
   }, [toast]);
 
   const triggerSave = useCallback((override?: Partial<any>) => {
-    if (isDemo || !user || !examId) return; // Ne pas sauvegarder en mode démo
+    if (isDemo || !user || !examId) return; 
     
     const state = {
       examId,
@@ -147,7 +145,6 @@ function ExamRunContent() {
       setIsLoading(true);
       try {
         const qRef = collection(db, 'questions');
-        // Si on est en mode démo sans examId, on charge juste des questions actives aléatoires
         const q = examId 
           ? query(qRef, where('sourceIds', 'array-contains', targetExamId), where('isActive', '==', true))
           : query(qRef, where('isActive', '==', true));
@@ -233,7 +230,6 @@ function ExamRunContent() {
     return () => clearInterval(breakTimer);
   }, [viewMode, breakTimeLeft]);
 
-  // --- NOUVEAU : BLOQUAGES ---
   const toggleFlag = () => {
     if (isDemo) { triggerDemoAlert(); return; }
     const qId = questions[currentIndex].id;
@@ -301,7 +297,7 @@ function ExamRunContent() {
           questionId: q.id,
           lastSelectedChoiceIds: userChoices,
           tags: q.tags || {},
-          sourceType: 'exam'
+          sourceType: 'exams' // FIX: plural 'exams' to match selections
         }, { merge: true });
       } else if (isUserCorrect) {
         batch.set(kmRef, {

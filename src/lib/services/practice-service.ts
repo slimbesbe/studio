@@ -1,4 +1,3 @@
-
 'use client';
 
 import { 
@@ -44,11 +43,14 @@ export async function startTrainingSession(
     
     let kmDocs = kmSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
 
-    // Filtrage par Source (Silo) - On accepte training comme alias de practice pour la compatibilité
+    // Filtrage par Source (Silo)
     if (filters.sourceType && filters.sourceType !== 'all') {
       kmDocs = kmDocs.filter(m => {
         if (filters.sourceType === 'practice') {
           return m.sourceType === 'practice' || m.sourceType === 'training' || !m.sourceType;
+        }
+        if (filters.sourceType === 'exams') {
+          return m.sourceType === 'exams' || m.sourceType === 'exam';
         }
         return m.sourceType === filters.sourceType;
       });
@@ -65,7 +67,7 @@ export async function startTrainingSession(
     }
 
     const kmIds = kmDocs.map(d => d.id);
-    if (kmIds.length === 0) return []; // On renvoie vide plutôt que de throw pour laisser le front gérer l'UI
+    if (kmIds.length === 0) return []; 
     
     return fetchQuestionsByIds(db, kmIds, questionCount);
   }
