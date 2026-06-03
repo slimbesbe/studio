@@ -20,7 +20,8 @@ import {
   BookOpen,
   Trophy,
   Layers,
-  Globe
+  Globe,
+  LayoutGrid
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -40,20 +41,20 @@ function QuestionsList() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
   
-  const contextType = searchParams.get('type') as 'practice' | 'exams' || 'practice';
+  const contextType = searchParams.get('type') as 'practice' | 'exams' | 'matrix' || 'practice';
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterExam, setFilterExam] = useState(contextType === 'practice' ? 'general' : 'exam1');
+  const [filterSubSource, setFilterSubSource] = useState(
+    contextType === 'practice' ? 'practice' : contextType === 'matrix' ? 'matrix' : 'exam1'
+  );
   const [filterDomain, setFilterDomain] = useState('all');
   const [filterApproach, setFilterApproach] = useState('all');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   useEffect(() => {
-    if (contextType === 'practice') {
-      setFilterExam('general');
-    } else if (contextType === 'exams') {
-      setFilterExam('exam1');
-    }
+    if (contextType === 'practice') setFilterSubSource('practice');
+    else if (contextType === 'matrix') setFilterSubSource('matrix');
+    else if (contextType === 'exams') setFilterSubSource('exam1');
   }, [contextType]);
 
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
@@ -78,30 +79,27 @@ function QuestionsList() {
       
       const sources = q.sourceIds || [];
       
-      // FILTRAGE STRICT PAR CONTEXTE (PRATIQUE vs EXAMS)
+      // FILTRAGE STRICT PAR SILO
       if (contextType === 'practice') {
-        if (!sources.includes('general')) return false;
+        if (!sources.includes('practice')) return false;
+      } else if (contextType === 'matrix') {
+        if (!sources.includes('matrix')) return false;
       } else {
         if (!sources.some(s => s.startsWith('exam'))) return false;
       }
 
-      // Filtrage par sous-catégorie (Examen 1, 2...)
-      let matchSubFilter = true;
-      if (contextType === 'exams') {
-        if (filterExam === 'all_exams') {
-          matchSubFilter = sources.some(s => s.startsWith('exam'));
-        } else {
-          matchSubFilter = sources.includes(filterExam);
-        }
+      // Filtrage par sous-catégorie pour les examens
+      if (contextType === 'exams' && filterSubSource !== 'all_exams') {
+        if (!sources.includes(filterSubSource)) return false;
       }
 
       // Filtrage par Domaine/Approche
       const matchDomain = filterDomain === 'all' || q.tags?.domain === filterDomain;
       const matchApproach = filterApproach === 'all' || q.tags?.approach === filterApproach;
       
-      return (textMatch || codeMatch) && matchSubFilter && matchDomain && matchApproach;
+      return (textMatch || codeMatch) && matchDomain && matchApproach;
     });
-  }, [questions, searchTerm, filterExam, filterDomain, filterApproach, contextType]);
+  }, [questions, searchTerm, filterSubSource, filterDomain, filterApproach, contextType]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Voulez-vous vraiment supprimer cette question ?')) return;
@@ -127,7 +125,7 @@ function QuestionsList() {
       const batch = writeBatch(db);
       filteredQuestions.forEach(q => batch.delete(doc(db, 'questions', q.id)));
       await batch.commit();
-      toast({ title: `La base a été vidée.` });
+      toast({ title: `Le silo a été vidé.` });
       setIsResetModalOpen(false);
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur" });
@@ -138,16 +136,16 @@ function QuestionsList() {
 
   const downloadTemplate = () => {
     const template = [{
-      "Numéro": "1",
-      "Domaine": "PROCESSUS",
-      "Approche": "Predictive",
-      "Scénario / Question": "Lors de la phase d'exécution d'un projet prédictif...",
-      "Option A": "Option 1",
-      "Option B": "Option 2",
-      "Option C": "Option 3",
-      "Option D": "Option 4",
+      "Code": "Q-001",
+      "Domaine": "PEOPLE",
+      "Approche": "Agile",
+      "Énoncé": "Lors de la phase d'exécution...",
+      "Option A": "Choix 1",
+      "Option B": "Choix 2",
+      "Option C": "Choix 3",
+      "Option D": "Choix 4",
       "Réponse Correcte": "B",
-      "Justification": "Explication...",
+      "Justification": "Explication Mindset...",
       "Difficulté": "Medium"
     }];
     const ws = XLSX.utils.json_to_sheet(template);
@@ -159,8 +157,9 @@ function QuestionsList() {
   if (isLoading) return <div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
   if (!isAdmin) return null;
 
-  const PageIcon = contextType === 'exams' ? Trophy : BookOpen;
-  const PageTitle = contextType === 'exams' ? 'Simulations d\'Examen' : 'Base Pratique Libre';
+  const PageIcon = contextType === 'exams' ? Trophy : contextType === 'matrix' ? LayoutGrid : BookOpen;
+  const PageTitle = contextType === 'exams' ? 'Banque Examens Blancs' : contextType === 'matrix' ? 'Banque Matrice Magique' : 'Banque Pratique Libre';
+  const siloColor = contextType === 'exams' ? 'bg-primary' : contextType === 'matrix' ? 'bg-indigo-600' : 'bg-emerald-600';
 
   return (
     <div className="space-y-8 animate-fade-in p-8 pb-32">
@@ -168,15 +167,12 @@ function QuestionsList() {
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild className="h-14 w-14 rounded-2xl border-2 shadow-sm"><Link href="/admin/content-config"><ChevronLeft className="h-6 w-6" /></Link></Button>
           <div>
-            <h1 className={cn(
-              "text-3xl font-black italic uppercase tracking-tighter flex items-center gap-3",
-              contextType === 'practice' ? "text-emerald-600" : "text-primary"
-            )}>
+            <h1 className={cn("text-3xl font-black italic uppercase tracking-tighter flex items-center gap-3", contextType === 'practice' ? "text-emerald-600" : contextType === 'matrix' ? "text-indigo-600" : "text-primary")}>
               <PageIcon className="h-8 w-8" />
               {PageTitle}
             </h1>
             <p className="text-muted-foreground mt-1 uppercase tracking-widest text-[10px] font-bold italic">
-              {contextType === 'practice' ? "Gestion centralisée du contenu d'entraînement libre." : 'Gestion isolée des examens blancs.'}
+              Gestion étanche du silo {contextType.toUpperCase()}.
             </p>
           </div>
         </div>
@@ -185,13 +181,13 @@ function QuestionsList() {
             <Download className="mr-2 h-4 w-4" /> Modèle
           </Button>
           <Button variant="outline" onClick={handleOpenReset} className="h-14 px-6 rounded-2xl font-black uppercase text-xs italic border-2 text-destructive border-destructive/20 hover:bg-destructive/5">
-            <Trash2 className="mr-2 h-4 w-4" /> Vider la base
+            <Trash2 className="mr-2 h-4 w-4" /> Vider Silo
           </Button>
           <Button onClick={() => setIsImportModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs italic shadow-xl">
             <Upload className="mr-2 h-5 w-5" /> Importer
           </Button>
-          <Button asChild className={cn("h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs italic shadow-xl", contextType === 'practice' ? 'bg-emerald-600' : 'bg-primary')}>
-            <Link href={`/admin/manage-question/${contextType === 'practice' ? 'general' : filterExam === 'all_exams' ? 'exam1' : filterExam}/new`}>
+          <Button asChild className={cn("h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs italic shadow-xl", siloColor)}>
+            <Link href={`/admin/manage-question/${filterSubSource === 'all_exams' ? 'exam1' : filterSubSource}/new`}>
               <Plus className="mr-2 h-5 w-5" /> Créer Question
             </Link>
           </Button>
@@ -209,9 +205,9 @@ function QuestionsList() {
           />
         </div>
         
-        {contextType === 'exams' ? (
+        {contextType === 'exams' && (
           <div className="w-full md:w-64">
-            <Select value={filterExam} onValueChange={setFilterExam}>
+            <Select value={filterSubSource} onValueChange={setFilterSubSource}>
               <SelectTrigger className="h-14 rounded-2xl border-2 font-black italic bg-white text-primary">
                 <div className="flex items-center gap-2"><Filter className="h-4 w-4" /><SelectValue /></div>
               </SelectTrigger>
@@ -225,32 +221,32 @@ function QuestionsList() {
               </SelectContent>
             </Select>
           </div>
-        ) : (
-          <div className="flex flex-wrap gap-3 w-full md:w-auto">
-            <Select value={filterDomain} onValueChange={setFilterDomain}>
-              <SelectTrigger className="h-14 w-48 rounded-2xl border-2 font-black italic bg-white text-emerald-600">
-                <div className="flex items-center gap-2"><Layers className="h-4 w-4" /><SelectValue placeholder="Domaine" /></div>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous Domaines</SelectItem>
-                <SelectItem value="People">People</SelectItem>
-                <SelectItem value="Process">Processus</SelectItem>
-                <SelectItem value="Business">Business</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterApproach} onValueChange={setFilterApproach}>
-              <SelectTrigger className="h-14 w-48 rounded-2xl border-2 font-black italic bg-white text-emerald-600">
-                <div className="flex items-center gap-2"><Globe className="h-4 w-4" /><SelectValue placeholder="Approche" /></div>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toutes Approches</SelectItem>
-                <SelectItem value="Predictive">Waterfall</SelectItem>
-                <SelectItem value="Agile">Agile</SelectItem>
-                <SelectItem value="Hybrid">Hybride</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         )}
+
+        <div className="flex flex-wrap gap-3 w-full md:w-auto">
+          <Select value={filterDomain} onValueChange={setFilterDomain}>
+            <SelectTrigger className="h-14 w-48 rounded-2xl border-2 font-black italic bg-white">
+              <div className="flex items-center gap-2"><Layers className="h-4 w-4" /><SelectValue placeholder="Domaine" /></div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous Domaines</SelectItem>
+              <SelectItem value="People">People</SelectItem>
+              <SelectItem value="Process">Processus</SelectItem>
+              <SelectItem value="Business">Business</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterApproach} onValueChange={setFilterApproach}>
+            <SelectTrigger className="h-14 w-48 rounded-2xl border-2 font-black italic bg-white">
+              <div className="flex items-center gap-2"><Globe className="h-4 w-4" /><SelectValue placeholder="Approche" /></div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes Approches</SelectItem>
+              <SelectItem value="Predictive">Waterfall</SelectItem>
+              <SelectItem value="Agile">Agile</SelectItem>
+              <SelectItem value="Hybrid">Hybride</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <Card className="rounded-[40px] shadow-2xl border-none overflow-hidden bg-white">
@@ -259,44 +255,39 @@ function QuestionsList() {
             <TableHeader className="bg-muted/30">
               <TableRow className="h-20 border-b-4">
                 <TableHead className="px-10 font-black uppercase tracking-widest text-xs w-32">Code</TableHead>
-                <TableHead className="font-black uppercase tracking-widest text-xs min-w-[400px]">Énoncé de la question</TableHead>
-                <TableHead className="text-center font-black uppercase tracking-widest text-xs">Axe / Niveau</TableHead>
+                <TableHead className="font-black uppercase tracking-widest text-xs min-w-[400px]">Question</TableHead>
+                <TableHead className="text-center font-black uppercase tracking-widest text-xs">Tags</TableHead>
                 <TableHead className="text-right px-10 font-black uppercase tracking-widest text-xs">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredQuestions.length === 0 ? (
-                <TableRow><TableCell colSpan={4} className="h-64 text-center font-black uppercase italic tracking-widest text-slate-300">Aucune question dans cette base.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={4} className="h-64 text-center font-black uppercase italic tracking-widest text-slate-300">Aucune question dans ce silo.</TableCell></TableRow>
               ) : filteredQuestions.map((q) => (
-                <TableRow key={q.id} className="h-24 hover:bg-slate-50 transition-all border-b last:border-0 group">
+                <TableRow key={q.id} className="h-24 hover:bg-slate-50 transition-all border-b last:border-0">
                   <TableCell className="px-10">
-                    <span className="font-mono font-black text-primary text-[10px] bg-primary/5 px-2 py-1 rounded-lg border border-primary/10">
-                      {q.questionCode || '---'}
-                    </span>
+                    <Badge variant="outline" className="font-mono text-[10px] py-1 border-2">{q.questionCode || '---'}</Badge>
                   </TableCell>
                   <TableCell>
-                    <p className="font-bold text-slate-700 italic line-clamp-2 leading-relaxed max-w-2xl">{q.statement || q.text}</p>
-                    <div className="flex gap-2 mt-1">
+                    <p className="font-bold text-slate-700 italic line-clamp-2 max-w-xl">{q.statement || q.text}</p>
+                    <div className="flex gap-1 mt-1">
                       {q.sourceIds?.map((s: string) => (
-                        <Badge key={s} className={cn("text-[7px] font-black uppercase italic py-0 border-none", s === 'general' ? "bg-emerald-100 text-emerald-600" : "bg-indigo-100 text-indigo-600")}>
-                          {s === 'general' ? 'PRATIQUE' : s.replace('exam', 'SIMU ')}
-                        </Badge>
+                        <span key={s} className="text-[7px] font-black uppercase px-1.5 py-0.5 bg-slate-100 rounded text-slate-400">
+                          {s}
+                        </span>
                       ))}
                     </div>
                   </TableCell>
                   <TableCell className="text-center space-y-1">
-                    <div className="flex flex-wrap justify-center gap-1">
-                      <Badge variant="secondary" className="text-[8px] font-black uppercase italic py-0 bg-slate-100 border-none">{q.tags?.domain || 'Process'}</Badge>
-                      <Badge variant="secondary" className="text-[8px] font-black uppercase italic py-0 bg-slate-100 border-none">{q.tags?.approach || 'Agile'}</Badge>
-                    </div>
-                    <Badge variant="outline" className="text-[7px] font-black uppercase italic py-0 border-slate-200">{q.tags?.difficulty || 'Medium'}</Badge>
+                    <Badge variant="secondary" className="text-[8px] font-black uppercase italic bg-slate-100 border-none">{q.tags?.domain || '?'}</Badge>
+                    <Badge variant="secondary" className="text-[8px] font-black uppercase italic bg-slate-100 border-none">{q.tags?.approach || '?'}</Badge>
                   </TableCell>
                   <TableCell className="text-right px-10">
                     <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="icon" asChild className="h-10 w-10 rounded-xl hover:bg-indigo-50 text-indigo-600 border-2 border-indigo-50">
-                        <Link href={`/admin/manage-question/${q.examId || 'general'}/${q.id}`}><Pencil className="h-4 w-4" /></Link>
+                      <Button variant="ghost" size="icon" asChild className="h-10 w-10 rounded-xl border-2 hover:bg-indigo-50 text-indigo-600">
+                        <Link href={`/admin/manage-question/${filterSubSource === 'all_exams' ? 'exam1' : filterSubSource}/${q.id}`}><Pencil className="h-4 w-4" /></Link>
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(q.id)} className="h-10 w-10 rounded-xl hover:bg-red-50 text-red-600 border-2 border-red-50">
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(q.id)} className="h-10 w-10 rounded-xl border-2 hover:bg-red-50 text-red-600">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -311,31 +302,28 @@ function QuestionsList() {
       <ImportQuestionsModal 
         isOpen={isImportModalOpen} 
         onClose={() => setIsImportModalOpen(false)} 
-        examId={contextType === 'practice' ? 'general' : filterExam === 'all_exams' ? 'exam1' : filterExam}
+        examId={filterSubSource === 'all_exams' ? 'exam1' : filterSubSource}
       />
 
       <Dialog open={isResetModalOpen} onOpenChange={(val) => !isResetting && setIsResetModalOpen(val)}>
         <DialogContent className="rounded-[40px] p-12 border-8 border-destructive shadow-3xl max-w-xl">
-          <DialogHeader className="flex flex-col items-center text-center space-y-4">
-            <DialogTitle className="text-4xl font-black uppercase italic text-destructive tracking-tighter">Réinitialisation</DialogTitle>
-            <DialogDescription className="text-lg font-bold text-slate-600 leading-relaxed uppercase italic">
-              Vider la base <span className="text-destructive underline">{contextType === 'practice' ? 'PRATIQUE' : 'EXAMENS'}</span> ?
+          <DialogHeader className="flex flex-col items-center text-center">
+            <DialogTitle className="text-4xl font-black uppercase italic text-destructive tracking-tighter">Action Critique</DialogTitle>
+            <DialogDescription className="text-lg font-bold text-slate-600 leading-relaxed uppercase italic mt-4">
+              Vider totalement le silo <span className="text-destructive underline">{contextType.toUpperCase()}</span> ?
             </DialogDescription>
           </DialogHeader>
           <div className="py-10 space-y-8">
-            <div className="bg-slate-50 p-8 rounded-3xl border-4 border-dashed text-center space-y-2">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 italic">Code de sécurité</p>
-              <p className="text-6xl font-black tracking-widest text-primary tabular-nums">{securityCode}</p>
+            <div className="bg-slate-50 p-8 rounded-3xl border-4 border-dashed text-center">
+              <p className="text-[10px] font-black uppercase text-slate-400">Code de sécurité</p>
+              <p className="text-6xl font-black text-primary tabular-nums">{securityCode}</p>
             </div>
-            <div className="space-y-3">
-              <Label className="font-black uppercase text-[10px] text-slate-400 italic ml-2">Saisissez le code pour confirmer</Label>
-              <Input value={userInputCode} onChange={(e) => setUserInputCode(e.target.value)} maxLength={8} className="h-16 rounded-2xl border-4 font-black text-center text-3xl italic tracking-widest" />
-            </div>
+            <Input value={userInputCode} onChange={(e) => setUserInputCode(e.target.value)} maxLength={8} className="h-16 rounded-2xl border-4 font-black text-center text-3xl italic" placeholder="Recopiez le code" />
           </div>
           <DialogFooter className="gap-4">
-            <Button variant="outline" className="h-16 rounded-2xl font-black uppercase flex-1 border-4" onClick={() => setIsResetModalOpen(false)} disabled={isResetting}>Annuler</Button>
-            <Button variant="destructive" disabled={userInputCode !== securityCode || isResetting} onClick={performReset} className="h-16 rounded-2xl font-black uppercase flex-1 shadow-2xl text-lg italic">
-              {isResetting ? <Loader2 className="animate-spin h-6 w-6" /> : "Vider la base"}
+            <Button variant="outline" className="h-16 rounded-2xl font-black uppercase flex-1 border-4" onClick={() => setIsResetModalOpen(false)}>Annuler</Button>
+            <Button variant="destructive" disabled={userInputCode !== securityCode || isResetting} onClick={performReset} className="h-16 rounded-2xl font-black uppercase flex-1 shadow-2xl">
+              {isResetting ? <Loader2 className="animate-spin h-6 w-6" /> : "Vider Silo"}
             </Button>
           </DialogFooter>
         </DialogContent>

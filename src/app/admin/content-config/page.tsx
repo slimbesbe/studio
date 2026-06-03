@@ -12,7 +12,6 @@ import {
   ArrowRight, 
   ChevronLeft,
   ShieldCheck,
-  RotateCcw,
   LayoutGrid,
   Trophy,
   BookOpen
@@ -32,18 +31,18 @@ const CONFIG_SECTIONS = [
     tag: 'Dashboard'
   },
   {
-    id: 'matrice',
-    title: 'Matrice Magique',
-    description: 'Définissez les règles du jeu : seuils de succès et volume des sprints 3x3.',
+    id: 'matrice_bank',
+    title: 'Banque Matrice Magique',
+    description: 'Gérez exclusivement les questions dédiées au sprint 3x3 de la Matrice Magique.',
     icon: LayoutGrid,
-    href: '/admin/content-config/matrice',
+    href: '/admin/questions?type=matrix',
     color: 'bg-indigo-600',
     tag: 'Algorithme'
   },
   {
     id: 'practice_all',
-    title: 'Base Pratique Libre',
-    description: 'Gérez l\'intégralité des questions d\'entraînement. Filtrez par domaines ou approches dans une vue unique.',
+    title: 'Banque Pratique Libre',
+    description: 'Questions pour l\'entraînement par domaines ou approches. Totalement indépendant de la matrice.',
     icon: BookOpen,
     href: '/admin/questions?type=practice',
     color: 'bg-emerald-600',
@@ -51,7 +50,7 @@ const CONFIG_SECTIONS = [
   },
   {
     id: 'exam_questions',
-    title: 'Simulations d\'Examen',
+    title: 'Banque Examens Blancs',
     description: 'Configurez les questions exclusives aux 5 examens blancs officiels.',
     icon: Trophy,
     href: '/admin/questions?type=exams',
@@ -60,21 +59,21 @@ const CONFIG_SECTIONS = [
   },
   {
     id: 'approaches',
-    title: 'Vision Approches',
-    description: 'Waterfall, Agile, Hybride : Focus, Jargon et Quiz par approche.',
+    title: 'Concepts : Approches',
+    description: 'Waterfall, Agile, Hybride : Focus, Jargon et Quiz théoriques par approche.',
     icon: Globe,
     href: '/admin/content-config/approaches',
     color: 'bg-indigo-500',
-    tag: 'Concepts'
+    tag: 'Théorie'
   },
   {
     id: 'domains',
-    title: 'Vision Domaines',
-    description: 'People, Process et Business : Configuration des 3 piliers.',
+    title: 'Concepts : Domaines',
+    description: 'People, Process et Business : Configuration théorique des 3 piliers.',
     icon: Layers,
     href: '/admin/content-config/domains',
     color: 'bg-indigo-400',
-    tag: 'Concepts'
+    tag: 'Théorie'
   }
 ];
 
@@ -92,7 +91,7 @@ export default function ContentConfigHub() {
           <h1 className="text-4xl font-black italic uppercase tracking-tighter text-primary flex items-center gap-4">
             <Settings2 className="h-10 w-10 text-accent" /> Configuration Contenu
           </h1>
-          <p className="text-muted-foreground mt-1 uppercase tracking-widest text-xs font-bold italic">Séparez vos banques de questions et gérez vos concepts.</p>
+          <p className="text-muted-foreground mt-1 uppercase tracking-widest text-xs font-bold italic">Gestion étanche des banques de questions indépendantes.</p>
         </div>
       </div>
 
@@ -115,7 +114,7 @@ export default function ContentConfigHub() {
               <p className="text-slate-500 font-bold italic text-sm leading-relaxed min-h-[60px]">
                 {section.description}
               </p>
-              <Button asChild className={cn("w-full h-16 rounded-[24px] font-black uppercase tracking-widest text-xs italic shadow-xl group-hover:shadow-2xl transition-all", section.id.includes('practice') || section.id.includes('exam') ? section.color : 'bg-slate-900')}>
+              <Button asChild className={cn("w-full h-16 rounded-[24px] font-black uppercase tracking-widest text-xs italic shadow-xl group-hover:shadow-2xl transition-all", section.id.includes('practice') || section.id.includes('exam') || section.id.includes('matrice') ? section.color : 'bg-slate-900')}>
                 <Link href={section.href} className="flex items-center justify-center gap-3">
                   Gérer cette section <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-2" />
                 </Link>
@@ -128,7 +127,7 @@ export default function ContentConfigHub() {
       <div className="pt-10 space-y-6">
         <div className="flex items-center gap-3 px-2">
           <ShieldCheck className="h-5 w-5 text-emerald-500" />
-          <h3 className="font-black uppercase italic tracking-widest text-slate-400 text-sm">Séparation des Flux</h3>
+          <h3 className="font-black uppercase italic tracking-widest text-slate-400 text-sm">Silos de Données</h3>
         </div>
         
         <Card className="rounded-[40px] border-4 border-dashed border-slate-200 bg-slate-50 overflow-hidden">
@@ -138,9 +137,9 @@ export default function ContentConfigHub() {
                 <BookCopy className="h-10 w-10 text-primary" />
               </div>
               <div className="space-y-2 text-center md:text-left">
-                <h4 className="text-xl font-black uppercase italic text-slate-800 tracking-tight">Architecture Étanche</h4>
+                <h4 className="text-xl font-black uppercase italic text-slate-800 tracking-tight">Indépendance Totale</h4>
                 <p className="text-sm font-bold text-slate-500 italic max-w-2xl leading-relaxed">
-                  Le système distingue désormais les questions de <strong>Pratique Libre</strong> des questions de <strong>Simulations d'Examen</strong>. Utilisez les filtres intégrés pour gérer vos questions par Domaine ou par Approche sans quitter l'interface.
+                  Le système garantit désormais une étanchéité parfaite entre la <strong>Matrice</strong>, la <strong>Pratique</strong> et les <strong>Examens</strong>. Une question ne peut appartenir qu'à un seul de ces univers à la fois pour éviter toute redondance lors de l'apprentissage.
                 </p>
               </div>
             </div>
