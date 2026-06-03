@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils';
 interface ImportQuestionsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  examId?: string;
+  examId?: string; // Represents the target silo ID (e.g., 'practice', 'matrix', or 'exam1')
   filterType?: 'domain' | 'approach' | 'all';
 }
 
@@ -39,7 +39,7 @@ interface ParsedQuestion {
   };
 }
 
-export function ImportQuestionsModal({ isOpen, onClose, examId = 'general', filterType = 'all' }: ImportQuestionsModalProps) {
+export function ImportQuestionsModal({ isOpen, onClose, examId = 'practice', filterType = 'all' }: ImportQuestionsModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -113,33 +113,29 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general', filt
         json.forEach((row, index) => {
           const lineNum = index + 2;
           
-          // Mapping flexible des colonnes (incluant le nouveau format)
-          const statement = row["Scénario / Question"] || row["Énoncé"] || row["ennocé"] || row["statement"] || row["text"] || row["Question"] || row["Énonce"];
-          const justification = row["Justification"] || row["justification"] || row["explanation"] || row["Rationale"] || "";
-          const correctValue = String(row["Réponse Correcte"] || row["correct"] || row["Correct"] || row["Answer"] || row["bonne reponse"] || "");
-          const code = row["Numéro"] || row["Code"] || row["code question"] || row["questionCode"] || row["id"];
+          const statement = row["Scénario / Question"] || row["Énoncé"] || row["statement"] || row["text"] || row["Question"];
+          const justification = row["Justification"] || row["explanation"] || row["Rationale"] || "";
+          const correctValue = String(row["Réponse Correcte"] || row["correct"] || row["Correct"] || row["Answer"] || "");
+          const code = row["Numéro"] || row["Code"] || row["questionCode"];
           
           if (!statement) {
-            parseErrors.push({ line: lineNum, msg: "Énoncé manquant." });
+            parseErrors.push({ line: lineNum, msg: "Énoncé de question manquant." });
             return;
           }
 
-          // Détection des options (format Option A, Option B... ou option1, option2...)
           const options: { id: string, text: string }[] = [];
           ['A', 'B', 'C', 'D', 'E'].forEach((letter, i) => {
-            const optKey = `Option ${letter}`;
-            const optVal = row[optKey] || row[`option ${i+1}`] || row[`option${i+1}`] || row[`choice${i+1}`] || row[`opt${i+1}`] || row[`Choix${i+1}`] || row[`Choix ${i+1}`];
+            const optVal = row[`Option ${letter}`] || row[`option ${i+1}`] || row[`option${i+1}`] || row[`choice${i+1}`];
             if (optVal) {
               options.push({ id: String(i + 1), text: String(optVal) });
             }
           });
 
           if (options.length < 2) {
-            parseErrors.push({ line: lineNum, msg: "Moins de 2 options trouvées." });
+            parseErrors.push({ line: lineNum, msg: "Pas assez d'options de réponse trouvées." });
             return;
           }
 
-          // Traitement de la réponse correcte (A, B, C, D -> 1, 2, 3, 4)
           const rawCorrects = correctValue.split(',').map(s => s.trim().toUpperCase());
           const mappedIds: string[] = [];
           
@@ -147,18 +143,16 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general', filt
           rawCorrects.forEach(cid => {
              if (!cid) return;
              let id = "";
-             // Si c'est une lettre A-E, on convertit
              if (['A','B','C','D','E'].includes(cid[0])) {
                id = (cid.charCodeAt(0) - 64).toString();
              } else {
-               // Sinon on prend la valeur brute (ex: "1")
                id = cid;
              }
              
              if (options.find(o => o.id === id)) mappedIds.push(id);
              else {
                isValidLine = false;
-               parseErrors.push({ line: lineNum, msg: `Réponse '${cid}' non reconnue dans les options disponibles.` });
+               parseErrors.push({ line: lineNum, msg: `La réponse correcte '${cid}' ne correspond à aucune option.` });
              }
           });
 
@@ -171,9 +165,9 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general', filt
               explanation: String(justification).trim(),
               questionCode: code ? String(code).trim() : '',
               tags: {
-                domain: normalizeTag('domain', row["Domaine"] || row["domaine"] || row["Domain"]),
-                approach: normalizeTag('approach', row["Approche"] || row["approche"] || row["Approach"]),
-                difficulty: normalizeTag('difficulty', row["Difficulté"] || row["difficulté"] || row["Difficulty"] || row["Niveau"]),
+                domain: normalizeTag('domain', row["Domaine"] || row["Domain"]),
+                approach: normalizeTag('approach', row["Approche"] || row["Approach"]),
+                difficulty: normalizeTag('difficulty', row["Difficulté"] || row["Difficulty"]),
               }
             });
           }
@@ -182,7 +176,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general', filt
         setParsedData(results);
         setErrors(parseErrors);
       } catch (err) {
-        toast({ variant: "destructive", title: "Erreur lecture fichier" });
+        toast({ variant: "destructive", title: "Erreur de lecture du fichier." });
       } finally {
         setIsParsing(false);
       }
@@ -204,8 +198,11 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general', filt
         const chunk = parsedData.slice(i, i + batchSize);
         
         chunk.forEach((q) => {
-          // Génération d'un ID stable basé sur le code ou le contenu
-          const questionId = q.questionCode ? `q_${examId}_${String(q.questionCode).replace(/[^a-zA-Z0-9]/g, '_')}` : generateId(q.statement, examId);
+          // --- ÉTANCHÉITÉ DES SILOS ---
+          // On s'assure que le sourceIds ne contient QUE le silo cible actuel
+          const finalSiloId = examId; 
+          
+          const questionId = q.questionCode ? `q_${finalSiloId}_${String(q.questionCode).replace(/[^a-zA-Z0-9]/g, '_')}` : generateId(q.statement, finalSiloId);
           const qRef = doc(db, 'questions', questionId);
 
           batch.set(qRef, {
@@ -219,8 +216,8 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general', filt
             createdBy: profile?.id || 'admin',
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
-            examId: examId === 'general' ? null : examId,
-            sourceIds: [examId]
+            sourceIds: [finalSiloId], // ISOLATION STRICTE
+            examId: finalSiloId.startsWith('exam') ? finalSiloId : null
           }, { merge: true });
         });
 
@@ -228,11 +225,11 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general', filt
         setProgress(Math.round(((i + chunk.length) / total) * 100));
       }
 
-      toast({ title: "Importation terminée", description: `${total} questions synchronisées avec succès.` });
+      toast({ title: "Importation terminée", description: `${total} questions synchronisées dans le silo [${examId.toUpperCase()}].` });
       onClose();
       setFile(null);
     } catch (e) {
-      toast({ variant: "destructive", title: "Erreur lors de l'import" });
+      toast({ variant: "destructive", title: "Erreur d'importation." });
     } finally {
       setIsImporting(false);
     }
@@ -243,11 +240,10 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'general', filt
       <DialogContent className="max-w-3xl rounded-[40px] p-10 border-4 shadow-3xl">
         <DialogHeader>
           <DialogTitle className="text-3xl font-black uppercase italic tracking-tighter text-emerald-600 flex items-center gap-3">
-            {filterType === 'domain' ? <Layers className="h-8 w-8" /> : filterType === 'approach' ? <Globe className="h-8 w-8" /> : <FileSpreadsheet className="h-8 w-8" />}
-            Importation {filterType === 'domain' ? 'Domaines' : filterType === 'approach' ? 'Approches' : 'Questions'}
+            <FileSpreadsheet className="h-8 w-8" /> Importation Silo : {examId.toUpperCase()}
           </DialogTitle>
           <DialogDescription className="font-bold text-slate-500 italic uppercase text-[10px] tracking-widest mt-2">
-            Format supporté : "Scénario / Question", "Option A-D", "Réponse Correcte" et "Justification".
+            Les questions seront exclusivement injectées dans la banque sélectionnée.
           </DialogDescription>
         </DialogHeader>
 

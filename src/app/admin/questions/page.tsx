@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, Suspense, useEffect } from 'react';
@@ -52,6 +51,7 @@ function QuestionsList() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
   
+  // silo type: 'practice', 'exams', 'matrix'
   const contextType = (searchParams.get('type') as 'practice' | 'exams' | 'matrix') || 'practice';
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -82,33 +82,35 @@ function QuestionsList() {
 
   const { data: questions, isLoading } = useCollection(questionsQuery);
 
+  // FILTRAGE STRICT PAR SILO POUR GARANTIR L'ÉTANCHÉITÉ
   const filteredQuestions = useMemo(() => {
     if (!questions) return [];
     return questions.filter(q => {
-      const textMatch = (q.statement || q.text || '').toLowerCase().includes(searchTerm.toLowerCase());
-      const codeMatch = (q.questionCode || '').toLowerCase().includes(searchTerm.toLowerCase());
-      
       const sources = q.sourceIds || [];
       
-      // FILTRAGE STRICT PAR SILO
+      // 1. FILTRAGE PAR SILO (OBLIGATOIRE ET EXCLUSIF)
       if (contextType === 'practice') {
         if (!sources.includes('practice')) return false;
       } else if (contextType === 'matrix') {
         if (!sources.includes('matrix')) return false;
       } else {
+        // Mode Examens : on cherche n'importe quel ID commençant par exam
         if (!sources.some(s => s.startsWith('exam'))) return false;
+        
+        // Si on a sélectionné un examen précis (ex: exam1)
+        if (filterSubSource !== 'all_exams' && !sources.includes(filterSubSource)) return false;
       }
 
-      // Filtrage par sous-catégorie pour les examens
-      if (contextType === 'exams' && filterSubSource !== 'all_exams') {
-        if (!sources.includes(filterSubSource)) return false;
-      }
+      // 2. FILTRAGE PAR RECHERCHE TEXTUELLE
+      const textMatch = (q.statement || q.text || '').toLowerCase().includes(searchTerm.toLowerCase());
+      const codeMatch = (q.questionCode || '').toLowerCase().includes(searchTerm.toLowerCase());
+      if (!textMatch && !codeMatch) return false;
 
-      // Filtrage par Domaine/Approche
+      // 3. FILTRAGE PAR TAGS PMP
       const matchDomain = filterDomain === 'all' || q.tags?.domain === filterDomain;
       const matchApproach = filterApproach === 'all' || q.tags?.approach === filterApproach;
       
-      return (textMatch || codeMatch) && matchDomain && matchApproach;
+      return matchDomain && matchApproach;
     });
   }, [questions, searchTerm, filterSubSource, filterDomain, filterApproach, contextType]);
 
@@ -145,7 +147,7 @@ function QuestionsList() {
 
       toast({ 
         title: "Nettoyage réussi", 
-        description: `${totalToDelete} questions ont été supprimées.` 
+        description: `${totalToDelete} questions ont été supprimées du silo ${contextType}.` 
       });
       setIsResetModalOpen(false);
     } catch (e) {
@@ -157,7 +159,7 @@ function QuestionsList() {
 
   const downloadTemplate = () => {
     const template = [{
-      "Code": "Q-001",
+      "Code": "PMP-001",
       "Domaine": "PEOPLE",
       "Approche": "Agile",
       "Énoncé": "Lors de la phase d'exécution...",
@@ -221,7 +223,7 @@ function QuestionsList() {
             <Upload className="mr-2 h-5 w-5" /> Importer
           </Button>
           <Button asChild className={cn("h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs italic shadow-xl", siloColor)}>
-            <Link href={`/admin/manage-question/${filterSubSource === 'all_exams' ? 'exam1' : filterSubSource}/new`}>
+            <Link href={`/admin/manage-question/${filterSubSource === 'all_exams' ? 'exam1' : filterSubSource}/new?type=${contextType}`}>
               <Plus className="mr-2 h-5 w-5" /> Créer Question
             </Link>
           </Button>
@@ -319,7 +321,7 @@ function QuestionsList() {
                   <TableCell className="text-right px-10">
                     <div className="flex justify-end gap-2">
                       <Button variant="ghost" size="icon" asChild className="h-10 w-10 rounded-xl border-2 hover:bg-indigo-50 text-indigo-600">
-                        <Link href={`/admin/manage-question/${filterSubSource === 'all_exams' ? 'exam1' : filterSubSource}/${q.id}`}><Pencil className="h-4 w-4" /></Link>
+                        <Link href={`/admin/manage-question/${contextType}/${q.id}`}><Pencil className="h-4 w-4" /></Link>
                       </Button>
                       <Button variant="ghost" size="icon" onClick={() => handleDelete(q.id)} className="h-10 w-10 rounded-xl border-2 hover:bg-red-50 text-red-600">
                         <Trash2 className="h-4 w-4" />
@@ -336,7 +338,7 @@ function QuestionsList() {
       <ImportQuestionsModal 
         isOpen={isImportModalOpen} 
         onClose={() => setIsImportModalOpen(false)} 
-        examId={filterSubSource === 'all_exams' ? 'exam1' : filterSubSource}
+        examId={contextType === 'exams' ? (filterSubSource === 'all_exams' ? 'exam1' : filterSubSource) : contextType}
       />
 
       <Dialog open={isResetModalOpen} onOpenChange={(val) => !isResetting && setIsResetModalOpen(val)}>

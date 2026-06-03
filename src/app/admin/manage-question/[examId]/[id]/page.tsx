@@ -1,10 +1,9 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, updateDoc, serverTimestamp, setDoc, collection } from 'firebase/firestore';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,15 +50,21 @@ export default function ManageQuestionPage() {
   const db = useFirestore();
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
-  const sourceIdParam = params.examId as string; // Peut être 'practice', 'matrix' ou 'examX'
+  
+  // sourceIdParam can be 'practice', 'matrix' or an exam ID like 'exam1'
+  const sourceIdParam = params.examId as string; 
   const questionId = params.id as string;
   const isNew = questionId === 'new';
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isExamSilo = sourceIdParam.startsWith('exam');
-  const isPracticeSilo = sourceIdParam === 'practice';
-  const isMatrixSilo = sourceIdParam === 'matrix';
+  // SILO DETECTION
+  // When creating new, we might pass ?type=... in the URL
+  const contextType = searchParams.get('type') || (sourceIdParam === 'matrix' ? 'matrix' : sourceIdParam === 'practice' ? 'practice' : 'exams');
+
+  const isExamSilo = contextType === 'exams' || sourceIdParam.startsWith('exam');
+  const isPracticeSilo = contextType === 'practice' || sourceIdParam === 'practice';
+  const isMatrixSilo = contextType === 'matrix' || sourceIdParam === 'matrix';
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statement, setStatement] = useState("");
@@ -68,7 +73,9 @@ export default function ManageQuestionPage() {
   const [isMultipleCorrect, setIsMultipleCorrect] = useState(false);
   const [options, setOptions] = useState<Option[]>([
     { id: '1', text: '' },
-    { id: '2', text: '' }
+    { id: '2', text: '' },
+    { id: '3', text: '' },
+    { id: '4', text: '' }
   ]);
   const [correctOptionIds, setCorrectOptionIds] = useState<string[]>([]);
   const [isActive, setIsActive] = useState(true);
@@ -85,7 +92,7 @@ export default function ManageQuestionPage() {
 
   useEffect(() => {
     if (isNew && isExamSilo) {
-      setSelectedExamIds([sourceIdParam]);
+      setSelectedExamIds([sourceIdParam.startsWith('exam') ? sourceIdParam : 'exam1']);
     }
   }, [isNew, isExamSilo, sourceIdParam]);
 
@@ -131,11 +138,25 @@ export default function ManageQuestionPage() {
 
     setIsSubmitting(true);
     try {
-      const finalSources = isExamSilo ? selectedExamIds : [sourceIdParam];
+      // --- ÉTANCHÉITÉ DES SILOS ---
+      // On définit les sources autorisées en fonction du silo actuel
+      let finalSources: string[] = [];
+      if (isPracticeSilo) finalSources = ['practice'];
+      else if (isMatrixSilo) finalSources = ['matrix'];
+      else if (isExamSilo) finalSources = selectedExamIds.length > 0 ? selectedExamIds : ['exam1'];
+
       const finalData = {
-        statement, text: statement, imageUrl, options, choices: options.map(o => o.text),
-        correctOptionIds, correctChoice: correctOptionIds[0], isMultipleCorrect,
-        explanation, isActive, updatedAt: serverTimestamp(),
+        statement, 
+        text: statement, 
+        imageUrl, 
+        options, 
+        choices: options.map(o => o.text),
+        correctOptionIds, 
+        correctChoice: correctOptionIds[0], 
+        isMultipleCorrect,
+        explanation, 
+        isActive, 
+        updatedAt: serverTimestamp(),
         tags: { domain, approach, difficulty },
         sourceIds: finalSources,
         examId: isExamSilo ? finalSources[0] : null,
@@ -149,10 +170,10 @@ export default function ManageQuestionPage() {
         await updateDoc(doc(db, 'questions', questionId), finalData);
       }
 
-      toast({ title: "Succès", description: "Question enregistrée dans le silo indépendant." });
+      toast({ title: "Sauvegarde réussie", description: `Question enregistrée dans le silo [${contextType.toUpperCase()}].` });
       router.back();
     } catch (e) {
-      toast({ variant: "destructive", title: "Erreur" });
+      toast({ variant: "destructive", title: "Erreur lors de l'enregistrement" });
     } finally {
       setIsSubmitting(false);
     }
@@ -203,7 +224,7 @@ export default function ManageQuestionPage() {
                       {selectedExamIds.length} Simulation(s) <ChevronDown className="h-4 w-4 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-64 p-2 rounded-xl shadow-xl border-2">
+                  <PopoverContent className="w-64 p-2 rounded-xl shadow-xl border-2 bg-white">
                     {SOURCES_EXAMS.map(ex => (
                       <div key={ex.id} className="flex items-center gap-3 p-2 hover:bg-slate-50 cursor-pointer rounded-lg" onClick={() => toggleExamSource(ex.id)}>
                         <Checkbox checked={selectedExamIds.includes(ex.id)} />
@@ -313,7 +334,7 @@ export default function ManageQuestionPage() {
         <CardFooter className="bg-slate-50/50 border-t p-8 flex justify-end">
           <Button onClick={handleUpdate} disabled={isSubmitting} size="lg" className="px-12 rounded-2xl h-16 font-black uppercase tracking-widest shadow-xl bg-primary">
             {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
-            Enregistrer Silo {contextType.toUpperCase()}
+            Enregistrer dans {contextType.toUpperCase()}
           </Button>
         </CardFooter>
       </Card>
