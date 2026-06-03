@@ -107,6 +107,17 @@ export default function ManageDomains() {
     }
   };
 
+  const handleFileImportLocal = (idx: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        updateQuizField(idx, 'img', reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -294,7 +305,7 @@ export default function ManageDomains() {
               <div className="space-y-6 flex-1">
                 {data.quiz?.map((q:any, idx:number) => (
                   <div key={idx} className="p-6 bg-emerald-50/30 rounded-3xl border-2 border-emerald-100 relative group space-y-4">
-                    <Button variant="ghost" size="icon" onClick={() => removeQuiz(idx)} className="absolute -top-2 -right-2 h-8 w-8 rounded-full bg-white border-2 text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"><Trash2 className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => removeQuiz(idx)} className="absolute -top-2 -right-2 h-8 w-8 rounded-full bg-white border-2 text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity shadow-md z-10"><Trash2 className="h-4 w-4" /></Button>
                     
                     <div className="flex items-center justify-between">
                       <Label className="text-[9px] font-black uppercase text-emerald-600 italic">Question ?</Label>
@@ -309,17 +320,35 @@ export default function ManageDomains() {
                     </div>
 
                     {q.showImg && (
-                      <div className="p-4 bg-white rounded-xl border-2 border-dashed border-emerald-200 animate-slide-up space-y-3">
-                        <Label className="text-[8px] font-black uppercase text-slate-400 italic">URL de l'image</Label>
-                        <div className="flex gap-2">
-                          <Input 
-                            value={q.img || ''} 
-                            onChange={(e) => updateQuizField(idx, 'img', e.target.value)} 
-                            placeholder="https://..." 
-                            className="h-10 text-xs font-bold italic border-2"
-                          />
-                          {q.img && <Button variant="ghost" size="icon" onClick={() => updateQuizField(idx, 'img', '')} className="h-10 w-10 text-red-500 border-2"><X className="h-4 w-4" /></Button>}
+                      <div className="p-4 bg-white rounded-xl border-2 border-dashed border-emerald-200 animate-slide-up space-y-4">
+                        <div className="space-y-2">
+                           <Label className="text-[8px] font-black uppercase text-slate-400 italic">1. Importer depuis PC</Label>
+                           <Input 
+                              type="file" 
+                              accept="image/*"
+                              onChange={(e) => handleFileImportLocal(idx, e)}
+                              className="h-10 text-[9px] font-bold italic border-2 p-1.5"
+                           />
                         </div>
+                        
+                        <div className="relative py-1">
+                          <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-dashed" /></div>
+                          <div className="relative flex justify-center text-[7px] uppercase"><span className="bg-white px-2 text-slate-300 font-black italic">OU URL</span></div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-[8px] font-black uppercase text-slate-400 italic">2. URL Directe</Label>
+                          <div className="flex gap-2">
+                            <Input 
+                              value={q.img?.startsWith('data:') ? '' : q.img || ''} 
+                              onChange={(e) => updateQuizField(idx, 'img', e.target.value)} 
+                              placeholder="https://..." 
+                              className="h-10 text-xs font-bold italic border-2"
+                            />
+                            {q.img && <Button variant="ghost" size="icon" onClick={() => updateQuizField(idx, 'img', '')} className="h-10 w-10 text-red-500 border-2"><X className="h-4 w-4" /></Button>}
+                          </div>
+                        </div>
+                        
                         {q.img && (
                           <div className="h-32 rounded-lg border overflow-hidden bg-slate-50 p-1 flex justify-center">
                             <img src={q.img} alt="Preview" className="h-full object-contain rounded" />

@@ -18,7 +18,9 @@ import {
   Upload,
   AlertTriangle,
   CheckCircle2,
-  Minus
+  Minus,
+  Image as ImageIcon,
+  X
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -105,6 +107,17 @@ export default function ManageDomains() {
     }
   };
 
+  const handleFileImportLocal = (idx: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        updateQuizField(idx, 'img', reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -128,6 +141,7 @@ export default function ManageDomains() {
         const parsedQuiz = quizData.map((row: any) => {
           const q = String(row.q || row.Question || row.Énoncé || Object.values(row)[0] || "").trim();
           const a: string[] = [];
+          const img = String(row.img || row.Image || "").trim();
           
           if (row.Vrai !== undefined || row.Faux !== undefined) {
             a.push("Vrai");
@@ -159,7 +173,7 @@ export default function ManageDomains() {
           }
 
           const exp = String(row.exp || row.Explication || row.Justification || "").trim();
-          return { q, a, c, exp };
+          return { q, a, c, exp, img };
         }).filter(item => item.q.length > 2);
 
         setData((prev: any) => ({
@@ -184,7 +198,7 @@ export default function ManageDomains() {
     setData({...data, jargon: next});
   };
 
-  const addQuiz = () => setData({...data, quiz: [...data.quiz, { q: '', a: ['Vrai', 'Faux'], c: 0, exp: '' }]});
+  const addQuiz = () => setData({...data, quiz: [...data.quiz, { q: '', a: ['Vrai', 'Faux'], c: 0, exp: '', img: '', showImg: false }]});
   const removeQuiz = (idx: number) => setData({...data, quiz: data.quiz.filter((_:any, i:number) => i !== idx)});
   
   const updateQuizChoice = (quizIdx: number, choiceIdx: number, val: string) => {
@@ -304,10 +318,57 @@ export default function ManageDomains() {
                   <div key={idx} className="p-6 bg-emerald-50/30 rounded-3xl border-2 border-emerald-100 relative group space-y-4">
                     <Button variant="ghost" size="icon" onClick={() => removeQuiz(idx)} className="absolute -top-2 -right-2 h-8 w-8 rounded-full bg-white border-2 text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity shadow-md z-10"><Trash2 className="h-4 w-4" /></Button>
                     
-                    <div className="space-y-2">
+                    <div className="flex items-center justify-between">
                       <Label className="text-[9px] font-black uppercase text-emerald-600 italic">Question ?</Label>
-                      <Input placeholder="Votre question..." value={q.q} onChange={(e) => updateQuizField(idx, 'q', e.target.value)} className="h-10 bg-white rounded-lg font-black italic border-2 border-emerald-200" />
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => updateQuizField(idx, 'showImg', !q.showImg)}
+                        className={cn("h-6 px-2 rounded-lg border text-[8px] font-black uppercase italic", q.img ? "text-primary border-primary bg-primary/5" : "text-slate-400")}
+                      >
+                        <ImageIcon className="h-3 w-3 mr-1" /> {q.img ? "Modifier Image" : "Insérer Image"}
+                      </Button>
                     </div>
+
+                    {q.showImg && (
+                      <div className="p-4 bg-white rounded-xl border-2 border-dashed border-emerald-200 animate-slide-up space-y-4">
+                        <div className="space-y-2">
+                           <Label className="text-[8px] font-black uppercase text-slate-400 italic">1. Importer depuis PC</Label>
+                           <Input 
+                              type="file" 
+                              accept="image/*"
+                              onChange={(e) => handleFileImportLocal(idx, e)}
+                              className="h-10 text-[9px] font-bold italic border-2 p-1.5"
+                           />
+                        </div>
+                        
+                        <div className="relative py-1">
+                          <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-dashed" /></div>
+                          <div className="relative flex justify-center text-[7px] uppercase"><span className="bg-white px-2 text-slate-300 font-black italic">OU URL</span></div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-[8px] font-black uppercase text-slate-400 italic">2. URL Directe</Label>
+                          <div className="flex gap-2">
+                            <Input 
+                              value={q.img?.startsWith('data:') ? '' : q.img || ''} 
+                              onChange={(e) => updateQuizField(idx, 'img', e.target.value)} 
+                              placeholder="https://..." 
+                              className="h-10 text-xs font-bold italic border-2"
+                            />
+                            {q.img && <Button variant="ghost" size="icon" onClick={() => updateQuizField(idx, 'img', '')} className="h-10 w-10 text-red-500 border-2"><X className="h-4 w-4" /></Button>}
+                          </div>
+                        </div>
+                        
+                        {q.img && (
+                          <div className="h-32 rounded-lg border overflow-hidden bg-slate-50 p-1 flex justify-center">
+                            <img src={q.img} alt="Preview" className="h-full object-contain rounded" />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <Input placeholder="Votre question..." value={q.q} onChange={(e) => updateQuizField(idx, 'q', e.target.value)} className="h-10 bg-white rounded-lg font-black italic border-2 border-emerald-200" />
 
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">

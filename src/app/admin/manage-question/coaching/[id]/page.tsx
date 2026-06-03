@@ -24,7 +24,8 @@ import {
   Image as ImageIcon,
   X,
   ChevronDown,
-  Layers
+  Layers,
+  Upload
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -66,7 +67,6 @@ function ManageCoachingQuestionContent() {
   const [questionCode, setQuestionCode] = useState("");
   const [sourceIds, setSourceIds] = useState<string[]>([]);
 
-  // PMP Tags
   const [domain, setDomain] = useState("Process");
   const [approach, setApproach] = useState("Predictive");
   const [difficulty, setDifficulty] = useState("Medium");
@@ -102,6 +102,17 @@ function ManageCoachingQuestionContent() {
     }
   }, [questionData, isNew]);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImageUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleChoiceChange = (idx: number, val: string) => {
     const newChoices = [...choices];
     newChoices[idx] = val;
@@ -127,7 +138,7 @@ function ManageCoachingQuestionContent() {
         index,
         questionCode: questionCode || `COACH-Q-${Date.now()}`,
         sourceIds,
-        silo: 'coaching', // ISOLEMENT PHYSIQUE
+        silo: 'coaching',
         updatedAt: serverTimestamp(),
         tags: { domain, approach, difficulty }
       };
@@ -204,26 +215,49 @@ function ManageCoachingQuestionContent() {
             </div>
 
             {showImageInput && (
-              <div className="animate-slide-up p-6 bg-slate-50 rounded-2xl border-2 border-dashed space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-[9px] font-black uppercase text-primary italic">URL de l'image (Firebase Storage, etc.)</Label>
-                  <div className="flex gap-2">
+              <div className="animate-slide-up p-6 bg-slate-50 rounded-2xl border-2 border-dashed space-y-6">
+                <div className="grid gap-6">
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-black uppercase text-primary italic flex items-center gap-2">
+                      <Upload className="h-3 w-3" /> 1. Importer depuis l'ordinateur
+                    </Label>
                     <Input 
-                      value={imageUrl} 
-                      onChange={(e) => setImageUrl(e.target.value)} 
-                      placeholder="https://..." 
-                      className="h-12 rounded-xl border-2 font-bold italic bg-white"
+                      type="file" 
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="h-12 rounded-xl border-2 font-bold italic bg-white p-2 text-xs"
                     />
-                    {imageUrl && (
-                      <Button variant="ghost" size="icon" onClick={() => setImageUrl("")} className="h-12 w-12 rounded-xl text-red-500 border-2 bg-white">
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
+                  </div>
+
+                  <div className="relative py-2">
+                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-dashed" /></div>
+                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-slate-50 px-4 text-slate-400 font-black italic text-[8px]">OU ALORS</span></div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-black uppercase text-primary italic flex items-center gap-2">
+                      <ImageIcon className="h-3 w-3" /> 2. Utiliser un lien URL direct
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input 
+                        value={imageUrl.startsWith('data:') ? '' : imageUrl} 
+                        onChange={(e) => setImageUrl(e.target.value)} 
+                        placeholder="https://..." 
+                        className="h-12 rounded-xl border-2 font-bold italic bg-white"
+                      />
+                      {imageUrl && (
+                        <Button variant="ghost" size="icon" onClick={() => setImageUrl("")} className="h-12 w-12 rounded-xl text-red-500 border-2 bg-white">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
+
                 {imageUrl && (
-                  <div className="border-2 rounded-xl overflow-hidden bg-white p-2 flex justify-center max-h-48 shadow-inner">
-                    <img src={imageUrl} alt="Preview" className="h-full object-contain rounded-lg" />
+                  <div className="border-2 rounded-xl overflow-hidden bg-white p-2 flex flex-col items-center gap-2 shadow-inner">
+                    <img src={imageUrl} alt="Preview" className="max-h-48 object-contain rounded-lg" />
+                    <span className="text-[8px] font-bold text-slate-400 uppercase italic">Aperçu de l'image</span>
                   </div>
                 )}
               </div>
