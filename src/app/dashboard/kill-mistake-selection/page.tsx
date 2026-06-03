@@ -37,7 +37,6 @@ export default function KillMistakeSelectionPage() {
   const router = useRouter();
   const [isPurgeDialogOpen, setIsPurgeDialogOpen] = useState(false);
 
-  // 1. FETCH DES ERREURS RÉELLES
   const mistakesQuery = useMemoFirebase(() => {
     if (!user) return null;
     return query(collection(db, 'users', user.uid, 'killMistakes'), where('status', '==', 'wrong'));
@@ -45,14 +44,13 @@ export default function KillMistakeSelectionPage() {
 
   const { data: mistakes, isLoading } = useCollection(mistakesQuery);
 
-  // 2. CALCUL DES STATISTIQUES
   const stats = useMemo(() => {
     if (!mistakes) return null;
     return {
       total: mistakes.length,
-      matrice: mistakes.filter(m => m.sourceType === 'matrix').length,
-      pratique: mistakes.filter(m => !m.sourceType || m.sourceType === 'practice').length,
-      simulation: mistakes.filter(m => m.sourceType === 'exam').length,
+      matrix: mistakes.filter(m => m.sourceType === 'matrix').length,
+      practice: mistakes.filter(m => !m.sourceType || m.sourceType === 'practice').length,
+      exam: mistakes.filter(m => m.sourceType === 'exam').length,
     };
   }, [mistakes]);
 
@@ -81,7 +79,6 @@ export default function KillMistakeSelectionPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-12 animate-fade-in py-8 px-4">
-      {/* EN-TÊTE */}
       <div className="space-y-2">
         <div className="flex items-center gap-3">
           <div className="bg-[#1e3a8a] p-2 rounded-xl shadow-lg">
@@ -96,7 +93,6 @@ export default function KillMistakeSelectionPage() {
         </p>
       </div>
 
-      {/* SECTION SUPÉRIEURE : STATISTIQUES CLIQUABLES */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         <div className="lg:col-span-4">
           <button 
@@ -110,7 +106,7 @@ export default function KillMistakeSelectionPage() {
               <div className="flex justify-between items-start relative z-10">
                 <span className="font-black uppercase italic text-xs tracking-widest text-slate-500">TOTAL ERREURS</span>
                 <div className="bg-emerald-100 text-emerald-600 px-3 py-1 rounded-full text-[10px] font-black flex items-center gap-1 italic">
-                  <TrendingDown className="h-3 w-3" /> VOIR TOUT
+                  <TrendingDown className="h-3 w-3" /> ANALYSER
                 </div>
               </div>
               <div className="mt-8 relative z-10">
@@ -118,7 +114,7 @@ export default function KillMistakeSelectionPage() {
                   {stats.total}
                 </p>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">
-                  CLIQUEZ POUR ANALYSER
+                  CLIQUEZ POUR VOIR LES QUESTIONS
                 </p>
               </div>
             </Card>
@@ -131,7 +127,7 @@ export default function KillMistakeSelectionPage() {
             <StatMiniCard 
               icon={LayoutGrid} 
               label="Matrice Magique" 
-              val={stats.matrice} 
+              val={stats.matrix} 
               color="text-emerald-600" 
               bg="bg-emerald-50"
               onClick={() => router.push('/dashboard/kill-mistakes?mode=analyze&theme=matrix')}
@@ -139,7 +135,7 @@ export default function KillMistakeSelectionPage() {
             <StatMiniCard 
               icon={BookOpen} 
               label="Pratique Libre" 
-              val={stats.pratique} 
+              val={stats.practice} 
               color="text-indigo-600" 
               bg="bg-indigo-50"
               onClick={() => router.push('/dashboard/kill-mistakes?mode=analyze&theme=practice')}
@@ -147,7 +143,7 @@ export default function KillMistakeSelectionPage() {
             <StatMiniCard 
               icon={GraduationCap} 
               label="Simulations Exam" 
-              val={stats.simulation} 
+              val={stats.exam} 
               color="text-amber-600" 
               bg="bg-amber-50"
               onClick={() => router.push('/dashboard/kill-mistakes?mode=analyze&theme=exam')}
@@ -156,7 +152,6 @@ export default function KillMistakeSelectionPage() {
         </div>
       </div>
 
-      {/* SECTION ACTION : BOUTON DE PURGE CENTRAL */}
       <div className="flex flex-col items-center pt-12 space-y-8">
         <div className="text-center max-w-2xl space-y-4">
           <h2 className="text-3xl font-black italic text-slate-900 uppercase tracking-tight">PRÊT À CORRIGER ?</h2>
@@ -180,7 +175,6 @@ export default function KillMistakeSelectionPage() {
         </Button>
       </div>
 
-      {/* DIALOG DE SÉLECTION DE PURGE */}
       <Dialog open={isPurgeDialogOpen} onOpenChange={setIsPurgeDialogOpen}>
         <DialogContent className="max-w-md rounded-[40px] p-10 border-4 border-[#1e3a8a] shadow-3xl bg-white">
           <DialogHeader className="space-y-4">
@@ -196,10 +190,10 @@ export default function KillMistakeSelectionPage() {
           </DialogHeader>
 
           <div className="grid gap-3 py-6">
-            <PurgeOption label="TOUTES MES ERREURS" count={stats.total} theme="all" onClick={() => router.push('/dashboard/kill-mistakes?mode=session&theme=all')} />
-            <PurgeOption label="MATRICE MAGIQUE" count={stats.matrice} theme="matrix" onClick={() => router.push('/dashboard/kill-mistakes?mode=session&theme=matrix')} />
-            <PurgeOption label="PRATIQUE LIBRE" count={stats.pratique} theme="practice" onClick={() => router.push('/dashboard/kill-mistakes?mode=session&theme=practice')} />
-            <PurgeOption label="SIMULATIONS EXAM" count={stats.simulation} theme="exam" onClick={() => router.push('/dashboard/kill-mistakes?mode=session&theme=exam')} />
+            <PurgeOption label="TOUTES MES ERREURS" count={stats.total} onClick={() => router.push('/dashboard/kill-mistakes?mode=session&theme=all')} />
+            <PurgeOption label="MATRICE MAGIQUE" count={stats.matrix} onClick={() => router.push('/dashboard/kill-mistakes?mode=session&theme=matrix')} />
+            <PurgeOption label="PRATIQUE LIBRE" count={stats.practice} onClick={() => router.push('/dashboard/kill-mistakes?mode=session&theme=practice')} />
+            <PurgeOption label="SIMULATIONS EXAM" count={stats.exam} onClick={() => router.push('/dashboard/kill-mistakes?mode=session&theme=exam')} />
           </div>
 
           <DialogFooter>
@@ -230,7 +224,7 @@ function StatMiniCard({ icon: Icon, label, val, color, bg, onClick }: any) {
   );
 }
 
-function PurgeOption({ label, count, onClick }: { label: string, count: number, theme: string, onClick: () => void }) {
+function PurgeOption({ label, count, onClick }: { label: string, count: number, onClick: () => void }) {
   if (count === 0) return null;
   return (
     <Button 
