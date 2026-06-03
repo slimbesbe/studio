@@ -21,7 +21,9 @@ import {
   Trophy,
   Layers,
   Globe,
-  LayoutGrid
+  LayoutGrid,
+  AlertTriangle,
+  CheckCircle2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -35,13 +37,22 @@ import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
 import { useSearchParams } from 'next/navigation';
 
+const EXAM_LABELS: Record<string, string> = {
+  'exam1': 'Examen 1',
+  'exam2': 'Examen 2',
+  'exam3': 'Examen 3',
+  'exam4': 'Examen 4',
+  'exam5': 'Examen 5',
+  'all_exams': 'Toutes les Simulations'
+};
+
 function QuestionsList() {
   const { profile } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   const searchParams = useSearchParams();
   
-  const contextType = searchParams.get('type') as 'practice' | 'exams' | 'matrix' || 'practice';
+  const contextType = (searchParams.get('type') as 'practice' | 'exams' | 'matrix') || 'practice';
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSubSource, setFilterSubSource] = useState(
@@ -66,7 +77,7 @@ function QuestionsList() {
 
   const questionsQuery = useMemoFirebase(() => {
     if (!isAdmin) return null;
-    return query(collection(db, 'questions'), orderBy('updatedAt', 'desc'), limit(2000));
+    return query(collection(db, 'questions'), orderBy('updatedAt', 'desc'), limit(2500));
   }, [db, isAdmin]);
 
   const { data: questions, isLoading } = useCollection(questionsQuery);
@@ -122,13 +133,23 @@ function QuestionsList() {
     if (userInputCode !== securityCode) return;
     setIsResetting(true);
     try {
-      const batch = writeBatch(db);
-      filteredQuestions.forEach(q => batch.delete(doc(db, 'questions', q.id)));
-      await batch.commit();
-      toast({ title: `Le silo a été vidé.` });
+      const totalToDelete = filteredQuestions.length;
+      const batchSize = 50;
+      
+      for (let i = 0; i < filteredQuestions.length; i += batchSize) {
+        const batch = writeBatch(db);
+        const chunk = filteredQuestions.slice(i, i + batchSize);
+        chunk.forEach(q => batch.delete(doc(db, 'questions', q.id)));
+        await batch.commit();
+      }
+
+      toast({ 
+        title: "Nettoyage réussi", 
+        description: `${totalToDelete} questions ont été supprimées.` 
+      });
       setIsResetModalOpen(false);
     } catch (e) {
-      toast({ variant: "destructive", title: "Erreur" });
+      toast({ variant: "destructive", title: "Erreur lors du reset" });
     } finally {
       setIsResetting(false);
     }
@@ -157,6 +178,14 @@ function QuestionsList() {
   if (isLoading) return <div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
   if (!isAdmin) return null;
 
+  const getResetTargetLabel = () => {
+    if (contextType === 'exams') {
+      return EXAM_LABELS[filterSubSource] || 'Examens';
+    }
+    if (contextType === 'matrix') return 'la Matrice Magique';
+    return 'la Pratique Libre';
+  };
+
   const PageIcon = contextType === 'exams' ? Trophy : contextType === 'matrix' ? LayoutGrid : BookOpen;
   const PageTitle = contextType === 'exams' ? 'Banque Examens Blancs' : contextType === 'matrix' ? 'Banque Matrice Magique' : 'Banque Pratique Libre';
   const siloColor = contextType === 'exams' ? 'bg-primary' : contextType === 'matrix' ? 'bg-indigo-600' : 'bg-emerald-600';
@@ -180,8 +209,13 @@ function QuestionsList() {
           <Button variant="outline" onClick={downloadTemplate} className="h-14 px-6 rounded-2xl font-black uppercase text-xs italic border-2">
             <Download className="mr-2 h-4 w-4" /> Modèle
           </Button>
-          <Button variant="outline" onClick={handleOpenReset} className="h-14 px-6 rounded-2xl font-black uppercase text-xs italic border-2 text-destructive border-destructive/20 hover:bg-destructive/5">
-            <Trash2 className="mr-2 h-4 w-4" /> Vider Silo
+          <Button 
+            variant="outline" 
+            onClick={handleOpenReset} 
+            disabled={filteredQuestions.length === 0}
+            className="h-14 px-6 rounded-2xl font-black uppercase text-xs italic border-2 text-destructive border-destructive/20 hover:bg-destructive/5"
+          >
+            <Trash2 className="mr-2 h-4 w-4" /> Vider {contextType === 'exams' ? (EXAM_LABELS[filterSubSource]?.split(' ')[1] || 'Silo') : 'Silo'}
           </Button>
           <Button onClick={() => setIsImportModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs italic shadow-xl">
             <Upload className="mr-2 h-5 w-5" /> Importer
@@ -308,22 +342,30 @@ function QuestionsList() {
       <Dialog open={isResetModalOpen} onOpenChange={(val) => !isResetting && setIsResetModalOpen(val)}>
         <DialogContent className="rounded-[40px] p-12 border-8 border-destructive shadow-3xl max-w-xl">
           <DialogHeader className="flex flex-col items-center text-center">
+            <div className="bg-destructive/10 p-4 rounded-full mb-4">
+              <AlertTriangle className="h-12 w-12 text-destructive" />
+            </div>
             <DialogTitle className="text-4xl font-black uppercase italic text-destructive tracking-tighter">Action Critique</DialogTitle>
             <DialogDescription className="text-lg font-bold text-slate-600 leading-relaxed uppercase italic mt-4">
-              Vider totalement le silo <span className="text-destructive underline">{contextType.toUpperCase()}</span> ?
+              Voulez-vous vider totalement <span className="text-destructive underline">{getResetTargetLabel()}</span> ?
+              <br />
+              <span className="text-xs font-black text-slate-400 mt-2 block">Cette action supprimera définitivement {filteredQuestions.length} questions.</span>
             </DialogDescription>
           </DialogHeader>
           <div className="py-10 space-y-8">
             <div className="bg-slate-50 p-8 rounded-3xl border-4 border-dashed text-center">
-              <p className="text-[10px] font-black uppercase text-slate-400">Code de sécurité</p>
-              <p className="text-6xl font-black text-primary tabular-nums">{securityCode}</p>
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 italic">Code de sécurité</p>
+              <p className="text-6xl font-black text-primary tabular-nums tracking-widest">{securityCode}</p>
             </div>
-            <Input value={userInputCode} onChange={(e) => setUserInputCode(e.target.value)} maxLength={8} className="h-16 rounded-2xl border-4 font-black text-center text-3xl italic" placeholder="Recopiez le code" />
+            <div className="space-y-3">
+              <Label className="font-black uppercase text-[10px] text-slate-400 italic ml-2">Confirmez en recopiant le code</Label>
+              <Input value={userInputCode} onChange={(e) => setUserInputCode(e.target.value)} maxLength={8} className="h-16 rounded-2xl border-4 font-black text-center text-3xl italic tracking-widest" placeholder="Recopiez le code" />
+            </div>
           </div>
           <DialogFooter className="gap-4">
             <Button variant="outline" className="h-16 rounded-2xl font-black uppercase flex-1 border-4" onClick={() => setIsResetModalOpen(false)}>Annuler</Button>
-            <Button variant="destructive" disabled={userInputCode !== securityCode || isResetting} onClick={performReset} className="h-16 rounded-2xl font-black uppercase flex-1 shadow-2xl">
-              {isResetting ? <Loader2 className="animate-spin h-6 w-6" /> : "Vider Silo"}
+            <Button variant="destructive" disabled={userInputCode !== securityCode || isResetting} onClick={performReset} className="h-16 rounded-2xl font-black uppercase flex-1 shadow-2xl italic">
+              {isResetting ? <Loader2 className="animate-spin h-6 w-6" /> : <><CheckCircle2 className="mr-2 h-6 w-6" /> CONFIRMER</>}
             </Button>
           </DialogFooter>
         </DialogContent>
