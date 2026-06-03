@@ -1,3 +1,4 @@
+
 'use client';
 
 import { 
@@ -12,7 +13,6 @@ import {
   serverTimestamp, 
   increment,
   limit,
-  writeBatch,
   documentId
 } from 'firebase/firestore';
 
@@ -25,7 +25,7 @@ export interface PracticeFilters {
 
 /**
  * Charge un pool de questions pour une session d'entraînement.
- * ENFORCE L'ISOLATION STRICTE DES SILOS : matrix, practice, exam.
+ * ENFORCE L'ISOLATION STRICTE DES SILOS PAR CHAMP 'silo'.
  */
 export async function startTrainingSession(
   db: Firestore, 
@@ -46,30 +46,29 @@ export async function startTrainingSession(
     return fetchQuestionsByIds(db, kmIds, questionCount);
   }
 
-  // --- SILO ENFORCEMENT (CRITIQUE) ---
-  // On définit la source cible de manière exclusive
+  // --- SILO ENFORCEMENT STRICT PAR CHAMP 'silo' ---
   const targetSilo = mode === 'matrix' ? 'matrix' : 'practice';
   
   let questionsRef = collection(db, 'questions');
   
-  // Requête initiale avec le filtre de silo obligatoire
+  // Requête initiale avec le filtre de silo OBLIGATOIRE
   let constraints: any[] = [
     where('isActive', '==', true),
-    where('sourceIds', 'array-contains', targetSilo)
+    where('silo', '==', targetSilo) // Isolation physique par compartiment
   ];
 
   if (filters.domain && filters.domain !== 'all') {
     const d = filters.domain === 'Processus' ? 'Process' : filters.domain;
-    constraints.push(where('tags.domain', 'in', [d, 'Process', 'Processus']));
+    constraints.push(where('tags.domain', 'in', [d, 'Process', 'Processus', 'Business Environment']));
   }
   
   if (filters.approach && filters.approach !== 'all') {
-    const a = (filters.approach === 'Waterfall' || filters.approach === 'Cascad') ? 'Predictive' : filters.approach;
-    constraints.push(where('tags.approach', 'in', [a, 'Predictive', 'Waterfall', 'cascad']));
+    const a = (filters.approach === 'Waterfall' || filters.approach === 'Cascad' || filters.approach === 'Predictive') ? 'Predictive' : filters.approach;
+    constraints.push(where('tags.approach', 'in', [a, 'Predictive', 'Agile', 'Hybrid', 'Waterfall']));
   }
 
   try {
-    const q = query(questionsRef, ...constraints, limit(100));
+    const q = query(questionsRef, ...constraints, limit(200));
     const snap = await getDocs(q);
     
     if (!snap.empty) {
@@ -81,21 +80,19 @@ export async function startTrainingSession(
     console.warn("Direct query failed, indexing might be required", e);
   }
 
-  // --- FALLBACK AVEC FILTRAGE MANUEL POUR GARANTIR L'ISOLEMENT ---
-  // On récupère un échantillon plus large mais on vérifie l'étanchéité manuellement
-  const fallbackSnap = await getDocs(query(questionsRef, where('isActive', '==', true), limit(500)));
-  if (fallbackSnap.empty) throw new Error("Banque de questions vide.");
+  // FALLBACK SÉCURISÉ (Même en scan large, on ne sort JAMAIS du silo)
+  const fallbackSnap = await getDocs(query(questionsRef, where('silo', '==', targetSilo), where('isActive', '==', true), limit(1000)));
+  if (fallbackSnap.empty) throw new Error(`Banque [${targetSilo.toUpperCase()}] vide.`);
 
   const filteredPool = fallbackSnap.docs.map(d => ({...d.data(), id: d.id})).filter((q: any) => {
-    // 1. ISOLATION SILO (Vérification manuelle stricte)
-    const sources = q.sourceIds || [];
-    if (!sources.includes(targetSilo)) return false;
+    // 1. Double vérification du silo
+    if (q.silo !== targetSilo) return false;
 
-    // 2. Filtres optionnels (Tags)
+    // 2. Filtres optionnels
     if (filters.domain && filters.domain !== 'all') {
       const targetD = filters.domain.toLowerCase();
       const questionD = String(q.tags?.domain || '').toLowerCase();
-      const match = questionD.includes(targetD) || (targetD.includes('proc') && questionD.includes('proc'));
+      const match = questionD.includes(targetD) || (targetD.includes('proc') && questionD.includes('proc')) || (targetD.includes('busi') && questionD.includes('busi'));
       if (!match) return false;
     }
 
@@ -119,9 +116,6 @@ export async function startTrainingSession(
   return filteredPool.sort(() => 0.5 - Math.random()).slice(0, questionCount === 0 ? filteredPool.length : questionCount);
 }
 
-/**
- * Helper pour récupérer des questions par IDs en respectant les limites de Firestore (30 par query)
- */
 export async function fetchQuestionsByIds(db: Firestore, ids: string[], count: number = 0) {
   if (!ids || ids.length === 0) return [];
   const results: any[] = [];
@@ -138,9 +132,6 @@ export async function fetchQuestionsByIds(db: Firestore, ids: string[], count: n
   return count > 0 ? finalPool.slice(0, count) : finalPool;
 }
 
-/**
- * Soumet une réponse et met à jour la base Kill Mistake avec l'origine de la question.
- */
 export async function submitPracticeAnswer(
   db: Firestore,
   userId: string,
@@ -159,10 +150,7 @@ export async function submitPracticeAnswer(
   
   const kmRef = doc(db, 'users', userId, 'killMistakes', questionId);
   
-  // On détermine le type de source pour le cloisonnement dans Kill Mistake
-  let sourceType: string = 'practice';
-  if (qData.sourceIds?.includes('matrix')) sourceType = 'matrix';
-  else if (qData.sourceIds?.some((s: string) => s.startsWith('exam'))) sourceType = 'exam';
+  let sourceType: string = qData.silo || 'practice';
 
   if (!isCorrect) {
     await setDoc(kmRef, {
@@ -172,10 +160,9 @@ export async function submitPracticeAnswer(
       questionId,
       lastSelectedChoiceIds: userChoices,
       tags: qData.tags || {},
-      sourceType // On garde l'origine pour filtrer les révisions
+      sourceType
     }, { merge: true });
   } else {
-    // Si c'est correct, on marque comme corrigé (ne sera plus dans le pool "wrong")
     await setDoc(kmRef, { 
       status: 'corrected', 
       lastCorrectAt: serverTimestamp(), 

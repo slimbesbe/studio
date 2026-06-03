@@ -2,23 +2,17 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, doc, deleteDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
-import { Card, CardContent } from '@/components/ui/card';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, doc } from 'firebase/firestore';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
   ChevronLeft, 
   Download, 
   Upload, 
-  RotateCcw, 
   Loader2, 
   LayoutGrid, 
-  FileSpreadsheet,
-  CheckCircle2,
-  AlertCircle,
-  Settings2,
-  Table as TableIcon,
-  Info
+  Table as TableIcon
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -29,15 +23,15 @@ import { MatrixCellDialog } from '@/components/admin/matrice/MatrixCellDialog';
 import { MatrixBulkImport } from '@/components/admin/matrice/MatrixBulkImport';
 
 const DOMAINS = [
-  { id: 'People', label: 'People', key: 'people' },
-  { id: 'Process', label: 'Process', key: 'process' },
-  { id: 'Business', label: 'Business Environment', key: 'business' }
+  { id: 'People', label: 'PEOPLE', key: 'people' },
+  { id: 'Process', label: 'PROCESS', key: 'process' },
+  { id: 'Business', label: 'BUSINESS ENVIRONMENT', key: 'business' }
 ];
 
 const APPROACHES = [
-  { id: 'Predictive', label: 'Predictive', key: 'predictive' },
-  { id: 'Agile', label: 'Agile', key: 'agile' },
-  { id: 'Hybrid', label: 'Hybrid', key: 'hybrid' }
+  { id: 'Predictive', label: 'PREDICTIVE', key: 'predictive' },
+  { id: 'Agile', label: 'AGILE', key: 'agile' },
+  { id: 'Hybrid', label: 'HYBRID', key: 'hybrid' }
 ];
 
 export default function AdminMatriceConfig() {
@@ -45,13 +39,12 @@ export default function AdminMatriceConfig() {
   const { toast } = useToast();
   const [selectedCell, setSelectedCell] = useState<{domain: string, approach: string} | null>(null);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
 
   // FETCH ÉTANCHE : Uniquement les questions marquées avec silo: 'matrix'
   const questionsQuery = useMemoFirebase(() => {
     return query(
       collection(db, 'questions'),
-      where('silo', '==', 'matrix') // ÉTANCHÉITÉ PHYSIQUE
+      where('silo', '==', 'matrix')
     );
   }, [db]);
   const { data: allQuestions, isLoading } = useCollection(questionsQuery);
@@ -79,21 +72,6 @@ export default function AdminMatriceConfig() {
     XLSX.writeFile(wb, "modele_matrice_9_feuilles.xlsx");
   };
 
-  const handleResetAll = async () => {
-    if (!confirm("Voulez-vous vider TOUTE la banque de la MATRICE ?")) return;
-    setIsResetting(true);
-    try {
-      const batch = writeBatch(db);
-      allQuestions?.forEach(q => batch.delete(doc(db, 'questions', q.id)));
-      await batch.commit();
-      toast({ title: "Banque Matrice réinitialisée" });
-    } catch (e) {
-      toast({ variant: "destructive", title: "Erreur" });
-    } finally {
-      setIsResetting(false);
-    }
-  };
-
   if (isLoading) return <div className="h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-primary" /></div>;
 
   return (
@@ -105,55 +83,85 @@ export default function AdminMatriceConfig() {
           </Button>
           <div>
             <h1 className="text-4xl font-black italic uppercase tracking-tighter text-indigo-600 flex items-center gap-4">
-              <LayoutGrid className="h-10 w-10 text-accent" /> Matrice Magique
+              <LayoutGrid className="h-10 w-10 text-emerald-500" /> Matrice Magique
             </h1>
-            <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mt-1 italic">Gestion granulaire étanche (Silo : Matrix).</p>
+            <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mt-1 italic">Partitionnement Physique (Silo : MATRIX).</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" onClick={downloadModel} className="h-14 px-6 rounded-2xl font-black uppercase text-xs italic border-2 gap-2"><Download className="h-4 w-4" /> Modèle</Button>
-          <Button onClick={() => setIsBulkImportOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg gap-2"><Upload className="h-4 w-4" /> Import Global</Button>
-          <Button variant="outline" onClick={handleResetAll} disabled={isResetting} className="h-14 px-6 rounded-2xl font-black uppercase text-xs italic border-2 text-destructive border-destructive/20 hover:bg-red-50 gap-2">Reset Silo</Button>
+          <Button onClick={() => setIsBulkImportOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg gap-2 text-white">
+            <Upload className="h-4 w-4" /> Import Global
+          </Button>
         </div>
       </div>
 
-      <Card className="rounded-[48px] border-none shadow-2xl bg-white p-12 overflow-hidden">
-        <div className="grid grid-cols-4 gap-8">
-          <div />
-          {APPROACHES.map(a => (
-            <div key={a.id} className="text-center py-4">
-              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 italic">{a.label}</span>
-            </div>
-          ))}
-
-          {DOMAINS.map(d => (
-            <div key={d.id} className="contents">
-              <div className="flex items-center justify-end pr-8">
-                <span className="text-sm font-black uppercase italic text-slate-600 text-right leading-tight">{d.label}</span>
+      <div className="bg-white rounded-[60px] p-12 lg:p-20 shadow-2xl border-2 border-slate-50 overflow-x-auto">
+        <div className="min-w-[1000px]">
+          {/* Header des colonnes (PREDICTIVE, AGILE, HYBRID) */}
+          <div className="grid grid-cols-4 gap-8 mb-12">
+            <div />
+            {APPROACHES.map(a => (
+              <div key={a.id} className="text-center flex flex-col items-center justify-center gap-2">
+                <span className="text-[12px] font-black uppercase tracking-[0.4em] text-slate-400 italic">
+                   {a.label}
+                </span>
               </div>
-              {APPROACHES.map(a => {
-                const count = matrixStats[`${d.id}-${a.id}`] || 0;
-                return (
-                  <button 
-                    key={`${d.key}_${a.key}`}
-                    onClick={() => setSelectedCell({ domain: d.id, approach: a.id })}
-                    className={cn(
-                      "group relative rounded-[32px] border-4 p-8 transition-all duration-300 flex flex-col items-center justify-center gap-4 text-center hover:scale-[1.03] hover:shadow-2xl",
-                      count > 0 ? "bg-indigo-50 border-indigo-100 text-indigo-700" : "bg-slate-50 border-slate-100 text-slate-300"
-                    )}
-                  >
-                    <div className="flex flex-col items-center gap-1">
-                      <span className="text-4xl font-black italic tracking-tighter leading-none">{count}</span>
-                      <span className="text-[9px] font-black uppercase opacity-60">Questions</span>
-                    </div>
-                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity"><TableIcon className="h-4 w-4" /></div>
-                  </button>
-                );
-              })}
-            </div>
-          ))}
+            ))}
+          </div>
+
+          {/* Corps de la Matrice (PEOPLE, PROCESS, BUSINESS) */}
+          <div className="space-y-8">
+            {DOMAINS.map(d => (
+              <div key={d.id} className="grid grid-cols-4 gap-8 items-stretch">
+                <div className="flex items-center justify-end pr-10">
+                  <span className="text-sm font-black uppercase italic text-slate-800 text-right leading-tight tracking-widest">
+                    {d.label}
+                  </span>
+                </div>
+                
+                {APPROACHES.map(a => {
+                  const key = `${d.id}-${a.id}`;
+                  const count = matrixStats[key] || 0;
+                  const filename = `${d.id}_${a.id}.xlsx`.toUpperCase();
+
+                  return (
+                    <button 
+                      key={`${d.key}_${a.key}`}
+                      onClick={() => setSelectedCell({ domain: d.id, approach: a.id })}
+                      className={cn(
+                        "group relative rounded-[40px] border-none p-10 transition-all duration-300 flex flex-col items-center justify-center gap-4 text-center hover:scale-[1.03] hover:shadow-2xl shadow-sm",
+                        "bg-[#f0fdf4] hover:bg-[#dcfce7]"
+                      )}
+                    >
+                      <div className="flex flex-col items-center gap-0">
+                        <span className="text-6xl font-black italic tracking-tighter text-emerald-600 leading-none">{count}</span>
+                        <span className="text-[10px] font-black uppercase text-emerald-600/60 tracking-widest mt-1">Questions</span>
+                      </div>
+                      
+                      <div className="mt-2">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest italic opacity-60">
+                          {filename}
+                        </p>
+                      </div>
+
+                      <div className="mt-4">
+                        <Badge className="bg-emerald-500 text-white border-none font-black italic uppercase text-[9px] px-4 py-1.5 rounded-full tracking-widest">
+                          READY
+                        </Badge>
+                      </div>
+
+                      <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <TableIcon className="h-5 w-5 text-emerald-400" />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
         </div>
-      </Card>
+      </div>
 
       <MatrixCellDialog isOpen={!!selectedCell} onClose={() => setSelectedCell(null)} domain={selectedCell?.domain || ''} approach={selectedCell?.approach || ''} />
       <MatrixBulkImport isOpen={isBulkImportOpen} onClose={() => setIsBulkImportOpen(false)} />
