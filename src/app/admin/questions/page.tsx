@@ -76,29 +76,29 @@ function QuestionsList() {
 
   const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
 
-  // REQUETE SIMPLIFIÉE : On enlève le orderBy pour éviter les erreurs d'index composite absent
+  // REQUETE ÉTENDUE : On récupère toutes les questions actives pour filtrer finement côté client
+  // Cela évite les index manquants et gère les documents n'ayant pas encore le champ 'silo'
   const questionsQuery = useMemoFirebase(() => {
     if (!isAdmin) return null;
     return query(
       collection(db, 'questions'), 
-      where('silo', '==', contextType),
+      where('isActive', '==', true),
       limit(2500)
     );
-  }, [db, isAdmin, contextType]);
+  }, [db, isAdmin]);
 
   const { data: questions, isLoading, error } = useCollection(questionsQuery);
 
   const filteredQuestions = useMemo(() => {
     if (!questions) return [];
     
-    // TRI CÔTÉ CLIENT (Plus robuste dans cet environnement)
-    const sorted = [...questions].sort((a, b) => {
-      const timeA = a.updatedAt?.seconds || 0;
-      const timeB = b.updatedAt?.seconds || 0;
-      return timeB - timeA;
-    });
+    // FILTRAGE ET TRI CÔTÉ CLIENT
+    const baseList = questions.filter(q => {
+      // ETANCHÉITÉ : Une question doit appartenir au silo ciblé 
+      // Fallback : si le champ 'silo' manque, on regarde dans 'sourceIds' (compatibilité imports)
+      const siloMatch = q.silo === contextType || (!q.silo && q.sourceIds?.includes(contextType));
+      if (!siloMatch) return false;
 
-    return sorted.filter(q => {
       if (contextType === 'exams' && filterSubSource !== 'all_exams') {
         if (!q.sourceIds?.includes(filterSubSource)) return false;
       }
@@ -111,6 +111,12 @@ function QuestionsList() {
       const matchApproach = filterApproach === 'all' || q.tags?.approach === filterApproach;
       
       return matchDomain && matchApproach;
+    });
+
+    return [...baseList].sort((a, b) => {
+      const timeA = a.updatedAt?.seconds || 0;
+      const timeB = b.updatedAt?.seconds || 0;
+      return timeB - timeA;
     });
   }, [questions, searchTerm, filterSubSource, filterDomain, filterApproach, contextType]);
 

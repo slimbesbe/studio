@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { useFirestore, useUser } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { doc, setDoc, getDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,9 @@ import {
   Upload,
   AlertTriangle,
   CheckCircle2,
-  Minus
+  Minus,
+  Image as ImageIcon,
+  X
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -128,6 +130,7 @@ export default function ManageDomains() {
         const parsedQuiz = quizData.map((row: any) => {
           const q = String(row.q || "").trim();
           const a: string[] = [];
+          const img = String(row.img || row.Image || "").trim();
           
           for (let i = 1; i <= 4; i++) {
             const val = row[`a${i}`];
@@ -140,7 +143,7 @@ export default function ManageDomains() {
           let c = Math.max(0, (parseInt(String(cVal)) || 1) - 1);
 
           const exp = String(row.exp || "").trim();
-          return { q, a, c, exp };
+          return { q, a, c, exp, img };
         }).filter(item => item.q.length > 2);
 
         setData((prev: any) => ({
@@ -165,7 +168,7 @@ export default function ManageDomains() {
     setData({...data, jargon: next});
   };
 
-  const addQuiz = () => setData({...data, quiz: [...data.quiz, { q: '', a: ['Vrai', 'Faux'], c: 0, exp: '' }]});
+  const addQuiz = () => setData({...data, quiz: [...data.quiz, { q: '', a: ['Vrai', 'Faux'], c: 0, exp: '', img: '', showImg: false }]});
   const removeQuiz = (idx: number) => setData({...data, quiz: data.quiz.filter((_:any, i:number) => i !== idx)});
   
   const updateQuizChoice = (quizIdx: number, choiceIdx: number, val: string) => {
@@ -205,7 +208,8 @@ export default function ManageDomains() {
       a2: "Décomposer le projet", 
       a3: "Gérer les risques", 
       correct_idx: 2, 
-      exp: "Le WBS structure le projet en livrables." 
+      exp: "Le WBS structure le projet en livrables.",
+      img: "https://..."
     }]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, jargonWs, "Jargon");
@@ -292,10 +296,39 @@ export default function ManageDomains() {
                   <div key={idx} className="p-6 bg-emerald-50/30 rounded-3xl border-2 border-emerald-100 relative group space-y-4">
                     <Button variant="ghost" size="icon" onClick={() => removeQuiz(idx)} className="absolute -top-2 -right-2 h-8 w-8 rounded-full bg-white border-2 text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"><Trash2 className="h-4 w-4" /></Button>
                     
-                    <div className="space-y-2">
+                    <div className="flex items-center justify-between">
                       <Label className="text-[9px] font-black uppercase text-emerald-600 italic">Question ?</Label>
-                      <Input placeholder="Votre question..." value={q.q} onChange={(e) => updateQuizField(idx, 'q', e.target.value)} className="h-10 bg-white rounded-lg font-black italic border-2 border-emerald-200" />
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => updateQuizField(idx, 'showImg', !q.showImg)}
+                        className={cn("h-6 px-2 rounded-lg border text-[8px] font-black uppercase italic", q.img ? "text-primary border-primary bg-primary/5" : "text-slate-400")}
+                      >
+                        <ImageIcon className="h-3 w-3 mr-1" /> {q.img ? "Modifier Image" : "Insérer Image"}
+                      </Button>
                     </div>
+
+                    {q.showImg && (
+                      <div className="p-4 bg-white rounded-xl border-2 border-dashed border-emerald-200 animate-slide-up space-y-3">
+                        <Label className="text-[8px] font-black uppercase text-slate-400 italic">URL de l'image</Label>
+                        <div className="flex gap-2">
+                          <Input 
+                            value={q.img || ''} 
+                            onChange={(e) => updateQuizField(idx, 'img', e.target.value)} 
+                            placeholder="https://..." 
+                            className="h-10 text-xs font-bold italic border-2"
+                          />
+                          {q.img && <Button variant="ghost" size="icon" onClick={() => updateQuizField(idx, 'img', '')} className="h-10 w-10 text-red-500 border-2"><X className="h-4 w-4" /></Button>}
+                        </div>
+                        {q.img && (
+                          <div className="h-32 rounded-lg border overflow-hidden bg-slate-50 p-1 flex justify-center">
+                            <img src={q.img} alt="Preview" className="h-full object-contain rounded" />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <Input placeholder="Votre question..." value={q.q} onChange={(e) => updateQuizField(idx, 'q', e.target.value)} className="h-10 bg-white rounded-lg font-black italic border-2 border-emerald-200" />
 
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
