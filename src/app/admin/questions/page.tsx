@@ -67,6 +67,10 @@ function QuestionsList() {
     if (contextType === 'practice') setFilterSubSource('practice');
     else if (contextType === 'matrix') setFilterSubSource('matrix');
     else if (contextType === 'exams') setFilterSubSource('exam1');
+    
+    // Reset filters on silo change to see all new questions
+    setFilterDomain('all');
+    setFilterApproach('all');
   }, [contextType]);
 
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
@@ -77,7 +81,6 @@ function QuestionsList() {
   const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
 
   // REQUETE ÉTENDUE : On récupère toutes les questions actives pour filtrer finement côté client
-  // Cela évite les index manquants et gère les documents n'ayant pas encore le champ 'silo'
   const questionsQuery = useMemoFirebase(() => {
     if (!isAdmin) return null;
     return query(
@@ -94,21 +97,32 @@ function QuestionsList() {
     
     // FILTRAGE ET TRI CÔTÉ CLIENT
     const baseList = questions.filter(q => {
-      // ETANCHÉITÉ : Une question doit appartenir au silo ciblé 
-      // Fallback : si le champ 'silo' manque, on regarde dans 'sourceIds' (compatibilité imports)
+      // 1. ÉTANCHÉITÉ SILO : Vérification stricte et fallback sourceIds
       const siloMatch = q.silo === contextType || (!q.silo && q.sourceIds?.includes(contextType));
       if (!siloMatch) return false;
 
+      // 2. Filtre spécifique examen
       if (contextType === 'exams' && filterSubSource !== 'all_exams') {
         if (!q.sourceIds?.includes(filterSubSource)) return false;
       }
 
+      // 3. Recherche texte / code
       const textMatch = (q.statement || q.text || '').toLowerCase().includes(searchTerm.toLowerCase());
       const codeMatch = (q.questionCode || '').toLowerCase().includes(searchTerm.toLowerCase());
       if (!textMatch && !codeMatch) return false;
 
-      const matchDomain = filterDomain === 'all' || q.tags?.domain === filterDomain;
-      const matchApproach = filterApproach === 'all' || q.tags?.approach === filterApproach;
+      // 4. Filtres Domaines & Approches (Insensible à la casse et mapping synonymes)
+      const qDomain = String(q.tags?.domain || '').toLowerCase();
+      const fDomain = filterDomain.toLowerCase();
+      const matchDomain = filterDomain === 'all' || 
+                         qDomain === fDomain || 
+                         (fDomain === 'process' && qDomain === 'processus');
+
+      const qApproach = String(q.tags?.approach || '').toLowerCase();
+      const fApproach = filterApproach.toLowerCase();
+      const matchApproach = filterApproach === 'all' || 
+                           qApproach === fApproach ||
+                           (fApproach === 'predictive' && qApproach === 'waterfall');
       
       return matchDomain && matchApproach;
     });
