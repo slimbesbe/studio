@@ -15,11 +15,9 @@ import {
   Search,
   ChevronRight,
   Trophy,
-  LayoutGrid,
-  BookOpen,
-  GraduationCap,
   Zap,
-  Play
+  Play,
+  Check
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, getDoc } from 'firebase/firestore';
@@ -29,7 +27,6 @@ import { cn } from '@/lib/utils';
 import { submitPracticeAnswer } from '@/lib/services/practice-service';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type KillMistakeSource = 'matrix' | 'practice' | 'exam' | 'all';
@@ -41,7 +38,9 @@ function KillMistakesContent() {
   const { toast } = useToast();
   
   const mode = searchParams.get('mode') || 'analyze';
-  const [activeTheme, setActiveTheme] = useState<KillMistakeSource>('all');
+  const initialTheme = (searchParams.get('theme') as KillMistakeSource) || 'all';
+
+  const [activeTheme, setActiveTheme] = useState<KillMistakeSource>(initialTheme);
   const [filterDomain, setFilterDomain] = useState('all');
 
   // State Analyse
@@ -137,7 +136,7 @@ function KillMistakesContent() {
 
   if (isLoadingMistakes) return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
 
-  // --- RENDU MODE ACTION ---
+  // --- RENDU MODE ACTION (PURGE) ---
   if (mode === 'session') {
     if (sessionStep === 'intro') {
       return (
@@ -150,11 +149,11 @@ function KillMistakesContent() {
             <div className="space-y-4 relative z-10">
               <h1 className="text-5xl font-black italic uppercase tracking-tighter leading-tight">Session de Remédiation</h1>
               <p className="text-blue-100/70 font-bold italic text-lg max-w-xl mx-auto leading-relaxed">
-                Prêt à purger <span className="text-white font-black underline underline-offset-4">{filteredMistakes.length} erreurs</span> de votre base ? Atteignez 100% pour les éliminer définitivement.
+                Prêt à purger <span className="text-white font-black underline underline-offset-4">{filteredMistakes.length} erreurs</span> du silo {activeTheme.toUpperCase()} ?
               </p>
             </div>
             <div className="flex justify-center gap-4 relative z-10 pt-4">
-              <Button size="lg" onClick={startSession} className="h-20 px-16 rounded-[28px] bg-white text-[#1e3a8a] hover:bg-blue-50 text-2xl font-black uppercase tracking-widest shadow-2xl scale-105 transition-transform">DÉMARRER LE SPRINT</Button>
+              <Button size="lg" onClick={startSession} className="h-20 px-16 rounded-[28px] bg-white text-[#1e3a8a] hover:bg-blue-50 text-2xl font-black uppercase tracking-widest shadow-2xl scale-105 transition-transform">DÉMARRER LA PURGE</Button>
             </div>
           </Card>
         </div>
@@ -185,7 +184,7 @@ function KillMistakesContent() {
       <div className="max-w-4xl mx-auto space-y-8 animate-fade-in py-8 px-4">
         <div className="flex justify-between items-center bg-white p-6 rounded-3xl shadow-lg border-2">
           <Badge variant="outline" className="h-10 px-6 rounded-xl border-2 font-black italic">QUESTION {currentSessionIdx + 1} / {filteredMistakes.length}</Badge>
-          <div className="bg-[#1e3a8a] text-white px-4 py-1.5 rounded-full font-black text-[10px] uppercase italic">MODE ACTION ACTIVE</div>
+          <div className="bg-[#1e3a8a] text-white px-4 py-1.5 rounded-full font-black text-[10px] uppercase italic">PURGE ACTIVE : {activeTheme.toUpperCase()}</div>
         </div>
         <Card className="rounded-[40px] shadow-2xl border-t-8 border-t-[#1e3a8a] overflow-hidden bg-white">
           <CardContent className="p-10 space-y-10">
@@ -193,12 +192,13 @@ function KillMistakesContent() {
               <>
                 <p className="text-2xl font-black text-slate-800 italic leading-relaxed">{questionDetails?.statement || questionDetails?.text}</p>
                 <div className="grid gap-4">
-                  {questionDetails?.options?.map((opt: any, idx: number) => {
-                    const isSelected = (sessionAnswers[questionDetails.id] || []).includes(opt.id);
+                  {(questionDetails?.choices || questionDetails?.options?.map((o:any)=>o.text) || []).map((optText: string, idx: number) => {
+                    const choiceId = String(idx + 1);
+                    const isSelected = (sessionAnswers[questionDetails.id] || []).includes(choiceId);
                     return (
-                      <button key={opt.id} onClick={() => handleSessionAnswer(questionDetails.id, questionDetails.isMultipleCorrect)} className={cn("p-6 rounded-2xl border-2 transition-all text-left flex items-start gap-5 shadow-sm", isSelected ? "border-[#1e3a8a] bg-blue-50/30 scale-[1.01]" : "border-slate-100 hover:border-slate-300")}>
+                      <button key={idx} onClick={() => handleSessionAnswer(choiceId, questionDetails.isMultipleCorrect)} className={cn("p-6 rounded-2xl border-2 transition-all text-left flex items-start gap-5 shadow-sm", isSelected ? "border-[#1e3a8a] bg-blue-50/30 scale-[1.01]" : "border-slate-100 hover:border-slate-300")}>
                         <div className={cn("h-10 w-10 flex items-center justify-center font-black text-sm shrink-0 border-2 rounded-full", isSelected ? "bg-[#1e3a8a] text-white border-[#1e3a8a]" : "bg-white text-slate-400")}>{String.fromCharCode(65 + idx)}</div>
-                        <span className="flex-1 text-lg font-bold italic pt-1 text-slate-700">{opt.text}</span>
+                        <span className="flex-1 text-lg font-bold italic pt-1 text-slate-700">{optText}</span>
                       </button>
                     );
                   })}
@@ -208,7 +208,7 @@ function KillMistakesContent() {
           </CardContent>
           <CardFooter className="p-8 bg-slate-50 border-t flex justify-end">
             <Button onClick={nextOrFinish} disabled={!sessionAnswers[questionDetails?.id]?.length || isSubmitting} className="h-16 px-12 bg-[#1e3a8a] rounded-2xl font-black uppercase tracking-widest shadow-xl group">
-              {isSubmitting ? <Loader2 className="animate-spin h-6 w-6" /> : <>{currentSessionIdx < filteredMistakes.length - 1 ? "SUIVANT" : "TERMINER LE SPRINT"} <ChevronRight className="ml-2 h-6 w-6 group-hover:translate-x-1 transition-transform" /></>}
+              {isSubmitting ? <Loader2 className="animate-spin h-6 w-6" /> : <>{currentSessionIdx < filteredMistakes.length - 1 ? "SUIVANT" : "TERMINER LA PURGE"} <ChevronRight className="ml-2 h-6 w-6 group-hover:translate-x-1 transition-transform" /></>}
             </Button>
           </CardFooter>
         </Card>
@@ -227,7 +227,7 @@ function KillMistakesContent() {
           </Button>
           <div className="flex items-center gap-3">
              <Search className="h-8 w-8 text-[#1e3a8a]" />
-             <h1 className="text-3xl font-black text-[#1e3a8a] italic uppercase tracking-tighter">ANALYSE</h1>
+             <h1 className="text-3xl font-black text-[#1e3a8a] italic uppercase tracking-tighter">ANALYSE DÉTAILLÉE</h1>
           </div>
         </div>
 
@@ -272,7 +272,7 @@ function KillMistakesContent() {
                     <Badge variant="destructive" className="font-black italic px-2 py-0.5 text-[9px] uppercase">{m.wrongCount} ÉCHECS</Badge>
                     <span className="text-[9px] font-black uppercase text-slate-400 italic tracking-widest">{m.tags?.approach || 'AGILE'}</span>
                   </div>
-                  <p className="text-[11px] font-bold text-slate-500 italic truncate uppercase tracking-tight">ID: {m.questionId.substring(0, 20)}...</p>
+                  <p className="text-[11px] font-bold text-slate-500 italic truncate uppercase tracking-tight">ID: {m.questionId.substring(0, 10)}...</p>
                 </Card>
               ))}
               {filteredMistakes.length === 0 && (
@@ -292,7 +292,7 @@ function KillMistakesContent() {
           ) : (
             <div className="flex-1 flex flex-col overflow-hidden">
                <CardHeader className="p-10 pb-4 shrink-0">
-                 <CardTitle className="text-3xl font-black text-slate-900 italic uppercase tracking-tight">DÉTAILS DE LA QUESTION</CardTitle>
+                 <CardTitle className="text-2xl font-black text-slate-900 italic uppercase tracking-tight">VOTRE HISTORIQUE SUR CETTE QUESTION</CardTitle>
                </CardHeader>
                <CardContent className="p-10 pt-0 flex-1 overflow-y-auto space-y-8 custom-scrollbar">
                   {isLoadingDetails ? <div className="py-20 flex justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div> : questionDetails && (
@@ -301,14 +301,40 @@ function KillMistakesContent() {
                         <p className="text-2xl font-black text-slate-800 italic leading-relaxed">{questionDetails.statement || questionDetails.text}</p>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="p-8 rounded-[24px] border-l-8 border-red-500 bg-red-50/50 flex flex-col gap-2">
-                           <span className="text-[10px] font-black uppercase text-red-600 italic tracking-widest">VOTRE CHOIX</span>
-                           <p className="text-xl font-bold italic text-red-900">{selectedMistake.lastSelectedChoiceIds?.join(', ') || '3'}</p>
-                        </div>
-                        <div className="p-8 rounded-[24px] border-l-8 border-emerald-500 bg-emerald-50/50 flex flex-col gap-2">
-                           <span className="text-[10px] font-black uppercase text-emerald-600 italic tracking-widest">BONNE RÉPONSE</span>
-                           <p className="text-xl font-bold italic text-emerald-900">{questionDetails.correctOptionIds?.join(', ') || '2'}</p>
+                      <div className="space-y-4">
+                        <h4 className="text-[10px] font-black uppercase text-slate-400 italic tracking-widest ml-2">Tous les choix proposés</h4>
+                        <div className="grid gap-3">
+                          {(questionDetails.choices || questionDetails.options?.map((o:any)=>o.text) || []).map((optText: string, idx: number) => {
+                            const choiceId = String(idx + 1);
+                            const isUserChoice = (selectedMistake.lastSelectedChoiceIds || []).includes(choiceId);
+                            const isCorrectChoice = (questionDetails.correctOptionIds || [String(questionDetails.correctChoice)]).includes(choiceId);
+
+                            return (
+                              <div 
+                                key={idx} 
+                                className={cn(
+                                  "p-5 rounded-2xl border-2 flex items-start gap-5 transition-all",
+                                  isCorrectChoice ? "border-emerald-500 bg-emerald-50 shadow-sm" : 
+                                  isUserChoice ? "border-red-500 bg-red-50" : "border-slate-100 opacity-60"
+                                )}
+                              >
+                                <div className={cn(
+                                  "h-10 w-10 flex items-center justify-center font-black text-sm shrink-0 border-2 rounded-full",
+                                  isCorrectChoice ? "bg-emerald-500 text-white border-emerald-500" : 
+                                  isUserChoice ? "bg-red-500 text-white border-red-500" : "bg-white text-slate-400"
+                                )}>
+                                  {isCorrectChoice ? <Check className="h-5 w-5" /> : isUserChoice ? <XCircle className="h-5 w-5" /> : String.fromCharCode(65 + idx)}
+                                </div>
+                                <div className="flex-1">
+                                  <p className={cn("text-lg font-bold italic pt-1", isCorrectChoice ? "text-emerald-900" : isUserChoice ? "text-red-900" : "text-slate-500")}>
+                                    {optText}
+                                  </p>
+                                  {isCorrectChoice && <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">BONNE RÉPONSE</span>}
+                                  {isUserChoice && !isCorrectChoice && <span className="text-[9px] font-black text-red-600 uppercase tracking-widest">VOTRE DERNIER ÉCHEC</span>}
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
 
