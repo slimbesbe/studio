@@ -1,7 +1,8 @@
+
 "use client";
 
 import { useState, useMemo } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, where, orderBy, doc, deleteDoc } from 'firebase/firestore';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
@@ -32,15 +33,16 @@ export default function SessionQuestionsList() {
   const sessionRef = useMemoFirebase(() => doc(db, 'coachingSessions', sessionId), [db, sessionId]);
   const { data: session, isLoading: isSessionLoading } = useDoc(sessionRef);
 
+  // REQUETE ÉTANCHE : On filtre par SILO 'coaching' et par sessionID
   const questionsQuery = useMemoFirebase(() => {
     if (!session) return null;
     return query(
       collection(db, 'questions'),
-      where('index', '>=', session.questionStart),
-      where('index', '<=', session.questionEnd),
+      where('silo', '==', 'coaching'), // ÉTANCHÉITÉ PHYSIQUE
+      where('sourceIds', 'array-contains', sessionId),
       orderBy('index', 'asc')
     );
-  }, [db, session]);
+  }, [db, session, sessionId]);
 
   const { data: questions, isLoading: isQuestionsLoading } = useCollection(questionsQuery);
 
@@ -68,10 +70,6 @@ export default function SessionQuestionsList() {
       ? Math.max(...questions.map(q => q.index)) + 1 
       : session.questionStart;
     
-    if (nextIndex > session.questionEnd) {
-      toast({ variant: "destructive", title: "Limite atteinte", description: `Cette séance est limitée à Q${session.questionEnd}.` });
-      return;
-    }
     router.push(`/admin/manage-question/coaching/new?sessionId=${sessionId}&index=${nextIndex}`);
   };
 
@@ -86,7 +84,7 @@ export default function SessionQuestionsList() {
           <Button variant="ghost" size="icon" asChild className="h-14 w-14 rounded-2xl border-2"><Link href="/admin/coaching/sessions"><ChevronLeft className="h-6 w-6" /></Link></Button>
           <div>
             <h1 className="text-3xl font-black italic uppercase tracking-tighter text-primary">Contenu : {session?.title}</h1>
-            <p className="text-muted-foreground mt-1 uppercase tracking-widest text-[10px] font-bold italic">Visualisation des questions Q{session?.questionStart} à Q{session?.questionEnd}.</p>
+            <p className="text-muted-foreground mt-1 uppercase tracking-widest text-[10px] font-bold italic">Silo exclusif Coaching • Session {sessionId}</p>
           </div>
         </div>
         <div className="flex items-center gap-4 w-full max-w-xl">
@@ -151,8 +149,8 @@ export default function SessionQuestionsList() {
                   <TableCell colSpan={4} className="h-64 text-center">
                     <div className="flex flex-col items-center justify-center text-slate-300 gap-4">
                       <FileQuestion className="h-16 w-16 opacity-20" />
-                      <p className="font-black uppercase italic tracking-widest">Aucune question trouvée</p>
-                      <p className="text-[10px] font-bold text-slate-400">Importez ou générez via IA.</p>
+                      <p className="font-black uppercase italic tracking-widest">Aucune question dans cette session</p>
+                      <p className="text-[10px] font-bold text-slate-400">Importez ou créez spécifiquement pour le coaching.</p>
                     </div>
                   </TableCell>
                 </TableRow>

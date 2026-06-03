@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef } from 'react';
@@ -118,16 +119,12 @@ export function MatrixBulkImport({ isOpen, onClose }: { isOpen: boolean, onClose
             if (optVal) options.push({ id: String(k), text: String(optVal) });
           }
 
-          if (options.length === 0) return;
-
           const correctIds: string[] = [];
           const rawCorrect = correctValue.trim().toUpperCase();
           if (['A', 'B', 'C', 'D', 'E'].includes(rawCorrect[0])) {
-            const idx = rawCorrect.charCodeAt(0) - 64;
-            correctIds.push(String(idx));
+            correctIds.push(String(rawCorrect.charCodeAt(0) - 64));
           } else {
-            const numericValue = parseInt(rawCorrect);
-            correctIds.push(isNaN(numericValue) ? "1" : String(numericValue));
+            correctIds.push(String(parseInt(rawCorrect) || "1"));
           }
 
           const id = code ? `q_matrix_${String(code).replace(/[^a-zA-Z0-9]/g, '_')}` : `q_matrix_${Math.random().toString(36).substr(2, 9)}`;
@@ -148,9 +145,10 @@ export function MatrixBulkImport({ isOpen, onClose }: { isOpen: boolean, onClose
             tags: {
               domain: row.domain,
               approach: row.approach,
-              difficulty: row["Difficulté"] || row["difficulté"] || row["Difficulty"] || "Medium"
+              difficulty: row["Difficulté"] || "Medium"
             },
-            sourceIds: ['matrix'] // ETANCHEITE SILO
+            silo: 'matrix', // ÉTANCHÉITÉ PHYSIQUE ABSOLUE
+            sourceIds: ['matrix']
           }, { merge: true });
         });
 
@@ -158,27 +156,24 @@ export function MatrixBulkImport({ isOpen, onClose }: { isOpen: boolean, onClose
         setProgress(Math.round(((i + chunk.length) / total) * 100));
       }
 
-      toast({ title: "Importation Matrice Réussie", description: `${total} questions synchronisées dans le silo MATRIX.` });
+      toast({ title: "Importation Matrice Réussie", description: `${total} questions synchronisées.` });
       onClose();
     } catch (e) {
-      console.error(e);
       toast({ variant: "destructive", title: "Erreur import" });
     } finally {
       setIsImporting(false);
     }
   };
 
-  const totalQuestionsReady = Object.values(parsedSheets).reduce((acc, curr) => acc + curr.length, 0);
-
   return (
     <Dialog open={isOpen} onOpenChange={(val) => !isImporting && !val && onClose()}>
       <DialogContent className="max-w-3xl rounded-[40px] p-10 border-4 shadow-3xl">
         <DialogHeader>
-          <DialogTitle className="text-3xl font-black uppercase italic tracking-tighter text-indigo-600 flex items-center gap-3">
+          <DialogTitle className="text-3xl font-black uppercase italic text-indigo-600 flex items-center gap-3">
             <FileSpreadsheet className="h-8 w-8" /> Importation Matrice (Silo Dédié)
           </DialogTitle>
-          <DialogDescription className="font-bold text-slate-500 italic uppercase text-[10px] tracking-widest mt-2">
-            Importation massive cloisonnée. Les questions n'iront que dans la Matrice.
+          <DialogDescription className="font-bold text-slate-500 italic uppercase text-[10px] mt-2">
+            Importation massive cloisonnée. Les questions n'iront QUE dans la Matrice.
           </DialogDescription>
         </DialogHeader>
 
@@ -186,10 +181,10 @@ export function MatrixBulkImport({ isOpen, onClose }: { isOpen: boolean, onClose
           {!file ? (
             <div 
               onClick={() => fileInputRef.current?.click()}
-              className="border-4 border-dashed rounded-[32px] p-16 text-center cursor-pointer hover:bg-slate-50 transition-all group border-slate-200 hover:border-indigo-500"
+              className="border-4 border-dashed rounded-[32px] p-16 text-center cursor-pointer hover:bg-slate-50 transition-all border-slate-200"
             >
-              <Upload className="h-16 w-16 mx-auto text-slate-300 group-hover:text-indigo-500 mb-4 transition-transform group-hover:-translate-y-2" />
-              <p className="font-black uppercase italic text-slate-400 group-hover:text-indigo-600">Sélectionnez le fichier global 9 feuilles</p>
+              <Upload className="h-16 w-16 mx-auto text-slate-300 group-hover:text-indigo-500 mb-4" />
+              <p className="font-black uppercase italic text-slate-400">Sélectionnez le fichier global 9 feuilles</p>
               <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx,.xls" onChange={(e) => {
                 const f = e.target.files?.[0];
                 if (f) { setFile(f); parseFile(f); }
@@ -201,48 +196,22 @@ export function MatrixBulkImport({ isOpen, onClose }: { isOpen: boolean, onClose
                 <div className="flex items-center gap-4">
                   <div className="bg-indigo-500 p-2 rounded-xl"><CheckCircle2 className="text-white h-6 w-6" /></div>
                   <div>
-                    <p className="font-black italic text-indigo-900 text-lg leading-tight">{file.name}</p>
-                    <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{totalQuestionsReady} questions prêtes pour MATRIX</p>
+                    <p className="font-black italic text-indigo-900">{file.name}</p>
+                    <p className="text-[10px] font-black text-indigo-600 uppercase">Fichier analysé</p>
                   </div>
                 </div>
-                <Button variant="ghost" className="font-black uppercase text-xs text-indigo-700 hover:bg-indigo-100" onClick={() => { setFile(null); setParsedSheets({}); setErrors([]); }}>Changer</Button>
+                <Button variant="ghost" onClick={() => { setFile(null); setParsedSheets({}); }}>Changer</Button>
               </div>
-
-              {errors.length > 0 && (
-                <div className="bg-red-50 p-6 rounded-2xl border-2 border-red-100 space-y-3">
-                  <p className="text-xs font-black text-red-600 uppercase flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> Structure invalide :</p>
-                  {errors.map((err, i) => <p key={i} className="text-xs font-bold text-red-500 italic">• {err}</p>)}
-                </div>
-              )}
-
-              {Object.keys(parsedSheets).length > 0 && (
-                <div className="grid grid-cols-3 gap-2">
-                  {SHEET_MAPPING.map(m => (
-                    <div key={m.name} className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-center">
-                      <p className="text-[8px] font-black uppercase text-slate-400 italic mb-1">{m.name}</p>
-                      <p className="text-sm font-black text-slate-700 italic">{parsedSheets[m.name]?.length || 0} Q</p>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {errors.length > 0 && <div className="bg-red-50 p-4 rounded-xl text-red-500 text-xs italic">{errors[0]}</div>}
             </div>
           )}
-
-          {isImporting && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-end mb-1">
-                <p className="text-[10px] font-black uppercase text-indigo-600 italic">Progression</p>
-                <p className="text-lg font-black text-indigo-600 italic">{progress}%</p>
-              </div>
-              <Progress value={progress} className="h-4 rounded-full bg-indigo-100" />
-            </div>
-          )}
+          {isImporting && <Progress value={progress} className="h-4 rounded-full" />}
         </div>
 
         <DialogFooter className="gap-4">
           <Button variant="outline" className="h-16 rounded-2xl font-black uppercase flex-1 border-4" onClick={onClose} disabled={isImporting}>Annuler</Button>
-          <Button disabled={Object.keys(parsedSheets).length === 0 || isImporting || isParsing || errors.length > 0} onClick={handleImport} className="h-16 rounded-2xl font-black bg-indigo-600 hover:bg-indigo-700 flex-1 shadow-2xl uppercase text-lg">
-            {isImporting ? <Loader2 className="animate-spin h-6 w-6" /> : "Synchroniser vers MATRIX"}
+          <Button disabled={Object.keys(parsedSheets).length === 0 || isImporting || isParsing || errors.length > 0} onClick={handleImport} className="h-16 rounded-2xl font-black bg-indigo-600 hover:bg-indigo-700 flex-1 shadow-2xl uppercase">
+            Synchroniser vers MATRIX
           </Button>
         </DialogFooter>
       </DialogContent>

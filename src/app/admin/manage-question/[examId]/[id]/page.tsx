@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -57,7 +58,7 @@ export default function ManageQuestionPage() {
   const questionId = params.id as string;
   const isNew = questionId === 'new';
 
-  // SILO DETECTION
+  // SILO DETECTION STRICTE
   const contextType = searchParams.get('type') || (sourceIdParam === 'matrix' ? 'matrix' : sourceIdParam === 'practice' ? 'practice' : 'exams');
 
   const isExamSilo = contextType === 'exams' || sourceIdParam.startsWith('exam');
@@ -137,9 +138,18 @@ export default function ManageQuestionPage() {
     setIsSubmitting(true);
     try {
       let finalSources: string[] = [];
-      if (isPracticeSilo) finalSources = ['practice'];
-      else if (isMatrixSilo) finalSources = ['matrix'];
-      else if (isExamSilo) finalSources = selectedExamIds.length > 0 ? selectedExamIds : ['exam1'];
+      let finalSilo = contextType;
+
+      if (isPracticeSilo) {
+        finalSources = ['practice'];
+        finalSilo = 'practice';
+      } else if (isMatrixSilo) {
+        finalSources = ['matrix'];
+        finalSilo = 'matrix';
+      } else if (isExamSilo) {
+        finalSources = selectedExamIds.length > 0 ? selectedExamIds : ['exam1'];
+        finalSilo = 'exams';
+      }
 
       const finalData = {
         statement, 
@@ -155,6 +165,7 @@ export default function ManageQuestionPage() {
         updatedAt: serverTimestamp(),
         tags: { domain, approach, difficulty },
         sourceIds: finalSources,
+        silo: finalSilo, // FORCE LE SILO POUR L'ÉTANCHÉITÉ
         examId: isExamSilo ? finalSources[0] : null,
         questionCode: questionCode || `Q-${Date.now()}`
       };
@@ -166,7 +177,7 @@ export default function ManageQuestionPage() {
         await updateDoc(doc(db, 'questions', questionId), finalData);
       }
 
-      toast({ title: "Sauvegarde réussie", description: `Question enregistrée dans le silo [${contextType.toUpperCase()}].` });
+      toast({ title: "Sauvegarde réussie", description: `Question enregistrée dans le silo [${finalSilo.toUpperCase()}].` });
       router.back();
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur lors de l'enregistrement" });

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef } from 'react';
@@ -22,7 +23,6 @@ interface ImportQuestionsModalProps {
   isOpen: boolean;
   onClose: () => void;
   examId?: string; // Represents the target silo ID (e.g., 'practice', 'matrix', or 'exam1')
-  filterType?: 'domain' | 'approach' | 'all';
 }
 
 interface ParsedQuestion {
@@ -39,7 +39,7 @@ interface ParsedQuestion {
   };
 }
 
-export function ImportQuestionsModal({ isOpen, onClose, examId = 'practice', filterType = 'all' }: ImportQuestionsModalProps) {
+export function ImportQuestionsModal({ isOpen, onClose, examId = 'practice' }: ImportQuestionsModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -84,16 +84,6 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'practice', fil
     return val;
   };
 
-  const generateId = (text: string, exam: string) => {
-    let hash = 0;
-    const str = text + exam;
-    for (let i = 0; i < str.length; i++) {
-      hash = (hash << 5) - hash + str.charCodeAt(i);
-      hash |= 0;
-    }
-    return `q_${exam}_${Math.abs(hash).toString(36)}`;
-  };
-
   const parseFile = async (file: File) => {
     setIsParsing(true);
     setErrors([]);
@@ -112,51 +102,31 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'practice', fil
 
         json.forEach((row, index) => {
           const lineNum = index + 2;
-          
           const statement = row["Scénario / Question"] || row["Énoncé"] || row["statement"] || row["text"] || row["Question"];
           const justification = row["Justification"] || row["explanation"] || row["Rationale"] || "";
           const correctValue = String(row["Réponse Correcte"] || row["correct"] || row["Correct"] || row["Answer"] || "");
           const code = row["Numéro"] || row["Code"] || row["questionCode"];
           
-          if (!statement) {
-            parseErrors.push({ line: lineNum, msg: "Énoncé de question manquant." });
-            return;
-          }
+          if (!statement) return;
 
           const options: { id: string, text: string }[] = [];
           ['A', 'B', 'C', 'D', 'E'].forEach((letter, i) => {
             const optVal = row[`Option ${letter}`] || row[`option ${i+1}`] || row[`option${i+1}`] || row[`choice${i+1}`];
-            if (optVal) {
-              options.push({ id: String(i + 1), text: String(optVal) });
-            }
+            if (optVal) options.push({ id: String(i + 1), text: String(optVal) });
           });
 
-          if (options.length < 2) {
-            parseErrors.push({ line: lineNum, msg: "Pas assez d'options de réponse trouvées." });
-            return;
-          }
+          if (options.length < 2) return;
 
           const rawCorrects = correctValue.split(',').map(s => s.trim().toUpperCase());
           const mappedIds: string[] = [];
           
-          let isValidLine = true;
           rawCorrects.forEach(cid => {
              if (!cid) return;
-             let id = "";
-             if (['A','B','C','D','E'].includes(cid[0])) {
-               id = (cid.charCodeAt(0) - 64).toString();
-             } else {
-               id = cid;
-             }
-             
+             let id = ['A','B','C','D','E'].includes(cid[0]) ? (cid.charCodeAt(0) - 64).toString() : cid;
              if (options.find(o => o.id === id)) mappedIds.push(id);
-             else {
-               isValidLine = false;
-               parseErrors.push({ line: lineNum, msg: `La réponse correcte '${cid}' ne correspond à aucune option.` });
-             }
           });
 
-          if (isValidLine && mappedIds.length > 0) {
+          if (mappedIds.length > 0) {
             results.push({
               statement: String(statement).trim(),
               options,
@@ -174,9 +144,8 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'practice', fil
         });
 
         setParsedData(results);
-        setErrors(parseErrors);
       } catch (err) {
-        toast({ variant: "destructive", title: "Erreur de lecture du fichier." });
+        toast({ variant: "destructive", title: "Erreur lecture" });
       } finally {
         setIsParsing(false);
       }
@@ -193,16 +162,15 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'practice', fil
       const total = parsedData.length;
       const batchSize = 50;
       
+      // DETERMINATION DU SILO CIBLE
+      const targetSilo = examId === 'practice' ? 'practice' : examId === 'matrix' ? 'matrix' : 'exams';
+
       for (let i = 0; i < total; i += batchSize) {
         const batch = writeBatch(db);
         const chunk = parsedData.slice(i, i + batchSize);
         
         chunk.forEach((q) => {
-          // --- ÉTANCHÉITÉ DES SILOS ---
-          // On s'assure que le sourceIds ne contient QUE le silo cible actuel
-          const finalSiloId = examId; 
-          
-          const questionId = q.questionCode ? `q_${finalSiloId}_${String(q.questionCode).replace(/[^a-zA-Z0-9]/g, '_')}` : generateId(q.statement, finalSiloId);
+          const questionId = q.questionCode ? `q_${targetSilo}_${String(q.questionCode).replace(/[^a-zA-Z0-9]/g, '_')}` : `q_${targetSilo}_${Math.random().toString(36).substr(2, 9)}`;
           const qRef = doc(db, 'questions', questionId);
 
           batch.set(qRef, {
@@ -211,13 +179,12 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'practice', fil
             text: q.statement, 
             choices: q.options.map(o => o.text),
             correctChoice: q.correctOptionIds[0],
-            questionCode: q.questionCode || questionId,
             isActive: true,
-            createdBy: profile?.id || 'admin',
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
-            sourceIds: [finalSiloId], // ISOLATION STRICTE
-            examId: finalSiloId.startsWith('exam') ? finalSiloId : null
+            silo: targetSilo, // ISOLATION PHYSIQUE
+            sourceIds: [examId],
+            examId: targetSilo === 'exams' ? examId : null
           }, { merge: true });
         });
 
@@ -225,11 +192,11 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'practice', fil
         setProgress(Math.round(((i + chunk.length) / total) * 100));
       }
 
-      toast({ title: "Importation terminée", description: `${total} questions synchronisées dans le silo [${examId.toUpperCase()}].` });
+      toast({ title: "Importation terminée", description: `${total} questions injectées dans le silo ${targetSilo.toUpperCase()}.` });
       onClose();
       setFile(null);
     } catch (e) {
-      toast({ variant: "destructive", title: "Erreur d'importation." });
+      toast({ variant: "destructive", title: "Erreur import" });
     } finally {
       setIsImporting(false);
     }
@@ -237,13 +204,13 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'practice', fil
 
   return (
     <Dialog open={isOpen} onOpenChange={(val) => !isImporting && !val && onClose()}>
-      <DialogContent className="max-w-3xl rounded-[40px] p-10 border-4 shadow-3xl">
+      <DialogContent className="max-w-2xl rounded-[40px] p-10 border-4 shadow-3xl">
         <DialogHeader>
-          <DialogTitle className="text-3xl font-black uppercase italic tracking-tighter text-emerald-600 flex items-center gap-3">
+          <DialogTitle className="text-3xl font-black uppercase italic text-emerald-600 flex items-center gap-3">
             <FileSpreadsheet className="h-8 w-8" /> Importation Silo : {examId.toUpperCase()}
           </DialogTitle>
-          <DialogDescription className="font-bold text-slate-500 italic uppercase text-[10px] tracking-widest mt-2">
-            Les questions seront exclusivement injectées dans la banque sélectionnée.
+          <DialogDescription className="font-bold text-slate-500 italic uppercase text-[10px] mt-2">
+            Isolation garantie. Les données ne seront visibles que dans ce silo.
           </DialogDescription>
         </DialogHeader>
 
@@ -251,59 +218,37 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'practice', fil
           {!file ? (
             <div 
               onClick={() => fileInputRef.current?.click()}
-              className="border-4 border-dashed rounded-3xl p-16 text-center cursor-pointer hover:bg-slate-50 transition-all group border-slate-200 hover:border-emerald-500"
+              className="border-4 border-dashed rounded-3xl p-16 text-center cursor-pointer hover:bg-slate-50 transition-all group border-slate-200"
             >
-              <Upload className="h-16 w-16 mx-auto text-slate-300 group-hover:text-emerald-500 mb-4 transition-transform group-hover:-translate-y-2" />
-              <p className="font-black uppercase italic text-slate-400 group-hover:text-emerald-600">Sélectionnez le fichier Excel</p>
+              <Upload className="h-16 w-16 mx-auto text-slate-300 group-hover:text-emerald-500 mb-4" />
+              <p className="font-black uppercase italic text-slate-400">Sélectionnez le fichier Excel</p>
               <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx,.xls" onChange={(e) => {
                 const f = e.target.files?.[0];
                 if (f) { setFile(f); parseFile(f); }
               }} />
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-4">
               <div className="flex items-center justify-between bg-emerald-50 p-6 rounded-2xl border-2 border-emerald-100">
                 <div className="flex items-center gap-4">
                   <div className="bg-emerald-500 p-2 rounded-xl"><CheckCircle2 className="text-white h-6 w-6" /></div>
                   <div>
-                    <p className="font-black italic text-emerald-900 text-lg leading-tight">{file.name}</p>
-                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{parsedData.length} questions prêtes</p>
+                    <p className="font-black italic text-emerald-900">{file.name}</p>
+                    <p className="text-[10px] font-black text-emerald-600 uppercase">{parsedData.length} questions prêtes</p>
                   </div>
                 </div>
-                <Button variant="ghost" className="font-black uppercase text-xs text-emerald-700 hover:bg-emerald-100" onClick={() => { setFile(null); setParsedData([]); }}>Changer</Button>
+                <Button variant="ghost" onClick={() => { setFile(null); setParsedData([]); }}>Changer</Button>
               </div>
-
-              {errors.length > 0 && (
-                <div className="bg-red-50 p-4 rounded-xl border-2 border-red-100 max-h-40 overflow-y-auto space-y-1">
-                  <p className="text-xs font-black text-red-600 uppercase mb-2 flex items-center gap-2"><XCircle className="h-4 w-4" /> Erreurs détectées :</p>
-                  {errors.map((err, i) => <p key={i} className="text-[10px] font-bold text-red-500 italic">Ligne {err.line}: {err.msg}</p>)}
-                </div>
-              )}
-
-              {isParsing && (
-                <div className="flex flex-col items-center py-4 gap-3">
-                  <Loader2 className="animate-spin h-10 w-10 text-emerald-500" />
-                  <p className="font-black text-[10px] uppercase text-emerald-600 italic tracking-widest animate-pulse">Analyse des données...</p>
-                </div>
-              )}
+              {isParsing && <div className="flex flex-col items-center py-4 gap-2"><Loader2 className="animate-spin h-10 w-10 text-emerald-500" /><p className="font-black text-[10px] uppercase text-emerald-600 italic">Analyse...</p></div>}
             </div>
           )}
-
-          {isImporting && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-end mb-1">
-                <p className="text-[10px] font-black uppercase text-emerald-600 italic">Progression</p>
-                <p className="text-lg font-black text-emerald-600 italic">{progress}%</p>
-              </div>
-              <Progress value={progress} className="h-4 rounded-full bg-emerald-100" />
-            </div>
-          )}
+          {isImporting && <Progress value={progress} className="h-4 rounded-full" />}
         </div>
 
         <DialogFooter className="gap-4">
           <Button variant="outline" className="h-16 rounded-2xl font-black uppercase flex-1 border-4" onClick={onClose} disabled={isImporting}>Annuler</Button>
-          <Button disabled={parsedData.length === 0 || isImporting || isParsing} onClick={handleImport} className="h-16 rounded-2xl font-black bg-emerald-600 hover:bg-emerald-700 flex-1 shadow-2xl uppercase tracking-widest text-lg">
-            {isImporting ? <Loader2 className="animate-spin h-6 w-6" /> : "Lancer l'Import"}
+          <Button disabled={parsedData.length === 0 || isImporting || isParsing} onClick={handleImport} className="h-16 rounded-2xl font-black bg-emerald-600 hover:bg-emerald-700 flex-1 shadow-2xl uppercase">
+            Lancer l'Import
           </Button>
         </DialogFooter>
       </DialogContent>

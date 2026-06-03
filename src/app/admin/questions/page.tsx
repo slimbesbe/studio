@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useState, useMemo, Suspense, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, deleteDoc, doc, limit, writeBatch } from 'firebase/firestore';
+import { collection, query, orderBy, deleteDoc, doc, limit, writeBatch, where } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -75,38 +76,33 @@ function QuestionsList() {
 
   const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
 
+  // REQUETE AVEC FILTRE SILO STRICT
   const questionsQuery = useMemoFirebase(() => {
     if (!isAdmin) return null;
-    return query(collection(db, 'questions'), orderBy('updatedAt', 'desc'), limit(2500));
-  }, [db, isAdmin]);
+    return query(
+      collection(db, 'questions'), 
+      where('silo', '==', contextType), // FILTRAGE PHYSIQUE PAR SILO
+      orderBy('updatedAt', 'desc'), 
+      limit(2500)
+    );
+  }, [db, isAdmin, contextType]);
 
   const { data: questions, isLoading } = useCollection(questionsQuery);
 
-  // FILTRAGE STRICT PAR SILO POUR GARANTIR L'ÉTANCHÉITÉ
   const filteredQuestions = useMemo(() => {
     if (!questions) return [];
     return questions.filter(q => {
-      const sources = q.sourceIds || [];
-      
-      // 1. FILTRAGE PAR SILO (OBLIGATOIRE ET EXCLUSIF)
-      if (contextType === 'practice') {
-        if (!sources.includes('practice')) return false;
-      } else if (contextType === 'matrix') {
-        if (!sources.includes('matrix')) return false;
-      } else {
-        // Mode Examens : on cherche n'importe quel ID commençant par exam
-        if (!sources.some(s => s.startsWith('exam'))) return false;
-        
-        // Si on a sélectionné un examen précis (ex: exam1)
-        if (filterSubSource !== 'all_exams' && !sources.includes(filterSubSource)) return false;
+      // 1. FILTRAGE PAR SOUS-SOURCE (EXAMENS)
+      if (contextType === 'exams' && filterSubSource !== 'all_exams') {
+        if (!q.sourceIds?.includes(filterSubSource)) return false;
       }
 
-      // 2. FILTRAGE PAR RECHERCHE TEXTUELLE
+      // 2. RECHERCHE
       const textMatch = (q.statement || q.text || '').toLowerCase().includes(searchTerm.toLowerCase());
       const codeMatch = (q.questionCode || '').toLowerCase().includes(searchTerm.toLowerCase());
       if (!textMatch && !codeMatch) return false;
 
-      // 3. FILTRAGE PAR TAGS PMP
+      // 3. TAGS
       const matchDomain = filterDomain === 'all' || q.tags?.domain === filterDomain;
       const matchApproach = filterApproach === 'all' || q.tags?.approach === filterApproach;
       
@@ -177,16 +173,8 @@ function QuestionsList() {
     XLSX.writeFile(wb, `modele_simulux_${contextType}.xlsx`);
   };
 
-  if (isLoading) return <div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
+  if (isLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
   if (!isAdmin) return null;
-
-  const getResetTargetLabel = () => {
-    if (contextType === 'exams') {
-      return EXAM_LABELS[filterSubSource] || 'Examens';
-    }
-    if (contextType === 'matrix') return 'la Matrice Magique';
-    return 'la Pratique Libre';
-  };
 
   const PageIcon = contextType === 'exams' ? Trophy : contextType === 'matrix' ? LayoutGrid : BookOpen;
   const PageTitle = contextType === 'exams' ? 'Banque Examens Blancs' : contextType === 'matrix' ? 'Banque Matrice Magique' : 'Banque Pratique Libre';
@@ -321,7 +309,7 @@ function QuestionsList() {
                   <TableCell className="text-right px-10">
                     <div className="flex justify-end gap-2">
                       <Button variant="ghost" size="icon" asChild className="h-10 w-10 rounded-xl border-2 hover:bg-indigo-50 text-indigo-600">
-                        <Link href={`/admin/manage-question/${contextType}/${q.id}`}><Pencil className="h-4 w-4" /></Link>
+                        <Link href={`/admin/manage-question/${contextType}/${q.id}?type=${contextType}`}><Pencil className="h-4 w-4" /></Link>
                       </Button>
                       <Button variant="ghost" size="icon" onClick={() => handleDelete(q.id)} className="h-10 w-10 rounded-xl border-2 hover:bg-red-50 text-red-600">
                         <Trash2 className="h-4 w-4" />
@@ -349,7 +337,7 @@ function QuestionsList() {
             </div>
             <DialogTitle className="text-4xl font-black uppercase italic text-destructive tracking-tighter">Action Critique</DialogTitle>
             <DialogDescription className="text-lg font-bold text-slate-600 leading-relaxed uppercase italic mt-4">
-              Voulez-vous vider totalement <span className="text-destructive underline">{getResetTargetLabel()}</span> ?
+              Voulez-vous vider totalement ce silo ?
               <br />
               <span className="text-xs font-black text-slate-400 mt-2 block">Cette action supprimera définitivement {filteredQuestions.length} questions.</span>
             </DialogDescription>

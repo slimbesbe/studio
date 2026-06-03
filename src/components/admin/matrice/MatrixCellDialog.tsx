@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from 'react';
@@ -22,7 +23,7 @@ import {
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, where, deleteDoc, doc, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
@@ -39,11 +40,12 @@ export function MatrixCellDialog({ isOpen, onClose, domain, approach }: MatrixCe
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
 
+  // REQUETE AVEC SILO ET TAGS
   const questionsQuery = useMemoFirebase(() => {
     if (!domain || !approach) return null;
     return query(
       collection(db, 'questions'),
-      where('sourceIds', 'array-contains', 'matrix'), // ETANCHEITE SILO
+      where('silo', '==', 'matrix'), // ÉTANCHÉITÉ PHYSIQUE
       where('tags.domain', '==', domain),
       where('tags.approach', '==', approach)
     );
@@ -60,7 +62,7 @@ export function MatrixCellDialog({ isOpen, onClose, domain, approach }: MatrixCe
   }, [questions, searchTerm]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Supprimer cette question de la Matrice ?")) return;
+    if (!confirm("Supprimer cette question ?")) return;
     try {
       await deleteDoc(doc(db, 'questions', id));
       toast({ title: "Supprimée" });
@@ -82,7 +84,7 @@ export function MatrixCellDialog({ isOpen, onClose, domain, approach }: MatrixCe
                 {domain} x {approach}
               </DialogTitle>
               <DialogDescription className="font-bold text-slate-400 uppercase text-[10px] tracking-widest italic mt-1">
-                Questions exclusives à la Matrice Magique • {questions?.length || 0} Total
+                Silo exclusif Matrix • {questions?.length || 0} questions
               </DialogDescription>
             </div>
           </div>
@@ -122,7 +124,7 @@ export function MatrixCellDialog({ isOpen, onClose, domain, approach }: MatrixCe
                   {isLoading ? (
                     <TableRow><TableCell colSpan={4} className="h-64 text-center"><Loader2 className="animate-spin mx-auto h-8 w-8 text-indigo-600" /></TableCell></TableRow>
                   ) : filteredQuestions.length === 0 ? (
-                    <TableRow><TableCell colSpan={4} className="h-64 text-center font-black uppercase italic text-slate-300">Aucune question dans ce segment.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={4} className="h-64 text-center font-black uppercase italic text-slate-300">Aucune question trouvée.</TableCell></TableRow>
                   ) : filteredQuestions.map((q) => (
                     <TableRow key={q.id} className="h-24 hover:bg-slate-50 transition-all border-b last:border-0 group">
                       <TableCell className="px-8">
