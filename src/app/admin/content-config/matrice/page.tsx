@@ -2,8 +2,8 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, doc } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -54,7 +54,7 @@ export default function AdminMatriceConfig() {
     if (!allQuestions) return stats;
 
     allQuestions.forEach(q => {
-      // SÉCURITÉ SUPPLÉMENTAIRE : On re-vérifie le silo côté client pour une étanchéité parfaite
+      // SÉCURITÉ ABSOLUE : On ignore tout ce qui n'est pas silo matrix
       if (q.silo !== 'matrix') return;
 
       const d = q.tags?.domain === 'Processus' ? 'Process' : (q.tags?.domain || 'Process');
@@ -103,6 +103,7 @@ export default function AdminMatriceConfig() {
 
       <div className="bg-white rounded-[60px] p-12 lg:p-20 shadow-2xl border-2 border-slate-50 overflow-x-auto">
         <div className="min-w-[1000px]">
+          {/* HEADERS COLONNES */}
           <div className="grid grid-cols-4 gap-8 mb-12">
             <div />
             {APPROACHES.map(a => (
@@ -114,6 +115,7 @@ export default function AdminMatriceConfig() {
             ))}
           </div>
 
+          {/* GRILLE 3x3 */}
           <div className="space-y-8">
             {DOMAINS.map(d => (
               <div key={d.id} className="grid grid-cols-4 gap-8 items-stretch">
@@ -133,23 +135,22 @@ export default function AdminMatriceConfig() {
                       key={`${d.key}_${a.key}`}
                       onClick={() => setSelectedCell({ domain: d.id, approach: a.id })}
                       className={cn(
-                        "group relative rounded-[40px] border-none p-10 transition-all duration-300 flex flex-col items-center justify-center gap-4 text-center hover:scale-[1.03] hover:shadow-2xl shadow-sm",
-                        "bg-[#f0fdf4] hover:bg-[#dcfce7]"
+                        "group relative rounded-[40px] border-none p-10 transition-all duration-300 flex flex-col items-center justify-center gap-2 text-center hover:scale-[1.03] hover:shadow-2xl shadow-sm bg-[#f0fdf4] hover:bg-[#dcfce7]"
                       )}
                     >
                       <div className="flex flex-col items-center gap-0">
-                        <span className="text-6xl font-black italic tracking-tighter text-emerald-600 leading-none">{count}</span>
-                        <span className="text-[10px] font-black uppercase text-emerald-600/60 tracking-widest mt-1">Questions</span>
+                        <span className="text-6xl font-black italic tracking-tighter text-emerald-800 leading-none">{count}</span>
+                        <span className="text-[11px] font-black uppercase text-emerald-700/60 tracking-[0.2em] mt-2">QUESTIONS</span>
                       </div>
                       
-                      <div className="mt-2">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest italic opacity-60">
+                      <div className="mt-4">
+                        <p className="text-[9px] font-black text-emerald-800 uppercase tracking-widest italic opacity-80">
                           {filename}
                         </p>
                       </div>
 
                       <div className="mt-4">
-                        <Badge className="bg-emerald-500 text-white border-none font-black italic uppercase text-[9px] px-4 py-1.5 rounded-full tracking-widest">
+                        <Badge className="bg-emerald-600 text-white border-none font-black italic uppercase text-[9px] px-6 py-2 rounded-full tracking-[0.3em] shadow-md">
                           READY
                         </Badge>
                       </div>

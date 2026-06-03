@@ -40,7 +40,7 @@ export function MatrixCellDialog({ isOpen, onClose, domain, approach }: MatrixCe
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
 
-  // REQUETE STRICTE : silo == matrix ET tags
+  // REQUETE STRICTE : silo == matrix ET tags. On ne pioche QUE dans le silo matrix.
   const questionsQuery = useMemoFirebase(() => {
     if (!domain || !approach) return null;
     return query(
@@ -84,14 +84,14 @@ export function MatrixCellDialog({ isOpen, onClose, domain, approach }: MatrixCe
                 Silo Matrix : {domain} x {approach}
               </DialogTitle>
               <DialogDescription className="font-bold text-slate-400 uppercase text-[10px] tracking-widest italic mt-1">
-                Contenu totalement indépendant des examens • {questions?.length || 0} questions
+                Contenu totalement indépendant des examens • {questions?.length || 0} questions trouvées.
               </DialogDescription>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <Button asChild className="h-12 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-xs italic shadow-lg">
               <Link href={`/admin/manage-question/matrix/new?type=matrix&domain=${domain}&approach=${approach}`}>
-                <Plus className="h-4 w-4 mr-2" /> Ajouter
+                <Plus className="h-4 w-4 mr-2" /> Ajouter Question
               </Link>
             </Button>
             <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full h-10 w-10 border-2"><X /></Button>
@@ -104,7 +104,7 @@ export function MatrixCellDialog({ isOpen, onClose, domain, approach }: MatrixCe
             <Input 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Rechercher une question..."
+              placeholder="Rechercher par code ou énoncé..."
               className="h-14 rounded-2xl pl-12 border-2 bg-white font-bold italic"
             />
           </div>

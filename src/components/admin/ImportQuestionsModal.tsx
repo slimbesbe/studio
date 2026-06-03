@@ -142,8 +142,6 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'practice' }: I
       const batchSize = 50;
       
       // DÉTERMINATION STRICTE DU SILO CIBLE
-      // Si l'examId ressemble à 'exam1', 'exam2'... c'est le silo 'exams'
-      // Sinon on respecte 'practice' ou 'matrix'
       let targetSilo = 'practice';
       if (examId === 'matrix') targetSilo = 'matrix';
       else if (examId?.startsWith('exam')) targetSilo = 'exams';
@@ -153,7 +151,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'practice' }: I
         const chunk = parsedData.slice(i, i + batchSize);
         
         chunk.forEach((q) => {
-          // ID UNIQUE POUR ÉVITER TOUTE COLLISION ENTRE SILOS
+          // ID UNIQUE PRÉFIXÉ PAR SILO POUR ÉVITER TOUTE COLLISION
           const questionId = q.questionCode 
             ? `q_${targetSilo}_${String(q.questionCode).replace(/[^a-zA-Z0-9]/g, '_')}` 
             : `q_${targetSilo}_${Math.random().toString(36).substr(2, 9)}`;
@@ -168,7 +166,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'practice' }: I
             correctChoice: q.correctOptionIds[0],
             isActive: true,
             updatedAt: serverTimestamp(),
-            silo: targetSilo, // PARTITIONNEMENT PHYSIQUE ABSOLU
+            silo: targetSilo, // PARTITIONNEMENT PHYSIQUE ABSOLU FORCE
             sourceIds: [examId],
             examId: targetSilo === 'exams' ? examId : null
           }, { merge: true });
@@ -196,7 +194,7 @@ export function ImportQuestionsModal({ isOpen, onClose, examId = 'practice' }: I
             <ShieldCheck className="h-8 w-8" /> Silo : {examId.toUpperCase()}
           </DialogTitle>
           <DialogDescription className="font-bold text-slate-500 italic uppercase text-[10px] mt-2">
-            Les questions seront isolées physiquement dans ce compartiment.
+            Les questions seront isolées physiquement dans ce compartiment pour éviter toute collision.
           </DialogDescription>
         </DialogHeader>
 
