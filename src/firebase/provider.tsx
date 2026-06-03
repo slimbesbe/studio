@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect, useRef } from 'react';
@@ -69,7 +68,10 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
     return () => unsubscribe();
   }, [auth, firestore]);
 
-  // Listener temps réel sur le document utilisateur pour le verrouillage anti-partage
+  /**
+   * SESSION GUARD & REAL-TIME LOCK DETECTION
+   * Écoute le document utilisateur en temps réel pour détecter un verrouillage de sécurité.
+   */
   useEffect(() => {
     if (!firestore || !user) {
       if (!user) {
@@ -89,17 +91,20 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
       if (docSnap.exists()) {
         const profileData = docSnap.data();
         
-        // PROTECTION GLOBALE : Déconnexion forcée si verrouillé
+        // PROTECTION CRITIQUE : Déconnexion forcée si le compte est verrouillé (Anti-Partage)
         if (profileData.isLocked === true && !isHardcodedAdmin) {
-          console.warn("Compte verrouillé détecté - Déconnexion forcée.");
-          // On vide tout pour empêcher toute réutilisation de session locale
+          console.warn("ALERTE SÉCURITÉ : Compte verrouillé détecté - Déconnexion forcée.");
+          // Nettoyage complet des traces locales
           localStorage.clear();
           sessionStorage.clear();
+          // Déconnexion Firebase
           await signOut(auth);
+          // Redirection vers la page d'accès refusé
           router.replace('/access-denied');
           return;
         }
 
+        // Vérification expiration de l'accès
         let isExpired = false;
         if (profileData.expiresAt) {
           try {
@@ -122,6 +127,7 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
           role: finalRole 
         });
       } else if (isHardcodedAdmin) {
+        // Auto-création du profil admin si manquant
         const initialAdmin = {
           id: user.uid,
           email: user.email,
@@ -139,14 +145,14 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
       }
       setIsUserLoading(false);
     }, (error) => {
+      console.error("Firestore Listen Error:", error);
       setIsUserLoading(false);
-      // On n'émet pas d'erreur de permission ici car le signOut peut arriver juste après le lock
     });
 
     return () => unsubscribe();
   }, [firestore, user, auth, router]);
 
-  // Gestion du premier login
+  // Gestion du premier login et bienvenue
   useEffect(() => {
     if (!firestore || !user || user.isAnonymous || !profile || profile.firstLoginAt) return;
     if (welcomeTriggered.current === user.uid) return;
@@ -175,6 +181,7 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
     logActivity(firestore, user.uid, 'first_login');
   }, [firestore, user, profile]);
 
+  // Tracker de temps d'étude
   useEffect(() => {
     if (!firestore || !user || user.isAnonymous || !profile || profile.role !== 'user' || profile.isLocked) return;
     const interval = setInterval(() => {

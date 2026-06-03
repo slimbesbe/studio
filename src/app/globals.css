@@ -38,6 +38,11 @@
     width: 100%;
     margin: 0;
     padding: 0;
+    /* Empêche la sélection de texte sur toute l'app */
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
   }
   
   * {
@@ -51,6 +56,13 @@
     flex-direction: column;
     overflow-x: hidden;
     scroll-behavior: smooth;
+  }
+}
+
+/* PROTECTION IMPRESSION : Rend la page blanche à l'impression */
+@media print {
+  body {
+    display: none !important;
   }
 }
 

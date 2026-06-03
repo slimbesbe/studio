@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -28,6 +27,9 @@ export default function Home() {
 
   const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com', 'jedgrira1@gmail.com'];
 
+  /**
+   * Génère une empreinte numérique unique pour l'appareil actuel.
+   */
   const getDeviceFingerprint = () => {
     if (typeof window === 'undefined') return 'server';
     return `${navigator.userAgent}-${window.screen.width}x${window.screen.height}`;
@@ -42,56 +44,57 @@ export default function Home() {
     const currentFingerprint = getDeviceFingerprint();
 
     try {
-      // 1. Authentification Firebase
+      // 1. Authentification Firebase (Vérification identifiants)
       const userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, password);
       const user = userCredential.user;
 
-      // 2. Récupération directe du document utilisateur par UID
+      // 2. Récupération du profil Firestore
       const userDocRef = doc(db, 'users', user.uid);
       const userDocSnap = await getDoc(userDocRef);
       
       if (!userDocSnap.exists()) {
-        throw new Error("Profil introuvable en base.");
+        throw new Error("Profil introuvable.");
       }
 
       const userData = userDocSnap.data();
       const isSA = ADMIN_EMAILS.includes(trimmedEmail);
 
-      // BLOCAGE 1 : Compte déjà verrouillé historiquement
+      // CAS A : Le compte est déjà marqué comme verrouillé
       if (userData.isLocked === true) {
         await signOut(auth);
-        setErrorMessage("ALERTE : Votre compte a été bloqué pour non-respect des règles de sécurité (connexion simultanée ou multi-appareils). Veuillez contacter l'administrateur.");
+        setErrorMessage("ALERTE : Votre compte a été bloqué pour non-respect des règles de sécurité (connexion simultanée ou multi-appareils). Veuillez contacter l'administrateur pour récupérer votre compte.");
         return;
       }
 
-      // BLOCAGE 2 : Détection de connexion simultanée (autre appareil)
-      // On vérifie si une session existe ET si l'appareil est différent
-      if (!isSA && userData.activeSession && userData.activeSession.deviceId !== currentFingerprint) {
-        // Détection de multi-device -> On verrouille le compte immédiatement
+      // CAS B : DÉTECTION DOUBLE CONNEXION (PC DIFFÉRENT)
+      // Si une session active existe et que le deviceId est différent du device actuel
+      if (!isSA && userData.activeSession?.deviceId && userData.activeSession.deviceId !== currentFingerprint) {
+        // Blocage immédiat du compte
         await updateDoc(userDocRef, {
           isLocked: true,
           lockReason: 'multi-device',
           updatedAt: serverTimestamp()
         });
 
-        // Notifications emails pédagogiques
+        // Envoi des alertes emails pédagogoques (Admin + User)
         sendSecurityLockEmails(db, trimmedEmail, `${userData.firstName} ${userData.lastName}`);
 
         await signOut(auth);
-        setErrorMessage("ALERTE : Votre compte a été bloqué pour non-respect des règles de sécurité (connexion simultanée ou multi-appareils). Veuillez contacter l'administrateur.");
+        setErrorMessage("ALERTE : Votre compte a été bloqué pour non-respect des règles de sécurité (connexion simultanée ou multi-appareils). Veuillez contacter l'administrateur pour récupérer votre compte.");
         return;
       }
 
-      // 3. Validation de la nouvelle session
+      // 3. Tout est OK : Mise à jour de la session active sur cet appareil
       await updateDoc(userDocRef, {
         activeSession: {
           deviceId: currentFingerprint,
           lastLogin: serverTimestamp()
         },
-        isLocked: false, // Sécurité : On s'assure qu'il n'est pas verrouillé ici
+        isLocked: false,
         updatedAt: serverTimestamp()
       });
       
+      // Redirection selon rôle
       if (isSA || userData.role === 'admin' || userData.role === 'super_admin') {
         router.push('/admin/dashboard');
       } else {
