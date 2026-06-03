@@ -36,7 +36,6 @@ export async function startTrainingSession(
 ) {
   if (mode === 'kill_mistake') {
     // On récupère toutes les erreurs 'wrong' pour filtrage intelligent en JS
-    // Firestore ne gère pas bien le fallback null/missing dans les requêtes complexes
     const kmSnap = await getDocs(query(
       collection(db, 'users', userId, 'killMistakes'), 
       where('status', '==', 'wrong'),
@@ -45,11 +44,11 @@ export async function startTrainingSession(
     
     let kmDocs = kmSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
 
-    // Filtrage par Source (Silo)
+    // Filtrage par Source (Silo) - On accepte training comme alias de practice pour la compatibilité
     if (filters.sourceType && filters.sourceType !== 'all') {
       kmDocs = kmDocs.filter(m => {
         if (filters.sourceType === 'practice') {
-          return m.sourceType === 'practice' || !m.sourceType;
+          return m.sourceType === 'practice' || m.sourceType === 'training' || !m.sourceType;
         }
         return m.sourceType === filters.sourceType;
       });
@@ -66,7 +65,7 @@ export async function startTrainingSession(
     }
 
     const kmIds = kmDocs.map(d => d.id);
-    if (kmIds.length === 0) throw new Error("Aucune erreur correspondant à ces critères !");
+    if (kmIds.length === 0) return []; // On renvoie vide plutôt que de throw pour laisser le front gérer l'UI
     
     return fetchQuestionsByIds(db, kmIds, questionCount);
   }
@@ -108,7 +107,6 @@ export async function startTrainingSession(
     return true;
   });
 
-  if (filteredPool.length === 0) throw new Error(`Banque [${targetSilo.toUpperCase()}] vide.`);
   return filteredPool.sort(() => 0.5 - Math.random()).slice(0, questionCount === 0 ? filteredPool.length : questionCount);
 }
 
@@ -125,7 +123,8 @@ export async function fetchQuestionsByIds(db: Firestore, ids: string[], count: n
   }
   
   const finalPool = results.sort(() => 0.5 - Math.random());
-  return count > 0 ? finalPool.slice(0, count) : finalPool;
+  const finalCount = count === 0 ? finalPool.length : Math.min(count, finalPool.length);
+  return finalPool.slice(0, finalCount);
 }
 
 export async function submitPracticeAnswer(
@@ -144,7 +143,7 @@ export async function submitPracticeAnswer(
   const isCorrect = userChoices.length === correctOptionIds.length && userChoices.every(id => correctOptionIds.includes(id));
   
   const kmRef = doc(db, 'users', userId, 'killMistakes', questionId);
-  let sourceType: string = qData.silo || 'practice';
+  let sourceType: string = qData.silo || (context === 'matrix' ? 'matrix' : context === 'exam' ? 'exams' : 'practice');
 
   if (!isCorrect) {
     await setDoc(kmRef, {

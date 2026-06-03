@@ -52,7 +52,7 @@ export default function KillMistakeSelectionPage() {
     return {
       total: mistakes.length,
       matrix: mistakes.filter(m => m.sourceType === 'matrix').length,
-      practice: mistakes.filter(m => !m.sourceType || m.sourceType === 'practice').length,
+      practice: mistakes.filter(m => !m.sourceType || m.sourceType === 'practice' || m.sourceType === 'training').length,
       exams: mistakes.filter(m => m.sourceType === 'exams').length,
     };
   }, [mistakes]);
@@ -284,12 +284,12 @@ function StatMiniCard({ icon: Icon, label, val, color, bg, onClick }: any) {
 }
 
 function PurgeOption({ label, count, onClick }: { label: string, count: number, onClick: () => void }) {
-  if (count === 0) return null;
   return (
     <Button 
       onClick={onClick}
       variant="outline" 
-      className="h-16 justify-between px-8 rounded-2xl border-2 border-slate-100 bg-slate-50/50 hover:bg-indigo-50 hover:border-indigo-200 transition-all group"
+      disabled={count === 0}
+      className="h-16 justify-between px-8 rounded-2xl border-2 border-slate-100 bg-slate-50/50 hover:bg-indigo-50 hover:border-indigo-200 transition-all group disabled:opacity-30"
     >
       <span className="font-black italic uppercase text-xs text-slate-700 tracking-tight">{label}</span>
       <Badge className="bg-indigo-100 text-[#1e3a8a] border-none font-black italic text-xs px-3 py-1 rounded-full group-hover:bg-[#1e3a8a] group-hover:text-white transition-colors">

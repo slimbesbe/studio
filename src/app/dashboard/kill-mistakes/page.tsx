@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, getDoc, writeBatch, serverTimestamp, increment } from 'firebase/firestore';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { startTrainingSession, submitPracticeAnswer } from '@/lib/services/practice-service';
@@ -37,6 +37,7 @@ type KillMistakeSource = 'matrix' | 'practice' | 'exams' | 'all';
 function KillMistakesContent() {
   const { user } = useUser();
   const db = useFirestore();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
   
@@ -72,7 +73,12 @@ function KillMistakesContent() {
   const filteredMistakes = useMemo(() => {
     let list = mistakesData || [];
     if (activeTheme !== 'all') {
-      list = list.filter(m => m.sourceType === activeTheme || (!m.sourceType && activeTheme === 'practice'));
+      list = list.filter(m => {
+        if (activeTheme === 'practice') {
+          return m.sourceType === 'practice' || m.sourceType === 'training' || !m.sourceType;
+        }
+        return m.sourceType === activeTheme;
+      });
     }
     if (filterDomain !== 'all') {
       list = list.filter(m => m.tags?.domain === filterDomain);
@@ -102,7 +108,6 @@ function KillMistakesContent() {
 
   // --- ACTIONS SESSION ---
   const startSession = async () => {
-    if (filteredMistakes.length === 0) return;
     setIsLoadingSession(true);
     try {
       const questions = await startTrainingSession(db, user!.uid, 'kill_mistake', { 
@@ -110,9 +115,15 @@ function KillMistakesContent() {
         domain: filterDomain
       }, initialCount); 
       
+      if (!questions || questions.length === 0) {
+        toast({ title: "Aucune question trouvée", description: "Toutes les erreurs de ce type ont peut-être été corrigées ou supprimées." });
+        setStep('intro');
+        return;
+      }
+
       setSessionQuestions(questions);
       setStep('session');
-      setCurrentIdx(0);
+      setCurrentIndex(0);
       setSessionAnswers({});
     } catch (e: any) {
       toast({ variant: "destructive", title: "Erreur", description: e.message });
@@ -122,7 +133,8 @@ function KillMistakesContent() {
   };
 
   const handleToggleAnswer = (choiceId: string, isMultiple: boolean) => {
-    const qId = sessionQuestions[currentIdx].id;
+    const qId = sessionQuestions[currentIdx]?.id;
+    if (!qId) return;
     const current = sessionAnswers[qId] || [];
     if (isMultiple) {
       setSessionAnswers({ 
@@ -146,7 +158,6 @@ function KillMistakesContent() {
 
       if (isCorrect) correct++;
 
-      // Mise à jour Firestore Kill Mistake
       const kmRef = doc(db, 'users', user!.uid, 'killMistakes', q.id);
       if (isCorrect) {
         batch.set(kmRef, { status: 'corrected', lastCorrectAt: serverTimestamp() }, { merge: true });
@@ -222,7 +233,7 @@ function KillMistakesContent() {
     }
 
     const q = sessionQuestions[currentIdx];
-    if (!q) return null;
+    if (!q) return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
     const progress = ((currentIdx + 1) / sessionQuestions.length) * 100;
 
     return (
