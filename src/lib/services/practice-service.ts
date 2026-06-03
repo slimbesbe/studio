@@ -20,7 +20,7 @@ export interface PracticeFilters {
   domain?: string;
   approach?: string;
   difficulty?: string;
-  sourceType?: 'matrix' | 'practice' | 'exam' | 'all';
+  sourceType?: 'matrix' | 'practice' | 'exams' | 'all';
 }
 
 /**
@@ -35,26 +35,49 @@ export async function startTrainingSession(
   questionCount: number
 ) {
   if (mode === 'kill_mistake') {
-    let constraints = [where('status', '==', 'wrong')];
-    if (filters.domain && filters.domain !== 'all') constraints.push(where('tags.domain', '==', filters.domain));
-    if (filters.approach && filters.approach !== 'all') constraints.push(where('tags.approach', '==', filters.approach));
-    if (filters.sourceType && filters.sourceType !== 'all') constraints.push(where('sourceType', '==', filters.sourceType));
+    // On récupère toutes les erreurs 'wrong' pour filtrage intelligent en JS
+    // Firestore ne gère pas bien le fallback null/missing dans les requêtes complexes
+    const kmSnap = await getDocs(query(
+      collection(db, 'users', userId, 'killMistakes'), 
+      where('status', '==', 'wrong'),
+      limit(500)
+    ));
+    
+    let kmDocs = kmSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
 
-    const kmSnap = await getDocs(query(collection(db, 'users', userId, 'killMistakes'), ...constraints, limit(100)));
-    const kmIds = kmSnap.docs.map(d => d.id);
+    // Filtrage par Source (Silo)
+    if (filters.sourceType && filters.sourceType !== 'all') {
+      kmDocs = kmDocs.filter(m => {
+        if (filters.sourceType === 'practice') {
+          return m.sourceType === 'practice' || !m.sourceType;
+        }
+        return m.sourceType === filters.sourceType;
+      });
+    }
+
+    // Filtrage par Domaine
+    if (filters.domain && filters.domain !== 'all') {
+      kmDocs = kmDocs.filter(m => m.tags?.domain === filters.domain);
+    }
+
+    // Filtrage par Approche
+    if (filters.approach && filters.approach !== 'all') {
+      kmDocs = kmDocs.filter(m => m.tags?.approach === filters.approach);
+    }
+
+    const kmIds = kmDocs.map(d => d.id);
     if (kmIds.length === 0) throw new Error("Aucune erreur correspondant à ces critères !");
+    
     return fetchQuestionsByIds(db, kmIds, questionCount);
   }
 
-  // --- SILO ENFORCEMENT STRICT PAR CHAMP 'silo' ---
+  // --- SILO ENFORCEMENT STRICT POUR MODES STANDARDS ---
   const targetSilo = mode === 'matrix' ? 'matrix' : 'practice';
   
   let questionsRef = collection(db, 'questions');
-  
-  // Requête initiale avec le filtre de silo OBLIGATOIRE
   let constraints: any[] = [
     where('isActive', '==', true),
-    where('silo', '==', targetSilo) // Isolation physique par compartiment
+    where('silo', '==', targetSilo)
   ];
 
   if (filters.domain && filters.domain !== 'all') {
@@ -70,49 +93,22 @@ export async function startTrainingSession(
   try {
     const q = query(questionsRef, ...constraints, limit(200));
     const snap = await getDocs(q);
-    
     if (!snap.empty) {
       const pool = snap.docs.map(d => ({...d.data(), id: d.id}));
-      // On mélange et on limite
       return pool.sort(() => 0.5 - Math.random()).slice(0, questionCount === 0 ? pool.length : questionCount);
     }
   } catch (e) {
-    console.warn("Direct query failed, indexing might be required", e);
+    console.warn("Direct query failed", e);
   }
 
-  // FALLBACK SÉCURISÉ (Même en scan large, on ne sort JAMAIS du silo)
+  // FALLBACK
   const fallbackSnap = await getDocs(query(questionsRef, where('silo', '==', targetSilo), where('isActive', '==', true), limit(1000)));
-  if (fallbackSnap.empty) throw new Error(`Banque [${targetSilo.toUpperCase()}] vide.`);
-
   const filteredPool = fallbackSnap.docs.map(d => ({...d.data(), id: d.id})).filter((q: any) => {
-    // 1. Double vérification du silo
     if (q.silo !== targetSilo) return false;
-
-    // 2. Filtres optionnels
-    if (filters.domain && filters.domain !== 'all') {
-      const targetD = filters.domain.toLowerCase();
-      const questionD = String(q.tags?.domain || '').toLowerCase();
-      const match = questionD.includes(targetD) || (targetD.includes('proc') && questionD.includes('proc')) || (targetD.includes('busi') && questionD.includes('busi'));
-      if (!match) return false;
-    }
-
-    if (filters.approach && filters.approach !== 'all') {
-      const targetA = filters.approach.toLowerCase();
-      const questionA = String(q.tags?.approach || '').toLowerCase();
-      const isTargetWater = targetA.includes('pred') || targetA.includes('water');
-      const isQuestionWater = questionA.includes('pred') || questionA.includes('water');
-      
-      if (isTargetWater && !isQuestionWater) return false;
-      if (!isTargetWater && !questionA.includes(targetA)) return false;
-    }
-
     return true;
   });
 
-  if (filteredPool.length === 0) {
-    throw new Error(`Aucune question disponible dans le silo [${targetSilo.toUpperCase()}] pour ces critères.`);
-  }
-
+  if (filteredPool.length === 0) throw new Error(`Banque [${targetSilo.toUpperCase()}] vide.`);
   return filteredPool.sort(() => 0.5 - Math.random()).slice(0, questionCount === 0 ? filteredPool.length : questionCount);
 }
 
@@ -145,11 +141,9 @@ export async function submitPracticeAnswer(
   const qData = qDoc.data();
   const userChoices = (Array.isArray(selectedChoiceIds) ? selectedChoiceIds : [selectedChoiceIds]).map(id => String(id));
   const correctOptionIds = (qData.correctOptionIds || [String(qData.correctChoice || "1")]).map(id => String(id));
-
   const isCorrect = userChoices.length === correctOptionIds.length && userChoices.every(id => correctOptionIds.includes(id));
   
   const kmRef = doc(db, 'users', userId, 'killMistakes', questionId);
-  
   let sourceType: string = qData.silo || 'practice';
 
   if (!isCorrect) {

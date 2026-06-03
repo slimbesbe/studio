@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useState } from 'react';
@@ -52,7 +53,7 @@ export default function KillMistakeSelectionPage() {
       total: mistakes.length,
       matrix: mistakes.filter(m => m.sourceType === 'matrix').length,
       practice: mistakes.filter(m => !m.sourceType || m.sourceType === 'practice').length,
-      exam: mistakes.filter(m => m.sourceType === 'exam').length,
+      exams: mistakes.filter(m => m.sourceType === 'exams').length,
     };
   }, [mistakes]);
 
@@ -151,10 +152,10 @@ export default function KillMistakeSelectionPage() {
             <StatMiniCard 
               icon={GraduationCap} 
               label="Simulations Exam" 
-              val={stats.exam} 
+              val={stats.exams} 
               color="text-amber-600" 
               bg="bg-amber-50"
-              onClick={() => router.push('/dashboard/kill-mistakes?mode=analyze&theme=exam')}
+              onClick={() => router.push('/dashboard/kill-mistakes?mode=analyze&theme=exams')}
             />
           </div>
         </div>
@@ -207,7 +208,7 @@ export default function KillMistakeSelectionPage() {
               <div className="grid gap-4">
                 <PurgeOption label="MATRICE MAGIQUE" count={stats.matrix} onClick={() => setSelectedTheme('matrix')} />
                 <PurgeOption label="PRATIQUE LIBRE" count={stats.practice} onClick={() => setSelectedTheme('practice')} />
-                <PurgeOption label="SIMULATIONS EXAM" count={stats.exam} onClick={() => setSelectedTheme('exam')} />
+                <PurgeOption label="SIMULATIONS EXAM" count={stats.exams} onClick={() => setSelectedTheme('exams')} />
               </div>
             ) : (
               <div className="space-y-6 animate-slide-up">

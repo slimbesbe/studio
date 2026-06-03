@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
@@ -31,7 +32,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-type KillMistakeSource = 'matrix' | 'practice' | 'exam' | 'all';
+type KillMistakeSource = 'matrix' | 'practice' | 'exams' | 'all';
 
 function KillMistakesContent() {
   const { user } = useUser();
@@ -313,7 +314,7 @@ function KillMistakesContent() {
             <TabsTrigger value="all" className="rounded-xl font-black italic uppercase text-[10px] px-6">Tous</TabsTrigger>
             <TabsTrigger value="matrix" className="rounded-xl font-black italic uppercase text-[10px] px-6">Matrice</TabsTrigger>
             <TabsTrigger value="practice" className="rounded-xl font-black italic uppercase text-[10px] px-6">Pratique</TabsTrigger>
-            <TabsTrigger value="exam" className="rounded-xl font-black italic uppercase text-[10px] px-6">Examens</TabsTrigger>
+            <TabsTrigger value="exams" className="rounded-xl font-black italic uppercase text-[10px] px-6">Examens</TabsTrigger>
           </TabsList>
         </Tabs>
 
