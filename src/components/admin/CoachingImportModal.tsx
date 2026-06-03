@@ -165,7 +165,8 @@ export function CoachingImportModal({ isOpen, onClose, session }: CoachingImport
           updatedAt: serverTimestamp(),
           source: 'coaching_import',
           sessionId: session.id,
-          sourceIds: [session.id] // ensure it shows up correctly in filters
+          silo: 'coaching', // ÉTANCHÉITÉ PHYSIQUE
+          sourceIds: [session.id]
         }, { merge: true });
       });
 

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -48,7 +49,9 @@ export function CoachingGenerateModal({ isOpen, onClose, session }: CoachingGene
           isActive: true,
           updatedAt: serverTimestamp(),
           source: 'ai_generation',
-          sessionId: session.id
+          silo: 'coaching', // ÉTANCHÉITÉ PHYSIQUE
+          sessionId: session.id,
+          sourceIds: [session.id]
         }, { merge: true });
       });
 

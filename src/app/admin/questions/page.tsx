@@ -23,7 +23,8 @@ import {
   Globe,
   LayoutGrid,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -52,7 +53,6 @@ function QuestionsList() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
   
-  // silo type: 'practice', 'exams', 'matrix'
   const contextType = (searchParams.get('type') as 'practice' | 'exams' | 'matrix') || 'practice';
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -76,33 +76,37 @@ function QuestionsList() {
 
   const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
 
-  // REQUETE AVEC FILTRE SILO STRICT
+  // REQUETE SIMPLIFIÉE : On enlève le orderBy pour éviter les erreurs d'index composite absent
   const questionsQuery = useMemoFirebase(() => {
     if (!isAdmin) return null;
     return query(
       collection(db, 'questions'), 
-      where('silo', '==', contextType), // FILTRAGE PHYSIQUE PAR SILO
-      orderBy('updatedAt', 'desc'), 
+      where('silo', '==', contextType),
       limit(2500)
     );
   }, [db, isAdmin, contextType]);
 
-  const { data: questions, isLoading } = useCollection(questionsQuery);
+  const { data: questions, isLoading, error } = useCollection(questionsQuery);
 
   const filteredQuestions = useMemo(() => {
     if (!questions) return [];
-    return questions.filter(q => {
-      // 1. FILTRAGE PAR SOUS-SOURCE (EXAMENS)
+    
+    // TRI CÔTÉ CLIENT (Plus robuste dans cet environnement)
+    const sorted = [...questions].sort((a, b) => {
+      const timeA = a.updatedAt?.seconds || 0;
+      const timeB = b.updatedAt?.seconds || 0;
+      return timeB - timeA;
+    });
+
+    return sorted.filter(q => {
       if (contextType === 'exams' && filterSubSource !== 'all_exams') {
         if (!q.sourceIds?.includes(filterSubSource)) return false;
       }
 
-      // 2. RECHERCHE
       const textMatch = (q.statement || q.text || '').toLowerCase().includes(searchTerm.toLowerCase());
       const codeMatch = (q.questionCode || '').toLowerCase().includes(searchTerm.toLowerCase());
       if (!textMatch && !codeMatch) return false;
 
-      // 3. TAGS
       const matchDomain = filterDomain === 'all' || q.tags?.domain === filterDomain;
       const matchApproach = filterApproach === 'all' || q.tags?.approach === filterApproach;
       
@@ -217,6 +221,16 @@ function QuestionsList() {
           </Button>
         </div>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border-2 border-red-100 p-6 rounded-3xl flex items-center gap-4 text-red-600">
+          <AlertCircle className="h-6 w-6" />
+          <div>
+            <p className="font-black uppercase italic text-xs">Erreur de base de données</p>
+            <p className="text-sm font-bold italic">Impossible de charger la liste. Veuillez vérifier vos index Firestore ou contacter le support.</p>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-4 items-center bg-white p-6 rounded-[32px] shadow-sm border-2">
         <div className="relative flex-1 min-w-[300px]">
