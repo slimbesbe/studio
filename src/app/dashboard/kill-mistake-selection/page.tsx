@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo, useState } from 'react';
@@ -15,7 +14,8 @@ import {
   TrendingDown,
   Zap,
   Loader2,
-  ListFilter
+  ListFilter,
+  Check
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -36,6 +36,8 @@ export default function KillMistakeSelectionPage() {
   const db = useFirestore();
   const router = useRouter();
   const [isPurgeDialogOpen, setIsPurgeDialogOpen] = useState(false);
+  const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
+  const [selectedCount, setSelectedCount] = useState<number>(10);
 
   const mistakesQuery = useMemoFirebase(() => {
     if (!user) return null;
@@ -53,6 +55,12 @@ export default function KillMistakeSelectionPage() {
       exam: mistakes.filter(m => m.sourceType === 'exam').length,
     };
   }, [mistakes]);
+
+  const handleStartPurge = () => {
+    if (!selectedTheme) return;
+    router.push(`/dashboard/kill-mistakes?mode=session&theme=${selectedTheme}&count=${selectedCount}`);
+    setIsPurgeDialogOpen(false);
+  };
 
   if (isUserLoading || isLoading) {
     return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
@@ -161,7 +169,10 @@ export default function KillMistakeSelectionPage() {
         </div>
 
         <Button 
-          onClick={() => setIsPurgeDialogOpen(true)}
+          onClick={() => {
+            setSelectedTheme(null);
+            setIsPurgeDialogOpen(true);
+          }}
           className="h-24 px-16 rounded-[40px] bg-[#1e3a8a] hover:bg-[#152e6b] text-white font-black uppercase tracking-widest text-2xl shadow-3xl scale-105 transition-all hover:scale-110 active:scale-95 group"
         >
           <Zap className="mr-4 h-10 w-10 fill-white animate-pulse group-hover:scale-125 transition-transform" />
@@ -182,18 +193,65 @@ export default function KillMistakeSelectionPage() {
               <ListFilter className="h-10 w-10 text-[#1e3a8a]" />
             </div>
             <div className="text-center space-y-2">
-              <DialogTitle className="text-4xl font-black uppercase italic text-slate-900 tracking-tighter">TYPE DE PURGE</DialogTitle>
+              <DialogTitle className="text-3xl font-black uppercase italic text-slate-900 tracking-tighter">
+                {!selectedTheme ? "TYPE DE PURGE" : "NOMBRE DE QUESTIONS"}
+              </DialogTitle>
               <DialogDescription className="font-bold text-slate-500 italic text-sm leading-relaxed px-4">
-                Quelle banque de questions souhaitez-vous purger ?
+                {!selectedTheme ? "Quelle banque de questions souhaitez-vous purger ?" : "Combien de questions voulez-vous refaire ?"}
               </DialogDescription>
             </div>
           </DialogHeader>
 
-          <div className="p-10 pt-6 grid gap-4">
-            <PurgeOption label="TOUTES MES ERREURS" count={stats.total} onClick={() => router.push('/dashboard/kill-mistakes?mode=session&theme=all')} />
-            <PurgeOption label="MATRICE MAGIQUE" count={stats.matrix} onClick={() => router.push('/dashboard/kill-mistakes?mode=session&theme=matrix')} />
-            <PurgeOption label="PRATIQUE LIBRE" count={stats.practice} onClick={() => router.push('/dashboard/kill-mistakes?mode=session&theme=practice')} />
-            <PurgeOption label="SIMULATIONS EXAM" count={stats.exam} onClick={() => router.push('/dashboard/kill-mistakes?mode=session&theme=exam')} />
+          <div className="p-10 pt-6">
+            {!selectedTheme ? (
+              <div className="grid gap-4">
+                <PurgeOption label="MATRICE MAGIQUE" count={stats.matrix} onClick={() => setSelectedTheme('matrix')} />
+                <PurgeOption label="PRATIQUE LIBRE" count={stats.practice} onClick={() => setSelectedTheme('practice')} />
+                <PurgeOption label="SIMULATIONS EXAM" count={stats.exam} onClick={() => setSelectedTheme('exam')} />
+              </div>
+            ) : (
+              <div className="space-y-6 animate-slide-up">
+                <div className="grid grid-cols-3 gap-3">
+                  {[5, 10, 20, 50].map((num) => (
+                    <Button 
+                      key={num}
+                      variant="outline"
+                      className={cn(
+                        "h-14 rounded-xl border-2 font-black italic",
+                        selectedCount === num ? "border-[#1e3a8a] bg-blue-50 text-[#1e3a8a]" : "border-slate-100"
+                      )}
+                      onClick={() => setSelectedCount(num)}
+                    >
+                      {num}
+                    </Button>
+                  ))}
+                  <Button 
+                    variant="outline"
+                    className={cn(
+                      "h-14 rounded-xl border-2 font-black italic",
+                      selectedCount === 0 ? "border-[#1e3a8a] bg-blue-50 text-[#1e3a8a]" : "border-slate-100"
+                    )}
+                    onClick={() => setSelectedCount(0)}
+                  >
+                    TOUT
+                  </Button>
+                </div>
+                
+                <Button 
+                  onClick={handleStartPurge}
+                  className="w-full h-16 rounded-2xl bg-[#1e3a8a] hover:bg-[#152e6b] text-white font-black uppercase italic tracking-widest shadow-xl"
+                >
+                  LANCER LE TEST <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+                
+                <button 
+                  onClick={() => setSelectedTheme(null)}
+                  className="w-full text-center text-[10px] font-black uppercase italic text-slate-400 hover:text-slate-600"
+                >
+                  RETOUR AU CHOIX DU TYPE
+                </button>
+              </div>
+            )}
           </div>
 
           <DialogFooter className="bg-slate-50 p-6 flex justify-center">

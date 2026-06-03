@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
@@ -27,7 +26,7 @@ import { collection, query, where, doc, getDoc, writeBatch, serverTimestamp, inc
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { startTrainingSession } from '@/lib/services/practice-service';
+import { startTrainingSession, submitPracticeAnswer } from '@/lib/services/practice-service';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -42,6 +41,7 @@ function KillMistakesContent() {
   
   const mode = searchParams.get('mode') || 'analyze';
   const initialTheme = (searchParams.get('theme') as KillMistakeSource) || 'all';
+  const initialCount = parseInt(searchParams.get('count') || '10');
 
   const [activeTheme, setActiveTheme] = useState<KillMistakeSource>(initialTheme);
   const [filterDomain, setFilterDomain] = useState('all');
@@ -107,7 +107,7 @@ function KillMistakesContent() {
       const questions = await startTrainingSession(db, user!.uid, 'kill_mistake', { 
         sourceType: activeTheme,
         domain: filterDomain
-      }, 0); 
+      }, initialCount); 
       
       setSessionQuestions(questions);
       setStep('session');
@@ -184,7 +184,7 @@ function KillMistakesContent() {
             <div className="space-y-4 relative z-10">
               <h1 className="text-5xl font-black italic uppercase tracking-tighter leading-tight">Sprint de Remédiation</h1>
               <p className="text-blue-100/70 font-bold italic text-lg max-w-xl mx-auto leading-relaxed">
-                Purger <span className="text-white font-black underline underline-offset-4">{filteredMistakes.length} questions</span> du silo {activeTheme.toUpperCase()}.
+                Purger <span className="text-white font-black underline underline-offset-4">{initialCount === 0 ? filteredMistakes.length : Math.min(initialCount, filteredMistakes.length)} questions</span> du silo {activeTheme.toUpperCase()}.
                 <br/>Répondez à tout pour obtenir votre note finale.
               </p>
             </div>
