@@ -46,9 +46,12 @@ export default function AdminMatriceConfig() {
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
 
-  // Fetch all questions to build matrix overview
+  // Fetch only matrix questions to build overview
   const questionsQuery = useMemoFirebase(() => {
-    return query(collection(db, 'questions'));
+    return query(
+      collection(db, 'questions'),
+      where('sourceIds', 'array-contains', 'matrix') // ISOLATION STRICTE
+    );
   }, [db]);
   const { data: allQuestions, isLoading } = useCollection(questionsQuery);
 
@@ -89,13 +92,13 @@ export default function AdminMatriceConfig() {
   };
 
   const handleResetAll = async () => {
-    if (!confirm("ACTION CRITIQUE : Voulez-vous vider TOUTE la banque de questions ?")) return;
+    if (!confirm("ACTION CRITIQUE : Voulez-vous vider TOUTE la banque de la MATRICE MAGIQUE ?")) return;
     setIsResetting(true);
     try {
       const batch = writeBatch(db);
       allQuestions?.forEach(q => batch.delete(doc(db, 'questions', q.id)));
       await batch.commit();
-      toast({ title: "Banque de questions réinitialisée" });
+      toast({ title: "Banque Matrice réinitialisée" });
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur reset" });
     } finally {
@@ -114,10 +117,10 @@ export default function AdminMatriceConfig() {
             <Link href="/admin/content-config"><ChevronLeft className="h-6 w-6" /></Link>
           </Button>
           <div>
-            <h1 className="text-4xl font-black italic uppercase tracking-tighter text-primary flex items-center gap-4">
-              <LayoutGrid className="h-10 w-10 text-accent" /> Configuration Matrice
+            <h1 className="text-4xl font-black italic uppercase tracking-tighter text-indigo-600 flex items-center gap-4">
+              <LayoutGrid className="h-10 w-10 text-accent" /> Matrice Magique
             </h1>
-            <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mt-1 italic">Gestion granulaire par intersection (9 cellules).</p>
+            <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mt-1 italic">Gestion granulaire étanche (Questions marquées 'matrix').</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -128,7 +131,7 @@ export default function AdminMatriceConfig() {
             <Upload className="h-4 w-4" /> Import Global
           </Button>
           <Button variant="outline" onClick={handleResetAll} disabled={isResetting} className="h-14 px-6 rounded-2xl font-black uppercase text-xs italic border-2 text-destructive border-destructive/20 hover:bg-red-50 gap-2">
-            {isResetting ? <Loader2 className="animate-spin h-4 w-4" /> : <RotateCcw className="h-4 w-4" />} Reset
+            {isResetting ? <Loader2 className="animate-spin h-4 w-4" /> : <RotateCcw className="h-4 w-4" />} Reset Matrice
           </Button>
         </div>
       </div>
@@ -165,7 +168,7 @@ export default function AdminMatriceConfig() {
                     onClick={() => setSelectedCell({ domain: d.id, approach: a.id })}
                     className={cn(
                       "group relative rounded-[32px] border-4 p-8 transition-all duration-300 flex flex-col items-center justify-center gap-4 text-center hover:scale-[1.03] hover:shadow-2xl",
-                      status === 'ready' ? "bg-emerald-50 border-emerald-100 text-emerald-700" : "bg-slate-50 border-slate-100 text-slate-300"
+                      status === 'ready' ? "bg-indigo-50 border-indigo-100 text-indigo-700" : "bg-slate-50 border-slate-100 text-slate-300"
                     )}
                   >
                     <div className="flex flex-col items-center gap-1">
@@ -177,9 +180,9 @@ export default function AdminMatriceConfig() {
                       <p className="text-[8px] font-black uppercase tracking-widest italic">{sheetName}.xlsx</p>
                       <Badge className={cn(
                         "font-black italic uppercase text-[8px] border-none px-3",
-                        status === 'ready' ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-400"
+                        status === 'ready' ? "bg-indigo-500 text-white" : "bg-slate-200 text-slate-400"
                       )}>
-                        {status === 'ready' ? 'READY' : 'NOT CONFIGURED'}
+                        {status === 'ready' ? 'READY' : 'EMPTY'}
                       </Badge>
                     </div>
 
@@ -193,18 +196,6 @@ export default function AdminMatriceConfig() {
           ))}
         </div>
       </Card>
-
-      {/* Info Card */}
-      <div className="bg-primary/5 border-2 border-dashed border-primary/20 p-8 rounded-[32px] flex items-start gap-6 animate-slide-up">
-        <Info className="h-8 w-8 text-primary shrink-0" />
-        <div className="space-y-2">
-          <h4 className="font-black uppercase italic text-primary">Architecture multi-feuilles</h4>
-          <p className="text-sm font-bold text-slate-600 italic leading-relaxed">
-            L'import global attend un fichier Excel contenant précisément 9 onglets nommés d'après les clés techniques (ex: people_agile). 
-            Le système remplace ou ajoute les questions selon votre choix lors de l'import.
-          </p>
-        </div>
-      </div>
 
       <MatrixCellDialog 
         isOpen={!!selectedCell} 

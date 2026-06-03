@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef } from 'react';
@@ -106,7 +105,6 @@ export function MatrixBulkImport({ isOpen, onClose }: { isOpen: boolean, onClose
         const chunk = allRows.slice(i, i + batchSize);
         
         chunk.forEach((row: any) => {
-          // Robust detection of statement/text column
           const statement = row["Énoncé"] || row["ennocé"] || row["statement"] || row["text"] || row["Question"] || row["Énonce"];
           const code = row["Code"] || row["code question"] || row["questionCode"];
           const correctValue = String(row["correct"] || row["bonne reponse"] || row["Correct"] || row["Answer"] || "");
@@ -114,7 +112,6 @@ export function MatrixBulkImport({ isOpen, onClose }: { isOpen: boolean, onClose
           
           if (!statement) return;
 
-          // Detect options with or without spaces
           const options = [];
           for (let k = 1; k <= 5; k++) {
             const optVal = row[`option ${k}`] || row[`option${k}`] || row[`Choix ${k}`] || row[`Choix${k}`] || row[`Choice ${k}`];
@@ -123,19 +120,17 @@ export function MatrixBulkImport({ isOpen, onClose }: { isOpen: boolean, onClose
 
           if (options.length === 0) return;
 
-          // Map A,B,C,D to 1,2,3,4
           const correctIds: string[] = [];
           const rawCorrect = correctValue.trim().toUpperCase();
           if (['A', 'B', 'C', 'D', 'E'].includes(rawCorrect[0])) {
             const idx = rawCorrect.charCodeAt(0) - 64;
             correctIds.push(String(idx));
           } else {
-            // Fallback to numeric or the value itself
             const numericValue = parseInt(rawCorrect);
             correctIds.push(isNaN(numericValue) ? "1" : String(numericValue));
           }
 
-          const id = code ? `q_matrice_${String(code).replace(/[^a-zA-Z0-9]/g, '_')}` : `q_matrice_${Math.random().toString(36).substr(2, 9)}`;
+          const id = code ? `q_matrix_${String(code).replace(/[^a-zA-Z0-9]/g, '_')}` : `q_matrix_${Math.random().toString(36).substr(2, 9)}`;
           const qRef = doc(db, 'questions', id);
 
           batch.set(qRef, {
@@ -155,7 +150,7 @@ export function MatrixBulkImport({ isOpen, onClose }: { isOpen: boolean, onClose
               approach: row.approach,
               difficulty: row["Difficulté"] || row["difficulté"] || row["Difficulty"] || "Medium"
             },
-            sourceIds: ['general']
+            sourceIds: ['matrix'] // ETANCHEITE SILO
           }, { merge: true });
         });
 
@@ -163,7 +158,7 @@ export function MatrixBulkImport({ isOpen, onClose }: { isOpen: boolean, onClose
         setProgress(Math.round(((i + chunk.length) / total) * 100));
       }
 
-      toast({ title: "Importation Matrice Réussie", description: `${total} questions synchronisées.` });
+      toast({ title: "Importation Matrice Réussie", description: `${total} questions synchronisées dans le silo MATRIX.` });
       onClose();
     } catch (e) {
       console.error(e);
@@ -179,11 +174,11 @@ export function MatrixBulkImport({ isOpen, onClose }: { isOpen: boolean, onClose
     <Dialog open={isOpen} onOpenChange={(val) => !isImporting && !val && onClose()}>
       <DialogContent className="max-w-3xl rounded-[40px] p-10 border-4 shadow-3xl">
         <DialogHeader>
-          <DialogTitle className="text-3xl font-black uppercase italic tracking-tighter text-emerald-600 flex items-center gap-3">
-            <FileSpreadsheet className="h-8 w-8" /> Importation Matrice (9 Feuilles)
+          <DialogTitle className="text-3xl font-black uppercase italic tracking-tighter text-indigo-600 flex items-center gap-3">
+            <FileSpreadsheet className="h-8 w-8" /> Importation Matrice (Silo Dédié)
           </DialogTitle>
           <DialogDescription className="font-bold text-slate-500 italic uppercase text-[10px] tracking-widest mt-2">
-            Importation massive par domaines et approches (Mapping A-&gt;1, B-&gt;2...).
+            Importation massive cloisonnée. Les questions n'iront que dans la Matrice.
           </DialogDescription>
         </DialogHeader>
 
@@ -191,10 +186,10 @@ export function MatrixBulkImport({ isOpen, onClose }: { isOpen: boolean, onClose
           {!file ? (
             <div 
               onClick={() => fileInputRef.current?.click()}
-              className="border-4 border-dashed rounded-[32px] p-16 text-center cursor-pointer hover:bg-slate-50 transition-all group border-slate-200 hover:border-emerald-500"
+              className="border-4 border-dashed rounded-[32px] p-16 text-center cursor-pointer hover:bg-slate-50 transition-all group border-slate-200 hover:border-indigo-500"
             >
-              <Upload className="h-16 w-16 mx-auto text-slate-300 group-hover:text-emerald-500 mb-4 transition-transform group-hover:-translate-y-2" />
-              <p className="font-black uppercase italic text-slate-400 group-hover:text-emerald-600">Sélectionnez le fichier global</p>
+              <Upload className="h-16 w-16 mx-auto text-slate-300 group-hover:text-indigo-500 mb-4 transition-transform group-hover:-translate-y-2" />
+              <p className="font-black uppercase italic text-slate-400 group-hover:text-indigo-600">Sélectionnez le fichier global 9 feuilles</p>
               <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx,.xls" onChange={(e) => {
                 const f = e.target.files?.[0];
                 if (f) { setFile(f); parseFile(f); }
@@ -202,15 +197,15 @@ export function MatrixBulkImport({ isOpen, onClose }: { isOpen: boolean, onClose
             </div>
           ) : (
             <div className="space-y-6">
-              <div className="flex items-center justify-between bg-emerald-50 p-6 rounded-2xl border-2 border-emerald-100">
+              <div className="flex items-center justify-between bg-indigo-50 p-6 rounded-2xl border-2 border-indigo-100">
                 <div className="flex items-center gap-4">
-                  <div className="bg-emerald-500 p-2 rounded-xl"><CheckCircle2 className="text-white h-6 w-6" /></div>
+                  <div className="bg-indigo-500 p-2 rounded-xl"><CheckCircle2 className="text-white h-6 w-6" /></div>
                   <div>
-                    <p className="font-black italic text-emerald-900 text-lg leading-tight">{file.name}</p>
-                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{totalQuestionsReady} questions prêtes</p>
+                    <p className="font-black italic text-indigo-900 text-lg leading-tight">{file.name}</p>
+                    <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{totalQuestionsReady} questions prêtes pour MATRIX</p>
                   </div>
                 </div>
-                <Button variant="ghost" className="font-black uppercase text-xs text-emerald-700" onClick={() => { setFile(null); setParsedSheets({}); setErrors([]); }}>Changer</Button>
+                <Button variant="ghost" className="font-black uppercase text-xs text-indigo-700 hover:bg-indigo-100" onClick={() => { setFile(null); setParsedSheets({}); setErrors([]); }}>Changer</Button>
               </div>
 
               {errors.length > 0 && (
@@ -236,18 +231,18 @@ export function MatrixBulkImport({ isOpen, onClose }: { isOpen: boolean, onClose
           {isImporting && (
             <div className="space-y-4">
               <div className="flex justify-between items-end mb-1">
-                <p className="text-[10px] font-black uppercase text-emerald-600 italic">Progression</p>
-                <p className="text-lg font-black text-emerald-600 italic">{progress}%</p>
+                <p className="text-[10px] font-black uppercase text-indigo-600 italic">Progression</p>
+                <p className="text-lg font-black text-indigo-600 italic">{progress}%</p>
               </div>
-              <Progress value={progress} className="h-4 rounded-full bg-emerald-100" />
+              <Progress value={progress} className="h-4 rounded-full bg-indigo-100" />
             </div>
           )}
         </div>
 
         <DialogFooter className="gap-4">
           <Button variant="outline" className="h-16 rounded-2xl font-black uppercase flex-1 border-4" onClick={onClose} disabled={isImporting}>Annuler</Button>
-          <Button disabled={Object.keys(parsedSheets).length === 0 || isImporting || isParsing || errors.length > 0} onClick={handleImport} className="h-16 rounded-2xl font-black bg-emerald-600 hover:bg-emerald-700 flex-1 shadow-2xl uppercase text-lg">
-            {isImporting ? <Loader2 className="animate-spin h-6 w-6" /> : "Lancer la Synchronisation"}
+          <Button disabled={Object.keys(parsedSheets).length === 0 || isImporting || isParsing || errors.length > 0} onClick={handleImport} className="h-16 rounded-2xl font-black bg-indigo-600 hover:bg-indigo-700 flex-1 shadow-2xl uppercase text-lg">
+            {isImporting ? <Loader2 className="animate-spin h-6 w-6" /> : "Synchroniser vers MATRIX"}
           </Button>
         </DialogFooter>
       </DialogContent>

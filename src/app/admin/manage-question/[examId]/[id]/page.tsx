@@ -53,13 +53,11 @@ export default function ManageQuestionPage() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   
-  // sourceIdParam can be 'practice', 'matrix' or an exam ID like 'exam1'
   const sourceIdParam = params.examId as string; 
   const questionId = params.id as string;
   const isNew = questionId === 'new';
 
   // SILO DETECTION
-  // When creating new, we might pass ?type=... in the URL
   const contextType = searchParams.get('type') || (sourceIdParam === 'matrix' ? 'matrix' : sourceIdParam === 'practice' ? 'practice' : 'exams');
 
   const isExamSilo = contextType === 'exams' || sourceIdParam.startsWith('exam');
@@ -83,8 +81,8 @@ export default function ManageQuestionPage() {
   const [selectedExamIds, setSelectedExamIds] = useState<string[]>([]);
 
   // PMP Tags
-  const [domain, setDomain] = useState("Process");
-  const [approach, setApproach] = useState("Predictive");
+  const [domain, setDomain] = useState(searchParams.get('domain') || "Process");
+  const [approach, setApproach] = useState(searchParams.get('approach') || "Predictive");
   const [difficulty, setDifficulty] = useState("Medium");
 
   const questionRef = useMemoFirebase(() => !isNew ? doc(db, 'questions', questionId) : null, [db, questionId, isNew]);
@@ -138,8 +136,6 @@ export default function ManageQuestionPage() {
 
     setIsSubmitting(true);
     try {
-      // --- ÉTANCHÉITÉ DES SILOS ---
-      // On définit les sources autorisées en fonction du silo actuel
       let finalSources: string[] = [];
       if (isPracticeSilo) finalSources = ['practice'];
       else if (isMatrixSilo) finalSources = ['matrix'];

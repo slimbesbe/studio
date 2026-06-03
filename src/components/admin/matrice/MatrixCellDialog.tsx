@@ -43,6 +43,7 @@ export function MatrixCellDialog({ isOpen, onClose, domain, approach }: MatrixCe
     if (!domain || !approach) return null;
     return query(
       collection(db, 'questions'),
+      where('sourceIds', 'array-contains', 'matrix'), // ETANCHEITE SILO
       where('tags.domain', '==', domain),
       where('tags.approach', '==', approach)
     );
@@ -59,7 +60,7 @@ export function MatrixCellDialog({ isOpen, onClose, domain, approach }: MatrixCe
   }, [questions, searchTerm]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Supprimer cette question ?")) return;
+    if (!confirm("Supprimer cette question de la Matrice ?")) return;
     try {
       await deleteDoc(doc(db, 'questions', id));
       toast({ title: "Supprimée" });
@@ -73,7 +74,7 @@ export function MatrixCellDialog({ isOpen, onClose, domain, approach }: MatrixCe
       <DialogContent className="max-w-5xl rounded-[40px] p-0 border-none shadow-3xl overflow-hidden bg-slate-50 h-[85vh] flex flex-col">
         <DialogHeader className="bg-white p-10 border-b shrink-0 flex flex-row items-center justify-between">
           <div className="flex items-center gap-6">
-            <div className="h-16 w-16 rounded-[24px] bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+            <div className="h-16 w-16 rounded-[24px] bg-indigo-100 flex items-center justify-center text-indigo-600 shadow-inner">
               <FileQuestion className="h-8 w-8" />
             </div>
             <div>
@@ -81,13 +82,13 @@ export function MatrixCellDialog({ isOpen, onClose, domain, approach }: MatrixCe
                 {domain} x {approach}
               </DialogTitle>
               <DialogDescription className="font-bold text-slate-400 uppercase text-[10px] tracking-widest italic mt-1">
-                Gestion des questions du segment • {questions?.length || 0} Total
+                Questions exclusives à la Matrice Magique • {questions?.length || 0} Total
               </DialogDescription>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Button asChild className="h-12 px-6 rounded-xl bg-primary font-black uppercase text-xs italic shadow-lg">
-              <Link href={`/admin/manage-question/general/new?domain=${domain}&approach=${approach}`}>
+            <Button asChild className="h-12 px-6 rounded-xl bg-indigo-600 font-black uppercase text-xs italic shadow-lg">
+              <Link href={`/admin/manage-question/matrix/new?type=matrix&domain=${domain}&approach=${approach}`}>
                 <Plus className="h-4 w-4 mr-2" /> Ajouter Question
               </Link>
             </Button>
@@ -101,7 +102,7 @@ export function MatrixCellDialog({ isOpen, onClose, domain, approach }: MatrixCe
             <Input 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Rechercher par énoncé ou code..."
+              placeholder="Rechercher dans ce segment..."
               className="h-14 rounded-2xl pl-12 border-2 bg-white font-bold italic"
             />
           </div>
@@ -119,13 +120,13 @@ export function MatrixCellDialog({ isOpen, onClose, domain, approach }: MatrixCe
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
-                    <TableRow><TableCell colSpan={4} className="h-64 text-center"><Loader2 className="animate-spin mx-auto h-8 w-8 text-primary" /></TableCell></TableRow>
+                    <TableRow><TableCell colSpan={4} className="h-64 text-center"><Loader2 className="animate-spin mx-auto h-8 w-8 text-indigo-600" /></TableCell></TableRow>
                   ) : filteredQuestions.length === 0 ? (
-                    <TableRow><TableCell colSpan={4} className="h-64 text-center font-black uppercase italic text-slate-300">Aucune question trouvée.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={4} className="h-64 text-center font-black uppercase italic text-slate-300">Aucune question dans ce segment.</TableCell></TableRow>
                   ) : filteredQuestions.map((q) => (
                     <TableRow key={q.id} className="h-24 hover:bg-slate-50 transition-all border-b last:border-0 group">
                       <TableCell className="px-8">
-                        <span className="font-mono text-xs font-black text-primary bg-primary/5 px-2 py-1 rounded-lg border">{q.questionCode || '---'}</span>
+                        <span className="font-mono text-xs font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg border">{q.questionCode || '---'}</span>
                       </TableCell>
                       <TableCell>
                         <p className="font-bold text-slate-700 italic text-sm line-clamp-2 leading-relaxed">{q.statement || q.text}</p>
@@ -138,7 +139,7 @@ export function MatrixCellDialog({ isOpen, onClose, domain, approach }: MatrixCe
                       <TableCell className="text-right px-8">
                         <div className="flex justify-end gap-2">
                           <Button variant="ghost" size="icon" asChild className="h-10 w-10 rounded-xl border-2 hover:bg-indigo-50 text-indigo-600 border-indigo-50">
-                            <Link href={`/admin/manage-question/general/${q.id}`}><Pencil className="h-4 w-4" /></Link>
+                            <Link href={`/admin/manage-question/matrix/${q.id}?type=matrix`}><Pencil className="h-4 w-4" /></Link>
                           </Button>
                           <Button variant="ghost" size="icon" onClick={() => handleDelete(q.id)} className="h-10 w-10 rounded-xl border-2 hover:bg-red-50 text-red-600 border-red-50">
                             <Trash2 className="h-4 w-4" />
