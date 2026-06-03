@@ -32,10 +32,10 @@ const CONFIG_SECTIONS = [
   },
   {
     id: 'matrice_bank',
-    title: 'Banque Matrice Magique',
+    title: 'BANQUE MATRICE MAGIQUE',
     description: 'Gérez exclusivement les questions dédiées au sprint 3x3 de la Matrice Magique.',
     icon: LayoutGrid,
-    href: '/admin/questions?type=matrix',
+    href: '/admin/content-config/matrice',
     color: 'bg-indigo-600',
     tag: 'Algorithme'
   },
@@ -127,7 +127,7 @@ export default function ContentConfigHub() {
       <div className="pt-10 space-y-6">
         <div className="flex items-center gap-3 px-2">
           <ShieldCheck className="h-5 w-5 text-emerald-500" />
-          <h3 className="font-black uppercase italic tracking-widest text-slate-400 text-sm">Silos de Données</h3>
+          <h3 className="font-black uppercase italic tracking-widest text-slate-400 text-sm">Silos de Données Étanches</h3>
         </div>
         
         <Card className="rounded-[40px] border-4 border-dashed border-slate-200 bg-slate-50 overflow-hidden">
@@ -137,9 +137,9 @@ export default function ContentConfigHub() {
                 <BookCopy className="h-10 w-10 text-primary" />
               </div>
               <div className="space-y-2 text-center md:text-left">
-                <h4 className="text-xl font-black uppercase italic text-slate-800 tracking-tight">Indépendance Totale</h4>
+                <h4 className="text-xl font-black uppercase italic text-slate-800 tracking-tight">Partitionnement Physique Actif</h4>
                 <p className="text-sm font-bold text-slate-500 italic max-w-2xl leading-relaxed">
-                  Le système garantit désormais une étanchéité parfaite entre la <strong>Matrice</strong>, la <strong>Pratique</strong> et les <strong>Examens</strong>. Une question ne peut appartenir qu'à un seul de ces univers à la fois pour éviter toute redondance lors de l'apprentissage.
+                  Le système garantit désormais une étanchéité parfaite entre la <strong>Matrice</strong>, la <strong>Pratique</strong> et les <strong>Examens</strong>. Les questions sont isolées physiquement dans des compartiments (silos) pour éviter tout doublon ou chevauchement entre les bases.
                 </p>
               </div>
             </div>
