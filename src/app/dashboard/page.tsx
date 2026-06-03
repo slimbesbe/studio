@@ -15,7 +15,8 @@ import {
   TrendingUp,
   Trophy,
   FileQuestion,
-  Clock
+  Clock,
+  RefreshCw
 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, limit } from 'firebase/firestore';
@@ -34,6 +35,7 @@ export default function DashboardPage() {
   const { user, profile, isUserLoading } = useUser();
   const db = useFirestore();
   const [mounted, setMounted] = useState(false);
+  const [mindsetIdx, setMindsetIdx] = useState(0);
 
   useEffect(() => {
     setMounted(true);
@@ -49,6 +51,10 @@ export default function DashboardPage() {
   }, [db, user?.uid, isUserLoading]);
 
   const { data: rawAttempts } = useCollection(attemptsQuery);
+
+  // Fetch mindsets for the coach card
+  const mindsetsQuery = useMemoFirebase(() => collection(db, 'mindsets'), [db]);
+  const { data: mindsets } = useCollection(mindsetsQuery);
 
   const stats = useMemo(() => {
     const validAttempts = Array.isArray(rawAttempts) ? rawAttempts.filter(Boolean) : [];
@@ -111,11 +117,17 @@ export default function DashboardPage() {
     };
   }, [rawAttempts]);
 
+  const handleNextMindset = () => {
+    if (!mindsets || mindsets.length === 0) return;
+    setMindsetIdx((prev) => (prev + 1) % mindsets.length);
+  };
+
   if (!mounted || isUserLoading) {
     return <div className="min-h-[70vh] flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-[#1d4ed8]" /></div>;
   }
 
   const studyTimeUsed = Number(profile?.totalTimeSpent) || 0;
+  const currentMindset = mindsets && mindsets.length > 0 ? mindsets[mindsetIdx]?.text : "Privilégiez toujours la collaboration interne à l'équipe avant d'escalader au management.";
 
   return (
     <div className="flex flex-col space-y-8 animate-fade-in pb-12">
@@ -170,11 +182,19 @@ export default function DashboardPage() {
               <Brain className="h-5 w-5 text-blue-100" />
               <h3 className="font-black text-[10px] uppercase tracking-widest text-blue-100/80 italic">Mindset Coach</h3>
             </div>
-            <p className="relative z-10 text-lg font-black italic text-white leading-relaxed line-clamp-3 mt-4">
-              "Privilégiez toujours la collaboration interne à l'équipe avant d'escalader au management."
-            </p>
-            <Button asChild variant="link" className="relative z-10 p-0 text-white font-black text-[10px] h-auto uppercase tracking-widest hover:text-blue-200 justify-start mt-4">
-              <Link href="/dashboard/coach">Plus de conseils <ChevronRight className="h-3 w-3 ml-1" /></Link>
+            
+            <div className="flex-1 flex items-center">
+              <p className="relative z-10 text-lg font-black italic text-white leading-relaxed line-clamp-4 mt-2">
+                "{currentMindset}"
+              </p>
+            </div>
+
+            <Button 
+              variant="link" 
+              onClick={handleNextMindset}
+              className="relative z-10 p-0 text-white font-black text-[10px] h-auto uppercase tracking-[0.2em] hover:text-blue-200 justify-start mt-4 gap-2 transition-all active:translate-x-1"
+            >
+              Plus de conseils <ChevronRight className="h-3 w-3" />
             </Button>
           </Card>
         </div>
@@ -293,3 +313,4 @@ function KPICard({ label, val, color }: any) {
     </div>
   );
 }
+
