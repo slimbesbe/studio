@@ -1,14 +1,13 @@
+
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect, useRef } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, onSnapshot, Timestamp, setDoc, serverTimestamp, increment, collection, addDoc } from 'firebase/firestore';
+import { Firestore, doc, onSnapshot, Timestamp, setDoc, serverTimestamp, increment, collection, addDoc, getDoc } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged, signOut } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { logActivity } from '@/lib/services/logging-service';
 import { sendAdminAlertOnFirstLogin } from '@/lib/services/mail-service';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 import { useRouter } from 'next/navigation';
 
 interface FirebaseContextState {
@@ -58,20 +57,14 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
       if (!firebaseUser) {
         setProfile(null);
         setIsUserLoading(false);
-      } else {
-        logActivity(firestore, firebaseUser.uid, 'login', { email: firebaseUser.email });
       }
     }, (error) => {
       setUserError(error);
       setIsUserLoading(false);
     });
     return () => unsubscribe();
-  }, [auth, firestore]);
+  }, [auth]);
 
-  /**
-   * SESSION GUARD & REAL-TIME LOCK DETECTION
-   * Écoute le document utilisateur en temps réel pour détecter un verrouillage de sécurité.
-   */
   useEffect(() => {
     if (!firestore || !user) {
       if (!user) {
@@ -91,20 +84,14 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
       if (docSnap.exists()) {
         const profileData = docSnap.data();
         
-        // PROTECTION CRITIQUE : Déconnexion forcée si le compte est verrouillé (Anti-Partage)
         if (profileData.isLocked === true && !isHardcodedAdmin) {
-          console.warn("ALERTE SÉCURITÉ : Compte verrouillé détecté - Déconnexion forcée.");
-          // Nettoyage complet des traces locales
           localStorage.clear();
           sessionStorage.clear();
-          // Déconnexion Firebase
           await signOut(auth);
-          // Redirection vers la page d'accès refusé
           router.replace('/access-denied');
           return;
         }
 
-        // Vérification expiration de l'accès
         let isExpired = false;
         if (profileData.expiresAt) {
           try {
@@ -126,73 +113,46 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
           status: currentStatus, 
           role: finalRole 
         });
-      } else if (isHardcodedAdmin) {
-        // Auto-création du profil admin si manquant
-        const initialAdmin = {
-          id: user.uid,
-          email: user.email,
-          firstName: user.email?.split('@')[0] || 'Admin',
-          lastName: 'Simu-lux',
-          role: 'super_admin',
-          status: 'active',
-          isLocked: false,
-          createdAt: serverTimestamp()
-        };
-        setDoc(userDocRef, initialAdmin, { merge: true }).catch(() => {});
-        setProfile(initialAdmin);
+        setIsUserLoading(false);
       } else {
-        setProfile({ id: user.uid, email: user.email, role: 'user', status: 'active', isLocked: false });
+        // AUTO-CRÉATION POUR ADMINS OU DEMO
+        if (isHardcodedAdmin) {
+          const initialAdmin = {
+            id: user.uid,
+            email: user.email,
+            firstName: user.email?.split('@')[0] || 'Admin',
+            lastName: 'Simu-lux',
+            role: 'super_admin',
+            status: 'active',
+            isLocked: false,
+            createdAt: serverTimestamp()
+          };
+          await setDoc(userDocRef, initialAdmin, { merge: true });
+        } else if (user.isAnonymous) {
+          // AUTO-CRÉATION POUR ESSAI GRATUIT
+          const demoProfile = {
+            id: user.uid,
+            role: 'demo',
+            groupId: 'DEMO',
+            firstName: 'Visiteur',
+            lastName: 'Démo',
+            status: 'active',
+            isLocked: false,
+            createdAt: serverTimestamp(),
+            simulationsCount: 0,
+            averageScore: 0,
+            totalTimeSpent: 0
+          };
+          await setDoc(userDocRef, demoProfile, { merge: true });
+        } else {
+          setProfile({ id: user.uid, email: user.email, role: 'user', status: 'active', isLocked: false });
+        }
+        setIsUserLoading(false);
       }
-      setIsUserLoading(false);
-    }, (error) => {
-      console.error("Firestore Listen Error:", error);
-      setIsUserLoading(false);
     });
 
     return () => unsubscribe();
   }, [firestore, user, auth, router]);
-
-  // Gestion du premier login et bienvenue
-  useEffect(() => {
-    if (!firestore || !user || user.isAnonymous || !profile || profile.firstLoginAt) return;
-    if (welcomeTriggered.current === user.uid) return;
-    
-    welcomeTriggered.current = user.uid;
-    
-    const now = serverTimestamp();
-    const fullName = `${profile.firstName || 'Nouvel'} ${profile.lastName || 'Utilisateur'}`;
-    const userDocRef = doc(firestore, 'users', user.uid);
-    
-    setDoc(userDocRef, { firstLoginAt: now }, { merge: true }).catch(() => {});
-    
-    const supportMsgRef = collection(firestore, 'supportMessages');
-    addDoc(supportMsgRef, {
-      userId: user.uid,
-      userEmail: user.email,
-      userName: fullName,
-      subject: "Bienvenue",
-      message: `Première connexion détectée pour ${fullName}. Bienvenue sur la plateforme Simu-lux !`,
-      type: 'welcome',
-      status: 'unread',
-      createdAt: now
-    }).catch(() => {});
-    
-    sendAdminAlertOnFirstLogin(firestore, fullName, user.email || user.uid);
-    logActivity(firestore, user.uid, 'first_login');
-  }, [firestore, user, profile]);
-
-  // Tracker de temps d'étude
-  useEffect(() => {
-    if (!firestore || !user || user.isAnonymous || !profile || profile.role !== 'user' || profile.isLocked) return;
-    const interval = setInterval(() => {
-      const userRef = doc(firestore, 'users', user.uid);
-      setDoc(userRef, { 
-        totalTimeSpent: increment(60),
-        lastLoginAt: serverTimestamp() 
-      }, { merge: true }).catch(() => {});
-    }, 60000);
-    return () => clearInterval(interval);
-  }, [firestore, user, profile]);
 
   const contextValue = useMemo((): FirebaseContextState => ({
     areServicesAvailable: !!(firebaseApp && firestore && auth),

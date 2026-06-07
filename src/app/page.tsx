@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -6,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Mail, Lock, Play, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Loader2, Mail, Lock, Play, ShieldCheck, ShieldAlert, Globe } from 'lucide-react';
 import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword, signInAnonymously, signOut } from 'firebase/auth';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -27,9 +28,6 @@ export default function Home() {
 
   const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com', 'jedgrira1@gmail.com'];
 
-  /**
-   * Génère une empreinte numérique unique pour l'appareil actuel.
-   */
   const getDeviceFingerprint = () => {
     if (typeof window === 'undefined') return 'server';
     return `${navigator.userAgent}-${window.screen.width}x${window.screen.height}`;
@@ -44,11 +42,9 @@ export default function Home() {
     const currentFingerprint = getDeviceFingerprint();
 
     try {
-      // 1. Authentification Firebase (Vérification identifiants)
       const userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, password);
       const user = userCredential.user;
 
-      // 2. Récupération du profil Firestore
       const userDocRef = doc(db, 'users', user.uid);
       const userDocSnap = await getDoc(userDocRef);
       
@@ -59,60 +55,40 @@ export default function Home() {
       const userData = userDocSnap.data();
       const isSA = ADMIN_EMAILS.includes(trimmedEmail);
 
-      // CAS A : Le compte est déjà marqué comme verrouillé
       if (userData.isLocked === true) {
         await signOut(auth);
-        setErrorMessage("ALERTE : Votre compte a été bloqué pour non-respect des règles de sécurité (connexion simultanée ou multi-appareils). Veuillez contacter l'administrateur pour récupérer votre compte.");
+        setErrorMessage("ALERTE : Votre compte a été bloqué pour non-respect des règles de sécurité. Veuillez contacter l'administrateur.");
         return;
       }
 
-      // CAS B : DÉTECTION DOUBLE CONNEXION (PC DIFFÉRENT)
-      // Si une session active existe et que le deviceId est différent du device actuel
       if (!isSA && userData.activeSession?.deviceId && userData.activeSession.deviceId !== currentFingerprint) {
-        // Blocage immédiat du compte
         await updateDoc(userDocRef, {
           isLocked: true,
           lockReason: 'multi-device',
           updatedAt: serverTimestamp()
         });
-
-        // Envoi des alertes emails pédagogoques (Admin + User)
         sendSecurityLockEmails(db, trimmedEmail, `${userData.firstName} ${userData.lastName}`);
-
         await signOut(auth);
-        setErrorMessage("ALERTE : Votre compte a été bloqué pour non-respect des règles de sécurité (connexion simultanée ou multi-appareils). Veuillez contacter l'administrateur pour récupérer votre compte.");
+        setErrorMessage("ALERTE : Votre compte a été bloqué pour non-respect des règles de sécurité (multi-appareils).");
         return;
       }
 
-      // 3. Tout est OK : Mise à jour de la session active sur cet appareil
       await updateDoc(userDocRef, {
         activeSession: {
           deviceId: currentFingerprint,
           lastLogin: serverTimestamp()
         },
-        isLocked: false,
         updatedAt: serverTimestamp()
       });
       
-      // Redirection selon rôle
       if (isSA || userData.role === 'admin' || userData.role === 'super_admin') {
         router.push('/admin/dashboard');
       } else {
         router.push('/dashboard');
       }
-      
       toast({ title: "Connexion réussie" });
     } catch (error: any) {
-      console.error("Login Error:", error);
-      let msg = "Email ou mot de passe incorrect.";
-      if (error.code === 'auth/user-not-found') msg = "Utilisateur introuvable.";
-      if (error.code === 'auth/wrong-password') msg = "Mot de passe incorrect.";
-      
-      toast({
-        variant: "destructive",
-        title: "Échec d'identification",
-        description: msg
-      });
+      toast({ variant: "destructive", title: "Erreur", description: "Email ou mot de passe incorrect." });
     } finally {
       setIsLoading(false);
     }
@@ -123,7 +99,7 @@ export default function Home() {
     try {
       await signInAnonymously(auth);
       router.push('/dashboard');
-      toast({ title: "Mode Démo activé" });
+      toast({ title: "Accès Essai Gratuit" });
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur" });
     } finally {
@@ -132,27 +108,33 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 animate-fade-in overflow-y-auto">
-      <div className="flex flex-col items-center justify-center mb-8 w-full max-w-sm">
-        <SimuLuxLogo className="h-24 w-full" />
-      </div>
-      
-      <Card className="w-full max-w-md border-t-4 border-t-primary shadow-2xl overflow-hidden">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 animate-fade-in">
+      {/* HEADER MIRROR UI */}
+      <header className="fixed top-0 left-0 w-full h-20 bg-white border-b flex items-center justify-between px-8 z-50">
+        <SimuLuxLogo className="h-10 w-40" />
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 text-slate-400 font-bold uppercase text-[10px] tracking-widest italic cursor-not-allowed">
+            <Globe className="h-4 w-4" /> FR
+          </div>
+          <Button variant="outline" onClick={handleDemoLogin} className="border-primary text-primary hover:bg-primary/5 h-10 px-6 rounded-full font-black uppercase text-[10px] tracking-widest italic">
+            Essai gratuit
+          </Button>
+          <Button onClick={() => document.getElementById('email-input')?.focus()} className="bg-primary text-white h-10 px-6 rounded-full font-black uppercase text-[10px] tracking-widest italic">
+            Connexion
+          </Button>
+        </div>
+      </header>
+
+      <Card className="w-full max-w-md border-t-4 border-t-primary shadow-2xl overflow-hidden mt-10">
         <CardHeader className="space-y-1 bg-slate-50/50 border-b">
           <CardTitle className="text-2xl font-black text-center text-primary italic uppercase tracking-tight">Espace Membre</CardTitle>
           <CardDescription className="text-center font-bold text-[10px] uppercase tracking-widest text-slate-400">Accès sécurisé Simu-lux</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 pt-8">
-          
           {errorMessage && (
-            <div className="bg-red-50 border-2 border-red-200 p-5 rounded-2xl animate-in slide-in-from-top-4 duration-300">
-              <div className="flex items-center gap-3 text-red-600 mb-2">
-                <ShieldAlert className="h-6 w-6 shrink-0" />
-                <span className="font-black uppercase italic text-xs tracking-tight">Sécurité Compromise</span>
-              </div>
-              <p className="text-[11px] font-bold text-red-700 leading-relaxed italic">
-                {errorMessage}
-              </p>
+            <div className="bg-red-50 border-2 border-red-200 p-5 rounded-2xl flex items-start gap-3">
+              <ShieldAlert className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+              <p className="text-[11px] font-bold text-red-700 leading-relaxed italic">{errorMessage}</p>
             </div>
           )}
 
@@ -161,50 +143,20 @@ export default function Home() {
               <Label className="font-black uppercase text-[10px] text-slate-400 ml-1 italic">Email Professionnel</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
-                <Input 
-                  type="email" 
-                  placeholder="votre@email.com" 
-                  className="pl-10 h-12 rounded-xl font-bold italic border-2" 
-                  value={email} 
-                  onChange={(e) => setEmail(e.target.value)} 
-                  required 
-                />
+                <Input id="email-input" type="email" placeholder="votre@email.com" className="pl-10 h-12 rounded-xl font-bold italic border-2" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
             </div>
             <div className="space-y-2">
               <Label className="font-black uppercase text-[10px] text-slate-400 ml-1 italic">Mot de passe</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
-                <Input 
-                  type="password" 
-                  placeholder="••••••••" 
-                  className="pl-10 h-12 rounded-xl font-bold italic border-2" 
-                  value={password} 
-                  onChange={(e) => setPassword(e.target.value)} 
-                  required 
-                />
+                <Input type="password" placeholder="••••••••" className="pl-10 h-12 rounded-xl font-bold italic border-2" value={password} onChange={(e) => setPassword(e.target.value)} required />
               </div>
             </div>
-            
-            <Button type="submit" className="w-full font-black h-14 text-lg shadow-xl bg-primary hover:scale-[1.02] transition-transform uppercase italic tracking-widest" disabled={isLoading}>
-              {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Vérification...</> : "Se connecter"}
+            <Button type="submit" className="w-full font-black h-14 text-lg shadow-xl bg-primary uppercase italic tracking-widest" disabled={isLoading}>
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Se connecter"}
             </Button>
           </form>
-
-          <div className="relative py-2">
-            <div className="absolute inset-0 flex items-center"><span className="w-full border-t-2 border-dashed" /></div>
-            <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-4 text-slate-300 font-black italic text-[9px] tracking-widest">OU</span></div>
-          </div>
-
-          <Button 
-            variant="outline" 
-            className="w-full h-12 border-2 border-accent text-accent hover:bg-accent/5 font-black uppercase italic text-xs tracking-widest rounded-xl" 
-            onClick={handleDemoLogin}
-            disabled={isLoading}
-          >
-            <Play className="mr-2 h-4 w-4 fill-accent" />
-            Explorer en mode DÉMO
-          </Button>
         </CardContent>
         <CardFooter className="flex justify-center border-t py-4 bg-slate-50/50">
           <p className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase italic tracking-widest">

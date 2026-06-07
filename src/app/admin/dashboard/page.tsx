@@ -23,7 +23,6 @@ import {
 import { cn } from '@/lib/utils';
 import { startOfDay, endOfDay, isWithinInterval, subDays, format, startOfMonth, endOfMonth, isValid } from 'date-fns';
 
-// LISTE BLANCHE MATÉRIELLE DE SÉCURITÉ
 const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com', 'jedgrira1@gmail.com'];
 const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1', 've5V0MUPoccuOdBNGYsz6QYY89L2', 'Adknzym5N6cMeJnYbCRaAdBrA0r1'];
 
@@ -34,20 +33,17 @@ export default function SuperAdminDashboard() {
   const [mounted, setMounted] = useState(false);
   const [chartKey, setChartKey] = useState(0);
 
-  // VÉRIFICATION DE SÉCURITÉ MATÉRIELLE STRICTE
   const isAuthorizedAdmin = useMemo(() => {
     if (!user) return false;
     return (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) || 
            ADMIN_UIDS.includes(user.uid);
   }, [user]);
 
-  // isAdmin n'est vrai que si l'utilisateur est autorisé ET que son profil confirme le rôle
   const isAdmin = useMemo(() => {
     if (!isAuthorizedAdmin || !profile) return false;
     return profile.role === 'super_admin' || profile.role === 'admin';
   }, [isAuthorizedAdmin, profile]);
 
-  // FETCH DATA - Protected by strict isAdmin check
   const usersQuery = useMemoFirebase(() => {
     if (!isAdmin) return null;
     return query(collection(db, 'users'), limit(1000));
@@ -69,7 +65,6 @@ export default function SuperAdminDashboard() {
   useEffect(() => {
     setMounted(true);
     const timer = setTimeout(() => setChartKey(prev => prev + 1), 500);
-    
     if (!isUserLoading && profile && !isAdmin) {
       router.push('/dashboard');
     }
@@ -77,7 +72,12 @@ export default function SuperAdminDashboard() {
   }, [profile, isUserLoading, router, isAdmin]);
 
   const stats = useMemo(() => {
-    if (!allUsers || !allGroups || !allAttempts) return null;
+    // Si on charge encore les données essentielles, on attend
+    if (loadingUsers || loadingGroups || loadingAttempts) return null;
+
+    const users = allUsers || [];
+    const groups = allGroups || [];
+    const attempts = allAttempts || [];
 
     const now = new Date();
     const todayStart = startOfDay(now);
@@ -85,15 +85,14 @@ export default function SuperAdminDashboard() {
     const monthStart = startOfMonth(now);
     const monthEnd = endOfMonth(now);
 
-    const activeUsers = allUsers.filter(u => u.status === 'active').length;
-    const activeGroups = allGroups.filter(g => g.status === 'active').length;
-    const coaches = allUsers.filter(u => u.role === 'coach').length;
-    const partners = allUsers.filter(u => u.role === 'partner').length;
-    const expiredCount = allUsers.filter(u => u.status === 'expired').length;
-    const suspendedCount = allUsers.filter(u => u.status === 'disabled' || u.status === 'suspended').length;
+    const activeUsers = users.filter(u => u.status === 'active').length;
+    const activeGroups = groups.filter(g => g.status === 'active').length;
+    const coaches = users.filter(u => u.role === 'coach').length;
+    const partners = users.filter(u => u.role === 'partner').length;
+    const expiredCount = users.filter(u => u.status === 'expired').length;
+    const suspendedCount = users.filter(u => u.status === 'disabled' || u.status === 'suspended').length;
 
-    // Filtrer les tentatives avec des dates valides pour éviter les plantages
-    const validAttempts = allAttempts.filter(a => {
+    const validAttempts = attempts.filter(a => {
       if (!a.submittedAt) return false;
       const date = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt);
       return isValid(date);
@@ -136,7 +135,7 @@ export default function SuperAdminDashboard() {
       avgScore, successRate,
       chartData: last7Days
     };
-  }, [allUsers, allGroups, allAttempts]);
+  }, [allUsers, allGroups, allAttempts, loadingUsers, loadingGroups, loadingAttempts]);
 
   if (!mounted || isUserLoading) {
     return <div className="h-screen flex items-center justify-center bg-white"><Loader2 className="h-12 w-12 animate-spin text-blue-600" /></div>;
@@ -155,39 +154,30 @@ export default function SuperAdminDashboard() {
           <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Cockpit Super Admin</h1>
           <p className="text-slate-500 font-medium text-sm mt-1 uppercase tracking-widest italic">Pilotage en temps réel • Simu-lux</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-2xl border shadow-sm">
-            <Activity className="h-4 w-4 text-blue-600" />
-            <span className="text-[10px] font-black uppercase text-slate-400 italic">Système Actif</span>
-          </div>
+        <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-2xl border shadow-sm">
+          <Activity className="h-4 w-4 text-blue-600" />
+          <span className="text-[10px] font-black uppercase text-slate-400 italic">Système Actif</span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         <div className="md:col-span-4">
           <Card className="rounded-[32px] border-none shadow-xl p-8 space-y-8 h-full bg-white">
-            <div className="flex items-center justify-between">
-              <h3 className="font-black text-slate-800 text-xs uppercase tracking-widest flex items-center gap-2 italic">1. Vue d'ensemble</h3>
-              <MoreHorizontal className="h-4 w-4 text-slate-300" />
-            </div>
+            <h3 className="font-black text-slate-800 text-xs uppercase tracking-widest flex items-center gap-2 italic">1. Vue d'ensemble</h3>
             <div className="grid grid-cols-2 gap-4">
               <OverviewCard icon={Users} label="Users actifs" val={stats.activeUsers} color="bg-blue-50 text-blue-600" />
               <OverviewCard icon={LayoutGrid} label="Groupes" val={stats.activeGroups} color="bg-emerald-50 text-emerald-600" />
               <OverviewCard icon={GraduationCap} label="Coachs" val={stats.coaches} color="bg-indigo-50 text-indigo-600" />
               <OverviewCard icon={Briefcase} label="Partenaires" val={stats.partners} color="bg-amber-50 text-amber-600" />
             </div>
-            
-            <div className="pt-8 border-t border-dashed space-y-4">
-              <h3 className="font-black text-slate-800 text-xs uppercase tracking-widest italic">4. Alertes Gestion</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-red-50 p-5 rounded-2xl border-2 border-red-100">
-                  <p className="text-[9px] font-black text-red-400 uppercase italic">Expirés</p>
-                  <p className="text-4xl font-black text-red-600 tracking-tighter">{stats.expiredCount}</p>
-                </div>
-                <div className="bg-amber-50 p-5 rounded-2xl border-2 border-amber-100">
-                  <p className="text-[9px] font-black text-amber-400 uppercase italic">Suspendus</p>
-                  <p className="text-4xl font-black text-amber-600 tracking-tighter">{stats.suspendedCount}</p>
-                </div>
+            <div className="pt-8 border-t border-dashed grid grid-cols-2 gap-4">
+              <div className="bg-red-50 p-5 rounded-2xl border-2 border-red-100">
+                <p className="text-[9px] font-black text-red-400 uppercase italic">Expirés</p>
+                <p className="text-4xl font-black text-red-600 tracking-tighter">{stats.expiredCount}</p>
+              </div>
+              <div className="bg-amber-50 p-5 rounded-2xl border-2 border-amber-100">
+                <p className="text-[9px] font-black text-amber-400 uppercase italic">Suspendus</p>
+                <p className="text-4xl font-black text-amber-600 tracking-tighter">{stats.suspendedCount}</p>
               </div>
             </div>
           </Card>
@@ -196,15 +186,13 @@ export default function SuperAdminDashboard() {
         <div className="md:col-span-4">
           <Card className="rounded-[32px] border-none shadow-xl p-8 h-full space-y-8 bg-white">
             <h3 className="font-black text-slate-800 text-xs uppercase tracking-widest italic">2. Activité Simulations</h3>
-            
             <div className="grid grid-cols-2 gap-8">
               <div className="space-y-4">
                 <p className="text-[9px] font-black text-slate-400 uppercase italic">Aujourd'hui</p>
                 <p className="text-4xl font-black text-slate-900 italic">{stats.todaySims}</p>
-                <div className="h-40 w-full">
+                <div className="h-40">
                   <ResponsiveContainer width="100%" height="100%" key={`bar-today-${chartKey}`}>
                     <BarChart data={stats.chartData}>
-                      <XAxis dataKey="name" hide />
                       <Bar dataKey="val" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={12} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -213,11 +201,10 @@ export default function SuperAdminDashboard() {
               <div className="space-y-4">
                 <p className="text-[9px] font-black text-slate-400 uppercase italic">Ce mois</p>
                 <p className="text-4xl font-black text-slate-900 italic">{stats.totalSimsMonth}</p>
-                <div className="h-40 w-full">
+                <div className="h-40">
                   <ResponsiveContainer width="100%" height="100%" key={`bar-month-${chartKey}`}>
                     <BarChart data={stats.chartData}>
-                      <XAxis dataKey="name" hide />
-                      <Bar dataKey="val" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={12} />
+                      <Bar dataKey="val" fill="#10b981" radius={[4, 4, 0, 0]} barSize={12} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -227,17 +214,21 @@ export default function SuperAdminDashboard() {
         </div>
 
         <div className="md:col-span-4">
-          <Card className="rounded-[32px] border-none shadow-xl p-8 h-full space-y-10 bg-white">
+          <Card className="rounded-[32px] border-none shadow-xl p-8 h-full space-y-10 bg-white text-center">
             <h3 className="font-black text-slate-800 text-xs uppercase tracking-widest italic">3. Performance Globale</h3>
-            
             <div className="grid grid-cols-2 gap-6">
-              <GaugeCard label="Score moyen" val={stats.avgScore} color="#3b82f6" />
-              <GaugeCard label="Taux réussite" val={stats.successRate} color="#10b981" />
+              <div className="space-y-2">
+                <p className="text-[10px] font-black text-slate-400 uppercase italic">Score moyen</p>
+                <p className="text-5xl font-black text-blue-600 italic tracking-tighter">{stats.avgScore}%</p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-[10px] font-black text-slate-400 uppercase italic">Taux réussite</p>
+                <p className="text-5xl font-black text-emerald-500 italic tracking-tighter">{stats.successRate}%</p>
+              </div>
             </div>
-
             <div className="pt-8 border-t border-dashed">
               <div className="bg-indigo-50/50 p-6 rounded-3xl flex justify-between items-center border-2 border-indigo-100 shadow-inner">
-                <div>
+                <div className="text-left">
                   <p className="text-[10px] font-black text-indigo-600 uppercase italic">Statut Système</p>
                   <p className="text-xs font-bold text-indigo-400 italic">Optimisé</p>
                 </div>
@@ -253,29 +244,13 @@ export default function SuperAdminDashboard() {
 
 function OverviewCard({ icon: Icon, label, val, color }: any) {
   return (
-    <div className="p-5 rounded-2xl bg-white border-2 border-slate-50 shadow-sm flex flex-col gap-4 group hover:scale-105 transition-transform">
+    <div className="p-5 rounded-2xl bg-white border-2 border-slate-50 shadow-sm flex flex-col gap-4">
       <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center shadow-inner", color)}>
         <Icon className="h-6 w-6" />
       </div>
       <div>
         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">{label}</p>
-        <p className="text-2xl font-black text-slate-900 tracking-tighter italic">{val.toLocaleString()}</p>
-      </div>
-    </div>
-  );
-}
-
-function GaugeCard({ label, val, color }: any) {
-  const numericVal = Number(val) || 0;
-  return (
-    <div className="flex flex-col items-center justify-center space-y-3 p-6 bg-slate-50/50 rounded-3xl border-2 border-white shadow-inner">
-      <p className="text-[10px] font-black text-slate-400 uppercase text-center italic">{label}</p>
-      <div className="relative h-24 w-32 flex items-center justify-center overflow-hidden">
-        <svg className="absolute top-0 transform" width="120" height="120">
-          <circle cx="60" cy="60" r="50" stroke="#e2e8f0" strokeWidth="10" fill="transparent" strokeDasharray="157 157" strokeDashoffset="0" strokeLinecap="round" transform="rotate(180 60 60)" />
-          <circle cx="60" cy="60" r="50" stroke={color} strokeWidth="10" fill="transparent" strokeDasharray="157 157" strokeDashoffset={157 - (157 * numericVal) / 100} strokeLinecap="round" transform="rotate(180 60 60)" />
-        </svg>
-        <span className="mt-6 text-2xl font-black text-slate-900 italic">{numericVal}%</span>
+        <p className="text-2xl font-black text-slate-900 tracking-tighter italic">{val}</p>
       </div>
     </div>
   );
