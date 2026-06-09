@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
@@ -5,13 +6,13 @@ import { useUser, useFirestore, useCollection, useMemoFirebase, useAuth } from '
 import { collection, doc, updateDoc, deleteDoc, query, where, serverTimestamp } from 'firebase/firestore';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { 
-  Loader2, UserPlus, ChevronLeft, Users, User, Clock, Key, 
+  Loader2, UserPlus, ChevronLeft, Users, Key, 
   Trash2, Mail, Pencil, ShieldCheck, GraduationCap, 
-  MoreHorizontal, LayoutDashboard, RefreshCw, Info, Search
+  MoreHorizontal, LayoutDashboard, RefreshCw, Search
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -40,8 +41,7 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogFooter, 
-  DialogDescription 
+  DialogFooter 
 } from '@/components/ui/dialog';
 import { 
   Select, 
@@ -50,6 +50,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 export default function UsersListPage() {
   const { user: currentUser, profile, isUserLoading } = useUser();
@@ -70,27 +71,18 @@ export default function UsersListPage() {
 
   const isSA = profile?.role === 'super_admin';
   const isAdmin = isSA || profile?.role === 'admin';
-  const isPartner = profile?.role === 'partner';
-
-  // SÉCURITÉ : Forcer le déblocage du body si coincé (anti-bug Radix)
-  useEffect(() => {
-    if (!userToDelete && !passwordChangeUser) {
-      document.body.style.pointerEvents = 'auto';
-    }
-  }, [userToDelete, passwordChangeUser]);
 
   const usersQuery = useMemoFirebase(() => {
-    if (isSA || isAdmin) return collection(db, 'users');
-    if (isPartner) return query(collection(db, 'users'), where('partnerId', '==', currentUser?.uid));
+    if (isAdmin) return collection(db, 'users');
     return null;
-  }, [db, isSA, isAdmin, isPartner, currentUser?.uid]);
+  }, [db, isAdmin]);
 
   const { data: users, isLoading: isCollectionLoading } = useCollection(usersQuery);
 
   const groupsQuery = useMemoFirebase(() => {
-    if (!isAdmin && !isPartner) return null;
+    if (!isAdmin) return null;
     return collection(db, 'coachingGroups');
-  }, [db, isAdmin, isPartner]);
+  }, [db, isAdmin]);
   const { data: groups } = useCollection(groupsQuery);
 
   const filteredUsers = useMemo(() => {
@@ -106,16 +98,13 @@ export default function UsersListPage() {
   }, [users, searchTerm, roleFilter, groupFilter]);
 
   const toggleStatus = async (userId: string, currentStatus: string) => {
-    // On attend un court instant pour laisser le dropdown se fermer proprement
-    setTimeout(async () => {
-      const newStatus = currentStatus === 'active' ? 'disabled' : 'active';
-      try {
-        await updateDoc(doc(db, 'users', userId), { status: newStatus, updatedAt: serverTimestamp() });
-        toast({ title: "Statut mis à jour", description: `Le compte est désormais ${newStatus === 'active' ? 'actif' : 'suspendu'}.` });
-      } catch (e: any) {
-        toast({ variant: "destructive", title: "Erreur", description: e.message });
-      }
-    }, 100);
+    const newStatus = currentStatus === 'active' ? 'disabled' : 'active';
+    try {
+      await updateDoc(doc(db, 'users', userId), { status: newStatus, updatedAt: serverTimestamp() });
+      toast({ title: "Statut mis à jour" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Erreur", description: e.message });
+    }
   };
 
   const handleUpdatePasswordMemo = async () => {
@@ -132,21 +121,21 @@ export default function UsersListPage() {
       toast({ title: "Mémo mis à jour" });
       setPasswordChangeUser(null);
       setNewPassword('');
-    } catch (e: any) {
+    } catch (e) {
       toast({ variant: "destructive", title: "Erreur" });
     } finally {
       setIsChangingPassword(false);
     }
   };
 
-  const handleSendResetEmail = async () => {
+  const handleSendPasswordResetEmail = async () => {
     if (!passwordChangeUser?.email) return;
     setIsSendingReset(true);
     try {
       await sendPasswordResetEmail(auth, passwordChangeUser.email);
-      toast({ title: "Email envoyé", description: `Lien envoyé à ${passwordChangeUser.email}` });
+      toast({ title: "Email envoyé" });
       setPasswordChangeUser(null);
-    } catch (e: any) {
+    } catch (e) {
       toast({ variant: "destructive", title: "Erreur d'envoi" });
     } finally {
       setIsSendingReset(false);
@@ -155,20 +144,14 @@ export default function UsersListPage() {
 
   const handleDeleteUser = async () => {
     if (!userToDelete || isDeleting) return;
-    
     setIsDeleting(true);
-    const idToDelete = userToDelete.id;
-    
     try {
-      await deleteDoc(doc(db, 'users', idToDelete));
+      await deleteDoc(doc(db, 'users', userToDelete.id));
       toast({ title: "Utilisateur supprimé" });
-      // On attend la fin de l'animation de fermeture
-      setTimeout(() => {
-        setUserToDelete(null);
-        setIsDeleting(false);
-      }, 100);
+      setUserToDelete(null);
     } catch (e: any) {
       toast({ variant: "destructive", title: "Erreur", description: e.message });
+    } finally {
       setIsDeleting(false);
     }
   };
@@ -178,7 +161,7 @@ export default function UsersListPage() {
       case 'super_admin': return <Badge className="bg-purple-600 font-black italic uppercase text-[10px]">Super Admin</Badge>;
       case 'admin': return <Badge className="bg-blue-600 font-black italic uppercase text-[10px]">Admin</Badge>;
       case 'coach': return <Badge className="bg-emerald-600 font-black italic uppercase text-[10px]">Coach</Badge>;
-      case 'partner': return <Badge className="bg-amber-600 font-black italic uppercase text-[10px]">Partenaire</Badge>;
+      case 'demo': return <Badge className="bg-amber-600 font-black italic uppercase text-[10px]">Démo</Badge>;
       default: return <Badge variant="outline" className="font-black italic uppercase text-[10px]">Élève</Badge>;
     }
   };
@@ -199,30 +182,27 @@ export default function UsersListPage() {
         </div>
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-2xl border-2">
-            <div className="relative w-48">
-              <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="h-12 rounded-xl border-none font-black italic text-xs uppercase bg-white"><div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /><SelectValue placeholder="Rôle" /></div></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous les rôles</SelectItem>
-                  <SelectItem value="super_admin">Super Admin</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="coach">Coach</SelectItem>
-                  <SelectItem value="partner">Partenaire</SelectItem>
-                  <SelectItem value="user">Utilisateur</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="relative w-56">
-              <Select value={groupFilter} onValueChange={setGroupFilter}>
-                <SelectTrigger className="h-12 rounded-xl border-none font-black italic text-xs uppercase bg-white"><div className="flex items-center gap-2"><GraduationCap className="h-4 w-4 text-accent" /><SelectValue placeholder="Groupe" /></div></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous les groupes</SelectItem>
-                  {groups?.map(g => (
-                    <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="h-12 w-48 rounded-xl border-none font-black italic text-xs uppercase bg-white"><div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /><SelectValue placeholder="Rôle" /></div></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les rôles</SelectItem>
+                <SelectItem value="super_admin">Super Admin</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="coach">Coach</SelectItem>
+                <SelectItem value="demo">Démo</SelectItem>
+                <SelectItem value="user">Utilisateur</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={groupFilter} onValueChange={setGroupFilter}>
+              <SelectTrigger className="h-12 w-56 rounded-xl border-none font-black italic text-xs uppercase bg-white"><div className="flex items-center gap-2"><GraduationCap className="h-4 w-4 text-accent" /><SelectValue placeholder="Groupe" /></div></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les groupes</SelectItem>
+                <SelectItem value="DEMO">Groupe DEMO</SelectItem>
+                {groups?.map(g => (
+                  <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <Button asChild className="bg-accent hover:bg-accent/90 h-16 px-12 rounded-[24px] font-black uppercase tracking-widest shadow-2xl scale-105 transition-transform"><Link href="/admin/users/new"><UserPlus className="mr-3 h-7 w-7" /> Créer Participant</Link></Button>
         </div>
@@ -249,20 +229,31 @@ export default function UsersListPage() {
             </TableHeader>
             <TableBody>
               {filteredUsers.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="h-64 text-center"><div className="flex flex-col items-center justify-center text-slate-300 gap-4"><Users className="h-16 w-16 opacity-20" /><p className="font-black uppercase italic tracking-widest">Aucun utilisateur trouvé</p></div></TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="h-64 text-center text-slate-300 font-black italic uppercase tracking-widest">Aucun utilisateur trouvé</TableCell></TableRow>
               ) : (
                 filteredUsers.map((u) => {
-                  const groupName = groups?.find(g => g.id === u.groupId)?.name || '-';
+                  const groupName = u.groupId === 'DEMO' ? 'DEMO' : (groups?.find(g => g.id === u.groupId)?.name || '-');
                   return (
                     <TableRow key={u.id} className="h-24 hover:bg-slate-50 transition-all border-b last:border-0 group">
                       <TableCell className="px-10">
                         <div className="flex items-center gap-4">
-                          <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center font-black text-primary italic">{u.firstName?.[0] || '?'}{u.lastName?.[0] || '?'}</div>
-                          <div className="space-y-0.5"><div className="font-black text-lg text-slate-800 italic uppercase tracking-tight">{u.firstName} {u.lastName}</div><div className="text-[10px] text-slate-400 font-bold flex items-center gap-1 uppercase italic"><Mail className="h-3 w-3" /> {u.email}</div></div>
+                          <div className={cn(
+                            "h-12 w-12 rounded-2xl flex items-center justify-center font-black italic shadow-sm",
+                            u.role === 'demo' ? "bg-slate-100 text-slate-400" : "bg-primary/10 text-primary"
+                          )}>{u.firstName?.[0] || '?'}{u.lastName?.[0] || '?'}</div>
+                          <div className="space-y-0.5">
+                            <div className="font-black text-lg text-slate-800 italic uppercase tracking-tight">{u.firstName} {u.lastName}</div>
+                            <div className="text-[10px] text-slate-400 font-bold flex items-center gap-1 uppercase italic"><Mail className="h-3 w-3" /> {u.email}</div>
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell className="text-center">{getRoleBadge(u.role)}</TableCell>
-                      <TableCell className="text-center"><span className="font-bold text-slate-600 text-sm italic">{groupName}</span></TableCell>
+                      <TableCell className="text-center">
+                        <span className={cn(
+                          "font-bold text-sm italic",
+                          u.groupId === 'DEMO' ? "text-amber-600 bg-amber-50 px-3 py-1 rounded-lg" : "text-slate-600"
+                        )}>{groupName}</span>
+                      </TableCell>
                       <TableCell className="text-center">
                         <Badge variant={u.status === 'active' ? 'default' : 'destructive'} className="font-black italic uppercase text-[9px] px-3">{u.status === 'active' ? 'Actif' : 'Suspendu'}</Badge>
                       </TableCell>
@@ -277,80 +268,3 @@ export default function UsersListPage() {
                           
                           <DropdownMenu modal={false}>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl border-2 hover:bg-slate-50">
-                                <MoreHorizontal className="h-4 w-4 text-slate-400" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-64 p-2 rounded-2xl shadow-2xl border-4 bg-white z-[100]">
-                              <DropdownMenuItem onClick={() => toggleStatus(u.id, u.status)} className="h-12 rounded-xl font-black uppercase text-xs italic cursor-pointer">{u.status === 'active' ? '🚫 Suspendre' : '✅ Réactiver'}</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => { setPasswordChangeUser(u); setNewPassword(''); }} className="h-12 rounded-xl font-black uppercase text-xs italic cursor-pointer"><Key className="mr-3 h-4 w-4" /> Accès & Sync</DropdownMenuItem>
-                              <DropdownMenuSeparator className="my-2" />
-                              <DropdownMenuItem onClick={() => setUserToDelete(u)} className="h-12 rounded-xl font-black uppercase text-xs italic text-destructive focus:bg-red-50 cursor-pointer"><Trash2 className="mr-3 h-4 w-4" /> Supprimer</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* DIALOGS POSITIONNÉS À L'EXTÉRIEUR POUR ÉVITER LES CONFLITS DE RENDU */}
-      <Dialog open={!!passwordChangeUser} onOpenChange={(val) => !val && setPasswordChangeUser(null)}>
-        <DialogContent className="rounded-[40px] max-w-lg p-12 border-4 shadow-3xl">
-          <DialogHeader>
-            <DialogTitle className="text-3xl font-black uppercase italic text-primary">Gestion des Accès</DialogTitle>
-            <DialogDescription className="font-bold text-slate-400 uppercase text-[10px] italic">Synchronisation réelle ou mémo admin.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-6 py-6">
-            <div className="p-6 bg-slate-50 rounded-2xl text-center border-2 border-dashed">
-              <p className="text-[10px] font-black text-slate-400 uppercase italic mb-2">Mémo actuel (Firestore)</p>
-              <code className="text-2xl font-black text-primary">{passwordChangeUser?.password || '---'}</code>
-            </div>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="font-black uppercase text-[10px] text-slate-400 italic">Modifier le mémo (Admin uniquement)</Label>
-                <Input value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Nouveau mot de passe mémo..." className="h-14 rounded-xl font-black italic border-2 bg-white" />
-              </div>
-              <Button variant="outline" className="w-full h-16 rounded-xl font-black uppercase italic text-xs gap-3 border-4 border-amber-200 text-amber-700 hover:bg-amber-50" onClick={handleSendResetEmail} disabled={isSendingReset}>
-                {isSendingReset ? <Loader2 className="animate-spin h-5 w-5" /> : <RefreshCw className="h-5 w-5" />}
-                Envoyer Lien de Synchronisation
-              </Button>
-            </div>
-          </div>
-          <DialogFooter className="gap-4">
-            <Button variant="outline" className="h-14 rounded-xl font-black uppercase flex-1 border-2" onClick={() => setPasswordChangeUser(null)}>Annuler</Button>
-            <Button className="h-14 rounded-xl font-black bg-primary flex-1 shadow-xl uppercase text-xs" onClick={handleUpdatePasswordMemo} disabled={isChangingPassword || !newPassword}>
-              {isChangingPassword ? <Loader2 className="animate-spin h-5 w-5" /> : "Mettre à jour Mémo"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={!!userToDelete} onOpenChange={(open) => !isDeleting && setUserToDelete(open ? userToDelete : null)}>
-        <AlertDialogContent className="rounded-[40px] p-12 border-4 shadow-3xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-3xl font-black uppercase text-destructive italic tracking-tighter">Action Irréversible</AlertDialogTitle>
-            <AlertDialogDescription className="text-xl font-bold pt-4 text-slate-600 leading-relaxed uppercase tracking-tight italic">
-              Voulez-vous supprimer <strong>{userToDelete?.firstName} {userToDelete?.lastName}</strong> ?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-8 gap-4">
-            <AlertDialogCancel disabled={isDeleting} className="h-14 rounded-xl font-black uppercase border-4">Annuler</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteUser} 
-              disabled={isDeleting}
-              className="h-14 rounded-xl font-black bg-destructive hover:bg-red-700 shadow-xl"
-            >
-              {isDeleting ? <Loader2 className="animate-spin h-5 w-5" /> : "Confirmer"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
-  );
-}

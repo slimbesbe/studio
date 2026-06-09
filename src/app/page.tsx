@@ -7,13 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Mail, Lock, Play, ShieldCheck, ShieldAlert, Globe } from 'lucide-react';
+import { Loader2, Mail, Lock, ShieldCheck, ShieldAlert, Globe } from 'lucide-react';
 import { useAuth, useFirestore } from '@/firebase';
-import { signInWithEmailAndPassword, signInAnonymously, signOut } from 'firebase/auth';
-import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { signInWithEmailAndPassword, signInAnonymously } from 'firebase/auth';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { SimuLuxLogo } from '@/components/dashboard/Sidebar';
-import { sendSecurityLockEmails } from '@/lib/services/mail-service';
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
@@ -45,50 +44,33 @@ export default function Home() {
       const userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, password);
       const user = userCredential.user;
 
-      const userDocRef = doc(db, 'users', user.uid);
-      const userDocSnap = await getDoc(userDocRef);
-      
-      if (!userDocSnap.exists()) {
-        throw new Error("Profil introuvable.");
-      }
-
-      const userData = userDocSnap.data();
       const isSA = ADMIN_EMAILS.includes(trimmedEmail);
 
-      if (userData.isLocked === true) {
-        await signOut(auth);
-        setErrorMessage("ALERTE : Votre compte a été bloqué pour non-respect des règles de sécurité. Veuillez contacter l'administrateur.");
-        return;
-      }
-
-      if (!isSA && userData.activeSession?.deviceId && userData.activeSession.deviceId !== currentFingerprint) {
-        await updateDoc(userDocRef, {
-          isLocked: true,
-          lockReason: 'multi-device',
-          updatedAt: serverTimestamp()
-        });
-        sendSecurityLockEmails(db, trimmedEmail, `${userData.firstName} ${userData.lastName}`);
-        await signOut(auth);
-        setErrorMessage("ALERTE : Votre compte a été bloqué pour non-respect des règles de sécurité (multi-appareils).");
-        return;
-      }
-
-      await updateDoc(userDocRef, {
+      // On tente une mise à jour de session pour vérifier si le compte est bloqué
+      const userDocRef = doc(db, 'users', user.uid);
+      await setDoc(userDocRef, {
         activeSession: {
           deviceId: currentFingerprint,
           lastLogin: serverTimestamp()
         },
         updatedAt: serverTimestamp()
-      });
+      }, { merge: true });
       
-      if (isSA || userData.role === 'admin' || userData.role === 'super_admin') {
+      if (isSA) {
         router.push('/admin/dashboard');
       } else {
         router.push('/dashboard');
       }
       toast({ title: "Connexion réussie" });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Erreur", description: "Email ou mot de passe incorrect." });
+      console.error(error);
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+        setErrorMessage("Email ou mot de passe incorrect.");
+      } else if (error.message?.includes('permissions')) {
+        setErrorMessage("ALERTE : Votre compte est verrouillé pour des raisons de sécurité.");
+      } else {
+        setErrorMessage("Une erreur est survenue lors de la connexion.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -109,7 +91,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 animate-fade-in">
-      {/* HEADER MIRROR UI */}
       <header className="fixed top-0 left-0 w-full h-20 bg-white border-b flex items-center justify-between px-8 z-50">
         <SimuLuxLogo className="h-10 w-40" />
         <div className="flex items-center gap-6">
@@ -132,7 +113,7 @@ export default function Home() {
         </CardHeader>
         <CardContent className="space-y-6 pt-8">
           {errorMessage && (
-            <div className="bg-red-50 border-2 border-red-200 p-5 rounded-2xl flex items-start gap-3">
+            <div className="bg-red-50 border-2 border-red-200 p-5 rounded-2xl flex items-start gap-3 animate-slide-up">
               <ShieldAlert className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
               <p className="text-[11px] font-bold text-red-700 leading-relaxed italic">{errorMessage}</p>
             </div>

@@ -7,13 +7,6 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    function isNotLocked() {
-      // Vérifie si l'utilisateur n'est pas verrouillé. 
-      // Si le document n'existe pas encore (1ère connexion), on autorise.
-      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
-      return !isSignedIn() || !exists(userPath) || get(userPath).data.isLocked != true;
-    }
-    
     function isAdmin() {
       return isSignedIn() && (
         request.auth.uid in [
@@ -31,22 +24,23 @@ service cloud.firestore {
       );
     }
 
-    // Accès étanches par silos
-    match /questions/{q} { allow read, write: if isAdmin() || (isSignedIn() && isNotLocked()); }
-    match /coachingSessions/{s} { allow read, write: if isAdmin() || (isSignedIn() && isNotLocked()); }
-    match /coachingGroups/{g} { allow read, write: if isAdmin() || (isSignedIn() && isNotLocked()); }
-    match /coachingAttempts/{a} { allow read, write: if isAdmin() || (isSignedIn() && isNotLocked()); }
-    match /quickQuizAttempts/{q} { allow read, write: if isAdmin() || (isSignedIn() && isNotLocked()); }
-    match /mindsets/{m} { allow read, write: if isAdmin() || (isSignedIn() && isNotLocked()); }
-    match /concepts_approaches/{c} { allow read, write: if isAdmin() || (isSignedIn() && isNotLocked()); }
-    match /concepts_domains/{d} { allow read, write: if isAdmin() || (isSignedIn() && isNotLocked()); }
-
-    match /userLogs/{logId} {
-      allow create: if isSignedIn();
-      allow read: if isAdmin();
+    function isNotLocked() {
+      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return !exists(userPath) || get(userPath).data.isLocked != true;
     }
 
-    match /mail/{mailId} {
+    // Accès aux collections principales
+    match /questions/{q} { allow read: if isSignedIn(); allow write: if isAdmin(); }
+    match /coachingSessions/{s} { allow read: if isSignedIn(); allow write: if isAdmin(); }
+    match /coachingGroups/{g} { allow read: if isSignedIn(); allow write: if isAdmin(); }
+    match /coachingAttempts/{a} { 
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+    match /quickQuizAttempts/{q} { allow read, write: if isSignedIn(); }
+    
+    match /userLogs/{logId} {
       allow create: if isSignedIn();
       allow read: if isAdmin();
     }
@@ -56,22 +50,23 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    match /chats/{userId}/{allSubcollections=**} {
-      allow read, write: if isAdmin() || (isSignedIn() && request.auth.uid == userId && isNotLocked());
-    }
-
     match /users/{userId} {
       allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow list: if isAdmin();
       allow create: if isSignedIn() && request.auth.uid == userId;
       allow update: if isSignedIn() && (
         isAdmin() || 
-        (request.auth.uid == userId && resource.data.isLocked != true)
+        (request.auth.uid == userId && isNotLocked())
       );
       
       match /{allSubcollections=**} {
-        allow read, write: if (request.auth.uid == userId || isAdmin()) && isNotLocked();
+        allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       }
+    }
+    
+    match /mail/{mailId} {
+      allow create: if isSignedIn();
+      allow read: if isAdmin();
     }
   }
 }

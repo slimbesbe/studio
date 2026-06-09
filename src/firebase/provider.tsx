@@ -1,13 +1,11 @@
 
 'use client';
 
-import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, onSnapshot, Timestamp, setDoc, serverTimestamp, increment, collection, addDoc, getDoc } from 'firebase/firestore';
+import { Firestore, doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged, signOut } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
-import { logActivity } from '@/lib/services/logging-service';
-import { sendAdminAlertOnFirstLogin } from '@/lib/services/mail-service';
 import { useRouter } from 'next/navigation';
 
 interface FirebaseContextState {
@@ -34,7 +32,6 @@ export interface FirebaseServicesAndUser {
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
 const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com', 'jedgrira1@gmail.com'];
-const ADMIN_UIDS = ['vwyrAnNtQkSojYSEEK2qkRB5feh2', 'GPgreBe1JzZYbEHQGn3xIdcQGQs1', 've5V0MUPoccuOdBNGYsz6QYY89L2', 'Adknzym5N6cMeJnYbCRaAdBrA0r1'];
 
 export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: FirebaseApp, firestore: Firestore, auth: Auth}> = ({
   children,
@@ -47,8 +44,6 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
   const [isUserLoading, setIsUserLoading] = useState(true);
   const [userError, setUserError] = useState<Error | null>(null);
   const router = useRouter();
-  
-  const welcomeTriggered = useRef<string | null>(null);
 
   useEffect(() => {
     if (!auth) return;
@@ -66,88 +61,44 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
   }, [auth]);
 
   useEffect(() => {
-    if (!firestore || !user) {
-      if (!user) {
-        setIsUserLoading(false);
-        setProfile(null);
-      }
-      return;
-    }
+    if (!firestore || !user) return;
 
     setIsUserLoading(true);
     const userDocRef = doc(firestore, 'users', user.uid);
     
-    const isHardcodedAdmin = (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) || 
-                             ADMIN_UIDS.includes(user.uid);
-
     const unsubscribe = onSnapshot(userDocRef, async (docSnap) => {
       if (docSnap.exists()) {
-        const profileData = docSnap.data();
+        const data = docSnap.data();
         
-        if (profileData.isLocked === true && !isHardcodedAdmin) {
-          localStorage.clear();
-          sessionStorage.clear();
+        // Sécurité blocage immédiat
+        if (data.isLocked === true && !ADMIN_EMAILS.includes(user.email || '')) {
           await signOut(auth);
           router.replace('/access-denied');
           return;
         }
 
-        let isExpired = false;
-        if (profileData.expiresAt) {
-          try {
-            const expiryDate = profileData.expiresAt instanceof Timestamp 
-              ? profileData.expiresAt.toDate() 
-              : new Date(profileData.expiresAt);
-            if (expiryDate < new Date()) isExpired = true;
-          } catch {
-            isExpired = false;
-          }
-        }
-
-        const currentStatus = isExpired ? 'expired' : (profileData.status || 'active');
-        const finalRole = isHardcodedAdmin ? (profileData.role || 'super_admin') : (profileData.role || 'user');
-
-        setProfile({ 
-          ...profileData, 
-          id: user.uid, 
-          status: currentStatus, 
-          role: finalRole 
-        });
+        setProfile({ ...data, id: user.uid });
         setIsUserLoading(false);
       } else {
-        // AUTO-CRÉATION POUR ADMINS OU DEMO
-        if (isHardcodedAdmin) {
-          const initialAdmin = {
-            id: user.uid,
-            email: user.email,
-            firstName: user.email?.split('@')[0] || 'Admin',
-            lastName: 'Simu-lux',
-            role: 'super_admin',
-            status: 'active',
-            isLocked: false,
-            createdAt: serverTimestamp()
-          };
-          await setDoc(userDocRef, initialAdmin, { merge: true });
-        } else if (user.isAnonymous) {
-          // AUTO-CRÉATION POUR ESSAI GRATUIT
-          const demoProfile = {
-            id: user.uid,
-            role: 'demo',
-            groupId: 'DEMO',
-            firstName: 'Visiteur',
-            lastName: 'Démo',
-            status: 'active',
-            isLocked: false,
-            createdAt: serverTimestamp(),
-            simulationsCount: 0,
-            averageScore: 0,
-            totalTimeSpent: 0
-          };
-          await setDoc(userDocRef, demoProfile, { merge: true });
-        } else {
-          setProfile({ id: user.uid, email: user.email, role: 'user', status: 'active', isLocked: false });
-        }
-        setIsUserLoading(false);
+        // AUTO-CRÉATION POUR DEMO OU ADMIN
+        const isAdmin = ADMIN_EMAILS.includes(user.email || '');
+        const isAnonymous = user.isAnonymous;
+
+        const initialData = {
+          id: user.uid,
+          email: user.email || 'anonymous',
+          firstName: isAnonymous ? 'Visiteur' : (user.email?.split('@')[0] || 'Utilisateur'),
+          lastName: isAnonymous ? 'Démo' : 'Simu-lux',
+          role: isAdmin ? 'super_admin' : (isAnonymous ? 'demo' : 'user'),
+          groupId: isAnonymous ? 'DEMO' : null,
+          status: 'active',
+          isLocked: false,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        };
+
+        await setDoc(userDocRef, initialData, { merge: true });
+        // Le snapshot se déclenchera à nouveau après le setDoc
       }
     });
 

@@ -10,18 +10,22 @@ import {
   DialogTitle, 
   DialogDescription
 } from '@/components/ui/dialog';
-import { ShieldAlert, Lock, Mail } from 'lucide-react';
+import { ShieldAlert, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 /**
  * DemoGuard - Sécurité Zéro Tolérance pour le mode démo.
- * Intercepte CHAQUE clic pour les utilisateurs ayant le rôle 'demo' ou groupe 'DEMO'.
+ * Intercepte CHAQUE clic pour les utilisateurs ayant le rôle 'demo' ou le groupe 'DEMO'.
  */
 export function DemoGuard({ children }: { children: React.ReactNode }) {
-  const { user, profile } = useUser();
+  const { user, profile, isUserLoading } = useUser();
   const [showModal, setShowModal] = useState(false);
 
-  const isDemo = user?.isAnonymous || profile?.role === 'demo' || profile?.groupId === 'DEMO';
+  const isDemo = !isUserLoading && (
+    user?.isAnonymous || 
+    profile?.role === 'demo' || 
+    profile?.groupId === 'DEMO'
+  );
 
   const handleGlobalIntercept = useCallback((e: MouseEvent) => {
     if (!isDemo) return;
@@ -32,10 +36,10 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
     const interactiveTarget = target.closest('button, a, input, [role="button"], [type="radio"], [type="checkbox"]');
 
     if (interactiveTarget) {
-      // On ne bloque pas les boutons à l'intérieur de la modale elle-même (pour pouvoir la fermer ou contacter)
+      // On ne bloque pas les boutons à l'intérieur de la modale elle-même
       if (interactiveTarget.closest('[role="dialog"]')) return;
 
-      // Blocage absolu
+      // Blocage absolu immédiat
       e.preventDefault();
       e.stopPropagation();
 
@@ -45,19 +49,20 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isDemo) {
+      // Capture la phase pour intercepter avant les autres listeners
       window.addEventListener('click', handleGlobalIntercept, true);
       return () => window.removeEventListener('click', handleGlobalIntercept, true);
     }
   }, [isDemo, handleGlobalIntercept]);
 
-  if (!isDemo) return <>{children}</>;
+  if (isUserLoading) return <>{children}</>;
 
   return (
     <>
       {children}
       
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="rounded-[40px] p-0 border-none shadow-3xl bg-white overflow-hidden max-w-md z-[9999] animate-in fade-in zoom-in duration-300">
+        <DialogContent className="rounded-[40px] p-0 border-none shadow-3xl bg-white overflow-hidden max-w-md z-[9999]">
           <div className="bg-destructive h-4 w-full" />
           
           <div className="p-10 text-center space-y-8">
@@ -79,7 +84,7 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
                 <Lock className="h-4 w-4" />
                 <span className="text-[10px] font-black uppercase tracking-widest italic">Restriction de compte DEMO</span>
               </div>
-              <p className="text-[11px] font-bold text-slate-500 leading-relaxed italic">
+              <p className="text-sm font-bold text-slate-500 leading-relaxed italic">
                 Cette fonctionnalité nécessite un accès professionnel complet. Votre compte actuel est limité à la consultation de l'interface.
               </p>
             </div>
