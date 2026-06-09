@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, setDoc, Timestamp, collection, serverTimestamp } from 'firebase/firestore';
 import { initializeApp, deleteApp } from 'firebase/app';
@@ -55,6 +55,14 @@ export default function NewUserPage() {
     targetExamDate: ''
   });
 
+  // Sécurité automatique : si rôle DEMO, on force le groupe DEMO
+  useEffect(() => {
+    if (formData.role === 'demo') {
+      setFormData(prev => ({ ...prev, groupId: 'DEMO', isCreatingNewGroup: false }));
+      setIsCreatingNewGroup(false);
+    }
+  }, [formData.role]);
+
   const groupsQuery = useMemoFirebase(() => {
     if (!isAdmin) return null;
     return collection(db, 'coachingGroups');
@@ -83,7 +91,9 @@ export default function NewUserPage() {
 
     try {
       let finalGroupId = formData.groupId === 'none' ? null : formData.groupId;
-      if (isCreatingNewGroup && formData.newGroupName.trim()) {
+      if (formData.role === 'demo') finalGroupId = 'DEMO';
+
+      if (isCreatingNewGroup && formData.newGroupName.trim() && formData.role !== 'demo') {
         const newGroupRef = doc(collection(db, 'coachingGroups'));
         await setDoc(newGroupRef, {
           id: newGroupRef.id,
@@ -130,16 +140,15 @@ export default function NewUserPage() {
         allowedExams: selectedExams
       });
 
-      // TRIGGER WELCOME EMAIL
       await sendWelcomeEmail(db, formData.email, formData.firstName);
 
       await signOut(secondaryAuth);
       await deleteApp(secondaryApp);
 
-      toast({ title: "Utilisateur créé", description: `Le compte de ${formData.firstName} est opérationnel.` });
+      toast({ title: "Utilisateur créé", description: `Le compte de ${formData.firstName} est prêt.` });
       router.push('/admin/users');
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Erreur", description: error.message || "Impossible de créer le compte." });
+      toast({ variant: "destructive", title: "Erreur", description: error.message || "Échec de création." });
       try { await deleteApp(secondaryApp); } catch(e) {}
     } finally {
       setIsSubmitting(false);
@@ -147,14 +156,6 @@ export default function NewUserPage() {
   };
 
   if (isUserLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-
-  if (!isAdmin) {
-    return (
-      <div className="h-screen flex items-center justify-center p-8 text-center">
-        <p className="font-black text-destructive uppercase italic">Accès restreint.</p>
-      </div>
-    );
-  }
 
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-6 animate-fade-in">
@@ -166,7 +167,7 @@ export default function NewUserPage() {
             <div className="bg-primary/10 p-3 rounded-2xl"><UserPlus className="h-8 w-8 text-primary" /></div>
             <div>
               <CardTitle className="text-2xl font-black uppercase italic tracking-tight">Nouveau Participant</CardTitle>
-              <CardDescription className="font-bold text-slate-400 uppercase text-[10px] tracking-widest italic">Configuration des accès et de la cohorte.</CardDescription>
+              <CardDescription className="font-bold text-slate-400 uppercase text-[10px] tracking-widest italic">Configuration des accès.</CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -196,7 +197,7 @@ export default function NewUserPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Mot de passe temporaire</Label>
+                  <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Mot de passe initial</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
                     <Input type="text" placeholder="6 caractères min." className="pl-10 h-12 rounded-xl font-bold italic border-2" required value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
@@ -219,7 +220,7 @@ export default function NewUserPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="user">Élève / Candidat</SelectItem>
-                      <SelectItem value="demo">Compte de Démo (Restreint)</SelectItem>
+                      <SelectItem value="demo">Mode Démo (Restreint)</SelectItem>
                       <SelectItem value="coach">Coach / Formateur</SelectItem>
                       <SelectItem value="partner">Partenaire B2B</SelectItem>
                       <SelectItem value="admin">Administrateur</SelectItem>
@@ -230,18 +231,24 @@ export default function NewUserPage() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center px-1">
                     <Label className="text-[10px] font-black uppercase text-slate-400">Groupe / Cohorte</Label>
-                    <Button 
-                      type="button" 
-                      variant="ghost" 
-                      size="sm" 
-                      className={cn("h-6 text-[9px] font-black uppercase rounded-lg", isCreatingNewGroup ? "text-primary bg-primary/5" : "text-slate-400")}
-                      onClick={() => setIsCreatingNewGroup(!isCreatingNewGroup)}
-                    >
-                      {isCreatingNewGroup ? <><Check className="h-3 w-3 mr-1" /> Sélectionner existant</> : <><Plus className="h-3 w-3 mr-1" /> Créer nouveau</>}
-                    </Button>
+                    {formData.role !== 'demo' && (
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm" 
+                        className={cn("h-6 text-[9px] font-black uppercase rounded-lg", isCreatingNewGroup ? "text-primary bg-primary/5" : "text-slate-400")}
+                        onClick={() => setIsCreatingNewGroup(!isCreatingNewGroup)}
+                      >
+                        {isCreatingNewGroup ? <><Check className="h-3 w-3 mr-1" /> Sélectionner</> : <><Plus className="h-3 w-3 mr-1" /> Créer</>}
+                      </Button>
+                    )}
                   </div>
 
-                  {isCreatingNewGroup ? (
+                  {formData.role === 'demo' ? (
+                    <div className="bg-amber-50 p-4 rounded-xl border-2 border-dashed border-amber-200">
+                      <p className="text-[10px] font-black text-amber-600 uppercase italic">Groupe DEMO forcé par sécurité</p>
+                    </div>
+                  ) : isCreatingNewGroup ? (
                     <div className="relative animate-slide-up">
                       <Users className="absolute left-4 top-5 h-4 w-4 text-primary" />
                       <Input 
@@ -258,6 +265,7 @@ export default function NewUserPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Sans groupe</SelectItem>
+                        <SelectItem value="DEMO">Groupe DEMO</SelectItem>
                         {groups?.map(g => (
                           <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
                         ))}
@@ -336,13 +344,12 @@ export default function NewUserPage() {
                     onChange={(e) => setFormData({...formData, targetExamDate: e.target.value})} 
                     className="h-14 rounded-xl border-2 font-black italic shadow-sm"
                   />
-                  <p className="text-[9px] font-bold text-slate-400 italic">Optionnel. Permet d'activer le suivi intelligent sur le dashboard de l'élève.</p>
                 </div>
               </div>
             </div>
 
             <Button type="submit" className="w-full bg-primary hover:bg-primary/90 h-20 rounded-[24px] font-black uppercase tracking-widest text-xl shadow-2xl scale-105 transition-transform" disabled={isSubmitting}>
-              {isSubmitting ? <><Loader2 className="mr-3 h-8 w-8 animate-spin" /> Création en cours...</> : <><ShieldCheck className="mr-3 h-8 w-8" /> Activer l'accès</>}
+              {isSubmitting ? <><Loader2 className="mr-3 h-8 w-8 animate-spin" /> Création...</> : <><ShieldCheck className="mr-3 h-8 w-8" /> Activer l'accès</>}
             </Button>
           </form>
         </CardContent>

@@ -12,7 +12,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { 
   Loader2, UserPlus, ChevronLeft, Users, Key, 
   Trash2, Mail, Pencil, ShieldCheck, GraduationCap, 
-  MoreHorizontal, LayoutDashboard, RefreshCw, Search
+  MoreHorizontal, LayoutDashboard, RefreshCw, Search,
+  AlertTriangle
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -118,7 +119,7 @@ export default function UsersListPage() {
         password: newPassword,
         updatedAt: serverTimestamp()
       });
-      toast({ title: "Mémo mis à jour" });
+      toast({ title: "Mémo mis à jour", description: "Attention: ce changement est visuel, il ne change pas le mot de passe de connexion Auth." });
       setPasswordChangeUser(null);
       setNewPassword('');
     } catch (e) {
@@ -133,7 +134,7 @@ export default function UsersListPage() {
     setIsSendingReset(true);
     try {
       await sendPasswordResetEmail(auth, passwordChangeUser.email);
-      toast({ title: "Email envoyé" });
+      toast({ title: "Email envoyé", description: "L'élève recevra un lien pour choisir un nouveau mot de passe." });
       setPasswordChangeUser(null);
     } catch (e) {
       toast({ variant: "destructive", title: "Erreur d'envoi" });
@@ -302,16 +303,22 @@ export default function UsersListPage() {
             <DialogTitle className="text-3xl font-black uppercase italic text-primary">Gestion des Accès</DialogTitle>
           </DialogHeader>
           <div className="space-y-6 py-6">
+            <div className="bg-amber-50 p-4 rounded-xl border-2 border-amber-100 flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-[10px] font-bold text-amber-800 leading-relaxed italic">
+                IMPORTANT : Modifier le mémo ci-dessous n'affecte pas le mot de passe de connexion. Utilisez le bouton "Envoyer Lien" pour un vrai changement.
+              </p>
+            </div>
             <div className="p-6 bg-slate-50 rounded-2xl text-center border-2 border-dashed">
               <p className="text-[10px] font-black text-slate-400 uppercase italic mb-2">Mémo actuel (Firestore)</p>
               <code className="text-2xl font-black text-primary">{passwordChangeUser?.password || '---'}</code>
             </div>
             <div className="space-y-4">
-              <Label className="font-black uppercase text-[10px] text-slate-400 italic">Modifier le mémo</Label>
+              <Label className="font-black uppercase text-[10px] text-slate-400 italic">Mettre à jour le mémo</Label>
               <Input 
                 value={newPassword} 
                 onChange={(e) => setNewPassword(e.target.value)} 
-                placeholder="Nouveau mot de passe..." 
+                placeholder="Nouveau mot de passe mémo..." 
                 className="h-14 rounded-xl font-black italic border-2 bg-white" 
               />
               <Button 
@@ -328,7 +335,7 @@ export default function UsersListPage() {
           <DialogFooter className="gap-4">
             <Button variant="outline" className="h-14 rounded-xl font-black uppercase flex-1 border-2" onClick={() => setPasswordChangeUser(null)}>Annuler</Button>
             <Button className="h-14 rounded-xl font-black bg-primary flex-1 shadow-xl uppercase text-xs text-white" onClick={handleUpdatePasswordMemo} disabled={isChangingPassword || !newPassword}>
-              {isChangingPassword ? <Loader2 className="animate-spin h-5 w-5" /> : "Mettre à jour"}
+              {isChangingPassword ? <Loader2 className="animate-spin h-5 w-5" /> : "Mettre à jour mémo"}
             </Button>
           </DialogFooter>
         </DialogContent>

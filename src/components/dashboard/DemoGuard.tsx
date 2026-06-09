@@ -21,6 +21,7 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
   const { user, profile, isUserLoading } = useUser();
   const [showModal, setShowModal] = useState(false);
 
+  // Sécurité renforcée : détection par rôle OU par identifiant de groupe
   const isDemo = !isUserLoading && (
     user?.isAnonymous || 
     profile?.role === 'demo' || 
@@ -36,7 +37,7 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
     const interactiveTarget = target.closest('button, a, input, [role="button"], [type="radio"], [type="checkbox"]');
 
     if (interactiveTarget) {
-      // On ne bloque pas les boutons à l'intérieur de la modale elle-même
+      // On ne bloque pas les boutons à l'intérieur de la modale d'alerte elle-même
       if (interactiveTarget.closest('[role="dialog"]')) return;
 
       // Blocage absolu immédiat
@@ -49,7 +50,7 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isDemo) {
-      // Capture la phase pour intercepter avant les autres listeners
+      // Capture la phase pour intercepter AVANT les autres listeners de l'app
       window.addEventListener('click', handleGlobalIntercept, true);
       return () => window.removeEventListener('click', handleGlobalIntercept, true);
     }
