@@ -268,3 +268,92 @@ export default function UsersListPage() {
                           
                           <DropdownMenu modal={false}>
                             <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl border-2 hover:bg-slate-50">
+                                <MoreHorizontal className="h-4 w-4 text-slate-400" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-64 p-2 rounded-2xl shadow-2xl border-4 bg-white z-[100]">
+                              <DropdownMenuItem onClick={() => toggleStatus(u.id, u.status)} className="h-12 rounded-xl font-black uppercase text-xs italic cursor-pointer">
+                                {u.status === 'active' ? '🚫 Suspendre' : '✅ Réactiver'}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => { setPasswordChangeUser(u); setNewPassword(''); }} className="h-12 rounded-xl font-black uppercase text-xs italic cursor-pointer">
+                                <Key className="mr-3 h-4 w-4" /> Accès & Sync
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator className="my-2" />
+                              <DropdownMenuItem onClick={() => setUserToDelete(u)} className="h-12 rounded-xl font-black uppercase text-xs italic text-destructive focus:bg-red-50 cursor-pointer">
+                                <Trash2 className="mr-3 h-4 w-4" /> Supprimer
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!passwordChangeUser} onOpenChange={(val) => !val && setPasswordChangeUser(null)}>
+        <DialogContent className="rounded-[40px] max-w-lg p-12 border-4 shadow-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-3xl font-black uppercase italic text-primary">Gestion des Accès</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 py-6">
+            <div className="p-6 bg-slate-50 rounded-2xl text-center border-2 border-dashed">
+              <p className="text-[10px] font-black text-slate-400 uppercase italic mb-2">Mémo actuel (Firestore)</p>
+              <code className="text-2xl font-black text-primary">{passwordChangeUser?.password || '---'}</code>
+            </div>
+            <div className="space-y-4">
+              <Label className="font-black uppercase text-[10px] text-slate-400 italic">Modifier le mémo</Label>
+              <Input 
+                value={newPassword} 
+                onChange={(e) => setNewPassword(e.target.value)} 
+                placeholder="Nouveau mot de passe..." 
+                className="h-14 rounded-xl font-black italic border-2 bg-white" 
+              />
+              <Button 
+                variant="outline" 
+                className="w-full h-16 rounded-xl font-black uppercase italic text-xs gap-3 border-4 border-amber-200 text-amber-700 hover:bg-amber-50" 
+                onClick={handleSendPasswordResetEmail} 
+                disabled={isSendingReset}
+              >
+                {isSendingReset ? <Loader2 className="animate-spin h-5 w-5" /> : <RefreshCw className="h-5 w-5" />}
+                Envoyer Lien de Réinitialisation
+              </Button>
+            </div>
+          </div>
+          <DialogFooter className="gap-4">
+            <Button variant="outline" className="h-14 rounded-xl font-black uppercase flex-1 border-2" onClick={() => setPasswordChangeUser(null)}>Annuler</Button>
+            <Button className="h-14 rounded-xl font-black bg-primary flex-1 shadow-xl uppercase text-xs text-white" onClick={handleUpdatePasswordMemo} disabled={isChangingPassword || !newPassword}>
+              {isChangingPassword ? <Loader2 className="animate-spin h-5 w-5" /> : "Mettre à jour"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!userToDelete} onOpenChange={(open) => !isDeleting && setUserToDelete(open ? userToDelete : null)}>
+        <AlertDialogContent className="rounded-[40px] p-12 border-4 shadow-3xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-3xl font-black uppercase text-destructive italic tracking-tighter">Action Irréversible</AlertDialogTitle>
+            <AlertDialogDescription className="text-xl font-bold pt-4 text-slate-600 leading-relaxed uppercase tracking-tight italic">
+              Voulez-vous supprimer <strong>{userToDelete?.firstName} {userToDelete?.lastName}</strong> ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-8 gap-4">
+            <AlertDialogCancel disabled={isDeleting} className="h-14 rounded-xl font-black uppercase border-4">Annuler</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteUser} 
+              disabled={isDeleting}
+              className="h-14 rounded-xl font-black bg-destructive hover:bg-red-700 shadow-xl"
+            >
+              {isDeleting ? <Loader2 className="animate-spin h-5 w-5" /> : "Confirmer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

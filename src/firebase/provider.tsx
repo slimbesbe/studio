@@ -80,7 +80,7 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
         setProfile({ ...data, id: user.uid });
         setIsUserLoading(false);
       } else {
-        // AUTO-CRÉATION POUR DEMO OU ADMIN
+        // AUTO-CRÉATION FORCEE POUR DEMO OU ADMIN
         const isAdmin = ADMIN_EMAILS.includes(user.email || '');
         const isAnonymous = user.isAnonymous;
 
@@ -94,11 +94,19 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
           status: 'active',
           isLocked: false,
           createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
+          updatedAt: serverTimestamp(),
+          simulationsCount: 0,
+          averageScore: 0,
+          totalTimeSpent: 0
         };
 
+        // Si l'utilisateur est anonyme, on FORCE le rôle demo et le groupe DEMO
+        if (isAnonymous) {
+          initialData.role = 'demo';
+          initialData.groupId = 'DEMO';
+        }
+
         await setDoc(userDocRef, initialData, { merge: true });
-        // Le snapshot se déclenchera à nouveau après le setDoc
       }
     });
 
