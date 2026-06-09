@@ -33,11 +33,11 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
 
     const target = e.target as HTMLElement;
     
-    // On intercepte absolument tous les éléments interactifs majeurs
-    const interactiveTarget = target.closest('button, a, input, select, textarea, [role="button"], [type="radio"], [type="checkbox"], label');
+    // On intercepte absolument tous les éléments interactifs majeurs (boutons, liens, menus)
+    const interactiveTarget = target.closest('button, a, input, select, textarea, [role="button"], label');
 
     if (interactiveTarget) {
-      // On autorise les actions à l'intérieur de la modale elle-même pour pouvoir la fermer
+      // On autorise les actions à l'intérieur de la modale d'alerte pour pouvoir la fermer
       if (interactiveTarget.closest('[role="dialog"]')) return;
 
       // Blocage radical immédiat
@@ -49,7 +49,7 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isDemo) {
-      // Capture forcée au niveau global (phase de capture pour devancer les autres handlers)
+      // Utilisation du mode capture pour intercepter avant les autres événements
       window.addEventListener('click', handleGlobalIntercept, true);
       return () => window.removeEventListener('click', handleGlobalIntercept, true);
     }
