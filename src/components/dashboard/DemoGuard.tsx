@@ -10,12 +10,12 @@ import {
   DialogTitle, 
   DialogDescription
 } from '@/components/ui/dialog';
-import { ShieldAlert, Lock, Mail, Contact } from 'lucide-react';
+import { ShieldAlert, Lock, Contact } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 /**
  * DemoGuard - Sécurité Zéro Tolérance.
- * Intercepte absolument TOUS les clics pour les comptes du groupe DEMO.
+ * Intercepte absolument TOUS les clics pour les comptes du groupe DEMO ou rôle demo.
  */
 export function DemoGuard({ children }: { children: React.ReactNode }) {
   const { user, profile, isUserLoading } = useUser();
@@ -34,11 +34,10 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
     const target = e.target as HTMLElement;
     
     // On intercepte absolument tous les éléments interactifs majeurs
-    // de manière à bloquer l'usage mais laisser le scroll/visu
     const interactiveTarget = target.closest('button, a, input, select, textarea, [role="button"], [type="radio"], [type="checkbox"], label');
 
     if (interactiveTarget) {
-      // On autorise les actions à l'intérieur de la modale elle-même
+      // On autorise les actions à l'intérieur de la modale elle-même pour pouvoir la fermer
       if (interactiveTarget.closest('[role="dialog"]')) return;
 
       // Blocage radical immédiat
@@ -50,7 +49,7 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isDemo) {
-      // Capture forcée au niveau global (phase de capture)
+      // Capture forcée au niveau global (phase de capture pour devancer les autres handlers)
       window.addEventListener('click', handleGlobalIntercept, true);
       return () => window.removeEventListener('click', handleGlobalIntercept, true);
     }
@@ -73,27 +72,27 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
             
             <div className="space-y-4">
               <DialogTitle className="text-3xl font-black text-destructive uppercase italic tracking-tighter leading-tight">
-                ALERTE SÉCURITÉ
+                ACCÈS LIMITÉ
               </DialogTitle>
               <DialogDescription className="text-lg font-bold text-slate-400 italic uppercase tracking-widest text-[10px]">
-                FONCTIONNALITÉ BLOQUÉE • ACCÈS LIMITÉ
+                FONCTIONNALITÉ RÉSERVÉE • MODE DÉMO
               </DialogDescription>
             </div>
 
             <div className="bg-red-50 p-6 rounded-3xl border-4 border-dashed border-red-100">
               <div className="flex items-center gap-3 text-destructive mb-3 justify-center">
                 <Lock className="h-4 w-4" />
-                <span className="text-[10px] font-black uppercase tracking-widest italic">ACCÈS GRATUIT UNIQUEMENT</span>
+                <span className="text-[10px] font-black uppercase tracking-widest italic">ADHÉSION REQUISE</span>
               </div>
               <p className="text-sm font-bold text-red-900 leading-relaxed italic">
-                Ceci est un accès d'essai gratuit. Vous pouvez visualiser l'interface, mais l'accès aux simulations, aux statistiques et au coaching est réservé aux membres officiels.
+                Ceci est un accès de démonstration. L'utilisation des simulateurs, des outils de coaching et des statistiques est réservée aux membres inscrits.
               </p>
             </div>
 
             <div className="space-y-4">
                <div className="flex flex-col gap-2 p-4 bg-slate-50 rounded-2xl border-2 border-slate-100">
                  <div className="flex items-center justify-center gap-2 text-slate-400 font-black uppercase text-[9px] italic">
-                   <Contact className="h-3 w-3" /> Contacter l'administrateur
+                   <Contact className="h-3 w-3" /> Support Simu-lux
                  </div>
                  <span className="text-xs font-black text-slate-700 italic tracking-tight">contact@simu-lux.com</span>
                </div>

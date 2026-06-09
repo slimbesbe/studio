@@ -77,7 +77,7 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
           return;
         }
 
-        // FORCE DEMO SECURITY: Si le rôle est démo, on s'assure que le groupe est DEMO
+        // FORCE DEMO SECURITY: Si le rôle est démo, on s'assure que le groupe est DEMO pour le blocage global
         if (data.role === 'demo' && data.groupId !== 'DEMO') {
           await setDoc(userDocRef, { groupId: 'DEMO' }, { merge: true });
         }
@@ -87,16 +87,17 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
       } else {
         // AUTO-CRÉATION FORCEE POUR ESSAI GRATUIT OU ADMIN
         const isAnonymous = user.isAnonymous;
-        const isAdmin = ADMIN_EMAILS.includes(user.email || '');
+        const userEmailLower = (user.email || '').toLowerCase();
+        const isAdmin = ADMIN_EMAILS.includes(userEmailLower);
 
         const initialData = {
           id: user.uid,
           email: user.email || 'essai-gratuit@simu-lux.com',
-          firstName: isAnonymous ? 'Visiteur' : (user.email?.split('@')[0] || 'Utilisateur'),
+          firstName: isAnonymous ? 'Visiteur' : (userEmailLower.split('@')[0] || 'Utilisateur'),
           lastName: isAnonymous ? 'Démo' : 'Simu-lux',
-          // Force le rôle et groupe DEMO si anonyme ou si pas admin (Zéro Tolérance)
+          // Force impérativement rôle et groupe DEMO si anonyme ou si pas admin whitelisté
           role: isAdmin ? 'super_admin' : (isAnonymous ? 'demo' : 'user'),
-          groupId: (isAnonymous || !isAdmin) ? 'DEMO' : null,
+          groupId: (isAnonymous || (profile?.role === 'demo')) ? 'DEMO' : null,
           status: 'active',
           isLocked: false,
           createdAt: serverTimestamp(),
@@ -112,7 +113,7 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
     });
 
     return () => unsubscribe();
-  }, [firestore, user, auth, router]);
+  }, [firestore, user, auth, router, profile?.role]);
 
   const contextValue = useMemo((): FirebaseContextState => ({
     areServicesAvailable: !!(firebaseApp && firestore && auth),
