@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
@@ -76,6 +77,11 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
           return;
         }
 
+        // FORCE DEMO SECURITY: Si le rôle est démo, on s'assure que le groupe est DEMO
+        if (data.role === 'demo' && data.groupId !== 'DEMO') {
+          await setDoc(userDocRef, { groupId: 'DEMO' }, { merge: true });
+        }
+
         setProfile({ ...data, id: user.uid });
         setIsUserLoading(false);
       } else {
@@ -88,9 +94,9 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
           email: user.email || 'essai-gratuit@simu-lux.com',
           firstName: isAnonymous ? 'Visiteur' : (user.email?.split('@')[0] || 'Utilisateur'),
           lastName: isAnonymous ? 'Démo' : 'Simu-lux',
-          // Force le rôle et groupe DEMO si anonyme ou si pas admin
+          // Force le rôle et groupe DEMO si anonyme ou si pas admin (Zéro Tolérance)
           role: isAdmin ? 'super_admin' : (isAnonymous ? 'demo' : 'user'),
-          groupId: isAnonymous ? 'DEMO' : null,
+          groupId: (isAnonymous || !isAdmin) ? 'DEMO' : null,
           status: 'active',
           isLocked: false,
           createdAt: serverTimestamp(),
