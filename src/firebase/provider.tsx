@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
@@ -70,7 +69,7 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
       if (docSnap.exists()) {
         const data = docSnap.data();
         
-        // Sécurité blocage immédiat
+        // Sécurité blocage immédiat pour comptes verrouillés
         if (data.isLocked === true && !ADMIN_EMAILS.includes(user.email || '')) {
           await signOut(auth);
           router.replace('/access-denied');
@@ -80,15 +79,16 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
         setProfile({ ...data, id: user.uid });
         setIsUserLoading(false);
       } else {
-        // AUTO-CRÉATION FORCEE POUR DEMO OU ADMIN
-        const isAdmin = ADMIN_EMAILS.includes(user.email || '');
+        // AUTO-CRÉATION FORCEE POUR ESSAI GRATUIT OU ADMIN
         const isAnonymous = user.isAnonymous;
+        const isAdmin = ADMIN_EMAILS.includes(user.email || '');
 
         const initialData = {
           id: user.uid,
-          email: user.email || 'anonymous',
+          email: user.email || 'essai-gratuit@simu-lux.com',
           firstName: isAnonymous ? 'Visiteur' : (user.email?.split('@')[0] || 'Utilisateur'),
           lastName: isAnonymous ? 'Démo' : 'Simu-lux',
+          // Force le rôle et groupe DEMO si anonyme ou si pas admin
           role: isAdmin ? 'super_admin' : (isAnonymous ? 'demo' : 'user'),
           groupId: isAnonymous ? 'DEMO' : null,
           status: 'active',
@@ -97,14 +97,9 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
           updatedAt: serverTimestamp(),
           simulationsCount: 0,
           averageScore: 0,
-          totalTimeSpent: 0
+          totalTimeSpent: 0,
+          allowedExams: ['exam1']
         };
-
-        // Si l'utilisateur est anonyme, on FORCE le rôle demo et le groupe DEMO
-        if (isAnonymous) {
-          initialData.role = 'demo';
-          initialData.groupId = 'DEMO';
-        }
 
         await setDoc(userDocRef, initialData, { merge: true });
       }

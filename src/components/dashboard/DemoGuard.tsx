@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useUser } from '@/firebase';
@@ -10,18 +9,18 @@ import {
   DialogTitle, 
   DialogDescription
 } from '@/components/ui/dialog';
-import { ShieldAlert, Lock } from 'lucide-react';
+import { ShieldAlert, Lock, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 /**
- * DemoGuard - Sécurité Zéro Tolérance pour le mode démo.
- * Intercepte CHAQUE clic pour les utilisateurs ayant le rôle 'demo' ou le groupe 'DEMO'.
+ * DemoGuard - Sécurité Zéro Tolérance.
+ * Intercepte CHAQUE clic pour les comptes DEMO.
  */
 export function DemoGuard({ children }: { children: React.ReactNode }) {
   const { user, profile, isUserLoading } = useUser();
   const [showModal, setShowModal] = useState(false);
 
-  // Sécurité renforcée : détection par rôle OU par identifiant de groupe
+  // Détection stricte par rôle ou groupe
   const isDemo = !isUserLoading && (
     user?.isAnonymous || 
     profile?.role === 'demo' || 
@@ -33,24 +32,23 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
 
     const target = e.target as HTMLElement;
     
-    // On intercepte TOUS les éléments interactifs
-    const interactiveTarget = target.closest('button, a, input, [role="button"], [type="radio"], [type="checkbox"]');
+    // On intercepte absolument tous les éléments interactifs
+    const interactiveTarget = target.closest('button, a, input, [role="button"], [type="radio"], [type="checkbox"], label');
 
     if (interactiveTarget) {
-      // On ne bloque pas les boutons à l'intérieur de la modale d'alerte elle-même
+      // Ne pas bloquer si on est déjà dans la modale d'alerte
       if (interactiveTarget.closest('[role="dialog"]')) return;
 
-      // Blocage absolu immédiat
+      // Blocage radical immédiat
       e.preventDefault();
       e.stopPropagation();
-
       setShowModal(true);
     }
   }, [isDemo]);
 
   useEffect(() => {
     if (isDemo) {
-      // Capture la phase pour intercepter AVANT les autres listeners de l'app
+      // Capture forcée au niveau global
       window.addEventListener('click', handleGlobalIntercept, true);
       return () => window.removeEventListener('click', handleGlobalIntercept, true);
     }
@@ -67,7 +65,7 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
           <div className="bg-destructive h-4 w-full" />
           
           <div className="p-10 text-center space-y-8">
-            <div className="bg-red-50 w-24 h-24 rounded-[40px] flex items-center justify-center mx-auto shadow-inner">
+            <div className="bg-red-50 w-24 h-24 rounded-[40px] flex items-center justify-center mx-auto shadow-inner border-2 border-red-100">
               <ShieldAlert className="h-12 w-12 text-destructive" />
             </div>
             
@@ -75,31 +73,32 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
               <DialogTitle className="text-3xl font-black text-destructive uppercase italic tracking-tighter leading-tight">
                 ALERTE SÉCURITÉ
               </DialogTitle>
-              <DialogDescription className="text-lg font-bold text-slate-600 italic">
+              <DialogDescription className="text-lg font-bold text-slate-400 italic uppercase tracking-widest text-[10px]">
                 ACCÈS GRATUIT LIMITÉ
               </DialogDescription>
             </div>
 
-            <div className="bg-slate-50 p-6 rounded-3xl border-4 border-dashed border-slate-100">
-              <div className="flex items-center gap-3 text-slate-400 mb-3 justify-center">
+            <div className="bg-red-50 p-6 rounded-3xl border-4 border-dashed border-red-100">
+              <div className="flex items-center gap-3 text-destructive mb-3 justify-center">
                 <Lock className="h-4 w-4" />
-                <span className="text-[10px] font-black uppercase tracking-widest italic">Restriction de compte DEMO</span>
+                <span className="text-[10px] font-black uppercase tracking-widest italic">FONCTIONNALITÉ BLOQUÉE</span>
               </div>
-              <p className="text-sm font-bold text-slate-500 leading-relaxed italic">
-                Cette fonctionnalité nécessite un accès professionnel complet. Votre compte actuel est limité à la consultation de l'interface.
+              <p className="text-sm font-bold text-slate-600 leading-relaxed italic">
+                Ceci est un accès d'essai. Pour accéder aux simulations, aux statistiques et au coaching complet, vous devez souscrire à une licence officielle.
               </p>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
+               <div className="flex items-center justify-center gap-3 p-4 bg-slate-50 rounded-2xl border-2">
+                 <Mail className="h-4 w-4 text-slate-400" />
+                 <span className="text-xs font-black text-slate-600">contact@simu-lux.com</span>
+               </div>
               <Button 
                 onClick={() => setShowModal(false)}
-                className="h-16 w-full rounded-[24px] bg-destructive hover:bg-red-700 text-white font-black uppercase tracking-widest text-lg shadow-xl transition-all"
+                className="h-16 w-full rounded-[24px] bg-destructive hover:bg-red-700 text-white font-black uppercase tracking-widest text-lg shadow-xl"
               >
                 J'AI COMPRIS
               </Button>
-              <p className="text-[9px] font-black text-slate-400 uppercase italic">
-                Contactez l'admin pour débloquer vos accès.
-              </p>
             </div>
           </div>
         </DialogContent>
