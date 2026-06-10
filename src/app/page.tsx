@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Loader2, Mail, Lock, ShieldCheck, ShieldAlert, Globe } from 'lucide-react';
 import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword, signInAnonymously } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { SimuLuxLogo } from '@/components/dashboard/Sidebar';
 
@@ -44,10 +44,17 @@ export default function Home() {
       const userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, password);
       const user = userCredential.user;
 
-      const isSA = ADMIN_EMAILS.includes(trimmedEmail);
-
-      // On tente une mise à jour de session pour vérifier si le compte est bloqué
+      // On tente de lire le profil pour vérifier le statut et les permissions
       const userDocRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userDocRef);
+
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        if (userData.isLocked === true) {
+          throw new Error("permissions-denied-account-locked");
+        }
+      }
+
       await setDoc(userDocRef, {
         activeSession: {
           deviceId: currentFingerprint,
@@ -56,6 +63,7 @@ export default function Home() {
         updatedAt: serverTimestamp()
       }, { merge: true });
       
+      const isSA = ADMIN_EMAILS.includes(trimmedEmail);
       if (isSA) {
         router.push('/admin/dashboard');
       } else {
@@ -66,7 +74,7 @@ export default function Home() {
       console.error(error);
       if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
         setErrorMessage("Email ou mot de passe incorrect.");
-      } else if (error.message?.includes('permissions')) {
+      } else if (error.message === 'permissions-denied-account-locked' || error.message?.includes('permission')) {
         setErrorMessage("ALERTE : Votre compte est verrouillé pour des raisons de sécurité.");
       } else {
         setErrorMessage("Une erreur est survenue lors de la connexion.");

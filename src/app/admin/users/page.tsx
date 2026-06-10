@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useAuth } from '@/firebase';
-import { collection, doc, updateDoc, deleteDoc, query, where, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -298,7 +298,6 @@ export default function UsersListPage() {
         </CardContent>
       </Card>
 
-      {/* DIALOG MOT DE PASSE */}
       <Dialog open={!!passwordChangeUser} onOpenChange={(val) => !val && setPasswordChangeUser(null)}>
         <DialogContent className="rounded-[40px] p-12 border-4 shadow-3xl max-w-xl bg-white">
           <DialogHeader>
@@ -341,7 +340,7 @@ export default function UsersListPage() {
                 
                 <div className="relative py-2">
                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-dashed" /></div>
-                   <div className="relative flex justify-center text-[8px] uppercase"><span className="bg-white px-2 text-slate-300 font-black italic">OU ACTION RÉELLE</span></div>
+                   <div className="relative flex justify-center text-[7px] uppercase"><span className="bg-white px-2 text-slate-300 font-black italic">OU ACTION RÉELLE</span></div>
                 </div>
 
                 <Button 
@@ -350,14 +349,13 @@ export default function UsersListPage() {
                   disabled={isSendingReset}
                   className="h-14 rounded-xl border-2 border-blue-100 text-blue-600 hover:bg-blue-50 font-black uppercase italic tracking-widest text-xs"
                 >
-                  {isSendingReset ? <Loader2 className="animate-spin" /> : <><RefreshCw className="mr-2 h-4 w-4" /> Envoyer lien de réinitialisation</>}
+                  {isSendingReset ? <Loader2 className="animate-spin h-4 w-4" /> : <><RefreshCw className="mr-2 h-4 w-4" /> Envoyer lien de réinitialisation</>}
                 </Button>
              </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* ALERT DIALOG SUPPRESSION */}
       <AlertDialog open={!!userToDelete} onOpenChange={(val) => !val && setUserToDelete(null)}>
         <AlertDialogContent className="rounded-[40px] border-4 border-destructive p-12 bg-white">
           <AlertDialogHeader>
@@ -376,7 +374,7 @@ export default function UsersListPage() {
               disabled={isDeleting}
               className="h-16 rounded-2xl bg-destructive hover:bg-red-700 font-black uppercase flex-1 shadow-2xl"
             >
-              {isDeleting ? <Loader2 className="animate-spin" /> : "CONFIRMER SUPPRESSION"}
+              {isDeleting ? <Loader2 className="animate-spin h-6 w-6" /> : "CONFIRMER SUPPRESSION"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

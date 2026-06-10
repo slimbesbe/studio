@@ -95,7 +95,6 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
           email: user.email || 'essai-gratuit@simu-lux.com',
           firstName: isAnonymous ? 'Visiteur' : (userEmailLower.split('@')[0] || 'Utilisateur'),
           lastName: isAnonymous ? 'Démo' : 'Simu-lux',
-          // Force impérativement rôle et groupe DEMO dès la création si accès libre
           role: isAdmin ? 'super_admin' : (isAnonymous ? 'demo' : 'user'),
           groupId: isAnonymous ? 'DEMO' : null,
           status: 'active',
