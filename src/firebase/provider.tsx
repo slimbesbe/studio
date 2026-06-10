@@ -31,7 +31,7 @@ export interface FirebaseServicesAndUser {
 
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
-const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com', 'jedgrira1@gmail.com'];
+const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com', 'jedgrira1@gmail.com', 'a.oueslati@konexia-consulting.com'];
 
 export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: FirebaseApp, firestore: Firestore, auth: Auth}> = ({
   children,
@@ -108,6 +108,16 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
         };
 
         await setDoc(userDocRef, initialData, { merge: true });
+        
+        // S'assurer que le groupe DEMO existe pour le cockpit admin
+        if (isAnonymous) {
+          await setDoc(doc(firestore, 'coachingGroups', 'DEMO'), {
+            id: 'DEMO',
+            name: 'Groupe DEMO (Essais gratuits)',
+            status: 'active',
+            createdAt: serverTimestamp()
+          }, { merge: true });
+        }
       }
     });
 
