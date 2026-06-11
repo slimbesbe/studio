@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, onSnapshot, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { Firestore, doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged, signOut } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { useRouter } from 'next/navigation';
@@ -75,16 +75,15 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
       if (docSnap.exists()) {
         const data = docSnap.data();
         
-        // Sécurité blocage immédiat pour comptes verrouillés
         if (data.isLocked === true && !ADMIN_EMAILS.includes(user.email || '')) {
           await signOut(auth);
           router.replace('/access-denied');
           return;
         }
 
-        // FORCE DEMO SECURITY: Tout utilisateur marqué "demo" est forcément rattaché au groupe DEMO
-        if (data.role === 'demo' && data.groupId !== 'DEMO') {
-          await setDoc(userDocRef, { groupId: 'DEMO' }, { merge: true });
+        // FORCE DEMO SECURITY: Tout utilisateur marqué "demo" ou anonyme est rattaché au groupe DEMO
+        if ((data.role === 'demo' || user.isAnonymous) && data.groupId !== 'DEMO') {
+          await setDoc(userDocRef, { groupId: 'DEMO', role: 'demo' }, { merge: true });
         }
 
         setProfile({ ...data, id: user.uid });
@@ -112,12 +111,10 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
           allowedExams: ['exam1']
         };
 
-        // On écrit et on laisse le snapshot suivant mettre à jour l'UI
-        setDoc(userDocRef, initialData, { merge: true });
+        await setDoc(userDocRef, initialData, { merge: true });
         
         if (isAnonymous) {
-          // On s'assure que le groupe existe pour les stats admin
-          setDoc(doc(firestore, 'coachingGroups', 'DEMO'), {
+          await setDoc(doc(firestore, 'coachingGroups', 'DEMO'), {
             id: 'DEMO',
             name: 'Groupe DEMO (Accès Libres)',
             status: 'active',
@@ -127,7 +124,6 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
       }
     }, (error) => {
       console.warn("Profile snapshot error:", error);
-      // On ne tue pas l'app, on attend une reconnexion
     });
 
     return () => unsubscribe();

@@ -21,7 +21,6 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
   const { user, profile, isUserLoading } = useUser();
   const [showModal, setShowModal] = useState(false);
 
-  // Détection stricte par rôle ou identifiant de groupe
   const isDemo = !isUserLoading && (
     user?.isAnonymous || 
     profile?.role === 'demo' || 
@@ -32,15 +31,10 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
     if (!isDemo) return;
 
     const target = e.target as HTMLElement;
-    
-    // On intercepte absolument tous les éléments interactifs majeurs (boutons, liens, menus)
     const interactiveTarget = target.closest('button, a, input, select, textarea, [role="button"], label');
 
     if (interactiveTarget) {
-      // On autorise les actions à l'intérieur de la modale d'alerte pour pouvoir la fermer
       if (interactiveTarget.closest('[role="dialog"]')) return;
-
-      // Blocage radical immédiat
       e.preventDefault();
       e.stopPropagation();
       setShowModal(true);
@@ -49,7 +43,6 @@ export function DemoGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isDemo) {
-      // Utilisation du mode capture pour intercepter avant les autres événements
       window.addEventListener('click', handleGlobalIntercept, true);
       return () => window.removeEventListener('click', handleGlobalIntercept, true);
     }

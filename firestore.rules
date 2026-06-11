@@ -48,7 +48,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow list: if isAdmin();
-      allow create: if isSignedIn(); // Autorisation de création automatique
+      allow create: if isSignedIn();
       allow update: if isSignedIn() && (isAdmin() || request.auth.uid == userId);
       
       match /{allSubcollections=**} {
@@ -65,5 +65,9 @@ service cloud.firestore {
     match /config/{c} { allow read: if isSignedIn(); allow write: if isAdmin(); }
     match /concepts_approaches/{a} { allow read: if isSignedIn(); allow write: if isAdmin(); }
     match /concepts_domains/{d} { allow read: if isSignedIn(); allow write: if isAdmin(); }
+    
+    match /chats/{chatId}/messages/{messageId} {
+      allow read, write: if isSignedIn() && (request.auth.uid == chatId || isAdmin());
+    }
   }
 }

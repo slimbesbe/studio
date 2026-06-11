@@ -25,7 +25,12 @@ export default function Home() {
   const db = useFirestore();
   const { toast } = useToast();
 
-  const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com', 'jedgrira1@gmail.com'];
+  const ADMIN_EMAILS = [
+    'slim.besbes@yahoo.fr', 
+    'contact@inovexio.com', 
+    'jedgrira1@gmail.com',
+    'a.oueslati@konexia-consulting.com'
+  ];
 
   const getDeviceFingerprint = () => {
     if (typeof window === 'undefined') return 'server';
@@ -44,7 +49,6 @@ export default function Home() {
       const userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, password);
       const user = userCredential.user;
 
-      // On tente de lire le profil pour vérifier le statut et les permissions
       const userDocRef = doc(db, 'users', user.uid);
       const userSnap = await getDoc(userDocRef);
 
@@ -73,7 +77,7 @@ export default function Home() {
     } catch (error: any) {
       console.error(error);
       if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-        setErrorMessage("Email ou mot de passe incorrect.");
+        setErrorMessage("Email ou mot de passe incorrect. Assurez-vous d'utiliser le mot de passe réel (email de réinitialisation) et non le mémo administratif.");
       } else if (error.message === 'permissions-denied-account-locked' || error.message?.includes('permission')) {
         setErrorMessage("ALERTE : Votre compte est verrouillé pour des raisons de sécurité.");
       } else {
@@ -100,7 +104,9 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 animate-fade-in">
       <header className="fixed top-0 left-0 w-full h-20 bg-white border-b flex items-center justify-between px-8 z-50">
-        <SimuLuxLogo className="h-10 w-40" />
+        <div className="h-10 w-40 relative">
+          <SimuLuxLogo className="h-full w-full" />
+        </div>
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2 text-slate-400 font-bold uppercase text-[10px] tracking-widest italic cursor-not-allowed">
             <Globe className="h-4 w-4" /> FR
