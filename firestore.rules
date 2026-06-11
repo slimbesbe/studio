@@ -25,7 +25,6 @@ service cloud.firestore {
       );
     }
 
-    // Accès aux collections principales
     match /questions/{q} { allow read: if isSignedIn(); allow write: if isAdmin(); }
     match /coachingSessions/{s} { allow read: if isSignedIn(); allow write: if isAdmin(); }
     match /coachingGroups/{g} { allow read: if isSignedIn(); allow write: if isAdmin(); }
@@ -49,11 +48,8 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow list: if isAdmin();
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isSignedIn() && (
-        isAdmin() || 
-        request.auth.uid == userId
-      );
+      allow create: if isSignedIn(); // Autorisation de création automatique
+      allow update: if isSignedIn() && (isAdmin() || request.auth.uid == userId);
       
       match /{allSubcollections=**} {
         allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
@@ -67,5 +63,7 @@ service cloud.firestore {
     
     match /mindsets/{m} { allow read: if isSignedIn(); allow write: if isAdmin(); }
     match /config/{c} { allow read: if isSignedIn(); allow write: if isAdmin(); }
+    match /concepts_approaches/{a} { allow read: if isSignedIn(); allow write: if isAdmin(); }
+    match /concepts_domains/{d} { allow read: if isSignedIn(); allow write: if isAdmin(); }
   }
 }

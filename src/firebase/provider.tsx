@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
+import { Firestore, doc, onSnapshot, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged, signOut } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { useRouter } from 'next/navigation';
@@ -31,7 +31,12 @@ export interface FirebaseServicesAndUser {
 
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
-const ADMIN_EMAILS = ['slim.besbes@yahoo.fr', 'contact@inovexio.com', 'jedgrira1@gmail.com', 'a.oueslati@konexia-consulting.com'];
+const ADMIN_EMAILS = [
+  'slim.besbes@yahoo.fr', 
+  'contact@inovexio.com', 
+  'jedgrira1@gmail.com', 
+  'a.oueslati@konexia-consulting.com'
+];
 
 export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: FirebaseApp, firestore: Firestore, auth: Auth}> = ({
   children,
@@ -77,7 +82,7 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
           return;
         }
 
-        // FORCE DEMO SECURITY: Tout utilisateur marqué "demo" est forcément bridé par le groupe DEMO
+        // FORCE DEMO SECURITY: Tout utilisateur marqué "demo" est forcément rattaché au groupe DEMO
         if (data.role === 'demo' && data.groupId !== 'DEMO') {
           await setDoc(userDocRef, { groupId: 'DEMO' }, { merge: true });
         }
@@ -85,17 +90,17 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
         setProfile({ ...data, id: user.uid });
         setIsUserLoading(false);
       } else {
-        // AUTO-CRÉATION FORCEE POUR ESSAI GRATUIT OU NOUVEL UTILISATEUR
+        // CRÉATION AUTOMATIQUE IMMÉDIATE POUR ESSAI GRATUIT / NOUVEAU COMPTE
         const isAnonymous = user.isAnonymous;
         const userEmailLower = (user.email || '').toLowerCase();
-        const isAdmin = ADMIN_EMAILS.includes(userEmailLower);
+        const isHardcodedAdmin = ADMIN_EMAILS.includes(userEmailLower);
 
         const initialData = {
           id: user.uid,
           email: user.email || 'essai-gratuit@simu-lux.com',
           firstName: isAnonymous ? 'Visiteur' : (userEmailLower.split('@')[0] || 'Utilisateur'),
           lastName: isAnonymous ? 'Démo' : 'Simu-lux',
-          role: isAdmin ? 'super_admin' : (isAnonymous ? 'demo' : 'user'),
+          role: isHardcodedAdmin ? 'super_admin' : (isAnonymous ? 'demo' : 'user'),
           groupId: isAnonymous ? 'DEMO' : null,
           status: 'active',
           isLocked: false,
@@ -107,18 +112,22 @@ export const FirebaseProvider: React.FC<{children: ReactNode, firebaseApp: Fireb
           allowedExams: ['exam1']
         };
 
-        await setDoc(userDocRef, initialData, { merge: true });
+        // On écrit et on laisse le snapshot suivant mettre à jour l'UI
+        setDoc(userDocRef, initialData, { merge: true });
         
-        // S'assurer que le groupe DEMO existe pour le cockpit admin
         if (isAnonymous) {
-          await setDoc(doc(firestore, 'coachingGroups', 'DEMO'), {
+          // On s'assure que le groupe existe pour les stats admin
+          setDoc(doc(firestore, 'coachingGroups', 'DEMO'), {
             id: 'DEMO',
-            name: 'Groupe DEMO (Essais gratuits)',
+            name: 'Groupe DEMO (Accès Libres)',
             status: 'active',
             createdAt: serverTimestamp()
           }, { merge: true });
         }
       }
+    }, (error) => {
+      console.warn("Profile snapshot error:", error);
+      // On ne tue pas l'app, on attend une reconnexion
     });
 
     return () => unsubscribe();
